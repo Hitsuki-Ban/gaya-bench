@@ -17,42 +17,47 @@
 
 作業フローは [AGENTS.md](../AGENTS.md) を参照。**Issueがすべての作業の起点**。
 
-## マイルストーン
+## マイルストーン / チケットマップ
 
 ### M1: 基盤 (リサーチ・CI・スキーマ)
-- モデル最新動向リサーチ (Claude側調査 `docs/research/` + Codex独立検証 → 統合レポート)
-- ベンチサイトUX調査 + デザイン参考画像
-- CI構築 (schema validate / lint / typecheck / build)
-- シナリオスキーマ検証CLI
+- [#1](https://github.com/Hitsuki-Ban/gaya-bench/issues/1) モデル最新動向リサーチ (Claude調査 + Codex独立検証 → 統合レポート) `P1`
+- [#2](https://github.com/Hitsuki-Ban/gaya-bench/issues/2) ベンチ/試聴系サイトUX調査 + デザイン参考画像
+- [#3](https://github.com/Hitsuki-Ban/gaya-bench/issues/3) CI構築 `P1`
+- [#4](https://github.com/Hitsuki-Ban/gaya-bench/issues/4) pipeline雛形 + `gaya validate` `P1`
 
 ### M2: 生成パイプライン
-- 生成ハーネスコア (アダプタIF・CLI・manifest・ラウドネス正規化・opusエンコード)
-- R2ストレージ + publishコマンド
-- 参照音声キット (権利確認済み素材)
-- モデル別アダプタ (ショートリスト確定後に個別起票)
+- [#5](https://github.com/Hitsuki-Ban/gaya-bench/issues/5) 生成ハーネスコア `P1` (依存: #4)
+- [#6](https://github.com/Hitsuki-Ban/gaya-bench/issues/6) R2 + `gaya publish` (依存: #5)
+- [#7](https://github.com/Hitsuki-Ban/gaya-bench/issues/7) 参照音声キット
+- [#8](https://github.com/Hitsuki-Ban/gaya-bench/issues/8) モデル別アダプタ実装エピック `P1` (依存: #1, #5。確定後に個別起票)
 
 ### M3: コンテンツ (Director担当)
-- テストシナリオv1 (8シーン・約80セリフ、[content-plan.md](content-plan.md))
-- 全モデル×全シナリオのバッチ生成ラン (開発機)
+- [#9](https://github.com/Hitsuki-Ban/gaya-bench/issues/9) テストシナリオv1 (8シーン・約80行)
+- [#10](https://github.com/Hitsuki-Ban/gaya-bench/issues/10) バッチ生成ラン (依存: #8全部, #9)
 
 ### M4: ベンチサイト
-- サイト骨組み (Vite Plus + React + shadcn/ui + manifest読み込み)
-- 比較マトリクスビュー + プレイヤーUX ([ux-spec.md](ux-spec.md))
-- シナリオビュー + フィルタ + モデル詳細
-- A/Bブラインドモード
-- ビジュアルポリッシュ
-- Cloudflare Pagesデプロイ (CI)
+- [#11](https://github.com/Hitsuki-Ban/gaya-bench/issues/11) サイト骨組み `P1` (依存: #3)
+- [#12](https://github.com/Hitsuki-Ban/gaya-bench/issues/12) 比較マトリクス + プレイヤーUX `P1` (依存: #11)
+- [#13](https://github.com/Hitsuki-Ban/gaya-bench/issues/13) シナリオビュー + フィルタ + モデル詳細 (依存: #11)
+- [#14](https://github.com/Hitsuki-Ban/gaya-bench/issues/14) A/Bブラインドモード (依存: #12)
+- [#15](https://github.com/Hitsuki-Ban/gaya-bench/issues/15) Cloudflare Pagesデプロイ (依存: #11, #6)
+- [#16](https://github.com/Hitsuki-Ban/gaya-bench/issues/16) ビジュアルポリッシュ (依存: #2, #12, #13)
 
 ### M5: 本公開
-- クレジット/ライセンスページ (モデル・素材・音源規約の表記)
-- QA + 公開チェックリスト → 本公開
+- [#17](https://github.com/Hitsuki-Ban/gaya-bench/issues/17) クレジット/ライセンスページ `P1` (依存: #7, #8, #11)
+- [#18](https://github.com/Hitsuki-Ban/gaya-bench/issues/18) QA・公開チェックリスト・本公開 `P1` (依存: M4全部, #10, #17)
 
 ### M6: +α (公開後)
-- インタラクティブ生成デモ (開発機Worker or クラウドWorker + キュー)
-- 走り書き→LLM構造化フロー (人間のト書きをスキーマ準拠YAMLに変換)
-- 中距離シミュレーション (sceneバリアント)
-- シーン喧騒ミキサー (ガヤ重ね再生)
-- RunPodによる大型モデル追加ベンチ
+- [#19](https://github.com/Hitsuki-Ban/gaya-bench/issues/19) インタラクティブ生成デモ設計
+- [#20](https://github.com/Hitsuki-Ban/gaya-bench/issues/20) 走り書き→LLM構造化フロー (`gaya draft`)
+- [#21](https://github.com/Hitsuki-Ban/gaya-bench/issues/21) sceneバリアント (中距離シミュレーション)
+- [#22](https://github.com/Hitsuki-Ban/gaya-bench/issues/22) シーン喧騒ミキサー
+- RunPodによる大型モデル追加ベンチ (必要になり次第起票)
+
+### クリティカルパス
+
+`#1 → #8(アダプタ群)` と `#3 → #4 → #5` が合流して `#10(生成ラン)`、
+サイト側は `#11 → #12` 。最後に `#17 → #18(本公開)`。
 
 ## 進行ルール
 
