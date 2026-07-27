@@ -5,9 +5,10 @@ import { PlaybackManager } from "./playback-manager";
 
 interface AudioProviderProps {
   children: ReactNode;
+  fallback: ReactNode;
 }
 
-export function AudioProvider({ children }: AudioProviderProps) {
+export function AudioProvider({ children, fallback }: AudioProviderProps) {
   const [manager, setManager] = useState<PlaybackManager | null>(null);
 
   useEffect(() => {
@@ -20,7 +21,7 @@ export function AudioProvider({ children }: AudioProviderProps) {
   }, []);
 
   if (manager === null) {
-    return null;
+    return fallback;
   }
 
   return (

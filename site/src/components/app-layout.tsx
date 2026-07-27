@@ -1,5 +1,8 @@
-import { AudioLines, FlaskConical, Scale, SlidersHorizontal } from "lucide-react";
+import { AudioLines, FlaskConical, LoaderCircle, Scale, SlidersHorizontal } from "lucide-react";
 import { NavLink, Outlet, useLocation } from "react-router";
+
+import { AudioProvider } from "@/audio/audio-provider";
+import { Button } from "@/components/ui/button";
 
 const navigation = [
   { to: "/", label: "比較", icon: SlidersHorizontal, end: true },
@@ -56,8 +59,37 @@ export function AppLayout() {
       </header>
 
       <main className="mx-auto max-w-[1480px] px-4 py-8 sm:px-6">
-        <Outlet />
+        <AudioProvider fallback={<AudioBootShell />}>
+          <Outlet />
+        </AudioProvider>
       </main>
     </div>
+  );
+}
+
+function AudioBootShell() {
+  return (
+    <section
+      aria-busy="true"
+      aria-labelledby="audio-boot-heading"
+      aria-live="polite"
+      className="rounded-lg border bg-card p-6 sm:p-8"
+    >
+      <p className="font-mono text-[10px] tracking-[0.18em] text-primary uppercase">Audio system</p>
+      <div className="mt-3 flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="text-xl font-semibold" id="audio-boot-heading">
+            音声プレーヤーを準備中
+          </h1>
+          <p className="mt-2 text-sm leading-6 text-muted-foreground">
+            比較データを表示する前に、単一再生プレーヤーを初期化しています。
+          </p>
+        </div>
+        <Button disabled variant="outline">
+          <LoaderCircle aria-hidden="true" className="animate-spin" data-icon="inline-start" />
+          音声準備中
+        </Button>
+      </div>
+    </section>
   );
 }
