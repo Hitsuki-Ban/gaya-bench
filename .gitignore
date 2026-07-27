@@ -30,3 +30,6 @@ desktop.ini
 models/
 *.ckpt
 *.safetensors
+
+# ローカルエージェント設定
+.claude/
