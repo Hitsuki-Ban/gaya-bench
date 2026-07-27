@@ -23,6 +23,39 @@
 2. Codex独立検証 (対照調査) → 統合レポート `docs/research/models-final.md`
 3. Director が6〜10モデルのショートリストを確定 → モデル別アダプタIssueを起票
 
-## 確定ショートリスト
+## 暫定ショートリスト (2026-07-27 Director決定、#1の独立検証で最終確定)
 
-> **状態: リサーチ進行中** — 統合レポート完了後にここへ確定リストを記載する。
+Claude側2調査 (`research/open-weight-tts.md`, `research/ja-ecosystem-rights.md`) に基づく。
+**各アダプタIssueは起票済みだが、着手は `models-final.md` (#1) の検証通過後。**
+
+### Tier 1 (本命)
+
+| モデル | ライセンス | 採用理由 | 検証ポイント |
+| --- | --- | --- | --- |
+| Qwen3-TTS 12Hz-1.7B (Base+VoiceDesign) | Apache-2.0 | VoiceDesignで権利クリーンな架空モブ声を設計→クローン固定化。ガヤ最有力 | 短文での安定性 |
+| Irodori-TTS 600M-v3-VoiceDesign | MIT | 日本語専用Prosody 1位、RTF 0.13、絵文字で非言語音 | 学習データ非開示のリスク評価、かな化前処理 |
+| Step-Audio-EditX | Apache-2.0 | shout/murmur/laugh等ガヤ直結タグ最強 | 日本語訛り (中国語風)、VRAM 11.5GB→4bit前提 |
+| AivisSpeech (SBV2系) + ACML-1.0モデル | LGPL-3.0 + ACML | 日本語アクセント基準線。ACMLモデル (コハク/まお) は商用自由・クレジット任意 | クローン不可のためモブ多様性は他モデル頼み |
+
+### Tier 2 (比較用)
+
+| モデル | ライセンス | 採用理由 | 検証ポイント |
+| --- | --- | --- | --- |
+| VoxCPM2 | Apache-2.0 | ASR一致率1位 (=セリフ明瞭)、48kHz、声デザイン | 日本語G2P・固有名詞、抑揚の違和感 |
+| GPT-SoVITS v2ProPlus | MIT | 最クリーンライセンス、5秒クローン。参照音声キット (#7) と組む | 感情タグなし→演技別参照音声で補う |
+| MOSS-TTS v1.5 (4B) | Apache-2.0 | pause制御・多話者対話 (ガヤの重なり) | 日本語品質が完全未知数 |
+| Chatterbox Multilingual v3 | MIT | exaggerationスカラで機械的な振れ幅生成 | 日本語★3/5、PerTh透かし |
+
+### 次点 (Codex検証 #1 で昇格ありうる)
+
+CosyVoice 3 / MioTTS-2.6B (年商上限Lic) / ZONOS2 (感情制御の存否要確認) / Supertonic 3 (OpenRAIL-M要法務確認)
+
+### APIアンカー (任意・課金発生のためOwner承認待ち)
+
+Aivis Cloud API (440円/1万文字) / ElevenLabs 有料プラン (無料枠は非商用)。承認され次第アダプタ起票。
+
+### 参照音声の方針 (詳細: `research/ja-ecosystem-rights.md`)
+
+- 主力: **あみたろの声素材工房 + つくよみちゃんコーパス** (AI学習・商用を規約明示許諾、クレジット表記)
+- 不足域 (男性声・老人声) は自前録音で補完
+- JVS/JSUT は非商用限定のため**使用禁止**。COEIROINK生成音声の学習利用も禁止規約あり
