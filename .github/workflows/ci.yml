@@ -50,18 +50,16 @@ jobs:
           version: "0.11.32"
           python-version: "3.12"
           enable-cache: true
+          cache-dependency-glob: pipeline/uv.lock
 
-      - name: JSON Schema 自体を検証
-        run: >-
-          uvx --from check-jsonschema==0.37.4 check-jsonschema
-          --check-metaschema
-          scenarios/schema/scenario.schema.json
+      - name: pipeline の依存関係を同期
+        run: uv sync --project pipeline --locked --all-groups
+
+      - name: pipeline のテスト
+        run: uv run --project pipeline --locked pytest pipeline/tests
 
       - name: 全シナリオを検証
-        run: >-
-          uvx --from check-jsonschema==0.37.4 check-jsonschema
-          --schemafile scenarios/schema/scenario.schema.json
-          scenarios/*.yaml
+        run: uv run --project pipeline --locked gaya validate
 
   site:
     name: サイト検証

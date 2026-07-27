@@ -1,0 +1,25 @@
+[project]
+name = "gaya-pipeline"
+version = "0.1.0"
+description = "Gaya Bench のシナリオ検証・音声生成パイプライン"
+readme = "README.md"
+authors = [
+    { name = "Hitsuki-Ban", email = "houtei.ban@outlook.com" }
+]
+requires-python = ">=3.12"
+dependencies = [
+    "jsonschema>=4.26.0",
+    "pyyaml>=6.0.3",
+]
+
+[project.scripts]
+gaya = "gaya_pipeline.cli:main"
+
+[build-system]
+requires = ["uv_build>=0.11.19,<0.12.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+]

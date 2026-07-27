@@ -1,0 +1,23 @@
+format_version: 1
+id: broken-reference
+title: 識別子エラー
+locale: ja
+scene:
+  setting: テスト用の空間
+characters:
+  - id: guard
+    name: 衛兵
+    gender: male
+    age: adult
+    voice: 落ち着いた声
+lines:
+  - id: guard-001
+    character: guard
+    text: 最初の台詞。
+    emotion: neutral
+    delivery: 普通に
+  - id: guard-001
+    character: guard
+    text: 重複した台詞。
+    emotion: neutral
+    delivery: 普通に
