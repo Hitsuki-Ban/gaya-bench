@@ -91,11 +91,22 @@ export interface Clip {
   readonly rtf: number;
 }
 
+export type GenerationFailureReason = "generation_failed";
+
+export interface GenerationFailure {
+  readonly model: string;
+  readonly scenario: string;
+  readonly line: string;
+  readonly variant: string;
+  readonly reason: GenerationFailureReason;
+}
+
 export interface Manifest {
-  readonly format_version: 1;
+  readonly format_version: 2;
   readonly generated_at: string;
   readonly models: readonly Model[];
   readonly clips: readonly Clip[];
+  readonly failures: readonly GenerationFailure[];
 }
 
 export interface BenchmarkData {

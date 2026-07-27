@@ -69,6 +69,20 @@ describe("buildBlindCatalog", () => {
     expect(catalog.matches[0]?.second.clip.variant).toBe("dry");
   });
 
+  it("生成失敗は A/B 候補に含めない", () => {
+    const data = fixture(2, 1);
+    const removed = data.manifest.clips.pop()!;
+    data.manifest.failures.push({
+      model: removed.model,
+      scenario: removed.scenario,
+      line: removed.line,
+      variant: removed.variant,
+      reason: "generation_failed",
+    });
+
+    expect(buildBlindCatalog(data).matches).toHaveLength(0);
+  });
+
   it("重複 cell と model / scenario / line の不正参照を fail fast で拒否する", () => {
     const duplicate = fixture(2, 1);
     duplicate.manifest.clips.push({ ...duplicate.manifest.clips[0]! });
@@ -280,16 +294,25 @@ function sequenceRng(values: readonly number[]): () => number {
 }
 
 interface MutableManifest {
-  format_version: 1;
+  format_version: 2;
   generated_at: string;
   models: Model[];
   clips: MutableClip[];
+  failures: MutableGenerationFailure[];
 }
 
 interface MutableClip extends Omit<Clip, "model" | "line" | "variant"> {
   model: string;
   line: string;
   variant: string;
+}
+
+interface MutableGenerationFailure {
+  model: string;
+  scenario: string;
+  line: string;
+  variant: string;
+  reason: "generation_failed";
 }
 
 interface MutableBenchmarkData extends Omit<BenchmarkData, "manifest"> {
@@ -308,12 +331,13 @@ function fixture(
   const fixtureScenario = scenario("scenario", speaker, lines);
   return {
     manifest: {
-      format_version: 1,
+      format_version: 2,
       generated_at: "2026-07-28T00:00:00Z",
       models,
       clips: lines.flatMap((fixtureLine) =>
         models.map((model) => clip(model.id, fixtureScenario.id, fixtureLine.id)),
       ),
+      failures: [],
     },
     scenarios: [fixtureScenario],
   };

@@ -129,6 +129,12 @@ def run_generation(
     manifest_updated = False
 
     for job in jobs:
+        retry_failed_result = _manifest_has_failure(
+            manifest,
+            model_id=adapter.profile.id,
+            scenario_id=job.scenario_id,
+            line_id=job.line_id,
+        )
         try:
             record, clip = _process_job(
                 adapter=adapter,
@@ -137,7 +143,7 @@ def run_generation(
                 profile=profile,
                 requested_params=requested_params,
                 artifacts_dir=artifacts_dir,
-                force=force,
+                force=force or retry_failed_result,
             )
         except (
             AudioProcessingError,
@@ -147,28 +153,44 @@ def run_generation(
             ValueError,
             json.JSONDecodeError,
         ) as error:
+            failure = _failure_result(adapter.profile.id, job)
+            try:
+                update_manifest(
+                    manifest_path,
+                    manifest,
+                    adapter.profile,
+                    [],
+                    [failure],
+                    replace_model_results=False,
+                    replace_scenario_results=None,
+                )
+            except (ManifestError, OSError, TypeError, ValueError) as write_error:
+                raise GenerationError(
+                    f"{job.scenario_id}/{job.line_id}: {error}; "
+                    f"manifest への失敗記録にも失敗しました: {write_error}",
+                ) from error
             raise GenerationError(
                 f"{job.scenario_id}/{job.line_id}: {error}",
             ) from error
         records.append(record)
         clips.append(clip)
-        if record.status == "generated":
-            try:
-                changed = update_manifest(
-                    manifest_path,
-                    manifest,
-                    adapter.profile,
-                    [clip],
-                    replace_model_clips=False,
-                    replace_scenario_clips=None,
-                )
-                manifest_updated = manifest_updated or changed
-                if changed:
-                    manifest = load_manifest(manifest_path)
-            except (ManifestError, OSError, TypeError, ValueError) as error:
-                raise GenerationError(
-                    f"{job.scenario_id}/{job.line_id}: {error}",
-                ) from error
+        try:
+            changed = update_manifest(
+                manifest_path,
+                manifest,
+                adapter.profile,
+                [clip],
+                [],
+                replace_model_results=False,
+                replace_scenario_results=None,
+            )
+            manifest_updated = manifest_updated or changed
+            if changed:
+                manifest = load_manifest(manifest_path)
+        except (ManifestError, OSError, TypeError, ValueError) as error:
+            raise GenerationError(
+                f"{job.scenario_id}/{job.line_id}: {error}",
+            ) from error
 
     try:
         final_manifest_updated = update_manifest(
@@ -176,8 +198,9 @@ def run_generation(
             manifest,
             adapter.profile,
             clips,
-            replace_model_clips=scenario_id is None,
-            replace_scenario_clips=scenario_id if line_id is None else None,
+            [],
+            replace_model_results=scenario_id is None,
+            replace_scenario_results=scenario_id if line_id is None else None,
         )
     except (ManifestError, OSError, TypeError, ValueError) as error:
         raise GenerationError(str(error)) from error
@@ -266,7 +289,7 @@ def _process_job(
         profile=profile,
     )
 
-    metadata = _read_metadata(metadata_path)
+    metadata = None if force else _read_metadata(metadata_path)
     if (
         not force
         and metadata is not None
@@ -403,6 +426,36 @@ def _generation_hash(
         "postprocess": profile.as_dict(),
     }
     return hashlib.sha256(_canonical_json(payload).encode("utf-8")).hexdigest()
+
+
+def _manifest_has_failure(
+    manifest: dict[str, Any],
+    *,
+    model_id: str,
+    scenario_id: str,
+    line_id: str,
+) -> bool:
+    key = (model_id, scenario_id, line_id, "dry")
+    return any(
+        (
+            failure["model"],
+            failure["scenario"],
+            failure["line"],
+            failure["variant"],
+        )
+        == key
+        for failure in manifest["failures"]
+    )
+
+
+def _failure_result(model_id: str, job: LineJob) -> dict[str, str]:
+    return {
+        "model": model_id,
+        "scenario": job.scenario_id,
+        "line": job.line_id,
+        "variant": "dry",
+        "reason": "generation_failed",
+    }
 
 
 def _read_metadata(path: Path) -> dict[str, Any] | None:

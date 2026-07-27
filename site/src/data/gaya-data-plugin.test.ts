@@ -11,6 +11,7 @@ import {
   benchmarkData,
   clipKey,
   getClipsForScenario,
+  getFailuresForScenario,
   lineByKey,
   modelById,
   scenarioById,
@@ -27,6 +28,8 @@ afterEach(() => {
 describe("virtual:gaya-data integration", () => {
   it("実データから安定した index と selector を公開する", () => {
     expect(benchmarkData.manifest.clips).toHaveLength(12);
+    expect(benchmarkData.manifest.format_version).toBe(2);
+    expect(benchmarkData.manifest.failures).toEqual([]);
     expect(scenarioById.has("market-day")).toBe(true);
     expect(modelById.get("dummy")?.name).toBe("Dummy Beep");
     expect(lineByKey.has("market-day/fruit-vendor-001")).toBe(true);
@@ -37,6 +40,8 @@ describe("virtual:gaya-data integration", () => {
       JSON.stringify(["dummy", "market-day", "fruit-vendor-001", "dry"]),
     );
     expect(() => getClipsForScenario("missing")).toThrow("未知の scenario id です: missing");
+    expect(getFailuresForScenario("market-day")).toEqual([]);
+    expect(() => getFailuresForScenario("missing")).toThrow("未知の scenario id です: missing");
   });
 });
 
@@ -61,11 +66,20 @@ describe("loadBenchmarkData", () => {
     writeManifest(root, manifest);
 
     expect(() => loadBenchmarkData(root)).toThrowError(
-      new GayaDataError("manifest の項目が v1 と一致しません (未知: legacy_format)。"),
+      new GayaDataError("manifest の項目が一致しません (未知: legacy_format)。"),
     );
   });
 
-  it("重複 model id と clip key を拒否する", () => {
+  it("manifest v1 を拒否する", () => {
+    const root = createFixture();
+    const manifest = validManifest();
+    manifest.format_version = 1;
+    writeManifest(root, manifest);
+
+    expect(() => loadBenchmarkData(root)).toThrow("manifest format_version は2");
+  });
+
+  it("重複 model id、clip key、failure key を拒否する", () => {
     const root = createFixture();
     const manifest = validManifest();
     manifest.models.push({ ...manifest.models[0]! });
@@ -77,9 +91,44 @@ describe("loadBenchmarkData", () => {
     manifest.clips.push({ ...manifest.clips[0]! });
     writeManifest(root, manifest);
     expect(() => loadBenchmarkData(root)).toThrow("manifest clip key が重複しています");
+
+    manifest.clips.pop();
+    manifest.failures.push(validFailure(), validFailure());
+    writeManifest(root, manifest);
+    expect(() => loadBenchmarkData(root)).toThrow("manifest failure key が重複しています");
   });
 
-  it("scenario のファイル名、character 参照、clip 参照を検証する", () => {
+  it("failure の exact key、reason、clip との key 互斥を検証する", () => {
+    const unknownKeyRoot = createFixture();
+    const manifest = validManifest();
+    manifest.failures.push({ ...validFailure(), extra: true } as MutableFailure);
+    writeManifest(unknownKeyRoot, manifest);
+    expect(() => loadBenchmarkData(unknownKeyRoot)).toThrow("manifest failures[0] の項目が一致");
+
+    const missingKeyRoot = createFixture();
+    const missingKeyManifest = validManifest();
+    const { reason: _reason, ...missingReason } = validFailure();
+    missingKeyManifest.failures.push(missingReason as MutableFailure);
+    writeManifest(missingKeyRoot, missingKeyManifest);
+    expect(() => loadBenchmarkData(missingKeyRoot)).toThrow("manifest failures[0] の項目が一致");
+
+    const reasonRoot = createFixture();
+    const invalidReasonManifest = validManifest();
+    invalidReasonManifest.failures.push({ ...validFailure(), reason: "timeout" });
+    writeManifest(reasonRoot, invalidReasonManifest);
+    expect(() => loadBenchmarkData(reasonRoot)).toThrow("reason が許可された値ではありません");
+
+    const conflictRoot = createFixture();
+    const conflictManifest = validManifest();
+    conflictManifest.failures.push({
+      ...validFailure(),
+      variant: conflictManifest.clips[0]!.variant,
+    });
+    writeManifest(conflictRoot, conflictManifest);
+    expect(() => loadBenchmarkData(conflictRoot)).toThrow("clip/failure key が重複しています");
+  });
+
+  it("scenario のファイル名、character 参照、clip/failure 参照を検証する", () => {
     const root = createFixture({ scenarioFilename: "wrong-name.yaml" });
     expect(() => loadBenchmarkData(root)).toThrow("id はファイル名と一致");
 
@@ -93,6 +142,18 @@ describe("loadBenchmarkData", () => {
     manifest.clips[0]!.line = "missing";
     writeManifest(clipRoot, manifest);
     expect(() => loadBenchmarkData(clipRoot)).toThrow("存在しない line を参照");
+
+    for (const [field, value, message] of [
+      ["model", "missing", "存在しない model を参照"],
+      ["scenario", "missing", "存在しない scenario を参照"],
+      ["line", "missing", "存在しない line を参照"],
+    ] as const) {
+      const failureRoot = createFixture();
+      const failureManifest = validManifest();
+      failureManifest.failures.push({ ...validFailure(), [field]: value });
+      writeManifest(failureRoot, failureManifest);
+      expect(() => loadBenchmarkData(failureRoot)).toThrow(message);
+    }
   });
 
   it.each([
@@ -158,6 +219,15 @@ interface MutableManifest {
   generated_at: string;
   models: MutableModel[];
   clips: MutableClip[];
+  failures: MutableFailure[];
+}
+
+interface MutableFailure {
+  model: string;
+  scenario: string;
+  line: string;
+  variant: string;
+  reason: string;
 }
 
 function createEmptyRoot(): string {
@@ -186,7 +256,7 @@ function writeManifest(root: string, manifest: MutableManifest): void {
 
 function validManifest(): MutableManifest {
   return {
-    format_version: 1,
+    format_version: 2,
     generated_at: "2026-07-28T00:00:00Z",
     models: [
       {
@@ -216,6 +286,17 @@ function validManifest(): MutableManifest {
         rtf: 0.1,
       },
     ],
+    failures: [],
+  };
+}
+
+function validFailure(): MutableFailure {
+  return {
+    model: "model",
+    scenario: "sample",
+    line: "speaker-001",
+    variant: "scene",
+    reason: "generation_failed",
   };
 }
 

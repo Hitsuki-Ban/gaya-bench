@@ -1,5 +1,5 @@
 {
-  "format_version": 1,
+  "format_version": 2,
   "generated_at": "2026-07-27T18:32:17.921191+00:00",
   "models": [
     {
@@ -269,5 +269,6 @@
       },
       "rtf": 0.028714
     }
-  ]
+  ],
+  "failures": []
 }

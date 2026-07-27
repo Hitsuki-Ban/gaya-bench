@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { benchmarkData, modelById } from "@/data";
 import {
   buildModelClipEntries,
+  buildModelFailureEntries,
   calculateRtfStatistics,
   collectGenerationParameterSets,
 } from "@/pages/detail-page-model";
@@ -35,6 +36,11 @@ export function ModelPage() {
     benchmarkData.scenarios,
   );
   const clips = clipEntries.map(({ clip }) => clip);
+  const failureEntries = buildModelFailureEntries(
+    model.id,
+    benchmarkData.manifest.failures,
+    benchmarkData.scenarios,
+  );
   const rtf = calculateRtfStatistics(clips);
   const parameterSets = collectGenerationParameterSets(clips);
 
@@ -85,11 +91,14 @@ export function ModelPage() {
             <Row label="version" value={model.version} />
             <Row label="license" value={model.license_note} />
             <Row label="clips" value={String(clipEntries.length)} />
+            <Row label="failures" value={String(failureEntries.length)} />
             <Row
               label="variants"
               value={
                 clips.length === 0
-                  ? "未生成"
+                  ? failureEntries.length > 0
+                    ? "成功なし"
+                    : "未生成"
                   : [...new Set(clips.map(({ variant }) => variant))].join(", ")
               }
             />
@@ -198,7 +207,50 @@ export function ModelPage() {
           </div>
         ) : (
           <p className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
-            このモデルのクリップは未生成です。
+            {failureEntries.length > 0
+              ? "成功したクリップはありません。記録された生成失敗を下記に表示します。"
+              : "このモデルのクリップは未生成です。"}
+          </p>
+        )}
+      </section>
+
+      <section aria-labelledby="failures-heading" className="space-y-3">
+        <SectionHeading count={failureEntries.length} id="failures-heading" title="生成失敗" />
+        {failureEntries.length > 0 ? (
+          <div className="grid gap-3 lg:grid-cols-2">
+            {failureEntries.map(({ failure, scenario, line, character }) => (
+              <Card key={`${failure.scenario}/${failure.line}/${failure.variant}`} size="sm">
+                <CardHeader>
+                  <div className="flex flex-wrap gap-2">
+                    <Badge
+                      render={
+                        <Link
+                          to={{
+                            pathname: `/scenario/${scenario.id}`,
+                            search,
+                          }}
+                        />
+                      }
+                      variant="secondary"
+                    >
+                      {scenario.title}
+                    </Badge>
+                    <Badge variant="outline">{character.name}</Badge>
+                    <Badge variant="outline">{failure.variant}</Badge>
+                    <Badge variant="destructive">再生成待ち</Badge>
+                  </div>
+                  <CardTitle className="mt-2 leading-7">{line.text}</CardTitle>
+                </CardHeader>
+                <CardContent className="text-xs leading-5 text-muted-foreground">
+                  {model.name} の生成は完了しませんでした。この結果は再生・連続再生・A/B
+                  比較の対象外です。
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        ) : (
+          <p className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
+            記録された生成失敗はありません。
           </p>
         )}
       </section>

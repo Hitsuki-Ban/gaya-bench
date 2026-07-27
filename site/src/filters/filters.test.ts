@@ -163,7 +163,7 @@ function fixture(): BenchmarkData {
   const models = [ttsModel("alpha"), ttsModel("beta")];
   return {
     manifest: {
-      format_version: 1,
+      format_version: 2,
       generated_at: "2026-07-28T00:00:00Z",
       models,
       clips: scenarios.flatMap((fixtureScenario) =>
@@ -171,6 +171,7 @@ function fixture(): BenchmarkData {
           models.map((fixtureModel) => clip(fixtureModel.id, fixtureScenario.id, fixtureLine.id)),
         ),
       ),
+      failures: [],
     },
     scenarios,
   };
