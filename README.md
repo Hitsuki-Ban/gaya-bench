@@ -1,5 +1,7 @@
 # Gaya Bench — RPGモブNPCガヤボイス TTS聴き比べベンチ
 
+[![CI](https://github.com/Hitsuki-Ban/gaya-bench/actions/workflows/ci.yml/badge.svg)](https://github.com/Hitsuki-Ban/gaya-bench/actions/workflows/ci.yml)
+
 RPGのモブNPCが発する「ガヤボイス」(中距離で聞こえる一言セリフ・環境喧騒の素材) を、
 最新のTTSモデル群で**同一の構造化シナリオ**から生成し、Web上で聴き比べできるようにするリサーチプロジェクト。
 
