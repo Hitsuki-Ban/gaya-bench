@@ -1,6 +1,6 @@
 import { createContext } from "react";
 
-import type { AudioClip, AudioPlayerState } from "./playback-manager";
+import type { AudioClip, AudioPlayerState, PlaybackManager } from "./playback-manager";
 
 export interface AudioPlayer extends AudioPlayerState {
   play(clip: AudioClip): Promise<void>;
@@ -8,4 +8,4 @@ export interface AudioPlayer extends AudioPlayerState {
   stop(): void;
 }
 
-export const AudioPlayerContext = createContext<AudioPlayer | null>(null);
+export const PlaybackManagerContext = createContext<PlaybackManager | null>(null);

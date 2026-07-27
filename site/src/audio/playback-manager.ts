@@ -1,22 +1,38 @@
 export type PlaybackStatus = "idle" | "loading" | "playing" | "paused" | "error";
+export type PlaybackTermination = "ended" | "error" | "stopped";
 
 export interface AudioClip {
   key: string;
   url: string;
 }
 
+export interface PlaybackCompletion {
+  sessionId: number;
+  clipKey: string;
+  termination: PlaybackTermination;
+}
+
 export interface AudioPlayerState {
+  sessionId: number;
   currentClipKey: string | null;
   status: PlaybackStatus;
   error: Error | null;
+  completion: PlaybackCompletion | null;
 }
 
-type AudioEventType = "ended" | "error";
+export interface AudioProgress {
+  currentTime: number;
+  duration: number;
+}
+
+type AudioEventType = "ended" | "error" | "timeupdate" | "durationchange";
 type AudioEventListener = () => void;
-type StateListener = () => void;
+type StoreListener = () => void;
 
 export interface AudioLike {
   src: string;
+  currentTime: number;
+  readonly duration: number;
   readonly error: { readonly message: string } | null;
   play(): Promise<void>;
   pause(): void;
@@ -26,16 +42,32 @@ export interface AudioLike {
   removeEventListener(type: AudioEventType, listener: AudioEventListener): void;
 }
 
-const IDLE_STATE: AudioPlayerState = {
+const INITIAL_STATE: AudioPlayerState = {
+  sessionId: 0,
   currentClipKey: null,
   status: "idle",
   error: null,
+  completion: null,
 };
+
+const EMPTY_PROGRESS: AudioProgress = {
+  currentTime: 0,
+  duration: 0,
+};
+
+interface SessionListeners {
+  ended: AudioEventListener;
+  error: AudioEventListener;
+  timeupdate: AudioEventListener;
+  durationchange: AudioEventListener;
+}
 
 export class PlaybackManager {
   readonly getSnapshot = (): AudioPlayerState => this.state;
 
-  readonly subscribe = (listener: StateListener): (() => void) => {
+  readonly getProgressSnapshot = (): AudioProgress => this.progress;
+
+  readonly subscribe = (listener: StoreListener): (() => void) => {
     this.assertActive();
     this.listeners.add(listener);
     return () => {
@@ -43,32 +75,51 @@ export class PlaybackManager {
     };
   };
 
+  readonly subscribeProgress = (listener: StoreListener): (() => void) => {
+    this.assertActive();
+    this.progressListeners.add(listener);
+    return () => {
+      this.progressListeners.delete(listener);
+    };
+  };
+
   readonly play = async (clip: AudioClip): Promise<void> => {
     this.assertActive();
     this.assertClip(clip);
 
-    const isCurrentClip = this.currentClip?.key === clip.key && this.currentClip.url === clip.url;
-
+    const isCurrentClip = this.isSameClip(this.currentClip, clip);
     if (isCurrentClip && (this.state.status === "playing" || this.state.status === "loading")) {
       return;
     }
 
-    await this.startPlayback(clip, !isCurrentClip || this.state.status === "error");
+    if (isCurrentClip && this.state.status === "paused") {
+      await this.startPlayback(clip, false, this.state.sessionId);
+      return;
+    }
+
+    if (this.currentClip !== null) {
+      this.terminateCurrent("stopped", null);
+    }
+
+    this.nextSessionId += 1;
+    await this.startPlayback(clip, true, this.nextSessionId);
   };
 
   readonly toggle = async (clip: AudioClip): Promise<void> => {
     this.assertActive();
     this.assertClip(clip);
 
-    const isCurrentClip = this.currentClip?.key === clip.key && this.currentClip.url === clip.url;
-
+    const isCurrentClip = this.isSameClip(this.currentClip, clip);
     if (isCurrentClip && (this.state.status === "playing" || this.state.status === "loading")) {
       this.requestToken += 1;
+      this.removeSessionListeners();
       this.audio.pause();
       this.updateState({
+        sessionId: this.state.sessionId,
         currentClipKey: clip.key,
         status: "paused",
         error: null,
+        completion: null,
       });
       return;
     }
@@ -78,47 +129,38 @@ export class PlaybackManager {
 
   readonly stop = (): void => {
     this.assertActive();
+
+    if (this.currentClip !== null) {
+      this.terminateCurrent("stopped", null);
+      return;
+    }
+
     this.requestToken += 1;
-    this.currentClip = null;
+    this.removeSessionListeners();
     this.clearMedia();
-    this.updateState(IDLE_STATE);
+    this.updateProgress(EMPTY_PROGRESS);
+    this.updateState({
+      sessionId: this.state.sessionId,
+      currentClipKey: null,
+      status: "idle",
+      error: null,
+      completion: this.state.completion,
+    });
   };
 
-  private state: AudioPlayerState = IDLE_STATE;
+  private state: AudioPlayerState = INITIAL_STATE;
+  private progress: AudioProgress = EMPTY_PROGRESS;
   private currentClip: AudioClip | null = null;
   private requestToken = 0;
+  private nextSessionId = 0;
   private disposed = false;
+  private sessionListeners: SessionListeners | null = null;
   private readonly audio: AudioLike;
-  private readonly listeners = new Set<StateListener>();
-
-  private readonly handleEnded = (): void => {
-    if (this.disposed || this.currentClip === null) {
-      return;
-    }
-
-    this.requestToken += 1;
-    this.currentClip = null;
-    this.clearMedia();
-    this.updateState(IDLE_STATE);
-  };
-
-  private readonly handleAudioError = (): void => {
-    if (this.disposed || this.currentClip === null) {
-      return;
-    }
-
-    const message = this.audio.error?.message;
-    const error =
-      message === undefined || message.length === 0
-        ? new Error("Audio element reported an error.")
-        : new Error(message);
-    this.failCurrentPlayback(error);
-  };
+  private readonly listeners = new Set<StoreListener>();
+  private readonly progressListeners = new Set<StoreListener>();
 
   constructor(audio: AudioLike) {
     this.audio = audio;
-    audio.addEventListener("ended", this.handleEnded);
-    audio.addEventListener("error", this.handleAudioError);
   }
 
   dispose(): void {
@@ -126,77 +168,177 @@ export class PlaybackManager {
       return;
     }
 
+    const completion =
+      this.currentClip === null
+        ? this.state.completion
+        : {
+            sessionId: this.state.sessionId,
+            clipKey: this.currentClip.key,
+            termination: "stopped" as const,
+          };
+
     this.disposed = true;
     this.requestToken += 1;
     this.currentClip = null;
-    this.audio.removeEventListener("ended", this.handleEnded);
-    this.audio.removeEventListener("error", this.handleAudioError);
+    this.removeSessionListeners();
     this.clearMedia();
-    this.state = IDLE_STATE;
+    this.state = {
+      sessionId: this.state.sessionId,
+      currentClipKey: null,
+      status: "idle",
+      error: null,
+      completion,
+    };
+    this.progress = EMPTY_PROGRESS;
     this.listeners.clear();
+    this.progressListeners.clear();
   }
 
-  private async startPlayback(clip: AudioClip, loadClip: boolean): Promise<void> {
+  private async startPlayback(
+    clip: AudioClip,
+    loadClip: boolean,
+    sessionId: number,
+  ): Promise<void> {
     const token = this.requestToken + 1;
     this.requestToken = token;
+    this.currentClip = clip;
+    this.installSessionListeners(token, sessionId, clip);
+    this.updateState({
+      sessionId,
+      currentClipKey: clip.key,
+      status: "loading",
+      error: null,
+      completion: null,
+    });
 
     if (loadClip) {
       this.audio.pause();
+      this.updateProgress(EMPTY_PROGRESS);
       this.audio.src = clip.url;
       this.audio.load();
     }
 
-    this.currentClip = clip;
-    this.updateState({
-      currentClipKey: clip.key,
-      status: "loading",
-      error: null,
-    });
-
     try {
       await this.audio.play();
     } catch (reason: unknown) {
-      if (this.isCurrentRequest(token, clip)) {
+      if (this.isCurrentRequest(token, sessionId, clip)) {
         const error =
           reason instanceof Error ? reason : new Error(`Audio playback failed: ${String(reason)}`);
-        this.failCurrentPlayback(error);
+        this.terminateCurrent("error", error);
       }
       return;
     }
 
-    if (this.isCurrentRequest(token, clip)) {
+    if (this.isCurrentRequest(token, sessionId, clip)) {
       this.updateState({
+        sessionId,
         currentClipKey: clip.key,
         status: "playing",
         error: null,
+        completion: null,
       });
     }
   }
 
-  private failCurrentPlayback(error: Error): void {
-    const failedClip = this.currentClip;
-    if (failedClip === null) {
+  private installSessionListeners(token: number, sessionId: number, clip: AudioClip): void {
+    this.removeSessionListeners();
+
+    const listeners: SessionListeners = {
+      ended: () => {
+        if (this.isCurrentRequest(token, sessionId, clip)) {
+          this.terminateCurrent("ended", null);
+        }
+      },
+      error: () => {
+        if (!this.isCurrentRequest(token, sessionId, clip)) {
+          return;
+        }
+
+        const message = this.audio.error?.message;
+        const error =
+          message === undefined || message.length === 0
+            ? new Error("Audio element reported an error.")
+            : new Error(message);
+        this.terminateCurrent("error", error);
+      },
+      timeupdate: () => {
+        if (this.isCurrentRequest(token, sessionId, clip)) {
+          this.readProgress();
+        }
+      },
+      durationchange: () => {
+        if (this.isCurrentRequest(token, sessionId, clip)) {
+          this.readProgress();
+        }
+      },
+    };
+
+    this.sessionListeners = listeners;
+    this.audio.addEventListener("ended", listeners.ended);
+    this.audio.addEventListener("error", listeners.error);
+    this.audio.addEventListener("timeupdate", listeners.timeupdate);
+    this.audio.addEventListener("durationchange", listeners.durationchange);
+  }
+
+  private removeSessionListeners(): void {
+    if (this.sessionListeners === null) {
       return;
     }
 
+    this.audio.removeEventListener("ended", this.sessionListeners.ended);
+    this.audio.removeEventListener("error", this.sessionListeners.error);
+    this.audio.removeEventListener("timeupdate", this.sessionListeners.timeupdate);
+    this.audio.removeEventListener("durationchange", this.sessionListeners.durationchange);
+    this.sessionListeners = null;
+  }
+
+  private terminateCurrent(termination: PlaybackTermination, error: Error | null): void {
+    const clip = this.currentClip;
+    if (clip === null) {
+      return;
+    }
+
+    const sessionId = this.state.sessionId;
     this.requestToken += 1;
     this.currentClip = null;
+    this.removeSessionListeners();
     this.clearMedia();
-    this.currentClip = failedClip;
+    this.updateProgress(EMPTY_PROGRESS);
     this.updateState({
-      currentClipKey: failedClip.key,
-      status: "error",
+      sessionId,
+      currentClipKey: termination === "error" ? clip.key : null,
+      status: termination === "error" ? "error" : "idle",
       error,
+      completion: {
+        sessionId,
+        clipKey: clip.key,
+        termination,
+      },
     });
   }
 
-  private isCurrentRequest(token: number, clip: AudioClip): boolean {
+  private isCurrentRequest(token: number, sessionId: number, clip: AudioClip): boolean {
     return (
       !this.disposed &&
       token === this.requestToken &&
-      this.currentClip?.key === clip.key &&
-      this.currentClip.url === clip.url
+      sessionId === this.state.sessionId &&
+      this.isSameClip(this.currentClip, clip)
     );
+  }
+
+  private isSameClip(left: AudioClip | null, right: AudioClip): boolean {
+    return left?.key === right.key && left.url === right.url;
+  }
+
+  private readProgress(): void {
+    this.updateProgress({
+      currentTime: this.normalizeMediaTime(this.audio.currentTime),
+      duration: this.normalizeMediaTime(this.audio.duration),
+    });
+  }
+
+  private normalizeMediaTime(value: number): number {
+    return Number.isFinite(value) && value >= 0 ? value : 0;
   }
 
   private clearMedia(): void {
@@ -208,6 +350,20 @@ export class PlaybackManager {
   private updateState(state: AudioPlayerState): void {
     this.state = state;
     for (const listener of this.listeners) {
+      listener();
+    }
+  }
+
+  private updateProgress(progress: AudioProgress): void {
+    if (
+      progress.currentTime === this.progress.currentTime &&
+      progress.duration === this.progress.duration
+    ) {
+      return;
+    }
+
+    this.progress = progress;
+    for (const listener of this.progressListeners) {
       listener();
     }
   }
