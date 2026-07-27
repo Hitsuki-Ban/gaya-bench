@@ -44,6 +44,15 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: FFmpeg をインストール
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends --yes ffmpeg
+          ffmpeg -hide_banner -version
+          ffprobe -hide_banner -version
+          ffmpeg -hide_banner -encoders | grep -q "libopus"
+
       - name: uv をセットアップ
         uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
         with:
