@@ -1,6 +1,10 @@
 # 生成物一次出力 (音声はR2へ、リポジトリにはコミットしない)
 artifacts/
 
+# 作業用git worktree置き場 (README以外は追跡しない)
+.worktrees/*
+!.worktrees/README.md
+
 # Node
 node_modules/
 dist/

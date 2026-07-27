@@ -46,13 +46,16 @@ Claude側2調査 (`research/open-weight-tts.md`, `research/ja-ecosystem-rights.m
 | MOSS-TTS v1.5 (4B) | Apache-2.0 | pause制御・多話者対話 (ガヤの重なり) | 日本語品質が完全未知数 |
 | Chatterbox Multilingual v3 | MIT | exaggerationスカラで機械的な振れ幅生成 | 日本語★3/5、PerTh透かし |
 
+| Supertonic 3 | MIT (コード) + OpenRAIL-M (重み) | 99M・CPU動作可の超軽量枠。大量ガヤ生成の速度実験に (Owner指名 2026-07-28) | OpenRAIL-Mの利用制限・帰属条件の精査、クローン可否 |
+
 ### 次点 (Codex検証 #1 で昇格ありうる)
 
-CosyVoice 3 / MioTTS-2.6B (年商上限Lic) / ZONOS2 (感情制御の存否要確認) / Supertonic 3 (OpenRAIL-M要法務確認)
+CosyVoice 3 / MioTTS-2.6B (年商上限Lic) / ZONOS2 (感情制御の存否要確認)
 
-### APIアンカー (任意・課金発生のためOwner承認待ち)
+### APIサービスの扱い (Owner決定 2026-07-28)
 
-Aivis Cloud API (440円/1万文字) / ElevenLabs 有料プラン (無料枠は非商用)。承認され次第アダプタ起票。
+**完全ローカルで動く無料モデルを最優先。オンライン有料サービス (Aivis Cloud API / ElevenLabs等) は当面お預け。**
+将来アンカーが必要になった場合に改めてOwner判断を仰ぐ。
 
 ### 参照音声の方針 (詳細: `research/ja-ecosystem-rights.md`)
 

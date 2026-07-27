@@ -5,7 +5,7 @@
 ## 作業フロー (Issue駆動)
 
 1. 作業は必ずGitHub Issueを起点とする。Issueの「受け入れ条件」を満たすことがゴール
-2. ブランチ名: `codex/<issue番号>-<短いslug>`
+2. ブランチ名: `codex/<issue番号>-<短いslug>`。作業は**worktree**で行う: `git worktree add .worktrees/<issue番号>-<slug> -b codex/<issue番号>-<slug>` (詳細は [.worktrees/README.md](.worktrees/README.md)。マージ後は必ずremove)
 3. PR本文に `Closes #<issue番号>` を含める
 4. CIグリーンを確認したら**自主マージしてよい** (レビュー待ち不要)。Director (Claude) はマージ履歴を事後レビューする
 5. 実装中に発見した別スコープのバグ・改善点は、そのPRに含めず**新規Issueを起票**する
