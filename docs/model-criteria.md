@@ -23,34 +23,29 @@
 2. Codex独立検証 (対照調査) → 統合レポート `docs/research/models-final.md`
 3. Director が6〜10モデルのショートリストを確定 → モデル別アダプタIssueを起票
 
-## 暫定ショートリスト (2026-07-27 Director決定、#1の独立検証で最終確定)
+## 確定ショートリスト (2026-07-28、#32でDirector承認)
 
-Claude側2調査 (`research/open-weight-tts.md`, `research/ja-ecosystem-rights.md`) に基づく。
-**各アダプタIssueは起票済みだが、着手は `models-final.md` (#1) の検証通過後。**
+正典は [`research/models-final.md`](research/models-final.md) (Codex独立検証 #1 とClaude調査の統合)。
+実装は「波」順で進める (エピック [#8](https://github.com/Hitsuki-Ban/gaya-bench/issues/8))。
 
-### Tier 1 (本命)
-
-| モデル | ライセンス | 採用理由 | 検証ポイント |
+| 波 | モデル | 役割 | Issue |
 | --- | --- | --- | --- |
-| Qwen3-TTS 12Hz-1.7B (Base+VoiceDesign) | Apache-2.0 | VoiceDesignで権利クリーンな架空モブ声を設計→クローン固定化。ガヤ最有力 | 短文での安定性 |
-| Irodori-TTS 600M-v3-VoiceDesign | MIT | 日本語専用Prosody 1位、RTF 0.13、絵文字で非言語音 | 学習データ非開示のリスク評価、かな化前処理 |
-| Step-Audio-EditX | Apache-2.0 | shout/murmur/laugh等ガヤ直結タグ最強 | 日本語訛り (中国語風)、VRAM 11.5GB→4bit前提 |
-| AivisSpeech (SBV2系) + ACML-1.0モデル | LGPL-3.0 + ACML | 日本語アクセント基準線。ACMLモデル (コハク/まお) は商用自由・クレジット任意 | クローン不可のためモブ多様性は他モデル頼み |
+| 1 | Qwen3-TTS 12Hz-1.7B (Base+VoiceDesign) | 声設計本命。架空モブ声の設計→クローン固定化 | #23 |
+| 1 | Irodori-TTS 600M-v3-VoiceDesign | 日本語専用の声設計。かな化前処理必須 | #24 |
+| 2 | AivisSpeech + ACML-1.0モデル | 日本語アクセント基準線 (固定声) | #26 |
+| 2 | GPT-SoVITS v2ProPlus | 参照音声クローン基準 (MIT×MIT) | #28 |
+| 3 | VoxCPM2 | 48kHz・明瞭度比較 | #27 |
+| 3 | Chatterbox Multilingual v3 | 透かし付き多言語比較・exaggeration制御 | #30 |
+| 4 | CosyVoice 3 0.5B | Apache軽量比較 | #35 |
+| 4 | Supertonic 3 | 凍結ベースライン (固定声・CPU/ONNX。開発終了のため資産ローカル保存) | #31 |
 
-### Tier 2 (比較用)
+固定声モデル (AivisSpeech / Supertonic) は「声の多様性」軸を評価対象外とし、クローン/声設計系と総合点を混ぜない。
 
-| モデル | ライセンス | 採用理由 | 検証ポイント |
-| --- | --- | --- | --- |
-| VoxCPM2 | Apache-2.0 | ASR一致率1位 (=セリフ明瞭)、48kHz、声デザイン | 日本語G2P・固有名詞、抑揚の違和感 |
-| GPT-SoVITS v2ProPlus | MIT | 最クリーンライセンス、5秒クローン。参照音声キット (#7) と組む | 感情タグなし→演技別参照音声で補う |
-| MOSS-TTS v1.5 (4B) | Apache-2.0 | pause制御・多話者対話 (ガヤの重なり) | 日本語品質が完全未知数 |
-| Chatterbox Multilingual v3 | MIT | exaggerationスカラで機械的な振れ幅生成 | 日本語★3/5、PerTh透かし |
+### 保留・除外 (主なもの)
 
-| Supertonic 3 | MIT (コード) + OpenRAIL-M (重み) | 99M・CPU動作可の超軽量枠。大量ガヤ生成の速度実験に (Owner指名 2026-07-28) | OpenRAIL-Mの利用制限・帰属条件の精査、クローン可否 |
-
-### 次点 (Codex検証 #1 で昇格ありうる)
-
-CosyVoice 3 / MioTTS-2.6B (年商上限Lic) / ZONOS2 (感情制御の存否要確認)
+- **Step-Audio-EditX**: コードはApache-2.0だが重み・生成物の利用条件が一次情報に存在せず**ブロック** ([#25](https://github.com/Hitsuki-Ban/gaya-bench/issues/25)残置、明記され次第再開)
+- **MOSS-TTS v1.5**: 4B本体+必須F32 tokenizerで12GB超のためローカル落選 (#29クローズ。RunPod枠 M6 で再評価可)
+- 次点: MioTTS-2.6B / ZONOS2 (詳細は models-final.md「保留・落選」)
 
 ### APIサービスの扱い (Owner決定 2026-07-28)
 
