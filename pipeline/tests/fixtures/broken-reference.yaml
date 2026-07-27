@@ -1,0 +1,18 @@
+format_version: 1
+id: broken-reference
+title: 壊れた参照
+locale: ja
+scene:
+  setting: テスト用シーン
+characters:
+  - id: guard
+    name: 衛兵
+    gender: male
+    age: adult
+    voice: 低い声
+lines:
+  - id: guard-001
+    character: missing-character
+    text: 止まれ！
+    emotion: shout
+    delivery: 強く制止する。
