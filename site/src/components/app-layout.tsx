@@ -1,5 +1,5 @@
 import { AudioLines, FlaskConical, Scale, SlidersHorizontal } from "lucide-react";
-import { NavLink, Outlet } from "react-router";
+import { NavLink, Outlet, useLocation } from "react-router";
 
 const navigation = [
   { to: "/", label: "比較", icon: SlidersHorizontal, end: true },
@@ -8,11 +8,16 @@ const navigation = [
 ] as const;
 
 export function AppLayout() {
+  const location = useLocation();
+
   return (
     <div className="min-h-screen">
       <header className="sticky top-0 z-20 border-b bg-background/95 backdrop-blur">
         <div className="mx-auto flex min-h-16 max-w-[1480px] items-center gap-6 px-4 sm:px-6">
-          <NavLink className="flex items-center gap-3" to="/">
+          <NavLink
+            className="flex items-center gap-3"
+            to={{ pathname: "/", search: location.search }}
+          >
             <span className="grid size-9 place-items-center rounded-md border border-primary/35 bg-primary/10 text-primary">
               <AudioLines aria-hidden="true" className="size-5" />
             </span>
@@ -40,7 +45,7 @@ export function AppLayout() {
                 }
                 end={end}
                 key={to}
-                to={to}
+                to={{ pathname: to, search: location.search }}
               >
                 <Icon aria-hidden="true" className="size-4" />
                 <span className="hidden sm:inline">{label}</span>

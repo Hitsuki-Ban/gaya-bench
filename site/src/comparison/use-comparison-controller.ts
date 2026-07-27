@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 
 import { useAudioPlayer, usePlaybackManager } from "@/audio/audio-provider";
 import { clipKey } from "@/data";
+import type { ComparisonProjection } from "@/filters";
 import { resolveAudioUrl } from "@/lib/audio-url";
 
 import {
@@ -15,7 +16,7 @@ import {
   type PlaybackQueue,
   type QueueItem,
 } from "./model";
-import { followSequenceFocus } from "./matrix-focus";
+import { focusCoordinate, followSequenceFocus } from "./matrix-focus";
 
 const SEQUENCE_GAP_MS = 250;
 
@@ -40,32 +41,29 @@ export interface ComparisonController {
   readonly selectModel: (modelId: string) => void;
   readonly selectAndToggle: (coordinate: Coordinate) => void;
   readonly setDirection: (direction: SequenceDirection) => void;
-  readonly setModelVisible: (modelId: string, visible: boolean) => void;
   readonly startOrStopSequence: () => void;
   readonly stop: () => void;
   readonly toggleFocused: () => void;
 }
 
-export function useComparisonController(model: ComparisonModel): ComparisonController {
+export function useComparisonController(
+  model: ComparisonModel,
+  projection: ComparisonProjection,
+): ComparisonController {
   const manager = usePlaybackManager();
   const player = useAudioPlayer();
-  const [visibleModelIds, setVisibleModelIds] = useState<ReadonlySet<string>>(
-    () => new Set(model.models.map(({ id }) => id)),
-  );
   const [cursor, setCursor] = useState<Coordinate | null>(() => {
     const playingCoordinate =
       player.currentClipKey === null
         ? undefined
         : model.getCoordinateForClipKey(player.currentClipKey);
-    return (
-      playingCoordinate ?? resolveCursor(model, null, new Set(model.models.map(({ id }) => id)))
-    );
+    return resolveCursor(model, playingCoordinate ?? null, projection);
   });
   const [direction, setDirectionState] = useState<SequenceDirection>("row");
   const [sequence, setSequenceState] = useState<SequenceState | null>(null);
   const cursorRef = useRef(cursor);
   const directionRef = useRef(direction);
-  const visibleModelIdsRef = useRef(visibleModelIds);
+  const projectionRef = useRef(projection);
   const sequenceRef = useRef<SequenceState | null>(null);
   const timerRef = useRef<number | null>(null);
   const sequenceTokenRef = useRef(0);
@@ -102,6 +100,43 @@ export function useComparisonController(model: ComparisonModel): ComparisonContr
     },
     [clearTimer, manager, updateSequence],
   );
+
+  useLayoutEffect(() => {
+    const previousProjection = projectionRef.current;
+    projectionRef.current = projection;
+    if (previousProjection.key === projection.key) {
+      return;
+    }
+
+    const hadSequence = sequenceRef.current !== null;
+    cancelSequence(hadSequence);
+
+    if (!hadSequence) {
+      const currentClipKey = manager.getSnapshot().currentClipKey;
+      const playingCoordinate =
+        currentClipKey === null ? undefined : model.getCoordinateForClipKey(currentClipKey);
+      if (
+        playingCoordinate !== undefined &&
+        (!projection.rowIndexes.has(playingCoordinate.rowIndex) ||
+          !projection.modelIds.has(playingCoordinate.modelId))
+      ) {
+        manager.stop();
+      }
+    }
+
+    const nextCursor = resolveCursor(model, cursorRef.current, projection);
+    updateCursor(nextCursor);
+    if (
+      document.activeElement instanceof HTMLElement &&
+      document.activeElement.dataset.matrixCoordinate !== undefined
+    ) {
+      if (nextCursor === null) {
+        document.activeElement.blur();
+      } else {
+        focusCoordinate(nextCursor);
+      }
+    }
+  }, [cancelSequence, manager, model, projection, updateCursor]);
 
   const playQueueItem = useCallback(
     (queue: PlaybackQueue, itemIndex: number, sequenceDirection: SequenceDirection): void => {
@@ -177,7 +212,7 @@ export function useComparisonController(model: ComparisonModel): ComparisonContr
       if (current === null) {
         return null;
       }
-      const next = moveCursor(model, current, navigationDirection, visibleModelIdsRef.current);
+      const next = moveCursor(model, current, navigationDirection, projectionRef.current);
       if (next.rowIndex === current.rowIndex && next.modelId === current.modelId) {
         return current;
       }
@@ -247,8 +282,8 @@ export function useComparisonController(model: ComparisonModel): ComparisonContr
 
     const queue =
       directionRef.current === "row"
-        ? buildRowQueue(model, current, visibleModelIdsRef.current)
-        : buildColumnQueue(model, current);
+        ? buildRowQueue(model, current, projectionRef.current)
+        : buildColumnQueue(model, current, projectionRef.current);
     if (queue.items.length === 0) {
       manager.stop();
       return;
@@ -270,41 +305,16 @@ export function useComparisonController(model: ComparisonModel): ComparisonContr
     [cancelSequence],
   );
 
-  const setModelVisible = useCallback(
-    (modelId: string, visible: boolean) => {
-      const knownModel = model.models.some((item) => item.id === modelId);
-      if (!knownModel) {
-        throw new Error(`存在しない model の表示状態は変更できません: ${modelId}`);
-      }
-
-      const nextVisible = new Set(visibleModelIdsRef.current);
-      if (visible) {
-        nextVisible.add(modelId);
-      } else {
-        if (nextVisible.size === 1) {
-          return;
-        }
-        nextVisible.delete(modelId);
-      }
-
-      cancelSequence(true);
-      visibleModelIdsRef.current = nextVisible;
-      setVisibleModelIds(nextVisible);
-      updateCursor(resolveCursor(model, cursorRef.current, nextVisible));
-    },
-    [cancelSequence, model, updateCursor],
-  );
-
   const selectModel = useCallback(
     (modelId: string) => {
-      if (!visibleModelIdsRef.current.has(modelId)) {
+      if (!projectionRef.current.modelIds.has(modelId)) {
         throw new Error(`非表示 model は選択できません: ${modelId}`);
       }
       cancelSequence(true);
       const current = cursorRef.current;
       updateCursor(
         current === null
-          ? resolveCursor(model, null, visibleModelIdsRef.current)
+          ? resolveCursor(model, null, projectionRef.current)
           : { ...current, modelId },
       );
     },
@@ -318,13 +328,12 @@ export function useComparisonController(model: ComparisonModel): ComparisonContr
       cursor,
       direction,
       sequence,
-      visibleModelIds,
+      visibleModelIds: projection.modelIds,
       player,
       navigate,
       selectModel,
       selectAndToggle,
       setDirection,
-      setModelVisible,
       startOrStopSequence,
       stop,
       toggleFocused,
@@ -338,11 +347,10 @@ export function useComparisonController(model: ComparisonModel): ComparisonContr
       selectModel,
       sequence,
       setDirection,
-      setModelVisible,
       startOrStopSequence,
       stop,
       toggleFocused,
-      visibleModelIds,
+      projection.modelIds,
     ],
   );
 }

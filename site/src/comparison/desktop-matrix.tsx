@@ -1,6 +1,8 @@
-import { memo, useMemo, useRef } from "react";
+import { memo, useRef } from "react";
+import { Link } from "react-router";
 
 import { Badge } from "@/components/ui/badge";
+import type { ComparisonProjection } from "@/filters";
 
 import { MatrixCell } from "./matrix-cell";
 import type { ComparisonController } from "./use-comparison-controller";
@@ -10,20 +12,18 @@ import { useVisibleAudioPrefetch } from "./visible-audio-prefetch";
 interface DesktopMatrixProps {
   controller: ComparisonController;
   model: ComparisonModel;
+  projection: ComparisonProjection;
+  search: string;
 }
 
-export function DesktopMatrix({ controller, model }: DesktopMatrixProps) {
+export function DesktopMatrix({ controller, model, projection, search }: DesktopMatrixProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
-  const visibleModels = useMemo(
-    () => model.models.filter(({ id }) => controller.visibleModelIds.has(id)),
-    [controller.visibleModelIds, model.models],
-  );
+  const visibleModels = projection.models;
   const playingCoordinate =
     controller.player.currentClipKey === null
       ? undefined
       : model.getCoordinateForClipKey(controller.player.currentClipKey);
-  const revision = visibleModels.map(({ id }) => id).join(",");
-  useVisibleAudioPrefetch(scrollRef, scrollRef, revision);
+  useVisibleAudioPrefetch(scrollRef, scrollRef, projection.key);
 
   return (
     <div
@@ -34,7 +34,7 @@ export function DesktopMatrix({ controller, model }: DesktopMatrixProps) {
         aria-colcount={visibleModels.length + 1}
         aria-describedby="matrix-keyboard-help"
         aria-label="TTS モデル比較マトリクス"
-        aria-rowcount={model.rows.length + 1}
+        aria-rowcount={projection.rows.length + 1}
         className="w-full min-w-max border-separate border-spacing-0"
         role="grid"
         style={{ minWidth: `${360 + visibleModels.length * 180}px` }}
@@ -58,7 +58,12 @@ export function DesktopMatrix({ controller, model }: DesktopMatrixProps) {
                 key={item.id}
                 role="columnheader"
               >
-                <p className="truncate font-mono text-xs font-semibold">{item.name}</p>
+                <Link
+                  className="block truncate font-mono text-xs font-semibold hover:text-primary"
+                  to={{ pathname: `/models/${item.id}`, search }}
+                >
+                  {item.name}
+                </Link>
                 <div className="mt-1.5 flex flex-wrap gap-1">
                   <CapabilityBadge active={item.capabilities.emotion} label="E" title="感情" />
                   <CapabilityBadge
@@ -78,8 +83,8 @@ export function DesktopMatrix({ controller, model }: DesktopMatrixProps) {
           </tr>
         </thead>
         <tbody>
-          {model.rows.map((row, rowIndex) => {
-            const previous = model.rows[rowIndex - 1];
+          {projection.rows.map(({ row, rowIndex }, displayRowIndex) => {
+            const previous = projection.rows[displayRowIndex - 1]?.row;
             return (
               <MatrixRow
                 cursorModelId={
@@ -101,12 +106,14 @@ export function DesktopMatrix({ controller, model }: DesktopMatrixProps) {
                   playingCoordinate?.rowIndex === rowIndex ? controller.player.status : "idle"
                 }
                 row={row}
+                displayRowIndex={displayRowIndex}
                 rowIndex={rowIndex}
                 selectAndToggle={controller.selectAndToggle}
                 startOrStopSequence={controller.startOrStopSequence}
                 stop={controller.stop}
                 toggleFocused={controller.toggleFocused}
-                visibleModelIds={controller.visibleModelIds}
+                visibleModelIds={projection.modelIds}
+                search={search}
               />
             );
           })}
@@ -118,6 +125,7 @@ export function DesktopMatrix({ controller, model }: DesktopMatrixProps) {
 
 interface MatrixRowProps {
   cursorModelId: string | null;
+  displayRowIndex: number;
   isCharacterStart: boolean;
   isScenarioStart: boolean;
   model: ComparisonModel;
@@ -131,10 +139,12 @@ interface MatrixRowProps {
   stop: ComparisonController["stop"];
   toggleFocused: ComparisonController["toggleFocused"];
   visibleModelIds: ReadonlySet<string>;
+  search: string;
 }
 
 const MatrixRow = memo(function MatrixRow({
   cursorModelId,
+  displayRowIndex,
   isCharacterStart,
   isScenarioStart,
   model,
@@ -148,13 +158,14 @@ const MatrixRow = memo(function MatrixRow({
   stop,
   toggleFocused,
   visibleModelIds,
+  search,
 }: MatrixRowProps) {
   const visibleModels = model.models.filter(({ id }) => visibleModelIds.has(id));
   const isActiveRow = cursorModelId !== null || playingModelId !== null;
 
   return (
     <tr
-      aria-rowindex={rowIndex + 2}
+      aria-rowindex={displayRowIndex + 2}
       className={[
         "group/row",
         isScenarioStart ? "border-t-2 border-t-border" : "",
@@ -170,9 +181,12 @@ const MatrixRow = memo(function MatrixRow({
         role="rowheader"
       >
         {isScenarioStart ? (
-          <p className="mb-2 font-mono text-[10px] tracking-[0.14em] text-primary uppercase">
+          <Link
+            className="mb-2 block font-mono text-[10px] tracking-[0.14em] text-primary uppercase hover:underline"
+            to={{ pathname: `/scenario/${row.scenario.id}`, search }}
+          >
             {row.scenario.title}
-          </p>
+          </Link>
         ) : null}
         {isCharacterStart ? (
           <p className="mb-1 text-xs font-semibold text-accent">{row.character.name}</p>

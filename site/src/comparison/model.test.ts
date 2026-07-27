@@ -1,12 +1,14 @@
 import { describe, expect, it } from "vite-plus/test";
 
 import type { BenchmarkData, Character, Clip, Line, Model, Scenario } from "../data/types";
+import type { ComparisonProjection } from "../filters";
 import {
   buildColumnQueue,
   buildComparisonModel,
   buildRowQueue,
   moveCursor,
   resolveCursor,
+  type ComparisonModel,
 } from "./model";
 
 describe("buildComparisonModel", () => {
@@ -73,7 +75,7 @@ describe("buildComparisonModel", () => {
 describe("cursor navigation", () => {
   it("四方向へ非環状に移動し、clip のない cell も飛ばさない", () => {
     const model = buildComparisonModel(smallFixture());
-    const visible = new Set(["alpha", "beta", "gamma"]);
+    const visible = projection(model);
     const missingCell = { rowIndex: 0, modelId: "gamma" };
 
     expect(moveCursor(model, missingCell, "right", visible)).toBe(missingCell);
@@ -94,7 +96,7 @@ describe("cursor navigation", () => {
 
   it("非表示列を横移動から除外する", () => {
     const model = buildComparisonModel(smallFixture());
-    const visible = new Set(["alpha", "gamma"]);
+    const visible = projection(model, ["alpha", "gamma"]);
 
     expect(moveCursor(model, { rowIndex: 0, modelId: "alpha" }, "right", visible)).toEqual({
       rowIndex: 0,
@@ -106,23 +108,41 @@ describe("cursor navigation", () => {
     });
   });
 
+  it("filter で非表示になった行を上下移動から除外する", () => {
+    const model = buildComparisonModel(smallFixture());
+    const filtered = projection(model, undefined, [0, 2, 3]);
+
+    expect(moveCursor(model, { rowIndex: 0, modelId: "alpha" }, "down", filtered)).toEqual({
+      rowIndex: 2,
+      modelId: "alpha",
+    });
+    expect(resolveCursor(model, { rowIndex: 1, modelId: "alpha" }, filtered)).toEqual({
+      rowIndex: 2,
+      modelId: "alpha",
+    });
+    expect(resolveCursor(model, { rowIndex: 3, modelId: "alpha" }, filtered)).toEqual({
+      rowIndex: 3,
+      modelId: "alpha",
+    });
+  });
+
   it("列の可視性変更後、右側を優先して合法 cursor を確定する", () => {
     const model = buildComparisonModel(smallFixture());
     const cursor = { rowIndex: 1, modelId: "beta" };
 
-    expect(resolveCursor(model, cursor, new Set(["alpha", "gamma"]))).toEqual({
+    expect(resolveCursor(model, cursor, projection(model, ["alpha", "gamma"]))).toEqual({
       rowIndex: 1,
       modelId: "gamma",
     });
-    expect(resolveCursor(model, cursor, new Set(["alpha"]))).toEqual({
+    expect(resolveCursor(model, cursor, projection(model, ["alpha"]))).toEqual({
       rowIndex: 1,
       modelId: "alpha",
     });
-    expect(resolveCursor(model, null, new Set(["beta"]))).toEqual({
+    expect(resolveCursor(model, null, projection(model, ["beta"]))).toEqual({
       rowIndex: 0,
       modelId: "beta",
     });
-    expect(resolveCursor(model, cursor, new Set())).toBeNull();
+    expect(resolveCursor(model, cursor, projection(model, ["alpha"], []))).toBeNull();
   });
 });
 
@@ -132,7 +152,7 @@ describe("playback queues", () => {
     const queue = buildRowQueue(
       model,
       { rowIndex: 0, modelId: "alpha" },
-      new Set(["alpha", "gamma"]),
+      projection(model, ["alpha", "gamma"]),
     );
 
     expect(queue.items.map(({ coordinate }) => coordinate)).toEqual([
@@ -141,11 +161,7 @@ describe("playback queues", () => {
     expect(queue.items[0]?.clip.model).toBe("alpha");
     expect(queue.skippedCount).toBe(1);
 
-    const laterQueue = buildRowQueue(
-      model,
-      { rowIndex: 1, modelId: "beta" },
-      new Set(["alpha", "beta", "gamma"]),
-    );
+    const laterQueue = buildRowQueue(model, { rowIndex: 1, modelId: "beta" }, projection(model));
     expect(laterQueue.items.map(({ coordinate }) => coordinate)).toEqual([
       { rowIndex: 1, modelId: "gamma" },
     ]);
@@ -154,7 +170,7 @@ describe("playback queues", () => {
 
   it("column queue は現在行から同じ scenario の末尾までに限定する", () => {
     const model = buildComparisonModel(smallFixture());
-    const queue = buildColumnQueue(model, { rowIndex: 0, modelId: "alpha" });
+    const queue = buildColumnQueue(model, { rowIndex: 0, modelId: "alpha" }, projection(model));
 
     expect(queue.items.map(({ coordinate }) => coordinate)).toEqual([
       { rowIndex: 0, modelId: "alpha" },
@@ -163,7 +179,37 @@ describe("playback queues", () => {
     expect(queue.skippedCount).toBe(1);
     expect(queue.items.every(({ clip }) => clip.scenario === "market")).toBe(true);
   });
+
+  it("column queue は filter 後の表示行だけを再生する", () => {
+    const model = buildComparisonModel(smallFixture());
+    const queue = buildColumnQueue(
+      model,
+      { rowIndex: 0, modelId: "alpha" },
+      projection(model, undefined, [0, 2, 3]),
+    );
+
+    expect(queue.items.map(({ coordinate }) => coordinate)).toEqual([
+      { rowIndex: 0, modelId: "alpha" },
+    ]);
+    expect(queue.skippedCount).toBe(1);
+  });
 });
+
+function projection(
+  model: ComparisonModel,
+  modelIds: readonly string[] = model.models.map(({ id }) => id),
+  rowIndexes: readonly number[] = model.rows.map((_, rowIndex) => rowIndex),
+): ComparisonProjection {
+  const selectedModelIds = new Set(modelIds);
+  const selectedRowIndexes = new Set(rowIndexes);
+  return {
+    rows: rowIndexes.map((rowIndex) => ({ row: model.rows[rowIndex]!, rowIndex })),
+    models: model.models.filter(({ id }) => selectedModelIds.has(id)),
+    rowIndexes: selectedRowIndexes,
+    modelIds: selectedModelIds,
+    key: JSON.stringify([rowIndexes, modelIds]),
+  };
+}
 
 interface MutableManifest {
   format_version: 1;
