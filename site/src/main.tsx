@@ -2,7 +2,6 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { BrowserRouter } from "react-router";
 
-import { AudioProvider } from "@/audio/audio-provider";
 import { assertAudioBaseConfigured } from "@/lib/audio-url";
 
 import "./index.css";
@@ -13,9 +12,7 @@ assertAudioBaseConfigured();
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <BrowserRouter>
-      <AudioProvider>
-        <App />
-      </AudioProvider>
+      <App />
     </BrowserRouter>
   </StrictMode>,
 );
