@@ -1,0 +1,82 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/Hitsuki-Ban/gaya-bench/main/scenarios/schema/scenario.schema.json",
+  "title": "Gaya Bench Scenario v1",
+  "type": "object",
+  "required": ["format_version", "id", "title", "locale", "scene", "characters", "lines"],
+  "additionalProperties": false,
+  "properties": {
+    "format_version": { "const": 1 },
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]*$",
+      "description": "シーンID。ファイル名 (拡張子除く) と一致させる"
+    },
+    "title": { "type": "string" },
+    "locale": { "type": "string", "enum": ["ja", "en"] },
+    "tags": { "type": "array", "items": { "type": "string" } },
+    "scene": {
+      "type": "object",
+      "required": ["setting"],
+      "additionalProperties": false,
+      "properties": {
+        "setting": { "type": "string", "description": "場所・時間帯・状況の散文描写" },
+        "acoustics": { "type": "string", "description": "音響環境 (屋内外・残響・暗騒音)" },
+        "listener": { "type": "string", "description": "聴取者(プレイヤー)との位置関係" }
+      }
+    },
+    "characters": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/character" }
+    },
+    "lines": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/line" }
+    }
+  },
+  "$defs": {
+    "character": {
+      "type": "object",
+      "required": ["id", "name", "gender", "age", "voice"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$" },
+        "name": { "type": "string" },
+        "gender": { "enum": ["female", "male", "neutral"] },
+        "age": { "enum": ["child", "teen", "young_adult", "adult", "middle_aged", "elderly"] },
+        "archetype": { "type": "string", "description": "役柄 (給仕・衛兵・商人...)" },
+        "voice": { "type": "string", "description": "声質のテキスト記述 (声質プロンプト対応モデルへの入力)" },
+        "personality": { "type": "string" },
+        "reference_voice": {
+          "type": ["string", "null"],
+          "description": "assets/voices/ の参照音声素材ID (クローン系モデル用)"
+        }
+      }
+    },
+    "line": {
+      "type": "object",
+      "required": ["id", "character", "text", "emotion", "delivery"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9-]*$",
+          "description": "シーン内一意。グローバルIDは <scenario_id>/<line_id> で合成"
+        },
+        "character": { "type": "string", "description": "characters[].id への参照" },
+        "text": { "type": "string", "minLength": 1, "maxLength": 60 },
+        "reading": { "type": ["string", "null"], "description": "かな読み (漢字誤読対策、任意)" },
+        "emotion": {
+          "enum": ["neutral", "cheerful", "angry", "sad", "fearful", "surprised", "tired", "drunk", "whisper", "shout", "laughing", "pain"]
+        },
+        "intensity": { "type": "integer", "minimum": 1, "maximum": 3, "default": 2 },
+        "delivery": { "type": "string", "description": "演技指示の散文 (話速・声量・ニュアンス)" },
+        "situation": { "type": "string", "description": "この一言が発される具体的状況" },
+        "difficulty": { "enum": ["standard", "hard"], "default": "standard" },
+        "loop_ok": { "type": "boolean", "default": true }
+      }
+    }
+  }
+}

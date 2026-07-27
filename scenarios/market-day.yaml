@@ -1,0 +1,101 @@
+# サンプルシナリオ 2 (屋外・呼び込み・子供声のカバー)
+format_version: 1
+id: market-day
+title: 市場・昼の雑踏
+locale: ja
+tags: [fantasy, outdoor, crowd]
+
+scene:
+  setting: >-
+    城下町の青空市場。昼どき、露店が並び人通りが多い。
+  acoustics: 屋外の雑踏。残響はほぼなく、遠近さまざまな声が重なる。
+  listener: プレイヤーは通りを歩いて露店の前を通過する。声は2〜6mの中距離。
+
+characters:
+  - id: fruit-vendor
+    name: 果物売りの男
+    gender: male
+    age: adult
+    archetype: 露天商
+    voice: よく通る威勢のいい声。腹から出ている呼び込みの声。
+    personality: 商売熱心で調子がいい。客あしらいに慣れている。
+    reference_voice: null
+
+  - id: shopper
+    name: 買い物中の女性
+    gender: female
+    age: middle_aged
+    archetype: 町の主婦
+    voice: 落ち着いた中音域。世間話に慣れた滑らかな話し方。
+    personality: 目利きに自信あり。値切りは日常の楽しみ。
+    reference_voice: null
+
+  - id: street-kid
+    name: 街の子供
+    gender: neutral
+    age: child
+    archetype: 悪ガキ
+    voice: 甲高く元気な子供の声。息が続く限り一気に喋る。
+    personality: 好奇心旺盛でじっとしていない。
+    reference_voice: null
+
+lines:
+  - id: fruit-vendor-001
+    character: fruit-vendor
+    text: 安いよ安いよ！今朝もぎのリンゴだよ！
+    emotion: shout
+    intensity: 3
+    delivery: 通り全体に届く呼び込み。リズムがあり、張っているが濁らない。
+    situation: 店先で通行人に向かって声を張り上げている。
+    difficulty: hard
+    loop_ok: true
+
+  - id: fruit-vendor-002
+    character: fruit-vendor
+    text: お、姐さんお目が高いね！
+    emotion: cheerful
+    intensity: 2
+    delivery: 客への軽口。呼び込みより一段落とした商売声。
+    situation: 品物を手に取った客にすかさず声をかける。
+    difficulty: standard
+    loop_ok: true
+
+  - id: shopper-001
+    character: shopper
+    text: あら、こっちのほうが新鮮じゃないの。
+    emotion: neutral
+    intensity: 2
+    delivery: 独り言まじりの品定め。語尾に少し得意げな色。
+    situation: 露店の果物を見比べながら。
+    difficulty: standard
+    loop_ok: true
+
+  - id: shopper-002
+    character: shopper
+    text: もうちょっと、まからないの？
+    emotion: cheerful
+    intensity: 1
+    delivery: 冗談めかした値切り。上目遣いの甘え声だが本気。
+    situation: 店主と顔なじみの値段交渉。
+    difficulty: standard
+    loop_ok: true
+
+  - id: street-kid-001
+    character: street-kid
+    text: わーっ！ごめんよおじさん！
+    emotion: surprised
+    intensity: 3
+    delivery: 走りながら叫ぶ。悪びれない明るい謝罪。
+    situation: 人混みを駆け抜けて通行人にぶつかりかけた。
+    difficulty: hard
+    loop_ok: true
+
+  - id: street-kid-002
+    character: street-kid
+    text: ねえねえ、剣持ってる！すごーい！
+    emotion: cheerful
+    intensity: 3
+    delivery: 興奮した早口。「すごーい」で音程が跳ね上がる。
+    situation: 武装したプレイヤーを見つけてはしゃぐ。
+    difficulty: hard
+    loop_ok: true

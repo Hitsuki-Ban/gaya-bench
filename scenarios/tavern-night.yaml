@@ -1,0 +1,101 @@
+# サンプルシナリオ 1 (フォーマットのリファレンス実装を兼ねる)
+format_version: 1
+id: tavern-night
+title: 酒場・夜の喧騒
+locale: ja
+tags: [fantasy, indoor, crowd]
+
+scene:
+  setting: >-
+    中世ファンタジー都市の酒場。夜、満席で騒がしい。エールと煮込み料理の匂い。
+  acoustics: 木造の中規模ホール。喧騒と食器の音が常にある。残響は短い。
+  listener: プレイヤーは席の間を通り抜ける。声は2〜5mの中距離で聞こえる。
+
+characters:
+  - id: barmaid
+    name: 給仕の女性
+    gender: female
+    age: young_adult
+    archetype: 給仕
+    voice: 明るく張りのある声。やや早口で、喧騒を通す接客の声。
+    personality: 気さくで世話焼き。常連には遠慮がない。
+    reference_voice: null
+
+  - id: drunkard
+    name: 酔っ払いの男
+    gender: male
+    age: middle_aged
+    archetype: 酔客
+    voice: 濁声で呂律が怪しい。声量の制御ができていない。
+    personality: 陽気だが絡み酒。同じ話を何度もする。
+    reference_voice: null
+
+  - id: old-regular
+    name: 常連の老人
+    gender: male
+    age: elderly
+    archetype: 隠居した職人
+    voice: しわがれた低い声。ゆっくりとした口調。
+    personality: 世相を憂いがちだが、酒場の空気は好き。
+    reference_voice: null
+
+lines:
+  - id: barmaid-001
+    character: barmaid
+    text: はいよっ、エール二つお待ち！
+    emotion: cheerful
+    intensity: 2
+    delivery: 客へ呼びかける。喧騒に負けないやや大きめの声。語尾が弾む。
+    situation: 両手にジョッキを持ってテーブルへ運んでいる。
+    difficulty: standard
+    loop_ok: true
+
+  - id: barmaid-002
+    character: barmaid
+    text: こらっ、ツケはもう利かないって言ったろ！
+    emotion: angry
+    intensity: 2
+    delivery: 怒っているが本気ではない。呆れ半分の叱り口調。
+    situation: 常連の酔客に支払いを催促している。
+    difficulty: standard
+    loop_ok: true
+
+  - id: drunkard-001
+    character: drunkard
+    text: だからよぉ……俺は悪くねぇんだって……
+    emotion: drunk
+    intensity: 2
+    delivery: 呂律が回らず、語尾が伸びて沈む。愚痴っぽい。
+    situation: 隣の客に絡みながら管を巻いている。
+    difficulty: hard
+    loop_ok: true
+
+  - id: drunkard-002
+    character: drunkard
+    text: うぃっ……もう一杯だけ、な？
+    emotion: drunk
+    intensity: 3
+    delivery: しゃっくり混じり。哀願するような上ずった声。
+    situation: 空のジョッキを掲げて給仕を呼び止める。
+    difficulty: hard
+    loop_ok: true
+
+  - id: old-regular-001
+    character: old-regular
+    text: 近頃は物騒でいかんなぁ。
+    emotion: tired
+    intensity: 1
+    delivery: ため息まじり。独り言と話しかけの中間くらいの声量。
+    situation: カウンターで杯を傾けながら誰にともなく呟く。
+    difficulty: standard
+    loop_ok: true
+
+  - id: old-regular-002
+    character: old-regular
+    text: ほっほ、若いのは元気でいい。
+    emotion: laughing
+    intensity: 1
+    delivery: 静かな含み笑いから始まる。目を細めて言う感じ。
+    situation: 騒ぐ冒険者たちを眺めながら。
+    difficulty: hard
+    loop_ok: true
