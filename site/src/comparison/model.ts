@@ -1,4 +1,5 @@
 import type { BenchmarkData, Character, Clip, Line, Model, Scenario } from "../data/types";
+import type { ComparisonProjection } from "../filters";
 
 export interface ComparisonRow {
   readonly scenario: Scenario;
@@ -137,80 +138,68 @@ export function buildComparisonModel(data: BenchmarkData): ComparisonModel {
 export function resolveCursor(
   model: ComparisonModel,
   cursor: Coordinate | null,
-  visibleModelIds: ReadonlySet<string>,
+  projection: ComparisonProjection,
 ): Coordinate | null {
-  const visibleModels = getVisibleModels(model, visibleModelIds);
-  if (model.rows.length === 0 || visibleModels.length === 0) {
+  if (projection.rows.length === 0 || projection.models.length === 0) {
     return null;
   }
   if (cursor === null) {
-    return { rowIndex: 0, modelId: visibleModels[0]!.id };
+    return {
+      rowIndex: projection.rows[0]!.rowIndex,
+      modelId: projection.models[0]!.id,
+    };
   }
 
   assertCoordinate(model.rows, getModelIds(model), cursor);
-  if (visibleModelIds.has(cursor.modelId)) {
-    return cursor;
-  }
-
-  const currentModelIndex = model.models.findIndex(({ id }) => id === cursor.modelId);
-  const modelOnRight = model.models
-    .slice(currentModelIndex + 1)
-    .find(({ id }) => visibleModelIds.has(id));
-  if (modelOnRight) {
-    return { rowIndex: cursor.rowIndex, modelId: modelOnRight.id };
-  }
-
-  const modelOnLeft = model.models
-    .slice(0, currentModelIndex)
-    .findLast(({ id }) => visibleModelIds.has(id));
-  if (!modelOnLeft) {
-    throw new Error("表示中の model から cursor を解決できませんでした。");
-  }
-  return { rowIndex: cursor.rowIndex, modelId: modelOnLeft.id };
+  const rowIndex = resolveRowIndex(cursor.rowIndex, projection);
+  const modelId = resolveModelId(model, cursor.modelId, projection.modelIds);
+  return { rowIndex, modelId };
 }
 
 export function moveCursor(
   model: ComparisonModel,
   cursor: Coordinate,
   direction: NavigationDirection,
-  visibleModelIds: ReadonlySet<string>,
+  projection: ComparisonProjection,
 ): Coordinate {
-  const visibleModels = getVisibleModels(model, visibleModelIds);
-  assertCoordinate(model.rows, getModelIds(model), cursor);
-  const visibleColumnIndex = visibleModels.findIndex(({ id }) => id === cursor.modelId);
+  assertProjectedCoordinate(model, projection, cursor);
+  const visibleColumnIndex = projection.models.findIndex(({ id }) => id === cursor.modelId);
   if (visibleColumnIndex < 0) {
     throw new Error(`cursor の model は非表示です: ${cursor.modelId}`);
   }
+  const visibleRowIndex = projection.rows.findIndex(({ rowIndex }) => rowIndex === cursor.rowIndex);
+  if (visibleRowIndex < 0) {
+    throw new Error(`cursor の row は非表示です: ${cursor.rowIndex}`);
+  }
 
   if (direction === "up") {
-    return cursor.rowIndex === 0 ? cursor : { ...cursor, rowIndex: cursor.rowIndex - 1 };
+    const previousRow = projection.rows[visibleRowIndex - 1];
+    return previousRow ? { ...cursor, rowIndex: previousRow.rowIndex } : cursor;
   }
   if (direction === "down") {
-    return cursor.rowIndex === model.rows.length - 1
-      ? cursor
-      : { ...cursor, rowIndex: cursor.rowIndex + 1 };
+    const nextRow = projection.rows[visibleRowIndex + 1];
+    return nextRow ? { ...cursor, rowIndex: nextRow.rowIndex } : cursor;
   }
 
   const nextColumnIndex = direction === "left" ? visibleColumnIndex - 1 : visibleColumnIndex + 1;
-  const nextModel = visibleModels[nextColumnIndex];
+  const nextModel = projection.models[nextColumnIndex];
   return nextModel ? { rowIndex: cursor.rowIndex, modelId: nextModel.id } : cursor;
 }
 
 export function buildRowQueue(
   model: ComparisonModel,
   cursor: Coordinate,
-  visibleModelIds: ReadonlySet<string>,
+  projection: ComparisonProjection,
 ): PlaybackQueue {
-  const visibleModels = getVisibleModels(model, visibleModelIds);
-  assertCoordinate(model.rows, getModelIds(model), cursor);
-  const startIndex = visibleModels.findIndex(({ id }) => id === cursor.modelId);
+  assertProjectedCoordinate(model, projection, cursor);
+  const startIndex = projection.models.findIndex(({ id }) => id === cursor.modelId);
   if (startIndex < 0) {
     throw new Error(`cursor の model は非表示です: ${cursor.modelId}`);
   }
 
   const items: QueueItem[] = [];
   let skippedCount = 0;
-  for (const visibleModel of visibleModels.slice(startIndex)) {
+  for (const visibleModel of projection.models.slice(startIndex)) {
     const coordinate = { rowIndex: cursor.rowIndex, modelId: visibleModel.id };
     const clip = model.getClip(coordinate);
     if (clip) {
@@ -222,13 +211,26 @@ export function buildRowQueue(
   return { items, skippedCount };
 }
 
-export function buildColumnQueue(model: ComparisonModel, cursor: Coordinate): PlaybackQueue {
-  assertCoordinate(model.rows, getModelIds(model), cursor);
+export function buildColumnQueue(
+  model: ComparisonModel,
+  cursor: Coordinate,
+  projection: ComparisonProjection,
+): PlaybackQueue {
+  assertProjectedCoordinate(model, projection, cursor);
   const scenarioId = model.rows[cursor.rowIndex]!.scenario.id;
   const items: QueueItem[] = [];
   let skippedCount = 0;
+  const startIndex = projection.rows.findIndex(({ rowIndex }) => rowIndex === cursor.rowIndex);
+  if (startIndex < 0) {
+    throw new Error(`cursor の row は非表示です: ${cursor.rowIndex}`);
+  }
 
-  for (let rowIndex = cursor.rowIndex; rowIndex < model.rows.length; rowIndex += 1) {
+  for (
+    let visibleRowIndex = startIndex;
+    visibleRowIndex < projection.rows.length;
+    visibleRowIndex += 1
+  ) {
+    const rowIndex = projection.rows[visibleRowIndex]!.rowIndex;
     if (model.rows[rowIndex]!.scenario.id !== scenarioId) {
       break;
     }
@@ -258,19 +260,6 @@ function getModelIds(model: ComparisonModel): ReadonlySet<string> {
   return new Set(model.models.map(({ id }) => id));
 }
 
-function getVisibleModels(
-  model: ComparisonModel,
-  visibleModelIds: ReadonlySet<string>,
-): readonly Model[] {
-  const modelIds = getModelIds(model);
-  for (const visibleModelId of visibleModelIds) {
-    if (!modelIds.has(visibleModelId)) {
-      throw new Error(`表示対象に存在しない model id が含まれています: ${visibleModelId}`);
-    }
-  }
-  return model.models.filter(({ id }) => visibleModelIds.has(id));
-}
-
 function assertCoordinate(
   rows: readonly ComparisonRow[],
   modelIds: ReadonlySet<string>,
@@ -286,6 +275,56 @@ function assertCoordinate(
   if (!modelIds.has(coordinate.modelId)) {
     throw new Error(`cursor の model id が存在しません: ${coordinate.modelId}`);
   }
+}
+
+function assertProjectedCoordinate(
+  model: ComparisonModel,
+  projection: ComparisonProjection,
+  coordinate: Coordinate,
+): void {
+  assertCoordinate(model.rows, getModelIds(model), coordinate);
+  if (!projection.rowIndexes.has(coordinate.rowIndex)) {
+    throw new Error(`cursor の row は非表示です: ${coordinate.rowIndex}`);
+  }
+  if (!projection.modelIds.has(coordinate.modelId)) {
+    throw new Error(`cursor の model は非表示です: ${coordinate.modelId}`);
+  }
+}
+
+function resolveRowIndex(currentRowIndex: number, projection: ComparisonProjection): number {
+  if (projection.rowIndexes.has(currentRowIndex)) {
+    return currentRowIndex;
+  }
+  return (
+    projection.rows.find(({ rowIndex }) => rowIndex >= currentRowIndex)?.rowIndex ??
+    projection.rows.at(-1)!.rowIndex
+  );
+}
+
+function resolveModelId(
+  model: ComparisonModel,
+  currentModelId: string,
+  visibleModelIds: ReadonlySet<string>,
+): string {
+  if (visibleModelIds.has(currentModelId)) {
+    return currentModelId;
+  }
+
+  const currentModelIndex = model.models.findIndex(({ id }) => id === currentModelId);
+  const modelOnRight = model.models
+    .slice(currentModelIndex + 1)
+    .find(({ id }) => visibleModelIds.has(id));
+  if (modelOnRight) {
+    return modelOnRight.id;
+  }
+
+  const modelOnLeft = model.models
+    .slice(0, currentModelIndex)
+    .findLast(({ id }) => visibleModelIds.has(id));
+  if (!modelOnLeft) {
+    throw new Error("表示中の model から cursor を解決できませんでした。");
+  }
+  return modelOnLeft.id;
 }
 
 function lineKey(scenarioId: string, lineId: string): string {

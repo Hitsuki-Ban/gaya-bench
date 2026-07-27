@@ -1,36 +1,37 @@
-import { useMemo, useRef, type KeyboardEvent } from "react";
+import { useRef, type KeyboardEvent } from "react";
+import { Link } from "react-router";
 
 import { Badge } from "@/components/ui/badge";
+import type { ComparisonProjection } from "@/filters";
 
 import { MatrixCell } from "./matrix-cell";
-import type { ComparisonModel, Coordinate } from "./model";
+import { resolveCursor, type ComparisonModel, type Coordinate } from "./model";
 import type { ComparisonController } from "./use-comparison-controller";
 import { useVisibleAudioPrefetch } from "./visible-audio-prefetch";
 
 interface MobileMatrixProps {
   controller: ComparisonController;
   model: ComparisonModel;
+  projection: ComparisonProjection;
+  search: string;
 }
 
-export function MobileMatrix({ controller, model }: MobileMatrixProps) {
+export function MobileMatrix({ controller, model, projection, search }: MobileMatrixProps) {
   const scopeRef = useRef<HTMLDivElement>(null);
-  const visibleModels = useMemo(
-    () => model.models.filter(({ id }) => controller.visibleModelIds.has(id)),
-    [controller.visibleModelIds, model.models],
-  );
-  const cursor = controller.cursor;
+  const visibleModels = projection.models;
+  const cursor = resolveCursor(model, controller.cursor, projection);
   const selectedModel = visibleModels.find(({ id }) => id === cursor?.modelId);
   const playingCoordinate =
     controller.player.currentClipKey === null
       ? undefined
       : model.getCoordinateForClipKey(controller.player.currentClipKey);
-  useVisibleAudioPrefetch(scopeRef, null, selectedModel?.id ?? "");
+  useVisibleAudioPrefetch(scopeRef, null, `${projection.key}:${selectedModel?.id ?? ""}`);
 
   if (cursor === null) {
     return null;
   }
   if (!selectedModel) {
-    throw new Error(`mobile matrix の model が表示対象にありません: ${cursor.modelId}`);
+    throw new Error(`mobile matrix の投影 cursor を解決できません: ${cursor.modelId}`);
   }
 
   function handleTabKeyDown(event: KeyboardEvent<HTMLButtonElement>, index: number): void {
@@ -68,6 +69,7 @@ export function MobileMatrix({ controller, model }: MobileMatrixProps) {
                 : "border-border bg-background text-muted-foreground",
             ].join(" ")}
             data-model-tab={item.id}
+            id={`mobile-model-tab-${item.id}`}
             key={item.id}
             onClick={() => controller.selectModel(item.id)}
             onKeyDown={(event) => handleTabKeyDown(event, index)}
@@ -80,10 +82,22 @@ export function MobileMatrix({ controller, model }: MobileMatrixProps) {
         ))}
       </div>
 
-      <div className="space-y-3" id="mobile-comparison-list" role="tabpanel">
-        {model.rows.map((row, rowIndex) => {
+      <Link
+        className="inline-flex text-xs text-primary underline-offset-4 hover:underline"
+        to={{ pathname: `/models/${selectedModel.id}`, search }}
+      >
+        {selectedModel.name} の詳細を見る
+      </Link>
+
+      <div
+        aria-labelledby={`mobile-model-tab-${selectedModel.id}`}
+        className="space-y-3"
+        id="mobile-comparison-list"
+        role="tabpanel"
+      >
+        {projection.rows.map(({ row, rowIndex }, displayRowIndex) => {
           const coordinate: Coordinate = { rowIndex, modelId: selectedModel.id };
-          const previous = model.rows[rowIndex - 1];
+          const previous = projection.rows[displayRowIndex - 1]?.row;
           const isScenarioStart =
             previous === undefined || previous.scenario.id !== row.scenario.id;
           const isCharacterStart = isScenarioStart || previous.character.id !== row.character.id;
@@ -100,9 +114,12 @@ export function MobileMatrix({ controller, model }: MobileMatrixProps) {
               key={`${row.scenario.id}/${row.line.id}`}
             >
               {isScenarioStart ? (
-                <p className="mb-2 font-mono text-[10px] tracking-[0.14em] text-primary uppercase">
+                <Link
+                  className="mb-2 block font-mono text-[10px] tracking-[0.14em] text-primary uppercase hover:underline"
+                  to={{ pathname: `/scenario/${row.scenario.id}`, search }}
+                >
                   {row.scenario.title}
-                </p>
+                </Link>
               ) : null}
               {isCharacterStart ? (
                 <p className="text-xs font-semibold text-accent">{row.character.name}</p>

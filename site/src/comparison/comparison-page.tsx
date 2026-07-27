@@ -1,13 +1,23 @@
-import { AudioWaveform, Columns3, ListVideo, Pause, Play, Rows3, Square } from "lucide-react";
-import { useMemo } from "react";
+import { AlertTriangle, AudioWaveform, ListVideo, Pause, Play, Rows3, Square } from "lucide-react";
+import { useCallback, useEffect, useMemo } from "react";
+import { useSearchParams } from "react-router";
 
 import { useAudioProgress } from "@/audio/audio-provider";
 import { PageIntro } from "@/components/page-intro";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { benchmarkData, clipKey } from "@/data";
+import {
+  decodeFilterQuery,
+  encodeFilterState,
+  projectComparisonModel,
+  type ComparisonProjection,
+  type FilterQueryIssue,
+  type FilterState,
+} from "@/filters";
 
 import { DesktopMatrix } from "./desktop-matrix";
+import { FilterToolbar } from "./filter-toolbar";
 import { buildComparisonModel } from "./model";
 import { MobileMatrix } from "./mobile-matrix";
 import { useComparisonController, type SequenceDirection } from "./use-comparison-controller";
@@ -16,21 +26,78 @@ import { useMediaQuery } from "./use-media-query";
 const comparisonModel = buildComparisonModel(benchmarkData);
 
 export function ComparisonPage() {
-  const controller = useComparisonController(comparisonModel);
-  const isDesktop = useMediaQuery("(min-width: 768px)");
-  const visibleModels = useMemo(
-    () => comparisonModel.models.filter(({ id }) => controller.visibleModelIds.has(id)),
-    [controller.visibleModelIds],
+  const [searchParams, setSearchParams] = useSearchParams();
+  const rawSearch = searchParams.toString();
+  const result = useMemo(
+    () => decodeFilterQuery(new URLSearchParams(rawSearch), benchmarkData),
+    [rawSearch],
   );
+
+  useEffect(() => {
+    const currentSearch = rawSearch.length === 0 ? "" : `?${rawSearch}`;
+    if (result.ok && result.canonicalSearch !== currentSearch) {
+      setSearchParams(new URLSearchParams(result.canonicalSearch), {
+        preventScrollReset: true,
+        replace: true,
+      });
+    }
+  }, [rawSearch, result, setSearchParams]);
+
+  const resetFilters = useCallback(() => {
+    setSearchParams(new URLSearchParams(), { preventScrollReset: true });
+  }, [setSearchParams]);
+
+  if (!result.ok) {
+    return <InvalidFilterQuery issues={result.issues} onReset={resetFilters} />;
+  }
+
+  return (
+    <FilteredComparisonPage
+      canonicalSearch={result.canonicalSearch}
+      onChange={(state) =>
+        setSearchParams(new URLSearchParams(encodeFilterState(state, benchmarkData)), {
+          preventScrollReset: true,
+        })
+      }
+      onReset={resetFilters}
+      state={result.state}
+    />
+  );
+}
+
+function FilteredComparisonPage({
+  canonicalSearch,
+  onChange,
+  onReset,
+  state,
+}: {
+  canonicalSearch: string;
+  onChange: (state: FilterState) => void;
+  onReset: () => void;
+  state: FilterState;
+}) {
+  const projection = useMemo(() => projectComparisonModel(comparisonModel, state), [state]);
+  const controller = useComparisonController(comparisonModel, projection);
+  const isDesktop = useMediaQuery("(min-width: 768px)");
+  const filteredClipCount = useMemo(() => countProjectionClips(projection), [projection]);
 
   return (
     <div className="space-y-6">
       <PageIntro
         aside={
           <div className="grid min-w-64 grid-cols-3 gap-px overflow-hidden rounded-lg border bg-border">
-            <Metric label="lines" value={comparisonModel.rows.length} />
-            <Metric label="clips" value={benchmarkData.manifest.clips.length} />
-            <Metric label="models" value={comparisonModel.models.length} />
+            <Metric
+              label="lines"
+              value={`${projection.rows.length}/${comparisonModel.rows.length}`}
+            />
+            <Metric
+              label="clips"
+              value={`${filteredClipCount}/${benchmarkData.manifest.clips.length}`}
+            />
+            <Metric
+              label="models"
+              value={`${projection.models.length}/${comparisonModel.models.length}`}
+            />
           </div>
         }
         description="行はセリフ、列はモデル。方向キーで比較対象を移動し、そのまま再生できます。未生成セルも含め、全シナリオを同じ座標系で確認します。"
@@ -38,35 +105,53 @@ export function ComparisonPage() {
         title="聴き比べの摩擦を、最小に。"
       />
 
-      <MatrixToolbar
-        controller={controller}
-        modelCount={comparisonModel.models.length}
-        visibleModelCount={visibleModels.length}
+      <FilterToolbar
+        filteredRows={projection.rows.length}
+        onChange={onChange}
+        onReset={onReset}
+        state={state}
+        totalRows={comparisonModel.rows.length}
       />
 
+      <MatrixToolbar controller={controller} visibleModelCount={projection.models.length} />
+
       {controller.cursor === null ? (
-        <div className="rounded-lg border border-dashed p-8 text-center text-muted-foreground">
-          比較できる行またはモデルがありません。
+        <div className="rounded-lg border border-dashed p-8 text-center">
+          <p className="font-semibold">条件に一致するセリフがありません。</p>
+          <p className="mt-2 text-sm text-muted-foreground">
+            シナリオまたはキャラクター・感情・難易度の条件を緩めてください。
+          </p>
+          <Button className="mt-4" onClick={onReset} variant="outline">
+            フィルタを初期化
+          </Button>
         </div>
       ) : isDesktop ? (
-        <DesktopMatrix controller={controller} model={comparisonModel} />
+        <DesktopMatrix
+          controller={controller}
+          model={comparisonModel}
+          projection={projection}
+          search={canonicalSearch}
+        />
       ) : (
-        <MobileMatrix controller={controller} model={comparisonModel} />
+        <MobileMatrix
+          controller={controller}
+          model={comparisonModel}
+          projection={projection}
+          search={canonicalSearch}
+        />
       )}
 
       <KeyboardHelp isDesktop={isDesktop} />
-      <Transport controller={controller} />
+      <Transport controller={controller} projection={projection} />
     </div>
   );
 }
 
 function MatrixToolbar({
   controller,
-  modelCount,
   visibleModelCount,
 }: {
   controller: ReturnType<typeof useComparisonController>;
-  modelCount: number;
   visibleModelCount: number;
 }) {
   return (
@@ -76,33 +161,7 @@ function MatrixToolbar({
           <AudioWaveform aria-hidden="true" data-icon="inline-start" />
           -18 LUFS / mono / 48kHz
         </Badge>
-        <details className="relative">
-          <summary className="flex min-h-9 cursor-pointer list-none items-center gap-2 rounded-md border px-3 text-xs text-muted-foreground hover:text-foreground">
-            <Columns3 aria-hidden="true" className="size-3.5" />
-            列表示 {visibleModelCount}/{modelCount}
-          </summary>
-          <div className="absolute top-11 left-0 z-40 min-w-64 space-y-2 rounded-lg border bg-popover p-3 shadow-xl">
-            {comparisonModel.models.map((model) => {
-              const checked = controller.visibleModelIds.has(model.id);
-              return (
-                <label
-                  className="flex min-h-10 cursor-pointer items-center gap-3 rounded px-2 text-sm hover:bg-muted"
-                  key={model.id}
-                >
-                  <input
-                    checked={checked}
-                    disabled={checked && visibleModelCount === 1}
-                    onChange={(event) =>
-                      controller.setModelVisible(model.id, event.currentTarget.checked)
-                    }
-                    type="checkbox"
-                  />
-                  <span>{model.name}</span>
-                </label>
-              );
-            })}
-          </div>
-        </details>
+        <Badge variant="secondary">表示モデル {visibleModelCount}</Badge>
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
@@ -201,10 +260,19 @@ function Shortcut({ keys, label }: { keys: string; label: string }) {
   );
 }
 
-function Transport({ controller }: { controller: ReturnType<typeof useComparisonController> }) {
+function Transport({
+  controller,
+  projection,
+}: {
+  controller: ReturnType<typeof useComparisonController>;
+  projection: ComparisonProjection;
+}) {
   const progress = useAudioProgress();
   const cursor = controller.cursor;
   if (cursor === null) {
+    return null;
+  }
+  if (!projection.rowIndexes.has(cursor.rowIndex) || !projection.modelIds.has(cursor.modelId)) {
     return null;
   }
 
@@ -220,6 +288,9 @@ function Transport({ controller }: { controller: ReturnType<typeof useComparison
   const isPlaying =
     isCurrentClip &&
     (controller.player.status === "playing" || controller.player.status === "loading");
+  const visibleRowPosition = projection.rows.findIndex(
+    ({ rowIndex }) => rowIndex === cursor.rowIndex,
+  );
 
   return (
     <div className="sticky bottom-4 z-30 rounded-lg border border-primary/30 bg-background/95 p-3 shadow-2xl shadow-black/50 backdrop-blur">
@@ -231,8 +302,7 @@ function Transport({ controller }: { controller: ReturnType<typeof useComparison
             {row.line.text}
           </p>
           <p className="mt-1 font-mono text-[10px] text-muted-foreground">
-            {row.scenario.title} · {model.name} · {cursor.rowIndex + 1}/
-            {comparisonModel.rows.length}
+            {row.scenario.title} · {model.name} · {visibleRowPosition + 1}/{projection.rows.length}
           </p>
         </div>
 
@@ -283,7 +353,53 @@ function Transport({ controller }: { controller: ReturnType<typeof useComparison
   );
 }
 
-function Metric({ label, value }: { label: string; value: number }) {
+function InvalidFilterQuery({
+  issues,
+  onReset,
+}: {
+  issues: readonly FilterQueryIssue[];
+  onReset: () => void;
+}) {
+  return (
+    <div className="space-y-6">
+      <PageIntro
+        description="URL のフィルタ指定を読み取れませんでした。値を確認するか、初期状態へ戻してください。"
+        eyebrow="Comparison matrix / Invalid filter"
+        title="共有リンクの条件が無効です。"
+      />
+      <div className="rounded-lg border border-destructive/40 bg-destructive/5 p-5">
+        <h2 className="flex items-center gap-2 text-sm font-semibold text-destructive">
+          <AlertTriangle aria-hidden="true" className="size-4" />
+          Filter query error
+        </h2>
+        <ul className="mt-3 list-disc space-y-1 pl-5 text-sm text-muted-foreground">
+          {issues.map((issue, index) => (
+            <li key={`${issue.code}/${issue.key}/${issue.value ?? ""}/${index}`}>
+              {issue.message}
+            </li>
+          ))}
+        </ul>
+        <Button className="mt-4" onClick={onReset} variant="outline">
+          フィルタを初期化
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+function countProjectionClips(projection: ComparisonProjection): number {
+  let count = 0;
+  for (const { rowIndex } of projection.rows) {
+    for (const model of projection.models) {
+      if (comparisonModel.getClip({ rowIndex, modelId: model.id })) {
+        count += 1;
+      }
+    }
+  }
+  return count;
+}
+
+function Metric({ label, value }: { label: string; value: string }) {
   return (
     <div className="bg-card px-4 py-3 text-center">
       <p className="font-mono text-lg text-foreground">{value}</p>

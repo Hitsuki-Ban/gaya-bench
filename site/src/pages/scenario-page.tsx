@@ -1,25 +1,33 @@
-import { Link, useParams } from "react-router";
+import { AudioWaveform, Ear, MapPinned, Volume2 } from "lucide-react";
+import { Link, useLocation, useParams } from "react-router";
 
 import { ClipButton } from "@/components/clip-button";
 import { PageIntro } from "@/components/page-intro";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getClipsForScenario, scenarioById } from "@/data";
+import { buildScenarioLineEntries } from "@/pages/detail-page-model";
 import { NotFoundPage } from "@/pages/not-found-page";
 
 export function ScenarioPage() {
   const { id } = useParams();
+  const { search } = useLocation();
   const scenario = id ? scenarioById.get(id) : undefined;
   if (!scenario) {
     return <NotFoundPage />;
   }
 
   const clips = getClipsForScenario(scenario.id);
+  const lineEntries = buildScenarioLineEntries(scenario, clips);
+
   return (
     <div className="space-y-7">
       <PageIntro
         aside={
-          <Link className="text-sm text-primary underline-offset-4 hover:underline" to="/">
+          <Link
+            className="text-sm text-primary underline-offset-4 hover:underline"
+            to={{ pathname: "/", search }}
+          >
             比較へ戻る
           </Link>
         }
@@ -27,31 +35,170 @@ export function ScenarioPage() {
         eyebrow={`Scenario / ${scenario.id}`}
         title={scenario.title}
       />
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-        {scenario.lines.map((line) => {
-          const character = scenario.characters.find((item) => item.id === line.character)!;
-          const lineClips = clips.filter((clip) => clip.line === line.id);
-          return (
-            <Card key={line.id} size="sm">
+
+      <section aria-labelledby="scene-heading" className="space-y-3">
+        <SectionHeading
+          count={
+            1 + Number(Boolean(scenario.scene.acoustics)) + Number(Boolean(scenario.scene.listener))
+          }
+          id="scene-heading"
+          title="シーン環境"
+        />
+        <div className="grid gap-3 md:grid-cols-3">
+          <SceneFact icon={MapPinned} label="設定" value={scenario.scene.setting} />
+          {scenario.scene.acoustics ? (
+            <SceneFact icon={Volume2} label="音響" value={scenario.scene.acoustics} />
+          ) : null}
+          {scenario.scene.listener ? (
+            <SceneFact icon={Ear} label="リスナー位置" value={scenario.scene.listener} />
+          ) : null}
+        </div>
+        {scenario.tags && scenario.tags.length > 0 ? (
+          <div className="flex flex-wrap gap-2">
+            {scenario.tags.map((tag) => (
+              <Badge key={tag} variant="outline">
+                {tag}
+              </Badge>
+            ))}
+          </div>
+        ) : null}
+      </section>
+
+      <aside
+        className="flex gap-3 rounded-lg border border-primary/30 bg-primary/5 p-4"
+        role="note"
+      >
+        <AudioWaveform aria-hidden="true" className="mt-0.5 size-5 shrink-0 text-primary" />
+        <div>
+          <h2 className="text-sm font-semibold">試聴条件</h2>
+          <p className="mt-1 text-sm leading-6 text-muted-foreground">
+            全クリップはモデル間の音量差を抑えるため、変換後に -18 LUFS / peak -1 dBTP / mono /
+            48kHz へ正規化しています。囁きや叫びの意図的な音量差も均されるため、
+            音質・発音・演技を中心に比較してください。v1 は距離感や残響を加えない dry 音声です。
+          </p>
+        </div>
+      </aside>
+
+      <section aria-labelledby="characters-heading" className="space-y-3">
+        <SectionHeading
+          count={scenario.characters.length}
+          id="characters-heading"
+          title="登場キャラクター"
+        />
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          {scenario.characters.map((character) => (
+            <Card key={character.id} size="sm">
               <CardHeader>
                 <div className="flex flex-wrap gap-2">
-                  <Badge variant="secondary">{character.name}</Badge>
-                  <Badge variant="outline">{line.emotion}</Badge>
-                  <Badge variant="outline">{line.difficulty}</Badge>
+                  <Badge variant="secondary">{character.gender}</Badge>
+                  <Badge variant="outline">{character.age}</Badge>
+                  {character.archetype ? (
+                    <Badge variant="outline">{character.archetype}</Badge>
+                  ) : null}
                 </div>
-                <CardTitle className="mt-2 leading-7">{line.text}</CardTitle>
+                <CardTitle className="mt-2">{character.name}</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-2">
-                {lineClips.length > 0 ? (
-                  lineClips.map((clip) => <ClipButton clip={clip} key={clip.model} />)
-                ) : (
-                  <p className="text-xs text-muted-foreground">未生成</p>
-                )}
+              <CardContent className="space-y-3 text-sm leading-6">
+                <CharacterFact label="声質" value={character.voice} />
+                {character.personality ? (
+                  <CharacterFact label="人物像" value={character.personality} />
+                ) : null}
               </CardContent>
             </Card>
-          );
-        })}
+          ))}
+        </div>
+      </section>
+
+      <section aria-labelledby="lines-heading" className="space-y-3">
+        <SectionHeading
+          count={lineEntries.length}
+          id="lines-heading"
+          title="全セリフと生成クリップ"
+        />
+        <div className="grid gap-4 lg:grid-cols-2">
+          {lineEntries.map(({ line, character, clips: lineClips }, lineIndex) => {
+            return (
+              <Card key={line.id} size="sm">
+                <CardHeader>
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex flex-wrap gap-2">
+                      <Badge variant="secondary">{character.name}</Badge>
+                      <Badge variant="outline">{line.emotion}</Badge>
+                      <Badge variant="outline">強度 {line.intensity}</Badge>
+                      <Badge variant={line.difficulty === "hard" ? "destructive" : "outline"}>
+                        {line.difficulty}
+                      </Badge>
+                    </div>
+                    <span className="shrink-0 font-mono text-[10px] text-muted-foreground">
+                      {String(lineIndex + 1).padStart(2, "0")}
+                    </span>
+                  </div>
+                  <CardTitle className="mt-2 leading-7">{line.text}</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div className="space-y-1 border-l-2 border-border pl-3 text-xs leading-5 text-muted-foreground">
+                    <p>{line.delivery}</p>
+                    {line.situation ? <p>{line.situation}</p> : null}
+                  </div>
+                  {lineClips.length > 0 ? (
+                    <div className="space-y-2">
+                      {lineClips.map((clip) => (
+                        <ClipButton clip={clip} key={`${clip.model}/${clip.variant}`} />
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="rounded-md border border-dashed p-3 text-xs text-muted-foreground">
+                      このセリフのクリップは未生成です。
+                    </p>
+                  )}
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function SceneFact({
+  icon: Icon,
+  label,
+  value,
+}: {
+  icon: typeof MapPinned;
+  label: string;
+  value: string;
+}) {
+  return (
+    <div className="rounded-lg border bg-card p-4">
+      <div className="flex items-center gap-2 text-xs font-medium text-primary">
+        <Icon aria-hidden="true" className="size-4" />
+        {label}
       </div>
+      <p className="mt-2 text-sm leading-6 text-muted-foreground">{value}</p>
+    </div>
+  );
+}
+
+function CharacterFact({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <p className="font-mono text-[10px] tracking-wider text-primary uppercase">{label}</p>
+      <p className="mt-1 text-muted-foreground">{value}</p>
+    </div>
+  );
+}
+
+function SectionHeading({ count, id, title }: { count?: number; id: string; title: string }) {
+  return (
+    <div className="flex items-end justify-between gap-3 border-b pb-2">
+      <h2 className="text-lg font-semibold" id={id}>
+        {title}
+      </h2>
+      {count === undefined ? null : (
+        <span className="font-mono text-xs text-muted-foreground">{count}</span>
+      )}
     </div>
   );
 }
