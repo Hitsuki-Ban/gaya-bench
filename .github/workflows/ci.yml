@@ -1,0 +1,125 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  changes:
+    name: 変更パス検出
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      site: ${{ steps.filter.outputs.site }}
+    steps:
+      - name: リポジトリを取得
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 20
+          persist-credentials: false
+
+      - name: site の変更を検出
+        id: filter
+        uses: dorny/paths-filter@7b450fff21473bca461d4b92ce414b9d0420d706 # v4
+        with:
+          base: ${{ github.ref }}
+          filters: |
+            site:
+              - "site/**"
+              - ".github/workflows/ci.yml"
+
+  scenario:
+    name: シナリオ検証
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: リポジトリを取得
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - name: uv をセットアップ
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+        with:
+          version: "0.11.32"
+          python-version: "3.12"
+          enable-cache: true
+
+      - name: JSON Schema 自体を検証
+        run: >-
+          uvx --from check-jsonschema==0.37.4 check-jsonschema
+          --check-metaschema
+          scenarios/schema/scenario.schema.json
+
+      - name: 全シナリオを検証
+        run: >-
+          uvx --from check-jsonschema==0.37.4 check-jsonschema
+          --schemafile scenarios/schema/scenario.schema.json
+          scenarios/*.yaml
+
+  site:
+    name: サイト検証
+    needs: changes
+    if: needs.changes.outputs.site == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: リポジトリを取得
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - name: site ディレクトリを確認
+        id: site_dir
+        shell: bash
+        run: |
+          if [[ -d site ]]; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::site/ は未実装のため、サイト検証をスキップします"
+          fi
+
+      - name: Vite+ をセットアップ
+        if: steps.site_dir.outputs.exists == 'true'
+        uses: voidzero-dev/setup-vp@250f29ce396baf5e8f24498e17c0dfdebabc26eb # v1
+        with:
+          working-directory: site
+          cache: true
+
+      - name: lint と typecheck
+        if: steps.site_dir.outputs.exists == 'true'
+        working-directory: site
+        run: vp check
+
+      - name: site をビルド
+        if: steps.site_dir.outputs.exists == 'true'
+        working-directory: site
+        run: vp build
+
+  ci-gate:
+    name: CI Gate
+    if: always()
+    needs:
+      - changes
+      - scenario
+      - site
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: 必須ジョブの結果を確認
+        shell: bash
+        env:
+          CHANGES_RESULT: ${{ needs.changes.result }}
+          SCENARIO_RESULT: ${{ needs.scenario.result }}
+          SITE_RESULT: ${{ needs.site.result }}
+        run: |
+          [[ "$CHANGES_RESULT" == "success" ]]
+          [[ "$SCENARIO_RESULT" == "success" ]]
+          [[ "$SITE_RESULT" == "success" || "$SITE_RESULT" == "skipped" ]]
