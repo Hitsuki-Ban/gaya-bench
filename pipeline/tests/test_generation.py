@@ -1,0 +1,367 @@
+from __future__ import annotations
+
+import hashlib
+import json
+import shutil
+from collections.abc import Mapping
+from pathlib import Path
+from typing import Any
+
+import pytest
+import yaml
+from gaya_pipeline import cli, generation
+from gaya_pipeline.adapters.base import LineJob
+from gaya_pipeline.adapters.dummy import DummyAdapter
+from gaya_pipeline.audio import find_audio_tools, probe_audio
+from gaya_pipeline.generation import (
+    GenerationError,
+    GenerationRecord,
+    GenerationSummary,
+    run_generation,
+)
+
+REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
+SCENARIOS_DIR = REPOSITORY_ROOT / "scenarios"
+
+
+def _two_scenarios(tmp_path: Path) -> Path:
+    scenarios_dir = tmp_path / "scenarios"
+    schema_dir = scenarios_dir / "schema"
+    schema_dir.mkdir(parents=True)
+    shutil.copy2(
+        SCENARIOS_DIR / "schema" / "scenario.schema.json",
+        schema_dir / "scenario.schema.json",
+    )
+    for scenario_id in ("tavern-night", "market-day"):
+        shutil.copy2(
+            SCENARIOS_DIR / f"{scenario_id}.yaml",
+            scenarios_dir / f"{scenario_id}.yaml",
+        )
+    return scenarios_dir
+
+
+def _sha256(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def test_dummy_two_scenario_e2e_and_idempotency(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    scenarios_dir = _two_scenarios(tmp_path)
+    artifacts_dir = tmp_path / "artifacts"
+    manifest_path = tmp_path / "data" / "manifest.json"
+
+    first = run_generation(
+        model_id="dummy",
+        scenarios_dir=scenarios_dir,
+        artifacts_dir=artifacts_dir,
+        manifest_path=manifest_path,
+    )
+    cli._print_generation_summary(first)
+    first_log = capsys.readouterr().out
+
+    assert first.generated_count == 12
+    assert first.skipped_count == 0
+    assert first.manifest_updated is True
+    assert "生成" in first_log
+    assert "RTF=" in first_log
+    assert "所要時間" in first_log
+
+    wav_files = sorted(artifacts_dir.rglob("*-dry.wav"))
+    opus_files = sorted(artifacts_dir.rglob("*-dry.opus"))
+    metadata_files = sorted(artifacts_dir.rglob("*-dry.json"))
+    assert len(wav_files) == 12
+    assert len(opus_files) == 12
+    assert len(metadata_files) == 12
+    assert not list(artifacts_dir.rglob("*-source.wav"))
+
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    assert manifest["format_version"] == 1
+    assert len(manifest["models"]) == 1
+    assert manifest["models"][0]["id"] == "dummy"
+    assert manifest["models"][0]["capabilities"] == {
+        "emotion": False,
+        "voice_prompt": False,
+        "clone": False,
+        "nonverbal": False,
+        "reading": False,
+    }
+    assert len(manifest["clips"]) == 12
+    for clip in manifest["clips"]:
+        opus_path = artifacts_dir / clip["path"]
+        assert opus_path.is_file()
+        assert clip["sha256"] == _sha256(opus_path)
+        assert clip["rtf"] >= 0
+
+    tools = find_audio_tools()
+    opus_probe = probe_audio(tools, opus_files[0])
+    assert opus_probe.codec_name == "opus"
+    assert opus_probe.sample_rate_hz == 48_000
+    assert opus_probe.channels == 1
+
+    for metadata_path in metadata_files:
+        metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+        loudness = metadata["loudness"]
+        assert loudness["integrated_lufs"] == pytest.approx(-18.0, abs=0.2)
+        assert loudness["true_peak_dbtp"] <= -0.9
+        assert loudness["normalization_type"] in {"linear", "dynamic"}
+
+    tracked_outputs = [manifest_path, *wav_files, *opus_files, *metadata_files]
+    mtimes = {path: path.stat().st_mtime_ns for path in tracked_outputs}
+    manifest_bytes = manifest_path.read_bytes()
+
+    second = run_generation(
+        model_id="dummy",
+        scenarios_dir=scenarios_dir,
+        artifacts_dir=artifacts_dir,
+        manifest_path=manifest_path,
+    )
+    cli._print_generation_summary(second)
+    second_log = capsys.readouterr().out
+
+    assert second.generated_count == 0
+    assert second.skipped_count == 12
+    assert second.manifest_updated is False
+    assert "スキップ" in second_log
+    assert manifest_path.read_bytes() == manifest_bytes
+    assert {path: path.stat().st_mtime_ns for path in tracked_outputs} == mtimes
+
+
+def test_selector_hash_invalidation_force_and_failed_replacement(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    scenarios_dir = _two_scenarios(tmp_path)
+    artifacts_dir = tmp_path / "artifacts"
+    manifest_path = tmp_path / "data" / "manifest.json"
+
+    def run_selected(
+        *,
+        line_id: str = "barmaid-001",
+        force: bool = False,
+    ) -> GenerationSummary:
+        return run_generation(
+            model_id="dummy",
+            scenarios_dir=scenarios_dir,
+            artifacts_dir=artifacts_dir,
+            manifest_path=manifest_path,
+            scenario_id="tavern-night",
+            line_id=line_id,
+            force=force,
+        )
+
+    first = run_selected()
+    second = run_selected()
+    assert first.generated_count == 1
+    assert second.skipped_count == 1
+
+    scenario_path = scenarios_dir / "tavern-night.yaml"
+    document = yaml.safe_load(scenario_path.read_text(encoding="utf-8"))
+    document["lines"][0]["text"] += "！"
+    scenario_path.write_text(
+        yaml.safe_dump(document, allow_unicode=True, sort_keys=False),
+        encoding="utf-8",
+    )
+
+    changed = run_selected()
+    forced = run_selected(force=True)
+    assert changed.generated_count == 1
+    assert forced.generated_count == 1
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    assert len(manifest["clips"]) == 1
+
+    output_dir = artifacts_dir / "audio" / "dummy" / "tavern-night"
+    stable_paths = [
+        output_dir / "barmaid-001-dry.wav",
+        output_dir / "barmaid-001-dry.opus",
+        output_dir / "barmaid-001-dry.json",
+        manifest_path,
+    ]
+    stable_bytes = {path: path.read_bytes() for path in stable_paths}
+    metadata_path = output_dir / "barmaid-001-dry.json"
+    broken_metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+    del broken_metadata["loudness"]
+    metadata_path.write_text(
+        json.dumps(broken_metadata, ensure_ascii=False),
+        encoding="utf-8",
+    )
+    with pytest.raises(GenerationError, match="生成メタの項目"):
+        run_selected()
+    metadata_path.write_bytes(stable_bytes[metadata_path])
+
+    def fail_generation(
+        adapter: DummyAdapter,
+        job: object,
+        output_wav: Path,
+    ) -> dict[str, object]:
+        raise RuntimeError("CUDA out of memory")
+
+    monkeypatch.setattr(DummyAdapter, "generate", fail_generation)
+    with pytest.raises(
+        GenerationError,
+        match="tavern-night/barmaid-001.*CUDA out of memory",
+    ):
+        run_selected(force=True)
+    assert {path: path.read_bytes() for path in stable_paths} == stable_bytes
+    assert not list(output_dir.glob("*.pending.*"))
+
+    with pytest.raises(GenerationError, match="--scenario"):
+        run_generation(
+            model_id="dummy",
+            scenarios_dir=scenarios_dir,
+            artifacts_dir=artifacts_dir,
+            manifest_path=manifest_path,
+            line_id="barmaid-001",
+        )
+    with pytest.raises(GenerationError, match="line id"):
+        run_selected(line_id="missing-line")
+
+
+def test_adapter_boundary_errors_are_controlled(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    scenarios_dir = _two_scenarios(tmp_path)
+    artifacts_dir = tmp_path / "artifacts"
+    manifest_path = tmp_path / "data" / "manifest.json"
+
+    def run_selected() -> GenerationSummary:
+        return run_generation(
+            model_id="dummy",
+            scenarios_dir=scenarios_dir,
+            artifacts_dir=artifacts_dir,
+            manifest_path=manifest_path,
+            scenario_id="tavern-night",
+            line_id="barmaid-001",
+        )
+
+    original_create_adapter = generation.create_adapter
+
+    def fail_initialization(model_id: str) -> DummyAdapter:
+        raise RuntimeError(f"{model_id}: CUDA initialization failed")
+
+    monkeypatch.setattr(generation, "create_adapter", fail_initialization)
+    with pytest.raises(
+        GenerationError,
+        match="adapter 初期化.*CUDA initialization failed",
+    ):
+        run_selected()
+
+    monkeypatch.setattr(generation, "create_adapter", original_create_adapter)
+
+    def fail_input(adapter: DummyAdapter, job: object) -> dict[str, object]:
+        raise RuntimeError("prompt preprocessing failed")
+
+    monkeypatch.setattr(DummyAdapter, "generation_input", fail_input)
+    with pytest.raises(
+        GenerationError,
+        match="tavern-night/barmaid-001.*adapter 入力構築.*prompt preprocessing",
+    ):
+        run_selected()
+
+
+def test_later_batch_failure_keeps_manifest_in_sync(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    scenarios_dir = _two_scenarios(tmp_path)
+    artifacts_dir = tmp_path / "artifacts"
+    manifest_path = tmp_path / "data" / "manifest.json"
+
+    def run_scenario(*, force: bool = False) -> GenerationSummary:
+        return run_generation(
+            model_id="dummy",
+            scenarios_dir=scenarios_dir,
+            artifacts_dir=artifacts_dir,
+            manifest_path=manifest_path,
+            scenario_id="tavern-night",
+            force=force,
+        )
+
+    baseline = run_scenario()
+    assert baseline.generated_count == 6
+    baseline_manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    baseline_first_sha = baseline_manifest["clips"][0]["sha256"]
+
+    scenario_path = scenarios_dir / "tavern-night.yaml"
+    document = yaml.safe_load(scenario_path.read_text(encoding="utf-8"))
+    document["lines"][0]["text"] += "！"
+    scenario_path.write_text(
+        yaml.safe_dump(document, allow_unicode=True, sort_keys=False),
+        encoding="utf-8",
+    )
+
+    original_generate = DummyAdapter.generate
+    generation_count = 0
+
+    def fail_second_generation(
+        adapter: DummyAdapter,
+        job: LineJob,
+        output_wav: Path,
+    ) -> Mapping[str, Any]:
+        nonlocal generation_count
+        generation_count += 1
+        if generation_count == 2:
+            raise RuntimeError("CUDA out of memory later")
+        return original_generate(adapter, job, output_wav)
+
+    monkeypatch.setattr(DummyAdapter, "generate", fail_second_generation)
+    with pytest.raises(
+        GenerationError,
+        match="tavern-night/barmaid-002.*CUDA out of memory later",
+    ):
+        run_scenario(force=True)
+
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    assert len(manifest["clips"]) == 6
+    assert manifest["clips"][0]["sha256"] != baseline_first_sha
+    for clip in manifest["clips"]:
+        assert clip["sha256"] == _sha256(artifacts_dir / clip["path"])
+
+
+def test_gen_cli_routes_selectors_and_logs(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    received: dict[str, object] = {}
+
+    def fake_run_generation(**arguments: object) -> GenerationSummary:
+        received.update(arguments)
+        return GenerationSummary(
+            records=(
+                GenerationRecord(
+                    scenario_id="tavern-night",
+                    line_id="barmaid-001",
+                    status="generated",
+                    generation_seconds=0.25,
+                    rtf=0.5,
+                ),
+            ),
+            elapsed_seconds=0.5,
+            manifest_updated=True,
+        )
+
+    monkeypatch.setattr(cli, "run_generation", fake_run_generation)
+
+    exit_code = cli.main(
+        [
+            "gen",
+            "--model",
+            "dummy",
+            "--scenario",
+            "tavern-night",
+            "--line",
+            "barmaid-001",
+            "--force",
+        ],
+    )
+    output = capsys.readouterr().out
+
+    assert exit_code == 0
+    assert received["model_id"] == "dummy"
+    assert received["scenario_id"] == "tavern-night"
+    assert received["line_id"] == "barmaid-001"
+    assert received["force"] is True
+    assert "生成=0.250s RTF=0.500" in output
+    assert "所要時間 0.500s" in output
