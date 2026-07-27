@@ -1,0 +1,169 @@
+format_version: 1
+id: battlefield-camp
+title: 野営地・戦場の夜
+locale: ja
+tags: [fantasy, outdoor, war]
+
+scene:
+  setting: >-
+    戦場近くの野営地。夜、松明の明かりだけが灯る。負傷者の呻きと慌ただしい足音が絶えない、緊迫した空気。
+  acoustics: 屋外の野営。焚き火の爆ぜる音と風が常にあり、遠くの怒号がかすかに届く。残響はほぼない。
+  listener: プレイヤーは天幕の間を歩き、負傷者や兵士のすぐそばを通る。声は2〜5mの中距離で聞こえる。
+
+characters:
+  - id: wounded
+    name: 負傷した兵士
+    gender: male
+    age: adult
+    archetype: 負傷兵
+    voice: 掠れた低い声。息が浅く途切れがち。
+    personality: 気丈に振る舞おうとするが、痛みに耐えかねている。
+    reference_voice: null
+
+  - id: messenger
+    name: 伝令兵
+    gender: female
+    age: young_adult
+    archetype: 伝令
+    voice: 息切れした早口。緊張で声が上ずっている。
+    personality: 責任感が強く、報告を最優先に動く。
+    reference_voice: null
+
+  - id: veteran-soldier
+    name: 古参の兵士
+    gender: male
+    age: middle_aged
+    archetype: 古参兵
+    voice: 低く重い声。感情を抑えた話し方。
+    personality: 多くの戦場を経験し達観しているが、内心は疲弊している。
+    reference_voice: null
+
+  - id: medic
+    name: 衛生兵
+    gender: female
+    age: adult
+    archetype: 衛生兵
+    voice: 張り詰めた早口だが芯のある声。指示は明瞭。
+    personality: 冷静さを保とうと努めるが、余裕はない。
+    reference_voice: null
+
+lines:
+  - id: wounded-001
+    character: wounded
+    text: ぐっ……そこは触るな……
+    emotion: pain
+    intensity: 3
+    delivery: 苦悶の呻き声混じり。息を詰まらせながら絞り出す。
+    situation: 傷口に触れられて激痛に耐えている。
+    difficulty: hard
+    loop_ok: true
+
+  - id: wounded-002
+    character: wounded
+    text: もう……立てそうにない……
+    emotion: sad
+    intensity: 1
+    delivery: 力なく掠れた声。ほとんど息だけで発する。
+    situation: 体力を使い果たし、戦線復帰を諦めかけている。
+    difficulty: hard
+    loop_ok: true
+
+  - id: wounded-003
+    character: wounded
+    text: はは……情けねえ姿だな、俺は
+    emotion: laughing
+    intensity: 1
+    delivery: 乾いた弱々しい笑い。咳き込みそうになるのを堪える。
+    situation: 自分の惨めな状況に自嘲している。
+    difficulty: hard
+    loop_ok: true
+
+  - id: messenger-001
+    character: messenger
+    text: 伝令、前線の守りが崩れます！
+    emotion: shout
+    intensity: 3
+    delivery: 息を切らせながら叫ぶ。声が裏返るほど切迫している。
+    situation: 前線から走って戻り、大声で状況を報告している。
+    difficulty: hard
+    loop_ok: true
+
+  - id: messenger-002
+    character: messenger
+    text: 数が多すぎます……このままでは……
+    emotion: fearful
+    intensity: 2
+    delivery: 声が震え、途切れがち。恐怖で早口になる。
+    situation: 敵の規模を目にした恐怖を報告に滲ませている。
+    difficulty: hard
+    loop_ok: true
+
+  - id: messenger-003
+    character: messenger
+    text: 退がれ！全員、今すぐ退がれ！
+    emotion: shout
+    intensity: 3
+    delivery: 喉が裂けるほどの絶叫。命令口調で余韻を残さない。
+    situation: 撤退の指示を大声で伝えている。
+    difficulty: hard
+    loop_ok: true
+
+  - id: veteran-soldier-001
+    character: veteran-soldier
+    text: もう何人、見送ったか分からんな……
+    emotion: sad
+    intensity: 1
+    delivery: 淡々とした低い声。感情を押し殺すように静か。
+    situation: 焚き火を見つめながら独りごちている。
+    difficulty: standard
+    loop_ok: true
+
+  - id: veteran-soldier-002
+    character: veteran-soldier
+    text: くそ……本部は何をしてやがる
+    emotion: angry
+    intensity: 2
+    delivery: 低く抑えた怒り。歯を食いしばるような声。
+    situation: 増援が来ないことに苛立ちを漏らしている。
+    difficulty: standard
+    loop_ok: true
+
+  - id: medic-001
+    character: medic
+    text: 圧迫して！血が止まらない！
+    emotion: shout
+    intensity: 3
+    delivery: 焦りながらも的確な指示。早口で切迫感がある。
+    situation: 負傷者の応急手当をしながら仲間に指示している。
+    difficulty: hard
+    loop_ok: true
+
+  - id: medic-002
+    character: medic
+    text: お願い、まだ死なないで……
+    emotion: fearful
+    intensity: 2
+    delivery: 涙声混じりの懇願。声が細かく震える。
+    situation: 手当てをしながら負傷者に必死に呼びかけている。
+    difficulty: hard
+    loop_ok: true
+
+  - id: medic-003
+    character: medic
+    text: 包帯が……もう足りない……
+    emotion: tired
+    intensity: 2
+    delivery: 疲労で掠れた声。言葉の合間に息が漏れる。
+    situation: 治療用の物資が尽きかけていることに気づいている。
+    difficulty: hard
+    loop_ok: true
+
+  - id: medic-004
+    character: medic
+    text: 大丈夫、すぐ楽になりますから
+    emotion: neutral
+    intensity: 1
+    delivery: 努めて冷静な優しい声。安心させるようゆっくり話す。
+    situation: 怯える負傷者を落ち着かせようとしている。
+    difficulty: standard
+    loop_ok: true

@@ -1,0 +1,169 @@
+format_version: 1
+id: festival-night
+title: 祭りの夜
+locale: ja
+tags: [fantasy, outdoor, crowd, festival]
+
+scene:
+  setting: >-
+    夏祭りの夜。提灯が並ぶ大通りに屋台がひしめき、太鼓と笛の囃子が絶えず響く。人々は浮かれ、笑い声と掛け声が交錯する。
+  acoustics: 屋外の大通り。屋台の油がはぜる音、太鼓と笛の囃子が常に鳴り、雑踏がそれに重なる。残響はほぼない。
+  listener: プレイヤーは屋台の並ぶ通りを歩いて進む。声は2〜6mの中距離で、時に頭上や背後からも聞こえる。
+
+characters:
+  - id: yatai-obasan
+    name: 屋台のおかみ
+    gender: female
+    age: adult
+    archetype: 屋台の売り子
+    voice: 威勢のいいハスキー気味の中音域。屋台の油がはぜる音に負けじと張る、通りのいい呼び込み声。
+    personality: 気風がよく愛想がいい。常連にはついおまけをしてしまう世話焼き。
+    reference_voice: null
+
+  - id: matsuri-wakamono
+    name: 祭り好きの若者
+    gender: male
+    age: young_adult
+    archetype: 祭り客
+    voice: 張りのある高めの男声。酒と興奮でところどころ上ずり、テンポが速い。
+    personality: 誰とでもすぐ打ち解ける陽気な性格。祭りとなると際限なくはしゃぐ。
+    reference_voice: null
+
+  - id: matsuri-kid
+    name: 祭りではしゃぐ子供
+    gender: neutral
+    age: child
+    archetype: 祭り客の子供
+    voice: 甲高く舌足らずな子供の声。興奮すると声が裏返り、息継ぎが浅くなる。
+    personality: 好奇心旺盛でじっとしていられない。初めての夜店にすっかり夢中。
+    reference_voice: null
+
+  - id: mikoshi-katsugite
+    name: 神輿の担ぎ手
+    gender: male
+    age: middle_aged
+    archetype: 神輿の担ぎ手
+    voice: 野太く低いだみ声。祭り太鼓に負けない腹の底からの声で、掛け声で微かに潰れている。
+    personality: 祭り一番の盛り上げ役。豪快で面倒見のいい兄貴分。
+    reference_voice: null
+
+lines:
+  - id: yatai-obasan-001
+    character: yatai-obasan
+    text: 焼きとうもろこし、あつあつだよ！
+    emotion: shout
+    intensity: 3
+    delivery: 屋台の奥から通りへ向けて張り上げる。語尾を伸ばして耳に残す呼び込み。
+    situation: 炭火で焼いたとうもろこしを裏返しながら声を張る。
+    difficulty: hard
+    loop_ok: true
+
+  - id: yatai-obasan-002
+    character: yatai-obasan
+    text: りんご飴だよ、甘くておいしいよ！
+    emotion: cheerful
+    intensity: 3
+    delivery: 明るく弾む呼び込み。語尾を跳ね上げてリズムをつける。
+    situation: 赤く艶めくりんご飴を並べ直しながら通行人に声をかける。
+    difficulty: standard
+    loop_ok: true
+
+  - id: yatai-obasan-003
+    character: yatai-obasan
+    text: あいよ、まいどありぃ！
+    emotion: laughing
+    intensity: 2
+    delivery: 受け取った代金をしまいながら笑い混じりに礼を言う。語尾が緩んで崩れる。
+    situation: 常連客から代金を受け取り、笑顔で見送る。
+    difficulty: hard
+    loop_ok: true
+
+  - id: matsuri-wakamono-001
+    character: matsuri-wakamono
+    text: うおっ、花火始まるぞー！
+    emotion: surprised
+    intensity: 3
+    delivery: 夜空を指差して仲間に叫ぶ。息を吸う間もない早口。
+    situation: 打ち上げ花火の一発目に気づいて声を上げる。
+    difficulty: standard
+    loop_ok: true
+
+  - id: matsuri-wakamono-002
+    character: matsuri-wakamono
+    text: いやー、たまんねぇな、これ！
+    emotion: cheerful
+    intensity: 3
+    delivery: 満足しきった調子で声を弾ませる。語尾を伸ばして上機嫌に。
+    situation: 屋台の串を頬張りながら夜店の賑わいを眺めている。
+    difficulty: standard
+    loop_ok: true
+
+  - id: matsuri-wakamono-003
+    character: matsuri-wakamono
+    text: へへっ……ちょっと飲みすぎたかもなぁ。
+    emotion: drunk
+    intensity: 2
+    delivery: 笑いを含みつつ呂律が怪しくなる。語尾が間延びして力が抜ける。
+    situation: 祭り酒で顔を赤くしながら友人にこぼす。
+    difficulty: hard
+    loop_ok: true
+
+  - id: matsuri-kid-001
+    character: matsuri-kid
+    text: あはは、金魚捕まえた！
+    emotion: laughing
+    intensity: 3
+    delivery: 捕まえた喜びで声を弾ませて笑う。裏返り気味の高い声。
+    situation: 金魚すくいで一匹すくい上げて大喜びしている。
+    difficulty: hard
+    loop_ok: true
+
+  - id: matsuri-kid-002
+    character: matsuri-kid
+    text: ねえ、綿あめ買ってよぉ！
+    emotion: cheerful
+    intensity: 3
+    delivery: 甘えてねだる声。語尾を伸ばして駄々をこねる調子。
+    situation: 親の手を引っ張りながら屋台を指差す。
+    difficulty: hard
+    loop_ok: true
+
+  - id: matsuri-kid-003
+    character: matsuri-kid
+    text: きゃー、花火すごーい！
+    emotion: surprised
+    intensity: 3
+    delivery: 歓声混じりの高い叫び。語尾が裏返るほど興奮している。
+    situation: 打ち上がった花火を見上げて思わず声を上げる。
+    difficulty: hard
+    loop_ok: true
+
+  - id: mikoshi-katsugite-001
+    character: mikoshi-katsugite
+    text: せえのっ、わっしょい！
+    emotion: shout
+    intensity: 3
+    delivery: 掛け声のリズムで短く鋭く叫ぶ。腹から出す破裂音気味の声。
+    situation: 神輿を担ぎ上げる合図をかけている。
+    difficulty: hard
+    loop_ok: true
+
+  - id: mikoshi-katsugite-002
+    character: mikoshi-katsugite
+    text: いよっ、今年も威勢がいいなぁ！
+    emotion: cheerful
+    intensity: 2
+    delivery: 満足げに笑いを滲ませながら周りを見渡す。
+    situation: 神輿を担ぎ終え、一息ついて祭りの様子を眺めている。
+    difficulty: standard
+    loop_ok: true
+
+  - id: mikoshi-katsugite-003
+    character: mikoshi-katsugite
+    text: がっはっは、今夜は飲むぞー！
+    emotion: laughing
+    intensity: 3
+    delivery: 豪快な笑い声から一気に叫びへ切り替わる。腹の底から出る太い声。
+    situation: 神輿を納めた後、仲間と乾杯しようと声を張る。
+    difficulty: hard
+    loop_ok: true

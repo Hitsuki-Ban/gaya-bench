@@ -1,0 +1,169 @@
+format_version: 1
+id: village-morning
+title: 農村・朝の暮らし
+locale: ja
+tags: [fantasy, outdoor, village, daily-life]
+
+scene:
+  setting: >-
+    小さな農村の朝。鶏や家畜の声が響き、村人たちが畑仕事や家事を始めている。
+  acoustics: 屋外、開けた地形で残響はほぼない。鳥の声や家畜の物音が時折混じる遠い暗騒音。
+  listener: プレイヤーは村の小道を歩く。声は3〜8mほどの中距離で、点在する人々から聞こえる。
+
+characters:
+  - id: granny
+    name: 村の老婆
+    gender: female
+    age: elderly
+    archetype: 隠居
+    voice: しわがれた高めの声。ゆっくりとした丁寧な口調。
+    personality: 世話好きで近所付き合いを大事にする。長年の畑仕事で足腰が弱い。
+    reference_voice: null
+
+  - id: teen-boy
+    name: 農家の少年
+    gender: male
+    age: teen
+    archetype: 農家の手伝い
+    voice: 声変わり途中の不安定な高めの声。元気だが時折かすれる。
+    personality: 手伝いをサボりたいが根は素直。とにかく眠いのが悩み。
+    reference_voice: null
+
+  - id: farm-wife
+    name: 農婦
+    gender: female
+    age: adult
+    archetype: 農婦
+    voice: 温かみのある明るい中音域。近所への挨拶に慣れた滑らかな話し方。
+    personality: 世話好きでよく喋る。洗濯や家事をしながら鶏の世話もする。
+    reference_voice: null
+
+  - id: farmer-man
+    name: 農夫
+    gender: male
+    age: middle_aged
+    archetype: 農夫
+    voice: 野太く張りのある声。掛け声や号令に慣れている。
+    personality: 朝から働き者。家畜には優しいが仕事には厳しい。
+    reference_voice: null
+
+lines:
+  - id: granny-001
+    character: granny
+    text: おはようさん、今日もええ天気で。
+    emotion: cheerful
+    intensity: 1
+    delivery: のんびりした挨拶。語尾を伸ばす柔らかい調子。
+    situation: 朝、通りかかった村人に挨拶する。
+    difficulty: standard
+    loop_ok: true
+
+  - id: granny-002
+    character: granny
+    text: 腰が痛うてかなわんわ……
+    emotion: pain
+    intensity: 2
+    delivery: 腰を叩きながらのぼやき。しわがれ声で語尾が伸びて消える。
+    situation: 畑仕事の合間に腰を伸ばしながら愚痴る。
+    difficulty: hard
+    loop_ok: true
+
+  - id: granny-003
+    character: granny
+    text: こら！鶏がまた逃げ出した！
+    emotion: shout
+    intensity: 3
+    delivery: 慌てて出す大声。裏返りそうな甲高い叫び。
+    situation: 鶏小屋から鶏が逃げ出したのを見つけて叫ぶ。
+    difficulty: hard
+    loop_ok: true
+
+  - id: granny-004
+    character: granny
+    text: ほっほ、精が出るねぇ。
+    emotion: laughing
+    intensity: 1
+    delivery: 目を細めた含み笑い混じりの一言。ゆったりした口調。
+    situation: 汗をかいて働く若者を眺めて声をかける。
+    difficulty: hard
+    loop_ok: true
+
+  - id: teen-boy-001
+    character: teen-boy
+    text: うわ……もう朝かよ。
+    emotion: tired
+    intensity: 2
+    delivery: 寝起きのかすれ声。あくび混じりでけだるい。
+    situation: 布団から引きずり出されて外に出た直後。
+    difficulty: hard
+    loop_ok: true
+
+  - id: teen-boy-002
+    character: teen-boy
+    text: はいはい、今行くってば！
+    emotion: angry
+    intensity: 1
+    delivery: 呼ばれて渋々返す。語尾に苛立ちが少し滲む早口。
+    situation: 母親らしき声に急かされて渋々返事をする。
+    difficulty: standard
+    loop_ok: true
+
+  - id: teen-boy-003
+    character: teen-boy
+    text: 痛っ！木の枝が目に……
+    emotion: pain
+    intensity: 3
+    delivery: 反射的に叫ぶ短い悲鳴。語尾がしぼんで消える。
+    situation: 作業中に木の枝が顔に当たって痛がる。
+    difficulty: hard
+    loop_ok: true
+
+  - id: teen-boy-004
+    character: teen-boy
+    text: ……ばあちゃん、おはよう。
+    emotion: whisper
+    intensity: 1
+    delivery: まだ眠そうな小声。もごもごした不明瞭な発音。
+    situation: 眠い目をこすりながら祖母に挨拶する。
+    difficulty: hard
+    loop_ok: true
+
+  - id: farm-wife-001
+    character: farm-wife
+    text: おはようございます、いいお天気で。
+    emotion: cheerful
+    intensity: 1
+    delivery: 明るく丁寧な挨拶。滑らかで聞き取りやすい調子。
+    situation: 洗濯物を干しながら通りがかりの人に挨拶する。
+    difficulty: standard
+    loop_ok: true
+
+  - id: farm-wife-002
+    character: farm-wife
+    text: こらこら、泥はねさせないの！
+    emotion: angry
+    intensity: 2
+    delivery: 叱りつつもどこか楽しげな声。語尾が跳ねる。
+    situation: 家畜が水たまりで泥をはねさせたのを見て注意する。
+    difficulty: standard
+    loop_ok: true
+
+  - id: farmer-man-001
+    character: farmer-man
+    text: はいどう、進め進めー！
+    emotion: shout
+    intensity: 3
+    delivery: 家畜への掛け声。腹から出す張りのある大声。
+    situation: 牛を促して畑を耕し始める。
+    difficulty: hard
+    loop_ok: true
+
+  - id: farmer-man-002
+    character: farmer-man
+    text: 今日も一日、精出すか。
+    emotion: neutral
+    intensity: 1
+    delivery: 己に言い聞かせるような落ち着いた声。
+    situation: 朝の畑仕事を始める前に独りごちる。
+    difficulty: standard
+    loop_ok: true

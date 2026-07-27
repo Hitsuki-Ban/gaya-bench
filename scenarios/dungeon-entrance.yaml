@@ -1,0 +1,169 @@
+format_version: 1
+id: dungeon-entrance
+title: ダンジョン入口
+locale: ja
+tags: [fantasy, outdoor, tension, quiet]
+
+scene:
+  setting: >-
+    遺跡の入口前。松明の明かりだけが揺れ、周囲は闇と静寂に包まれている。冒険者たちが挑む前の最後の準備を整えている。
+  acoustics: 屋外の岩場。風の音以外はほぼ無音で、わずかな反響だけが返る。物音ひとつが大きく響く緊張感がある。
+  listener: プレイヤーは仲間の輪のすぐそばに立つ。中距離ではあるが多くが声を潜めているため、静かな声が短く耳に届く。
+
+characters:
+  - id: vanguard
+    name: 前衛の戦士
+    gender: male
+    age: adult
+    archetype: 前衛の戦士
+    voice: 低く落ち着いた声。小声でも芯が通って聞き取りやすい、抑制の効いた声。
+    personality: 場数を踏んでいるが慢心はしない。仲間を落ち着かせる声かけを欠かさない。
+    reference_voice: null
+
+  - id: rookie-archer
+    name: 新米の弓使い
+    gender: female
+    age: teen
+    archetype: 新米冒険者
+    voice: 高めの若い声。緊張で微かに震え、語尾がかすれやすい。
+    personality: 虚勢を張るが本当は怖い。軽口で自分の不安を誤魔化そうとする。
+    reference_voice: null
+
+  - id: scout
+    name: 斥候の女
+    gender: female
+    age: young_adult
+    archetype: 斥候
+    voice: 低く抑えた囁き声。息を潜めるのに慣れており、子音がはっきり聞き取れる。
+    personality: 冷静沈着で無駄口は叩かないが、仲間への気遣いは細やか。
+    reference_voice: null
+
+  - id: old-guide
+    name: 老いた案内人
+    gender: male
+    age: elderly
+    archetype: 元冒険者の案内人
+    voice: しわがれた低い声。息が混じるかすれ声で、囁くような話し方が染み付いている。
+    personality: 場慣れした皮肉屋。緊張をほぐす軽口が得意な世話焼き。
+    reference_voice: null
+
+lines:
+  - id: vanguard-001
+    character: vanguard
+    text: 灯りを落とせ、足音がする。
+    emotion: whisper
+    intensity: 2
+    delivery: 抑えた低い声で手短に指示する。語尾まで息を漏らすように。
+    situation: 松明を掲げた仲間を手で制して囁く。
+    difficulty: hard
+    loop_ok: true
+
+  - id: vanguard-002
+    character: vanguard
+    text: 大丈夫だ、俺が先に行く。
+    emotion: neutral
+    intensity: 1
+    delivery: 落ち着いた小声で仲間を安心させる。ゆっくりと言い聞かせるように。
+    situation: 扉の前で怖気づく仲間の肩に手を置く。
+    difficulty: standard
+    loop_ok: true
+
+  - id: vanguard-003
+    character: vanguard
+    text: ふっ、今更びびってどうする。
+    emotion: laughing
+    intensity: 1
+    delivery: 低く小さな笑いを漏らす。声を潜めたまま軽口を叩く。
+    situation: 緊張気味の仲間をからかって和ませる。
+    difficulty: hard
+    loop_ok: true
+
+  - id: rookie-archer-001
+    character: rookie-archer
+    text: ねえ……本当に大丈夫かな……。
+    emotion: fearful
+    intensity: 2
+    delivery: 声が細かく震える。語尾がかすれて消え入りそうになる。
+    situation: 入口の暗闇を覗き込んで不安を漏らす。
+    difficulty: hard
+    loop_ok: true
+
+  - id: rookie-archer-002
+    character: rookie-archer
+    text: あはは……余裕っしょ、たぶん。
+    emotion: laughing
+    intensity: 1
+    delivery: 引きつった愛想笑い。語尾に震えが滲む虚勢。
+    situation: 怖さを誤魔化そうと軽口を叩くが声が上ずる。
+    difficulty: hard
+    loop_ok: true
+
+  - id: rookie-archer-003
+    character: rookie-archer
+    text: ひっ……な、何か聞こえた！
+    emotion: fearful
+    intensity: 3
+    delivery: 短い悲鳴のような震え声。語尾が掠れて途切れる。
+    situation: 物音に驚いて思わず声を漏らす。
+    difficulty: hard
+    loop_ok: true
+
+  - id: scout-001
+    character: scout
+    text: 静かに……何か動いた。
+    emotion: whisper
+    intensity: 2
+    delivery: 息を潜めた鋭い囁き。子音だけがはっきり届くように。
+    situation: 暗闇の奥に気配を感じて仲間を制する。
+    difficulty: hard
+    loop_ok: true
+
+  - id: scout-002
+    character: scout
+    text: ……大丈夫、誰もいない。
+    emotion: whisper
+    intensity: 1
+    delivery: 緊張を解くように小さく囁く。ゆっくり息を吐きながら。
+    situation: 周囲を確認し終えて仲間に合図する。
+    difficulty: standard
+    loop_ok: true
+
+  - id: scout-003
+    character: scout
+    text: 変な臭いがする、気をつけて。
+    emotion: fearful
+    intensity: 2
+    delivery: 抑えた声だが警戒の色が滲む。早口気味の小声。
+    situation: 入口付近の異臭に気づいて注意を促す。
+    difficulty: hard
+    loop_ok: true
+
+  - id: old-guide-001
+    character: old-guide
+    text: 儂はここまでだ、幸運を。
+    emotion: neutral
+    intensity: 1
+    delivery: しわがれた低い声で淡々と告げる。ゆっくりとした間を置く。
+    situation: 入口で足を止め、先へ進む一行を見送る。
+    difficulty: standard
+    loop_ok: true
+
+  - id: old-guide-002
+    character: old-guide
+    text: ふぉっふぉ、若いのは元気じゃな。
+    emotion: laughing
+    intensity: 1
+    delivery: かすれた小さな含み笑い。息が漏れるような笑い方。
+    situation: 怯える若者を眺めて軽く笑う。
+    difficulty: hard
+    loop_ok: true
+
+  - id: old-guide-003
+    character: old-guide
+    text: 気をつけろ、噂は大抵本当だ。
+    emotion: fearful
+    intensity: 1
+    delivery: 声を潜めて重々しく忠告する。かすれ気味の低い声。
+    situation: 一行に最後の忠告をする。
+    difficulty: hard
+    loop_ok: true

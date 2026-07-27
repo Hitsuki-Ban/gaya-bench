@@ -1,0 +1,169 @@
+format_version: 1
+id: guild-hall
+title: 冒険者ギルド・受付ホール
+locale: ja
+tags: [fantasy, indoor, crowd]
+
+scene:
+  setting: >-
+    冒険者ギルドの受付ホール。昼下がり、依頼掲示板の前に人だかりができている。
+  acoustics: 石造りと木の梁が響く広間。ざわめきと足音、羊皮紙をめくる音が絶えない。
+  listener: プレイヤーは受付カウンターと掲示板の間を歩く。声は3〜6mの中距離で聞こえる。
+
+characters:
+  - id: receptionist
+    name: 受付嬢
+    gender: female
+    age: young_adult
+    archetype: 受付
+    voice: 滑舌明瞭で落ち着いた声。応対に慣れた丁寧な話し方。
+    personality: 事務的だが親身。忙しくても物腰は崩れない。
+    reference_voice: null
+
+  - id: veteran
+    name: ベテラン冒険者
+    gender: male
+    age: adult
+    archetype: 古参の冒険者
+    voice: よく通る低めの声。自信たっぷりにゆっくり話す。
+    personality: 武勇伝を語りたがる世話焼き。少し説教くさい。
+    reference_voice: null
+
+  - id: rookie
+    name: 新米冒険者
+    gender: male
+    age: teen
+    archetype: 新米冒険者
+    voice: 声変わり途中の高めの声。興奮すると早口になる。
+    personality: 意気込みは十分だが空回りしがち。
+    reference_voice: null
+
+  - id: weary
+    name: くたびれた冒険者
+    gender: female
+    age: middle_aged
+    archetype: 中堅の冒険者
+    voice: 掠れ気味の低い声。抑揚が少なくため息交じり。
+    personality: 依頼をこなしすぎて達観気味。愚痴っぽい。
+    reference_voice: null
+
+lines:
+  - id: receptionist-001
+    character: receptionist
+    text: いらっしゃいませ、本日のご用件は？
+    emotion: neutral
+    intensity: 2
+    delivery: 定型の丁寧な口上。滑らかで淀みない話速。
+    situation: カウンターに来た客へ型通りの挨拶をしている。
+    difficulty: standard
+    loop_ok: true
+
+  - id: receptionist-002
+    character: receptionist
+    text: この依頼、報酬が上がったんですよ
+    emotion: cheerful
+    intensity: 2
+    delivery: 明るく弾んだ声。相手の反応を期待する語尾。
+    situation: 好条件の依頼を勧めながら説明している。
+    difficulty: standard
+    loop_ok: true
+
+  - id: receptionist-003
+    character: receptionist
+    text: うそ、お一人で討伐なさったんですか！？
+    emotion: surprised
+    intensity: 3
+    delivery: 思わず声が裏返る。早口で驚きを隠せない。
+    situation: 冒険者からの討伐報告を聞いて驚いている。
+    difficulty: hard
+    loop_ok: true
+
+  - id: veteran-001
+    character: veteran
+    text: あの氷の魔獣、俺一人で仕留めたんだぞ
+    emotion: cheerful
+    intensity: 2
+    delivery: 得意げに胸を張る口調。聞かせる間を作りながら話す。
+    situation: 新米に武勇伝を語って聞かせている。
+    difficulty: standard
+    loop_ok: true
+
+  - id: veteran-002
+    character: veteran
+    text: はっはっは、まだまだ若いのには負けんよ
+    emotion: laughing
+    intensity: 2
+    delivery: 豪快な笑い声混じり。笑いながらでも言葉は明瞭。
+    situation: 周りの冒険者たちに軽口を返している。
+    difficulty: hard
+    loop_ok: true
+
+  - id: veteran-003
+    character: veteran
+    text: 最近の依頼はどうも小粒でいかんな
+    emotion: tired
+    intensity: 1
+    delivery: 呆れとため息を含んだぼやき。低くゆったり話す。
+    situation: 掲示板を眺めながら不満を漏らしている。
+    difficulty: standard
+    loop_ok: true
+
+  - id: rookie-001
+    character: rookie
+    text: やった、初めて依頼を達成できた！
+    emotion: cheerful
+    intensity: 3
+    delivery: 弾んだ大声。興奮を抑えきれない早口。
+    situation: 依頼達成の報告を終えて喜びを爆発させている。
+    difficulty: standard
+    loop_ok: true
+
+  - id: rookie-002
+    character: rookie
+    text: えっ、この依頼こんなに難しいの！？
+    emotion: surprised
+    intensity: 3
+    delivery: 声が裏返るほどの驚き。早口でうろたえ気味。
+    situation: 依頼書の詳細を読んで難易度に驚いている。
+    difficulty: hard
+    loop_ok: true
+
+  - id: rookie-003
+    character: rookie
+    text: つ、次はきっともっと頑張りますから！
+    emotion: shout
+    intensity: 3
+    delivery: 上ずった大声の意気込み。声変わり特有の不安定さが残る。
+    situation: 先輩に叱られた後、奮起して宣言している。
+    difficulty: hard
+    loop_ok: true
+
+  - id: weary-001
+    character: weary
+    text: はぁ…今日も掲示板、代わり映えしないわね
+    emotion: tired
+    intensity: 1
+    delivery: 気だるいため息交じり。抑揚の少ない低めの声。
+    situation: 掲示板の依頼を眺めながら呟いている。
+    difficulty: standard
+    loop_ok: true
+
+  - id: weary-002
+    character: weary
+    text: あはは…もう驚かなくなっちゃった
+    emotion: laughing
+    intensity: 1
+    delivery: 乾いた自嘲気味の笑い。力の抜けた声。
+    situation: 新米の失敗談を聞いて乾いた笑いを漏らしている。
+    difficulty: hard
+    loop_ok: true
+
+  - id: weary-003
+    character: weary
+    text: ねえ、聞いた？あの新入りのこと。
+    emotion: whisper
+    intensity: 1
+    delivery: 声を潜めたひそひそ話。息が多めの近い声。
+    situation: 仲間にこっそり噂話を持ちかけている。
+    difficulty: hard
+    loop_ok: true

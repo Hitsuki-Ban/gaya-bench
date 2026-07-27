@@ -1,0 +1,169 @@
+format_version: 1
+id: castle-gate
+title: 城門・衛兵の誰何
+locale: ja
+tags: [fantasy, outdoor, gate, tension]
+
+scene:
+  setting: >-
+    城壁に囲まれた王都の正門前。昼、検問のため旅人や商人の列ができている。
+  acoustics: 屋外、石造りの門。声はよく響くが、列の話し声や馬の足音に少し埋もれる。
+  listener: プレイヤーは列に並ぶか、門の脇を通り抜ける。声は2〜6mの中距離で聞こえる。
+
+characters:
+  - id: guard-otoko
+    name: 門番の衛兵(男)
+    gender: male
+    age: young_adult
+    archetype: 衛兵
+    voice: 低めでよく通る声。直立した姿勢から出す張りのある発声。
+    personality: 生真面目で融通が利かない。まだ経験の浅い新人。
+    reference_voice: null
+
+  - id: guard-onna
+    name: 門番の衛兵(女)
+    gender: female
+    age: young_adult
+    archetype: 衛兵
+    voice: 硬質でよく通る声。抑揚を抑えた規律正しい話し方。
+    personality: 冷静沈着で無駄口を叩かない。仕事には忠実。
+    reference_voice: null
+
+  - id: captain
+    name: 衛兵隊長
+    gender: female
+    age: middle_aged
+    archetype: 隊長
+    voice: 低く太い芯のある声。短く言い切る話し方。威圧感がある。
+    personality: 経験豊富で厳格。部下にも旅人にも容赦しない。
+    reference_voice: null
+
+  - id: merchant
+    name: 旅商人(男)
+    gender: male
+    age: adult
+    archetype: 旅商人
+    voice: 愛想のいいやや高めの声。早口になりがちで愛想笑いが混じる。
+    personality: 如才ないが内心では急いでいる。
+    reference_voice: null
+
+lines:
+  - id: guard-otoko-001
+    character: guard-otoko
+    text: 止まれ！何者だ、名を名乗れ！
+    emotion: shout
+    intensity: 3
+    delivery: 腹から声を張る誰何。語尾を強く言い切る。
+    situation: 門に近づいてきた人影に誰何の声をかける。
+    difficulty: hard
+    loop_ok: true
+
+  - id: guard-otoko-002
+    character: guard-otoko
+    text: 通行証を提示せよ。
+    emotion: neutral
+    intensity: 2
+    delivery: 事務的な号令口調。抑揚少なく一定の速さで区切る。
+    situation: 列に並んだ旅人へ淡々と指示する。
+    difficulty: standard
+    loop_ok: true
+
+  - id: guard-otoko-003
+    character: guard-otoko
+    text: ……今日は列が長いな。
+    emotion: tired
+    intensity: 1
+    delivery: 気だるい独り言。誰にともなくぼそっと呟いて語尾が消える。
+    situation: 単調な検問が続き、つい本音が漏れる。
+    difficulty: hard
+    loop_ok: true
+
+  - id: guard-otoko-004
+    character: guard-otoko
+    text: は、はっ！申し訳ありません！
+    emotion: fearful
+    intensity: 2
+    delivery: 上ずった声で慌てて詫びる。噛みそうになる早口。
+    situation: 隊長に不手際を見咎められて焦る。
+    difficulty: hard
+    loop_ok: true
+
+  - id: guard-onna-001
+    character: guard-onna
+    text: 身分を明かしなさい。
+    emotion: neutral
+    intensity: 2
+    delivery: 抑揚を抑えた規律正しい発声。淡々と、しかし有無を言わせない。
+    situation: 旅人へ身分証の提示を求める。
+    difficulty: standard
+    loop_ok: true
+
+  - id: guard-onna-002
+    character: guard-onna
+    text: 怪しい動きをするな！
+    emotion: angry
+    intensity: 2
+    delivery: 鋭く短い警告。語気を強めるが叫びはしない。
+    situation: 列から外れようとした人物を制止する。
+    difficulty: standard
+    loop_ok: true
+
+  - id: guard-onna-003
+    character: guard-onna
+    text: ……ふぁ……いかん、いかん……
+    emotion: whisper
+    intensity: 1
+    delivery: あくびを噛み殺した直後の小声の独り言。ほとんど息だけ。
+    situation: 直立不動のまま眠気と闘っている。
+    difficulty: hard
+    loop_ok: true
+
+  - id: captain-001
+    character: captain
+    text: 貴様、それでも衛兵か！
+    emotion: angry
+    intensity: 3
+    delivery: 怒鳴りつける。腹の底から出す威圧的な声。
+    situation: 部下の不手際を厳しく叱責する。
+    difficulty: hard
+    loop_ok: true
+
+  - id: captain-002
+    character: captain
+    text: ふん……まあ良かろう、通れ。
+    emotion: laughing
+    intensity: 1
+    delivery: 鼻で笑うような短い含み笑いのあと、素っ気なく言う。
+    situation: 旅商人の弁解に呆れつつ通行を許可する。
+    difficulty: hard
+    loop_ok: true
+
+  - id: merchant-001
+    character: merchant
+    text: えっ、私ですか？商人です。
+    emotion: surprised
+    intensity: 2
+    delivery: 急に呼び止められて戸惑う。声が少し裏返る。
+    situation: 列の先頭で衛兵に急に声をかけられる。
+    difficulty: standard
+    loop_ok: true
+
+  - id: merchant-002
+    character: merchant
+    text: は、はい、これが通行証で！
+    emotion: fearful
+    intensity: 2
+    delivery: 慌てて懐を探りながら上ずった声で答える。噛み気味。
+    situation: 急な検問で書類を焦って取り出す。
+    difficulty: hard
+    loop_ok: true
+
+  - id: merchant-003
+    character: merchant
+    text: 毎度お世話になります、隊長様！
+    emotion: cheerful
+    intensity: 2
+    delivery: 愛想笑いを浮かべた揉み手のような声。語尾が上がる。
+    situation: ようやく通行許可が出てほっとしつつ媚びる。
+    difficulty: standard
+    loop_ok: true
