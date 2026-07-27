@@ -1,0 +1,273 @@
+{
+  "format_version": 1,
+  "generated_at": "2026-07-27T18:32:17.921191+00:00",
+  "models": [
+    {
+      "id": "dummy",
+      "name": "Dummy Beep",
+      "version": "1",
+      "license_note": "テスト専用（外部モデルなし）",
+      "capabilities": {
+        "emotion": false,
+        "voice_prompt": false,
+        "clone": false,
+        "nonverbal": false,
+        "reading": false
+      }
+    }
+  ],
+  "clips": [
+    {
+      "model": "dummy",
+      "scenario": "market-day",
+      "line": "fruit-vendor-001",
+      "variant": "dry",
+      "path": "audio/dummy/market-day/fruit-vendor-001-dry.opus",
+      "duration_sec": 1.2065,
+      "sha256": "94058dfde75d4e0447669591845b41734e24eac2b4bd2ac9b3e8a69578ea0fd8",
+      "gen_params": {
+        "requested": {
+          "sample_rate_hz": 48000,
+          "duration_sec": 1.2,
+          "tone_sec": 0.6,
+          "amplitude": 0.2
+        },
+        "realized": {
+          "tone_hz": 628
+        }
+      },
+      "rtf": 0.020454
+    },
+    {
+      "model": "dummy",
+      "scenario": "market-day",
+      "line": "fruit-vendor-002",
+      "variant": "dry",
+      "path": "audio/dummy/market-day/fruit-vendor-002-dry.opus",
+      "duration_sec": 1.2065,
+      "sha256": "ae0c1134a41e8c80c1977b3c5b7f580f3359cf89d9ccdc87e0be0dcb525b7cc1",
+      "gen_params": {
+        "requested": {
+          "sample_rate_hz": 48000,
+          "duration_sec": 1.2,
+          "tone_sec": 0.6,
+          "amplitude": 0.2
+        },
+        "realized": {
+          "tone_hz": 680
+        }
+      },
+      "rtf": 0.022587
+    },
+    {
+      "model": "dummy",
+      "scenario": "market-day",
+      "line": "shopper-001",
+      "variant": "dry",
+      "path": "audio/dummy/market-day/shopper-001-dry.opus",
+      "duration_sec": 1.2065,
+      "sha256": "dd9682cae24035295d9f60518d13bb145e567ac7cd68637034bde3fb09fa3d2a",
+      "gen_params": {
+        "requested": {
+          "sample_rate_hz": 48000,
+          "duration_sec": 1.2,
+          "tone_sec": 0.6,
+          "amplitude": 0.2
+        },
+        "realized": {
+          "tone_hz": 596
+        }
+      },
+      "rtf": 0.022918
+    },
+    {
+      "model": "dummy",
+      "scenario": "market-day",
+      "line": "shopper-002",
+      "variant": "dry",
+      "path": "audio/dummy/market-day/shopper-002-dry.opus",
+      "duration_sec": 1.2065,
+      "sha256": "d3b9791784b66d87df946bc5b55b6c3f1294239ac6e3a701b45fcc37b6aa9d46",
+      "gen_params": {
+        "requested": {
+          "sample_rate_hz": 48000,
+          "duration_sec": 1.2,
+          "tone_sec": 0.6,
+          "amplitude": 0.2
+        },
+        "realized": {
+          "tone_hz": 597
+        }
+      },
+      "rtf": 0.021182
+    },
+    {
+      "model": "dummy",
+      "scenario": "market-day",
+      "line": "street-kid-001",
+      "variant": "dry",
+      "path": "audio/dummy/market-day/street-kid-001-dry.opus",
+      "duration_sec": 1.2065,
+      "sha256": "90edcb09f18245d8ddca9930aab8b70e1bdaf197a482e5ec06b18e054e9d82cf",
+      "gen_params": {
+        "requested": {
+          "sample_rate_hz": 48000,
+          "duration_sec": 1.2,
+          "tone_sec": 0.6,
+          "amplitude": 0.2
+        },
+        "realized": {
+          "tone_hz": 652
+        }
+      },
+      "rtf": 0.019801
+    },
+    {
+      "model": "dummy",
+      "scenario": "market-day",
+      "line": "street-kid-002",
+      "variant": "dry",
+      "path": "audio/dummy/market-day/street-kid-002-dry.opus",
+      "duration_sec": 1.2065,
+      "sha256": "bce5ecc4dd82d5ef82ae669cb531e18fb2924588518d6ecbaa99adad54568d41",
+      "gen_params": {
+        "requested": {
+          "sample_rate_hz": 48000,
+          "duration_sec": 1.2,
+          "tone_sec": 0.6,
+          "amplitude": 0.2
+        },
+        "realized": {
+          "tone_hz": 639
+        }
+      },
+      "rtf": 0.025683
+    },
+    {
+      "model": "dummy",
+      "scenario": "tavern-night",
+      "line": "barmaid-001",
+      "variant": "dry",
+      "path": "audio/dummy/tavern-night/barmaid-001-dry.opus",
+      "duration_sec": 1.2065,
+      "sha256": "f01e2f8468ee5856567d666bd92d030c33500427aa8993488f9383f736646c3f",
+      "gen_params": {
+        "requested": {
+          "sample_rate_hz": 48000,
+          "duration_sec": 1.2,
+          "tone_sec": 0.6,
+          "amplitude": 0.2
+        },
+        "realized": {
+          "tone_hz": 397
+        }
+      },
+      "rtf": 0.027024
+    },
+    {
+      "model": "dummy",
+      "scenario": "tavern-night",
+      "line": "barmaid-002",
+      "variant": "dry",
+      "path": "audio/dummy/tavern-night/barmaid-002-dry.opus",
+      "duration_sec": 1.2065,
+      "sha256": "230dc4806d3dc514d860f06ab092c54844d7790c9eb945b439cf9ac6b88628b3",
+      "gen_params": {
+        "requested": {
+          "sample_rate_hz": 48000,
+          "duration_sec": 1.2,
+          "tone_sec": 0.6,
+          "amplitude": 0.2
+        },
+        "realized": {
+          "tone_hz": 619
+        }
+      },
+      "rtf": 0.025736
+    },
+    {
+      "model": "dummy",
+      "scenario": "tavern-night",
+      "line": "drunkard-001",
+      "variant": "dry",
+      "path": "audio/dummy/tavern-night/drunkard-001-dry.opus",
+      "duration_sec": 1.2065,
+      "sha256": "b1d1c7753392cc6cecd325377c0652513cb41ebb7b945b8844cac36e800bb40d",
+      "gen_params": {
+        "requested": {
+          "sample_rate_hz": 48000,
+          "duration_sec": 1.2,
+          "tone_sec": 0.6,
+          "amplitude": 0.2
+        },
+        "realized": {
+          "tone_hz": 518
+        }
+      },
+      "rtf": 0.03122
+    },
+    {
+      "model": "dummy",
+      "scenario": "tavern-night",
+      "line": "drunkard-002",
+      "variant": "dry",
+      "path": "audio/dummy/tavern-night/drunkard-002-dry.opus",
+      "duration_sec": 1.2065,
+      "sha256": "c65f022444beb7fb9818d35faa0729a7e11d5295af85ae71aaea37c6f737420d",
+      "gen_params": {
+        "requested": {
+          "sample_rate_hz": 48000,
+          "duration_sec": 1.2,
+          "tone_sec": 0.6,
+          "amplitude": 0.2
+        },
+        "realized": {
+          "tone_hz": 667
+        }
+      },
+      "rtf": 0.035261
+    },
+    {
+      "model": "dummy",
+      "scenario": "tavern-night",
+      "line": "old-regular-001",
+      "variant": "dry",
+      "path": "audio/dummy/tavern-night/old-regular-001-dry.opus",
+      "duration_sec": 1.2065,
+      "sha256": "c955d9bfa6bf86f6afdcac614b2b9ffde7140136b2fc1c185421d8a02bbe2f16",
+      "gen_params": {
+        "requested": {
+          "sample_rate_hz": 48000,
+          "duration_sec": 1.2,
+          "tone_sec": 0.6,
+          "amplitude": 0.2
+        },
+        "realized": {
+          "tone_hz": 504
+        }
+      },
+      "rtf": 0.028788
+    },
+    {
+      "model": "dummy",
+      "scenario": "tavern-night",
+      "line": "old-regular-002",
+      "variant": "dry",
+      "path": "audio/dummy/tavern-night/old-regular-002-dry.opus",
+      "duration_sec": 1.2065,
+      "sha256": "82450353fbceb7855fe50cd388fbe80c5237f1d906e059f182a4d89396e5035b",
+      "gen_params": {
+        "requested": {
+          "sample_rate_hz": 48000,
+          "duration_sec": 1.2,
+          "tone_sec": 0.6,
+          "amplitude": 0.2
+        },
+        "realized": {
+          "tone_hz": 414
+        }
+      },
+      "rtf": 0.028714
+    }
+  ]
+}
