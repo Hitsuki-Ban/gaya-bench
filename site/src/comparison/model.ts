@@ -1,4 +1,12 @@
-import type { BenchmarkData, Character, Clip, Line, Model, Scenario } from "../data/types";
+import type {
+  BenchmarkData,
+  Character,
+  Clip,
+  GenerationFailure,
+  Line,
+  Model,
+  Scenario,
+} from "../data/types";
 import type { ComparisonProjection } from "../filters";
 
 export interface ComparisonRow {
@@ -24,10 +32,14 @@ export interface PlaybackQueue {
   readonly skippedCount: number;
 }
 
+export type ComparisonCell =
+  | { readonly kind: "success"; readonly clip: Clip }
+  | { readonly kind: "failure"; readonly failure: GenerationFailure };
+
 export interface ComparisonModel {
   readonly rows: readonly ComparisonRow[];
   readonly models: readonly Model[];
-  getClip(coordinate: Coordinate): Clip | undefined;
+  getCell(coordinate: Coordinate): ComparisonCell | undefined;
   getCoordinateForClipKey(key: string): Coordinate | undefined;
 }
 
@@ -86,7 +98,7 @@ export function buildComparisonModel(data: BenchmarkData): ComparisonModel {
     }
   }
 
-  const clipsByRow = new Map<number, Map<string, Clip>>();
+  const cellsByRow = new Map<number, Map<string, ComparisonCell>>();
   const coordinateByClipKey = new Map<string, Coordinate>();
   for (const clip of data.manifest.clips) {
     if (clip.variant !== "dry") {
@@ -105,29 +117,59 @@ export function buildComparisonModel(data: BenchmarkData): ComparisonModel {
       );
     }
 
-    let clipsByModel = clipsByRow.get(rowIndex);
-    if (!clipsByModel) {
-      clipsByModel = new Map<string, Clip>();
-      clipsByRow.set(rowIndex, clipsByModel);
+    let cellsByModel = cellsByRow.get(rowIndex);
+    if (!cellsByModel) {
+      cellsByModel = new Map<string, ComparisonCell>();
+      cellsByRow.set(rowIndex, cellsByModel);
     }
-    if (clipsByModel.has(clip.model)) {
+    if (cellsByModel.has(clip.model)) {
       throw new Error(
-        `比較マトリクスの cell clip が重複しています: ${clip.scenario}/${clip.line}/${clip.model}`,
+        `比較マトリクスの cell 結果が重複しています: ${clip.scenario}/${clip.line}/${clip.model}`,
       );
     }
-    clipsByModel.set(clip.model, clip);
+    cellsByModel.set(clip.model, { kind: "success", clip });
     coordinateByClipKey.set(comparisonClipKey(clip), {
       rowIndex,
       modelId: clip.model,
     });
   }
 
+  for (const failure of data.manifest.failures) {
+    if (failure.variant !== "dry") {
+      throw new Error(
+        `比較マトリクスは dry variant のみを受け付けます: ${failure.model}/${failure.scenario}/${failure.line}/${failure.variant}`,
+      );
+    }
+    if (!modelIds.has(failure.model)) {
+      throw new Error(`failure が存在しない model を参照しています: ${failure.model}`);
+    }
+
+    const rowIndex = rowIndexByLine.get(lineKey(failure.scenario, failure.line));
+    if (rowIndex === undefined) {
+      throw new Error(
+        `failure が存在しない scenario/line を参照しています: ${failure.scenario}/${failure.line}`,
+      );
+    }
+
+    let cellsByModel = cellsByRow.get(rowIndex);
+    if (!cellsByModel) {
+      cellsByModel = new Map<string, ComparisonCell>();
+      cellsByRow.set(rowIndex, cellsByModel);
+    }
+    if (cellsByModel.has(failure.model)) {
+      throw new Error(
+        `比較マトリクスの cell 結果が重複しています: ${failure.scenario}/${failure.line}/${failure.model}`,
+      );
+    }
+    cellsByModel.set(failure.model, { kind: "failure", failure });
+  }
+
   return {
     rows,
     models: data.manifest.models,
-    getClip(coordinate) {
+    getCell(coordinate) {
       assertCoordinate(rows, modelIds, coordinate);
-      return clipsByRow.get(coordinate.rowIndex)?.get(coordinate.modelId);
+      return cellsByRow.get(coordinate.rowIndex)?.get(coordinate.modelId);
     },
     getCoordinateForClipKey(key) {
       return coordinateByClipKey.get(key);
@@ -201,9 +243,9 @@ export function buildRowQueue(
   let skippedCount = 0;
   for (const visibleModel of projection.models.slice(startIndex)) {
     const coordinate = { rowIndex: cursor.rowIndex, modelId: visibleModel.id };
-    const clip = model.getClip(coordinate);
-    if (clip) {
-      items.push({ coordinate, clip });
+    const cell = model.getCell(coordinate);
+    if (cell?.kind === "success") {
+      items.push({ coordinate, clip: cell.clip });
     } else {
       skippedCount += 1;
     }
@@ -235,9 +277,9 @@ export function buildColumnQueue(
       break;
     }
     const coordinate = { rowIndex, modelId: cursor.modelId };
-    const clip = model.getClip(coordinate);
-    if (clip) {
-      items.push({ coordinate, clip });
+    const cell = model.getCell(coordinate);
+    if (cell?.kind === "success") {
+      items.push({ coordinate, clip: cell.clip });
     } else {
       skippedCount += 1;
     }

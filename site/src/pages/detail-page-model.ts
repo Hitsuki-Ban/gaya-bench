@@ -1,13 +1,21 @@
-import type { Character, Clip, JsonValue, Line, Scenario } from "@/data";
+import type { Character, Clip, GenerationFailure, JsonValue, Line, Scenario } from "@/data";
 
 export interface ScenarioLineEntry {
   readonly line: Line;
   readonly character: Character;
   readonly clips: readonly Clip[];
+  readonly failures: readonly GenerationFailure[];
 }
 
 export interface ModelClipEntry {
   readonly clip: Clip;
+  readonly scenario: Scenario;
+  readonly line: Line;
+  readonly character: Character;
+}
+
+export interface ModelFailureEntry {
+  readonly failure: GenerationFailure;
   readonly scenario: Scenario;
   readonly line: Line;
   readonly character: Character;
@@ -27,9 +35,13 @@ export interface GenerationParameterSet {
 export function buildScenarioLineEntries(
   scenario: Scenario,
   clips: readonly Clip[],
+  failures: readonly GenerationFailure[],
 ): readonly ScenarioLineEntry[] {
   const characterById = new Map(scenario.characters.map((character) => [character.id, character]));
   const clipsByLineId = new Map(scenario.lines.map((line) => [line.id, [] as Clip[]]));
+  const failuresByLineId = new Map(
+    scenario.lines.map((line) => [line.id, [] as GenerationFailure[]]),
+  );
 
   for (const clip of clips) {
     const lineClips = clipsByLineId.get(clip.line);
@@ -37,6 +49,13 @@ export function buildScenarioLineEntries(
       throw new Error(`scenario ${scenario.id} に line ${clip.line} が存在しません。`);
     }
     lineClips.push(clip);
+  }
+  for (const failure of failures) {
+    const lineFailures = failuresByLineId.get(failure.line);
+    if (!lineFailures) {
+      throw new Error(`scenario ${scenario.id} に line ${failure.line} が存在しません。`);
+    }
+    lineFailures.push(failure);
   }
 
   return scenario.lines.map((line) => {
@@ -48,6 +67,7 @@ export function buildScenarioLineEntries(
       line,
       character,
       clips: clipsByLineId.get(line.id)!,
+      failures: failuresByLineId.get(line.id)!,
     };
   });
 }
@@ -57,22 +77,7 @@ export function buildModelClipEntries(
   clips: readonly Clip[],
   scenarios: readonly Scenario[],
 ): readonly ModelClipEntry[] {
-  const scenarioIndex = new Map<
-    string,
-    {
-      readonly scenario: Scenario;
-      readonly lineById: ReadonlyMap<string, Line>;
-      readonly characterById: ReadonlyMap<string, Character>;
-    }
-  >();
-
-  for (const scenario of scenarios) {
-    scenarioIndex.set(scenario.id, {
-      scenario,
-      lineById: new Map(scenario.lines.map((line) => [line.id, line])),
-      characterById: new Map(scenario.characters.map((character) => [character.id, character])),
-    });
-  }
+  const scenarioIndex = buildScenarioIndex(scenarios);
 
   const entries: ModelClipEntry[] = [];
   for (const clip of clips) {
@@ -80,21 +85,37 @@ export function buildModelClipEntries(
       continue;
     }
 
-    const indexedScenario = scenarioIndex.get(clip.scenario);
-    if (!indexedScenario) {
-      throw new Error(`clip が未知の scenario ${clip.scenario} を参照しています。`);
+    const { scenario, line, character } = resolveLineContext(
+      scenarioIndex,
+      clip.scenario,
+      clip.line,
+      "clip",
+    );
+    entries.push({ clip, scenario, line, character });
+  }
+
+  return entries;
+}
+
+export function buildModelFailureEntries(
+  modelId: string,
+  failures: readonly GenerationFailure[],
+  scenarios: readonly Scenario[],
+): readonly ModelFailureEntry[] {
+  const scenarioIndex = buildScenarioIndex(scenarios);
+  const entries: ModelFailureEntry[] = [];
+
+  for (const failure of failures) {
+    if (failure.model !== modelId) {
+      continue;
     }
-    const line = indexedScenario.lineById.get(clip.line);
-    if (!line) {
-      throw new Error(`clip が未知の line ${clip.scenario}/${clip.line} を参照しています。`);
-    }
-    const character = indexedScenario.characterById.get(line.character);
-    if (!character) {
-      throw new Error(
-        `line ${clip.scenario}/${clip.line} が未知の character ${line.character} を参照しています。`,
-      );
-    }
-    entries.push({ clip, scenario: indexedScenario.scenario, line, character });
+    const { scenario, line, character } = resolveLineContext(
+      scenarioIndex,
+      failure.scenario,
+      failure.line,
+      "failure",
+    );
+    entries.push({ failure, scenario, line, character });
   }
 
   return entries;
@@ -151,4 +172,46 @@ export function collectGenerationParameterSets(
   }
 
   return [...sets.values()];
+}
+
+interface IndexedScenario {
+  readonly scenario: Scenario;
+  readonly lineById: ReadonlyMap<string, Line>;
+  readonly characterById: ReadonlyMap<string, Character>;
+}
+
+function buildScenarioIndex(scenarios: readonly Scenario[]): ReadonlyMap<string, IndexedScenario> {
+  return new Map(
+    scenarios.map((scenario) => [
+      scenario.id,
+      {
+        scenario,
+        lineById: new Map(scenario.lines.map((line) => [line.id, line])),
+        characterById: new Map(scenario.characters.map((character) => [character.id, character])),
+      },
+    ]),
+  );
+}
+
+function resolveLineContext(
+  scenarioIndex: ReadonlyMap<string, IndexedScenario>,
+  scenarioId: string,
+  lineId: string,
+  artifactKind: "clip" | "failure",
+): { readonly scenario: Scenario; readonly line: Line; readonly character: Character } {
+  const indexedScenario = scenarioIndex.get(scenarioId);
+  if (!indexedScenario) {
+    throw new Error(`${artifactKind} が未知の scenario ${scenarioId} を参照しています。`);
+  }
+  const line = indexedScenario.lineById.get(lineId);
+  if (!line) {
+    throw new Error(`${artifactKind} が未知の line ${scenarioId}/${lineId} を参照しています。`);
+  }
+  const character = indexedScenario.characterById.get(line.character);
+  if (!character) {
+    throw new Error(
+      `line ${scenarioId}/${lineId} が未知の character ${line.character} を参照しています。`,
+    );
+  }
+  return { scenario: indexedScenario.scenario, line, character };
 }

@@ -108,6 +108,16 @@ describe("A/B vote storage", () => {
         dataset,
       ),
     ).toThrow("現在の dataset と一致しません");
+    expect(() =>
+      decodeStoredVotes(
+        JSON.stringify({
+          ...payload,
+          dataset: { ...dataset, formatVersion: 1 },
+        }),
+        catalog,
+        dataset,
+      ),
+    ).toThrow("dataset の formatVersion は 2");
   });
 
   it("存在しない match、非 canonical / 不一致 pair、不正 winner、match 重複を拒否する", () => {
@@ -278,10 +288,11 @@ function fixture(): BenchmarkData {
   const fixtureScenario = scenario(speaker, fixtureLine);
   return {
     manifest: {
-      format_version: 1,
+      format_version: 2,
       generated_at: "2026-07-28T00:00:00Z",
       models,
       clips: models.map((model) => clip(model.id)),
+      failures: [],
     },
     scenarios: [fixtureScenario],
   };

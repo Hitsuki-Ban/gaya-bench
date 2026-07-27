@@ -215,7 +215,7 @@ const MatrixRow = memo(function MatrixRow({
           >
             <MatrixCell
               accessibleLabel={`${row.character.name}「${row.line.text}」`}
-              clip={model.getClip(coordinate)}
+              cell={model.getCell(coordinate)}
               coordinate={coordinate}
               isCurrent={playingModelId === item.id}
               isCursor={cursorModelId === item.id}

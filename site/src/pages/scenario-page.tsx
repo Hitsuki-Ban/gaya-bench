@@ -5,7 +5,7 @@ import { ClipButton } from "@/components/clip-button";
 import { PageIntro } from "@/components/page-intro";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { getClipsForScenario, scenarioById } from "@/data";
+import { getClipsForScenario, getFailuresForScenario, modelById, scenarioById } from "@/data";
 import { buildScenarioLineEntries } from "@/pages/detail-page-model";
 import { NotFoundPage } from "@/pages/not-found-page";
 
@@ -18,7 +18,8 @@ export function ScenarioPage() {
   }
 
   const clips = getClipsForScenario(scenario.id);
-  const lineEntries = buildScenarioLineEntries(scenario, clips);
+  const failures = getFailuresForScenario(scenario.id);
+  const lineEntries = buildScenarioLineEntries(scenario, clips, failures);
 
   return (
     <div className="space-y-7">
@@ -116,45 +117,71 @@ export function ScenarioPage() {
           title="全セリフと生成クリップ"
         />
         <div className="grid gap-4 lg:grid-cols-2">
-          {lineEntries.map(({ line, character, clips: lineClips }, lineIndex) => {
-            return (
-              <Card key={line.id} size="sm">
-                <CardHeader>
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex flex-wrap gap-2">
-                      <Badge variant="secondary">{character.name}</Badge>
-                      <Badge variant="outline">{line.emotion}</Badge>
-                      <Badge variant="outline">強度 {line.intensity}</Badge>
-                      <Badge variant={line.difficulty === "hard" ? "destructive" : "outline"}>
-                        {line.difficulty}
-                      </Badge>
+          {lineEntries.map(
+            ({ line, character, clips: lineClips, failures: lineFailures }, lineIndex) => {
+              return (
+                <Card key={line.id} size="sm">
+                  <CardHeader>
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex flex-wrap gap-2">
+                        <Badge variant="secondary">{character.name}</Badge>
+                        <Badge variant="outline">{line.emotion}</Badge>
+                        <Badge variant="outline">強度 {line.intensity}</Badge>
+                        <Badge variant={line.difficulty === "hard" ? "destructive" : "outline"}>
+                          {line.difficulty}
+                        </Badge>
+                      </div>
+                      <span className="shrink-0 font-mono text-[10px] text-muted-foreground">
+                        {String(lineIndex + 1).padStart(2, "0")}
+                      </span>
                     </div>
-                    <span className="shrink-0 font-mono text-[10px] text-muted-foreground">
-                      {String(lineIndex + 1).padStart(2, "0")}
-                    </span>
-                  </div>
-                  <CardTitle className="mt-2 leading-7">{line.text}</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  <div className="space-y-1 border-l-2 border-border pl-3 text-xs leading-5 text-muted-foreground">
-                    <p>{line.delivery}</p>
-                    {line.situation ? <p>{line.situation}</p> : null}
-                  </div>
-                  {lineClips.length > 0 ? (
-                    <div className="space-y-2">
-                      {lineClips.map((clip) => (
-                        <ClipButton clip={clip} key={`${clip.model}/${clip.variant}`} />
-                      ))}
+                    <CardTitle className="mt-2 leading-7">{line.text}</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <div className="space-y-1 border-l-2 border-border pl-3 text-xs leading-5 text-muted-foreground">
+                      <p>{line.delivery}</p>
+                      {line.situation ? <p>{line.situation}</p> : null}
                     </div>
-                  ) : (
-                    <p className="rounded-md border border-dashed p-3 text-xs text-muted-foreground">
-                      このセリフのクリップは未生成です。
-                    </p>
-                  )}
-                </CardContent>
-              </Card>
-            );
-          })}
+                    {lineClips.length > 0 ? (
+                      <div className="space-y-2">
+                        {lineClips.map((clip) => (
+                          <ClipButton clip={clip} key={`${clip.model}/${clip.variant}`} />
+                        ))}
+                      </div>
+                    ) : null}
+                    {lineFailures.length > 0 ? (
+                      <div className="space-y-2">
+                        {lineFailures.map((failure) => {
+                          const failedModel = modelById.get(failure.model);
+                          if (!failedModel) {
+                            throw new Error(
+                              `生成失敗が未知の model を参照しています: ${failure.model}`,
+                            );
+                          }
+                          return (
+                            <div
+                              className="rounded-md border border-destructive/40 bg-destructive/5 p-3 text-xs"
+                              key={`${failure.model}/${failure.variant}`}
+                            >
+                              <p className="font-medium text-destructive">生成失敗</p>
+                              <p className="mt-1 text-muted-foreground">
+                                {failedModel.name} · {failure.variant} · 再生成待ち
+                              </p>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : null}
+                    {lineClips.length === 0 && lineFailures.length === 0 ? (
+                      <p className="rounded-md border border-dashed p-3 text-xs text-muted-foreground">
+                        このセリフのクリップは未生成です。
+                      </p>
+                    ) : null}
+                  </CardContent>
+                </Card>
+              );
+            },
+          )}
         </div>
       </section>
     </div>

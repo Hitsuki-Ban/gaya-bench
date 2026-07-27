@@ -1,6 +1,42 @@
 import { describe, expect, it } from "vite-plus/test";
 
-import { calculateRtfStatistics, collectGenerationParameterSets } from "./detail-page-model";
+import type { Character, Clip, GenerationFailure, Line, Scenario } from "@/data";
+import {
+  buildModelFailureEntries,
+  buildScenarioLineEntries,
+  calculateRtfStatistics,
+  collectGenerationParameterSets,
+} from "./detail-page-model";
+
+describe("detail generation results", () => {
+  it("scenario line ごとに成功、生成失敗、未生成を分離する", () => {
+    const fixtureScenario = scenario();
+    const entries = buildScenarioLineEntries(fixtureScenario, [clip()], [failure()]);
+
+    expect(entries[0]).toMatchObject({
+      line: { id: "line-1" },
+      clips: [{ model: "alpha" }],
+      failures: [{ model: "beta", reason: "generation_failed" }],
+    });
+    expect(entries[1]).toMatchObject({
+      line: { id: "line-2" },
+      clips: [],
+      failures: [],
+    });
+  });
+
+  it("model の生成失敗へ scenario、line、character を関連付ける", () => {
+    const entries = buildModelFailureEntries("beta", [failure()], [scenario()]);
+
+    expect(entries).toHaveLength(1);
+    expect(entries[0]).toMatchObject({
+      failure: { model: "beta", reason: "generation_failed" },
+      scenario: { id: "scenario" },
+      line: { id: "line-1" },
+      character: { id: "speaker" },
+    });
+  });
+});
 
 describe("calculateRtfStatistics", () => {
   it("音声時間で重み付けした平均と範囲を返す", () => {
@@ -40,3 +76,59 @@ describe("collectGenerationParameterSets", () => {
     ]);
   });
 });
+
+function scenario(): Scenario {
+  const speaker: Character = {
+    id: "speaker",
+    name: "話者",
+    gender: "neutral",
+    age: "adult",
+    voice: "自然な声",
+  };
+  return {
+    format_version: 1,
+    id: "scenario",
+    title: "Scenario",
+    locale: "ja",
+    scene: { setting: "Test" },
+    characters: [speaker],
+    lines: [line("line-1"), line("line-2")],
+  };
+}
+
+function line(id: string): Line {
+  return {
+    id,
+    character: "speaker",
+    text: id,
+    emotion: "neutral",
+    intensity: 2,
+    delivery: "自然に",
+    difficulty: "standard",
+    loop_ok: true,
+  };
+}
+
+function clip(): Clip {
+  return {
+    model: "alpha",
+    scenario: "scenario",
+    line: "line-1",
+    variant: "dry",
+    path: "audio/alpha/scenario/line-1.opus",
+    duration_sec: 1,
+    sha256: "hash",
+    gen_params: {},
+    rtf: 0.1,
+  };
+}
+
+function failure(): GenerationFailure {
+  return {
+    model: "beta",
+    scenario: "scenario",
+    line: "line-1",
+    variant: "dry",
+    reason: "generation_failed",
+  };
+}

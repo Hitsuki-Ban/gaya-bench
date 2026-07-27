@@ -281,7 +281,8 @@ function Transport({
   if (!model) {
     throw new Error(`transport の model が存在しません: ${cursor.modelId}`);
   }
-  const clip = comparisonModel.getClip(cursor);
+  const cell = comparisonModel.getCell(cursor);
+  const clip = cell?.kind === "success" ? cell.clip : undefined;
   const duration = progress.duration > 0 ? progress.duration : (clip?.duration_sec ?? 0);
   const ratio = duration > 0 ? Math.min(progress.currentTime / duration, 1) : 0;
   const isCurrentClip = clip !== undefined && controller.player.currentClipKey === clipKey(clip);
@@ -391,7 +392,7 @@ function countProjectionClips(projection: ComparisonProjection): number {
   let count = 0;
   for (const { rowIndex } of projection.rows) {
     for (const model of projection.models) {
-      if (comparisonModel.getClip({ rowIndex, modelId: model.id })) {
+      if (comparisonModel.getCell({ rowIndex, modelId: model.id })?.kind === "success") {
         count += 1;
       }
     }

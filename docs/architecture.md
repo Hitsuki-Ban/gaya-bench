@@ -26,24 +26,31 @@ pipeline (Python/uv) ── モデル別アダプタ ──▶ artifacts/audio/<
   - `gaya publish` — manifest/hash検証 → エンコード済みOpusをR2へ差分アップロード
 - **アダプタインターフェース**: `LineJob { scene, character, line, locale }` を受け取り音声を返す。モデル固有の入力形式 (スタイルプロンプト / 感情タグ / 参照音声) への変換はアダプタが担う
 - **capability profile**: アダプタごとに「スキーマのどのフィールドを解釈できるか」を宣言 (emotion対応 / voice記述対応 / クローン対応 / 非言語音対応...)。manifestに含め、サイトでバッジ表示する
-- **冪等性**: 生成済みクリップは (アダプタが解釈する入力 + モデルversion + 生成パラメータ + 後処理profile) のハッシュと成果物hashが一致した場合のみスキップ。`--force` で再生成
+- **冪等性**: 生成済みクリップは (アダプタが解釈する入力 + モデルversion + 生成パラメータ + 後処理profile) のハッシュと成果物hashが一致した場合のみスキップ。`--force` で再生成。manifest 上の最新結果が失敗の場合はキャッシュを使わず実生成を再試行する
+- **manifest 更新**: 各ジョブの成功・スキップ・失敗をその場で原子的に反映する。変更がある場合だけ、同一ディレクトリの一時ファイルを `flush` / `fsync` してから `os.replace` する。バッチ全件が成功した後にだけ selector scope 内の古い結果を整理し、scope 外の結果は保持する
 - **正規化の方針**: 全クリップを2-pass loudnormで -18 LUFS / peak -1 dBTP / mono / 48kHz に正規化する。モデル間の音量差による印象バイアスを除くため。囁き/叫びの意図的な音量差が失われる副作用はドキュメントに明記し、+αの scene バリアント (距離感シミュレーション) で補う
 - **バリアント**: v1は `dry` (正規化のみ) 単一。`scene` (EQ+リバーブ+減衰の中距離シミュレーション) は+α
 
-## manifest 形式 (v1)
+## manifest 形式 (v2)
 
 ```jsonc
 {
-  "format_version": 1,
+  "format_version": 2,
   "generated_at": "...",
   "models": [ { "id": "...", "name": "...", "version": "...", "license_note": "...",
                  "capabilities": { "emotion": true, "voice_prompt": false, "clone": true,
                                    "nonverbal": false, "reading": true } } ],
   "clips": [ { "model": "...", "scenario": "...", "line": "...", "variant": "dry",
                 "path": "audio/<model>/<scenario>/<line>-dry.opus",
-                "duration_sec": 1.8, "sha256": "...", "gen_params": {}, "rtf": 0.4 } ]
+                "duration_sec": 1.8, "sha256": "...", "gen_params": {}, "rtf": 0.4 } ],
+  "failures": [ { "model": "...", "scenario": "...", "line": "...", "variant": "dry",
+                   "reason": "generation_failed" } ]
 }
 ```
+
+`(model, scenario, line, variant)` は `clips` と `failures` を通して一意で、各キーの最新結果をどちらか一方だけに記録する。成功またはスキップは同じキーの失敗を置換し、失敗は古い成功を置換する。
+
+`failure.reason` は公開安全な低基数 enum で、現在許可する値は `generation_failed` のみ。例外本文、モデル出力、ローカルパスなどの詳細は manifest に保存しない。manifest は `format_version: 2` と上記の完全なトップレベル項目だけを受理する。
 
 ## ストレージ
 

@@ -4,14 +4,21 @@ import path from "node:path";
 import { parse } from "yaml";
 import type { Plugin } from "vite-plus";
 
-import type { BenchmarkData, Clip, Manifest, Model, Scenario } from "../src/data/types.ts";
+import type {
+  BenchmarkData,
+  Clip,
+  GenerationFailure,
+  Manifest,
+  Model,
+  Scenario,
+} from "../src/data/types.ts";
 import { isSafeClipPath } from "../src/lib/clip-path.ts";
 
 const VIRTUAL_MODULE_ID = "virtual:gaya-data";
 const RESOLVED_VIRTUAL_MODULE_ID = `\0${VIRTUAL_MODULE_ID}`;
 const ID_PATTERN = /^[a-z0-9][a-z0-9-]*$/;
 
-const MANIFEST_KEYS = ["format_version", "generated_at", "models", "clips"] as const;
+const MANIFEST_KEYS = ["format_version", "generated_at", "models", "clips", "failures"] as const;
 const MODEL_KEYS = ["id", "name", "version", "license_note", "capabilities"] as const;
 const CAPABILITY_KEYS = ["emotion", "voice_prompt", "clone", "nonverbal", "reading"] as const;
 const CLIP_KEYS = [
@@ -25,6 +32,7 @@ const CLIP_KEYS = [
   "gen_params",
   "rtf",
 ] as const;
+const FAILURE_KEYS = ["model", "scenario", "line", "variant", "reason"] as const;
 const SCENARIO_REQUIRED_KEYS = [
   "format_version",
   "id",
@@ -60,6 +68,7 @@ const EMOTIONS = new Set([
   "pain",
 ]);
 const DIFFICULTIES = new Set(["standard", "hard"]);
+const FAILURE_REASONS = new Set(["generation_failed"]);
 
 type WatchFile = (file: string) => void;
 type UnknownRecord = Record<string, unknown>;
@@ -130,27 +139,35 @@ function loadManifest(manifestPath: string): Manifest {
 
   assertRecord(value, "manifest");
   assertExactKeys(value, MANIFEST_KEYS, [], "manifest");
-  assertVersion(value.format_version, "manifest format_version");
+  assertManifestVersion(value.format_version);
   assertString(value.generated_at, "manifest generated_at");
   assertArray(value.models, "manifest models");
   assertArray(value.clips, "manifest clips");
+  assertArray(value.failures, "manifest failures");
 
   const models = value.models.map((model, index) => validateModel(model, index));
   const clips = value.clips.map((clip, index) => validateClip(clip, index));
+  const failures = value.failures.map((failure, index) => validateFailure(failure, index));
   assertUnique(
     models.map((model) => model.id),
     "manifest model id",
   );
   assertUnique(
-    clips.map((clip) => clipKeyTuple(clip)),
+    clips.map((clip) => artifactKeyTuple(clip)),
     "manifest clip key",
   );
+  assertUnique(
+    failures.map((failure) => artifactKeyTuple(failure)),
+    "manifest failure key",
+  );
+  assertDisjointArtifactKeys(clips, failures);
 
   return {
-    format_version: 1,
+    format_version: 2,
     generated_at: value.generated_at,
     models,
     clips,
+    failures,
   };
 }
 
@@ -185,6 +202,18 @@ function validateClip(value: unknown, index: number): Clip {
   assertRelativeClipPath(value.path, `${label}.path`);
 
   return value as unknown as Clip;
+}
+
+function validateFailure(value: unknown, index: number): GenerationFailure {
+  const label = `manifest failures[${index}]`;
+  assertRecord(value, label);
+  assertExactKeys(value, FAILURE_KEYS, [], label);
+  for (const key of ["model", "scenario", "line", "variant"] as const) {
+    assertString(value[key], `${label}.${key}`);
+  }
+  assertEnum(value.reason, FAILURE_REASONS, `${label}.reason`);
+
+  return value as unknown as GenerationFailure;
 }
 
 function loadScenarios(scenariosDirectory: string, watchFile?: WatchFile): readonly Scenario[] {
@@ -230,7 +259,7 @@ function loadScenario(scenarioPath: string): Scenario {
   const label = `scenario ${scenarioPath}`;
   assertRecord(value, label);
   assertExactKeys(value, SCENARIO_REQUIRED_KEYS, SCENARIO_OPTIONAL_KEYS, label);
-  assertVersion(value.format_version, `${label}.format_version`);
+  assertScenarioVersion(value.format_version, `${label}.format_version`);
   assertId(value.id, `${label}.id`);
 
   const filenameId = path.basename(scenarioPath, ".yaml");
@@ -370,7 +399,7 @@ function validateReferences(manifest: Manifest, scenarios: readonly Scenario[]):
   );
 
   for (const clip of manifest.clips) {
-    const key = clipKeyTuple(clip);
+    const key = artifactKeyTuple(clip);
     if (!modelIds.has(clip.model)) {
       throw new GayaDataError(`clip ${key} が存在しない model を参照しています: ${clip.model}`);
     }
@@ -382,6 +411,24 @@ function validateReferences(manifest: Manifest, scenarios: readonly Scenario[]):
     }
     if (!lineIds.has(clip.line)) {
       throw new GayaDataError(`clip ${key} が存在しない line を参照しています: ${clip.line}`);
+    }
+  }
+
+  for (const failure of manifest.failures) {
+    const key = artifactKeyTuple(failure);
+    if (!modelIds.has(failure.model)) {
+      throw new GayaDataError(
+        `failure ${key} が存在しない model を参照しています: ${failure.model}`,
+      );
+    }
+    const lineIds = linesByScenario.get(failure.scenario);
+    if (!lineIds) {
+      throw new GayaDataError(
+        `failure ${key} が存在しない scenario を参照しています: ${failure.scenario}`,
+      );
+    }
+    if (!lineIds.has(failure.line)) {
+      throw new GayaDataError(`failure ${key} が存在しない line を参照しています: ${failure.line}`);
     }
   }
 }
@@ -420,11 +467,17 @@ function assertExactKeys(
     ]
       .filter(Boolean)
       .join("; ");
-    throw new GayaDataError(`${label} の項目が v1 と一致しません (${details})。`);
+    throw new GayaDataError(`${label} の項目が一致しません (${details})。`);
   }
 }
 
-function assertVersion(value: unknown, label: string): asserts value is 1 {
+function assertManifestVersion(value: unknown): asserts value is 2 {
+  if (value !== 2) {
+    throw new GayaDataError(`manifest format_version は2が必要です。`);
+  }
+}
+
+function assertScenarioVersion(value: unknown, label: string): asserts value is 1 {
   if (value !== 1) {
     throw new GayaDataError(`${label} は1が必要です。`);
   }
@@ -489,8 +542,23 @@ function assertRelativeClipPath(value: string, label: string): void {
   }
 }
 
-function clipKeyTuple(clip: Clip): string {
-  return JSON.stringify([clip.model, clip.scenario, clip.line, clip.variant]);
+function artifactKeyTuple(
+  artifact: Pick<Clip | GenerationFailure, "model" | "scenario" | "line" | "variant">,
+): string {
+  return JSON.stringify([artifact.model, artifact.scenario, artifact.line, artifact.variant]);
+}
+
+function assertDisjointArtifactKeys(
+  clips: readonly Clip[],
+  failures: readonly GenerationFailure[],
+): void {
+  const clipKeys = new Set(clips.map((clip) => artifactKeyTuple(clip)));
+  for (const failure of failures) {
+    const key = artifactKeyTuple(failure);
+    if (clipKeys.has(key)) {
+      throw new GayaDataError(`manifest の clip/failure key が重複しています: ${key}`);
+    }
+  }
 }
 
 function readTextFile(file: string, label: string): string {

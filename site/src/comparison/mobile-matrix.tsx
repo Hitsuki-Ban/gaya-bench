@@ -135,7 +135,7 @@ export function MobileMatrix({ controller, model, projection, search }: MobileMa
               </div>
               <MatrixCell
                 accessibleLabel={`${row.character.name}「${row.line.text}」`}
-                clip={model.getClip(coordinate)}
+                cell={model.getCell(coordinate)}
                 coordinate={coordinate}
                 isCurrent={isCurrent}
                 isCursor={cursor.rowIndex === rowIndex}

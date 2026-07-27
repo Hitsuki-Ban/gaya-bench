@@ -77,7 +77,7 @@ def test_dummy_two_scenario_e2e_and_idempotency(
     assert not list(artifacts_dir.rglob("*-source.wav"))
 
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-    assert manifest["format_version"] == 1
+    assert manifest["format_version"] == 2
     assert len(manifest["models"]) == 1
     assert manifest["models"][0]["id"] == "dummy"
     assert manifest["models"][0]["capabilities"] == {
@@ -88,6 +88,7 @@ def test_dummy_two_scenario_e2e_and_idempotency(
         "reading": False,
     }
     assert len(manifest["clips"]) == 12
+    assert manifest["failures"] == []
     for clip in manifest["clips"]:
         opus_path = artifacts_dir / clip["path"]
         assert opus_path.is_file()
@@ -172,13 +173,12 @@ def test_selector_hash_invalidation_force_and_failed_replacement(
     assert len(manifest["clips"]) == 1
 
     output_dir = artifacts_dir / "audio" / "dummy" / "tavern-night"
-    stable_paths = [
+    stable_artifact_paths = [
         output_dir / "barmaid-001-dry.wav",
         output_dir / "barmaid-001-dry.opus",
         output_dir / "barmaid-001-dry.json",
-        manifest_path,
     ]
-    stable_bytes = {path: path.read_bytes() for path in stable_paths}
+    stable_bytes = {path: path.read_bytes() for path in stable_artifact_paths}
     metadata_path = output_dir / "barmaid-001-dry.json"
     broken_metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
     del broken_metadata["loudness"]
@@ -188,7 +188,11 @@ def test_selector_hash_invalidation_force_and_failed_replacement(
     )
     with pytest.raises(GenerationError, match="生成メタの項目"):
         run_selected()
-    metadata_path.write_bytes(stable_bytes[metadata_path])
+    forced_after_broken_metadata = run_selected(force=True)
+    assert forced_after_broken_metadata.generated_count == 1
+    stable_bytes = {path: path.read_bytes() for path in stable_artifact_paths}
+
+    original_generate = DummyAdapter.generate
 
     def fail_generation(
         adapter: DummyAdapter,
@@ -203,8 +207,27 @@ def test_selector_hash_invalidation_force_and_failed_replacement(
         match="tavern-night/barmaid-001.*CUDA out of memory",
     ):
         run_selected(force=True)
-    assert {path: path.read_bytes() for path in stable_paths} == stable_bytes
+    assert {path: path.read_bytes() for path in stable_artifact_paths} == stable_bytes
     assert not list(output_dir.glob("*.pending.*"))
+    failed_manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    assert failed_manifest["clips"] == []
+    assert failed_manifest["failures"] == [
+        {
+            "model": "dummy",
+            "scenario": "tavern-night",
+            "line": "barmaid-001",
+            "variant": "dry",
+            "reason": "generation_failed",
+        },
+    ]
+
+    monkeypatch.setattr(DummyAdapter, "generate", original_generate)
+    retried = run_selected()
+    assert retried.generated_count == 1
+    assert retried.skipped_count == 0
+    recovered_manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    assert len(recovered_manifest["clips"]) == 1
+    assert recovered_manifest["failures"] == []
 
     with pytest.raises(GenerationError, match="--scenario"):
         run_generation(
@@ -314,10 +337,126 @@ def test_later_batch_failure_keeps_manifest_in_sync(
         run_scenario(force=True)
 
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-    assert len(manifest["clips"]) == 6
+    assert len(manifest["clips"]) == 5
+    assert manifest["failures"] == [
+        {
+            "model": "dummy",
+            "scenario": "tavern-night",
+            "line": "barmaid-002",
+            "variant": "dry",
+            "reason": "generation_failed",
+        },
+    ]
     assert manifest["clips"][0]["sha256"] != baseline_first_sha
     for clip in manifest["clips"]:
         assert clip["sha256"] == _sha256(artifacts_dir / clip["path"])
+
+
+def test_first_batch_failure_stops_and_preserves_unprocessed_results(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    scenarios_dir = _two_scenarios(tmp_path)
+    artifacts_dir = tmp_path / "artifacts"
+    manifest_path = tmp_path / "data" / "manifest.json"
+
+    baseline = run_generation(
+        model_id="dummy",
+        scenarios_dir=scenarios_dir,
+        artifacts_dir=artifacts_dir,
+        manifest_path=manifest_path,
+        scenario_id="tavern-night",
+    )
+    assert baseline.generated_count == 6
+    old_manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    unprocessed = {
+        clip["line"]: clip
+        for clip in old_manifest["clips"]
+        if clip["line"] != "barmaid-001"
+    }
+    generation_count = 0
+
+    def fail_first_generation(
+        adapter: DummyAdapter,
+        job: LineJob,
+        output_wav: Path,
+    ) -> Mapping[str, Any]:
+        nonlocal generation_count
+        generation_count += 1
+        raise RuntimeError("first job failed")
+
+    monkeypatch.setattr(DummyAdapter, "generate", fail_first_generation)
+    with pytest.raises(
+        GenerationError,
+        match="tavern-night/barmaid-001.*first job failed",
+    ):
+        run_generation(
+            model_id="dummy",
+            scenarios_dir=scenarios_dir,
+            artifacts_dir=artifacts_dir,
+            manifest_path=manifest_path,
+            scenario_id="tavern-night",
+            force=True,
+        )
+
+    output = json.loads(manifest_path.read_text(encoding="utf-8"))
+    assert generation_count == 1
+    assert {clip["line"]: clip for clip in output["clips"]} == unprocessed
+    assert output["failures"][0]["line"] == "barmaid-001"
+
+
+def test_manifest_write_failure_preserves_original_generation_error(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    scenarios_dir = _two_scenarios(tmp_path)
+    artifacts_dir = tmp_path / "artifacts"
+    manifest_path = tmp_path / "data" / "manifest.json"
+    original_update_manifest = generation.update_manifest
+
+    def fail_generation(
+        adapter: DummyAdapter,
+        job: LineJob,
+        output_wav: Path,
+    ) -> Mapping[str, Any]:
+        raise RuntimeError("CUDA original failure")
+
+    def fail_failure_write(
+        path: Path,
+        manifest: dict[str, Any],
+        profile: object,
+        clips: list[dict[str, Any]],
+        failures: list[dict[str, Any]],
+        **scope: object,
+    ) -> bool:
+        if failures:
+            raise OSError("manifest disk failure")
+        return original_update_manifest(
+            path,
+            manifest,
+            profile,  # type: ignore[arg-type]
+            clips,
+            failures,
+            **scope,  # type: ignore[arg-type]
+        )
+
+    monkeypatch.setattr(DummyAdapter, "generate", fail_generation)
+    monkeypatch.setattr(generation, "update_manifest", fail_failure_write)
+
+    with pytest.raises(GenerationError) as raised:
+        run_generation(
+            model_id="dummy",
+            scenarios_dir=scenarios_dir,
+            artifacts_dir=artifacts_dir,
+            manifest_path=manifest_path,
+            scenario_id="tavern-night",
+            line_id="barmaid-001",
+            force=True,
+        )
+
+    message = str(raised.value)
+    assert "CUDA original failure" in message
+    assert "manifest disk failure" in message
 
 
 def test_gen_cli_routes_selectors_and_logs(

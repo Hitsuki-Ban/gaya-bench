@@ -1,6 +1,6 @@
 import { benchmarkData } from "virtual:gaya-data";
 
-import type { Clip, Line, Model, Scenario } from "./types";
+import type { Clip, GenerationFailure, Line, Model, Scenario } from "./types";
 
 export { benchmarkData };
 export type {
@@ -11,6 +11,8 @@ export type {
   Difficulty,
   Emotion,
   Gender,
+  GenerationFailure,
+  GenerationFailureReason,
   JsonPrimitive,
   JsonValue,
   Line,
@@ -39,9 +41,15 @@ export const lineByKey: ReadonlyMap<string, Line> = new Map(
 const clipsByScenario = new Map<string, Clip[]>(
   benchmarkData.scenarios.map((scenario) => [scenario.id, []]),
 );
+const failuresByScenario = new Map<string, GenerationFailure[]>(
+  benchmarkData.scenarios.map((scenario) => [scenario.id, []]),
+);
 
 for (const clip of benchmarkData.manifest.clips) {
   clipsByScenario.get(clip.scenario)!.push(clip);
+}
+for (const failure of benchmarkData.manifest.failures) {
+  failuresByScenario.get(failure.scenario)!.push(failure);
 }
 
 export function clipKey(clip: Clip): string {
@@ -54,4 +62,12 @@ export function getClipsForScenario(id: string): readonly Clip[] {
     throw new Error(`未知の scenario id です: ${id}`);
   }
   return clips;
+}
+
+export function getFailuresForScenario(id: string): readonly GenerationFailure[] {
+  const failures = failuresByScenario.get(id);
+  if (!failures) {
+    throw new Error(`未知の scenario id です: ${id}`);
+  }
+  return failures;
 }

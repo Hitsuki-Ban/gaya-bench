@@ -219,9 +219,9 @@ export function useComparisonController(
 
       cancelSequence(false);
       updateCursor(next);
-      const clip = model.getClip(next);
-      if (clip) {
-        void manager.play(toAudioClip({ coordinate: next, clip }));
+      const cell = model.getCell(next);
+      if (cell?.kind === "success") {
+        void manager.play(toAudioClip({ coordinate: next, clip: cell.clip }));
       } else {
         manager.stop();
       }
@@ -234,9 +234,9 @@ export function useComparisonController(
     (coordinate: Coordinate) => {
       cancelSequence(false);
       updateCursor(coordinate);
-      const clip = model.getClip(coordinate);
-      if (clip) {
-        void manager.toggle(toAudioClip({ coordinate, clip }));
+      const cell = model.getCell(coordinate);
+      if (cell?.kind === "success") {
+        void manager.toggle(toAudioClip({ coordinate, clip: cell.clip }));
       } else {
         manager.stop();
       }
@@ -249,25 +249,25 @@ export function useComparisonController(
     if (current === null) {
       return;
     }
-    const clip = model.getClip(current);
-    if (!clip) {
+    const cell = model.getCell(current);
+    if (cell?.kind !== "success") {
       cancelSequence(true);
       return;
     }
 
     const activeSequence = sequenceRef.current;
     if (activeSequence === null) {
-      void manager.toggle(toAudioClip({ coordinate: current, clip }));
+      void manager.toggle(toAudioClip({ coordinate: current, clip: cell.clip }));
       return;
     }
 
     if (activeSequence.phase === "gap") {
       cancelSequence(false);
-      void manager.play(toAudioClip({ coordinate: current, clip }));
+      void manager.play(toAudioClip({ coordinate: current, clip: cell.clip }));
       return;
     }
 
-    void manager.toggle(toAudioClip({ coordinate: current, clip }));
+    void manager.toggle(toAudioClip({ coordinate: current, clip: cell.clip }));
   }, [cancelSequence, manager, model]);
 
   const startOrStopSequence = useCallback(() => {

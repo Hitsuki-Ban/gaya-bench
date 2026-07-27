@@ -30,13 +30,26 @@ describe("buildComparisonModel", () => {
     expect(model.rows[0]?.line).toBe(data.scenarios[0]?.lines[1]);
   });
 
-  it("cell clip を O(1) index から取得し、未生成 cell は undefined のままにする", () => {
-    const model = buildComparisonModel(smallFixture());
+  it("cell の成功、生成失敗、未生成を O(1) index で区別する", () => {
+    const data = smallFixture();
+    data.manifest.failures.push({
+      model: "gamma",
+      scenario: "market",
+      line: "vendor-1",
+      variant: "dry",
+      reason: "generation_failed",
+    });
+    const model = buildComparisonModel(data);
 
-    expect(model.getClip({ rowIndex: 0, modelId: "alpha" })?.path).toBe(
-      "audio/alpha/market/vendor-1.opus",
-    );
-    expect(model.getClip({ rowIndex: 0, modelId: "gamma" })).toBeUndefined();
+    expect(model.getCell({ rowIndex: 0, modelId: "alpha" })).toMatchObject({
+      kind: "success",
+      clip: { path: "audio/alpha/market/vendor-1.opus" },
+    });
+    expect(model.getCell({ rowIndex: 0, modelId: "gamma" })).toEqual({
+      kind: "failure",
+      failure: data.manifest.failures[0],
+    });
+    expect(model.getCell({ rowIndex: 2, modelId: "alpha" })).toBeUndefined();
     expect(
       model.getCoordinateForClipKey(JSON.stringify(["gamma", "market", "vendor-2", "dry"])),
     ).toEqual({ rowIndex: 1, modelId: "gamma" });
@@ -50,9 +63,10 @@ describe("buildComparisonModel", () => {
     expect(model.models).toHaveLength(10);
     for (let rowIndex = 0; rowIndex < 84; rowIndex += 1) {
       for (let modelIndex = 0; modelIndex < 10; modelIndex += 1) {
-        expect(model.getClip({ rowIndex, modelId: `model-${modelIndex}` })?.line).toBe(
-          `line-${rowIndex}`,
-        );
+        expect(model.getCell({ rowIndex, modelId: `model-${modelIndex}` })).toMatchObject({
+          kind: "success",
+          clip: { line: `line-${rowIndex}` },
+        });
       }
     }
   });
@@ -61,13 +75,26 @@ describe("buildComparisonModel", () => {
     const duplicate = smallFixture();
     duplicate.manifest.clips.push({ ...duplicate.manifest.clips[0]! });
     expect(() => buildComparisonModel(duplicate)).toThrow(
-      "比較マトリクスの cell clip が重複しています",
+      "比較マトリクスの cell 結果が重複しています",
     );
 
     const nonDry = smallFixture();
     nonDry.manifest.clips[0]!.variant = "scene";
     expect(() => buildComparisonModel(nonDry)).toThrow(
       "比較マトリクスは dry variant のみを受け付けます",
+    );
+
+    const conflict = smallFixture();
+    const clip = conflict.manifest.clips[0]!;
+    conflict.manifest.failures.push({
+      model: clip.model,
+      scenario: clip.scenario,
+      line: clip.line,
+      variant: clip.variant,
+      reason: "generation_failed",
+    });
+    expect(() => buildComparisonModel(conflict)).toThrow(
+      "比較マトリクスの cell 結果が重複しています",
     );
   });
 });
@@ -148,7 +175,15 @@ describe("cursor navigation", () => {
 
 describe("playback queues", () => {
   it("row queue は現在 model から可視列末尾までの clip と skip 数を返す", () => {
-    const model = buildComparisonModel(smallFixture());
+    const data = smallFixture();
+    data.manifest.failures.push({
+      model: "gamma",
+      scenario: "market",
+      line: "vendor-1",
+      variant: "dry",
+      reason: "generation_failed",
+    });
+    const model = buildComparisonModel(data);
     const queue = buildRowQueue(
       model,
       { rowIndex: 0, modelId: "alpha" },
@@ -212,14 +247,23 @@ function projection(
 }
 
 interface MutableManifest {
-  format_version: 1;
+  format_version: 2;
   generated_at: string;
   models: Model[];
   clips: MutableClip[];
+  failures: MutableGenerationFailure[];
 }
 
 interface MutableClip extends Omit<Clip, "variant"> {
   variant: string;
+}
+
+interface MutableGenerationFailure {
+  model: string;
+  scenario: string;
+  line: string;
+  variant: string;
+  reason: "generation_failed";
 }
 
 interface MutableBenchmarkData extends Omit<BenchmarkData, "manifest"> {
@@ -254,10 +298,11 @@ function smallFixture(): MutableBenchmarkData {
   ];
   return {
     manifest: {
-      format_version: 1,
+      format_version: 2,
       generated_at: "2026-07-28T00:00:00Z",
       models,
       clips,
+      failures: [],
     },
     scenarios,
   };
@@ -274,10 +319,11 @@ function syntheticFixture(rowCount: number, modelCount: number): BenchmarkData {
   );
   return {
     manifest: {
-      format_version: 1,
+      format_version: 2,
       generated_at: "2026-07-28T00:00:00Z",
       models,
       clips,
+      failures: [],
     },
     scenarios: [scenario("synthetic", [speaker], lines)],
   };
