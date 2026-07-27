@@ -29,7 +29,10 @@
 - [#5](https://github.com/Hitsuki-Ban/gaya-bench/issues/5) 生成ハーネスコア `P1` (依存: #4)
 - [#6](https://github.com/Hitsuki-Ban/gaya-bench/issues/6) R2 + `gaya publish` (依存: #5)
 - [#7](https://github.com/Hitsuki-Ban/gaya-bench/issues/7) 参照音声キット
-- [#8](https://github.com/Hitsuki-Ban/gaya-bench/issues/8) モデル別アダプタ実装エピック `P1` (依存: #1, #5。確定後に個別起票)
+- [#8](https://github.com/Hitsuki-Ban/gaya-bench/issues/8) モデル別アダプタ実装エピック `P1` (依存: #1, #5)
+  - Tier1: [#23](https://github.com/Hitsuki-Ban/gaya-bench/issues/23) Qwen3-TTS / [#24](https://github.com/Hitsuki-Ban/gaya-bench/issues/24) Irodori-TTS / [#25](https://github.com/Hitsuki-Ban/gaya-bench/issues/25) Step-Audio-EditX / [#26](https://github.com/Hitsuki-Ban/gaya-bench/issues/26) AivisSpeech
+  - Tier2: [#27](https://github.com/Hitsuki-Ban/gaya-bench/issues/27) VoxCPM2 / [#28](https://github.com/Hitsuki-Ban/gaya-bench/issues/28) GPT-SoVITS / [#29](https://github.com/Hitsuki-Ban/gaya-bench/issues/29) MOSS-TTS / [#30](https://github.com/Hitsuki-Ban/gaya-bench/issues/30) Chatterbox v3
+  - 着手ゲート: #1 の `models-final.md` 検証通過後
 
 ### M3: コンテンツ (Director担当)
 - [#9](https://github.com/Hitsuki-Ban/gaya-bench/issues/9) テストシナリオv1 (8シーン・約80行)
