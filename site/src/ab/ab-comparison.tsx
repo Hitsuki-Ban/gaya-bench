@@ -153,7 +153,6 @@ export function AbComparison() {
                   label="引き分け"
                   number="2"
                   onClick={() => session.castVote("tie")}
-                  variant="secondary"
                 />
                 <VoteButton
                   disabled={session.isCommitting}
@@ -374,13 +373,11 @@ function VoteButton({
   disabled,
   label,
   number,
-  variant = "default",
   onClick,
 }: {
   disabled: boolean;
   label: string;
   number: "1" | "2" | "3";
-  variant?: "default" | "secondary";
   onClick: () => void;
 }) {
   return (
@@ -389,7 +386,7 @@ function VoteButton({
       className="h-11 justify-between px-4"
       disabled={disabled}
       onClick={onClick}
-      variant={variant}
+      variant="outline"
     >
       <span>{label}</span>
       <kbd className="rounded border border-current/20 px-1.5 py-0.5 font-mono text-[10px]">
