@@ -304,7 +304,9 @@ def test_adapter_boundary_errors_are_controlled(
         adapter: DummyAdapter,
         jobs: object,
         artifacts_dir: Path,
+        voices_dir: Path,
     ) -> None:
+        del adapter, jobs, artifacts_dir, voices_dir
         raise RuntimeError("CUDA preparation failed")
 
     monkeypatch.setattr(DummyAdapter, "prepare", fail_preparation)
@@ -340,9 +342,10 @@ def test_adapter_prepare_runs_once_before_generation_input(
         adapter: DummyAdapter,
         jobs: object,
         artifacts_dir: Path,
+        voices_dir: Path,
     ) -> None:
-        events.append("prepare")
-        original_prepare(adapter, jobs, artifacts_dir)
+        events.append(f"prepare:{voices_dir.as_posix()}")
+        original_prepare(adapter, jobs, artifacts_dir, voices_dir)
 
     def record_generation_input(
         adapter: DummyAdapter,
@@ -367,8 +370,10 @@ def test_adapter_prepare_runs_once_before_generation_input(
     )
 
     assert summary.generated_count == 6
-    assert events[0] == "prepare"
-    assert events.count("prepare") == 1
+    assert events[0] == (
+        f"prepare:{(scenarios_dir.parent / 'assets' / 'voices').as_posix()}"
+    )
+    assert sum(event.startswith("prepare:") for event in events) == 1
     assert events[1:] == [
         "input:barmaid-001",
         "input:barmaid-002",

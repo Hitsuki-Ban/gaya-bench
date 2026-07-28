@@ -65,6 +65,7 @@ class Adapter(Protocol):
         self,
         jobs: Sequence[LineJob],
         artifacts_dir: Path,
+        voices_dir: Path,
     ) -> None:
         """Prepare persistent inputs required before generation hashes are built."""
         ...

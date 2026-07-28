@@ -124,7 +124,11 @@ def run_generation(
             f"adapter 初期化に失敗しました: {error}",
         ) from error
     try:
-        adapter.prepare(jobs, artifacts_dir)
+        adapter.prepare(
+            jobs,
+            artifacts_dir,
+            scenarios_dir.parent / "assets" / "voices",
+        )
     except Exception as error:
         raise GenerationError(
             f"adapter 準備に失敗しました: {error}",
