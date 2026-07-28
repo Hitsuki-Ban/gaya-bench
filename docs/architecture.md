@@ -55,6 +55,9 @@ pipeline (Python/uv) ── モデル別アダプタ ──▶ artifacts/audio/<
 ## ストレージ
 
 - **音声**: R2バケット `gaya-bench-audio` (公開読み取り)。パス: `audio/<model>/<scenario>/<line>-<variant>.opus`
+- **公開URL**: custom domain `https://audio.gaya-bench.hitsuki.space/`。本番 `VITE_AUDIO_BASE` もこの値を使う。rate limit 付き開発用 `r2.dev` は有効化しない
+- **CORS**: [infra/r2-cors.json](../infra/r2-cors.json) を正とし、Pages 本番 origin とローカル開発 origin の `GET` / `HEAD` を許可する
+- **差分公開**: `gaya publish` は manifest の全 Opus をローカルで先に検証し、R2 `HEAD` の `sha256` metadata・サイズ・HTTP metadata が一致するものをスキップする。object key は再生成時に再利用するため、`Cache-Control: public, max-age=0, must-revalidate` として古い音声の長期固定を避ける
 - **manifest**: `data/manifest.json` をリポジトリにコミット (ビルドの決定性とPRレビュー可能性のため)
 - **生成メタ**: 入力hash・WAV/Opus hash・生成時間・RTF・後処理結果を `artifacts/audio/.../<line>-<variant>.json` に保存 (git管理外)
 - **ローカル開発fallback**: `site/public/audio/` に同一パス構造で置き、`VITE_AUDIO_BASE` で切替

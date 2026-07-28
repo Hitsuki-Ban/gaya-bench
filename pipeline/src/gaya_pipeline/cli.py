@@ -10,6 +10,12 @@ from gaya_pipeline.generation import (
     GenerationSummary,
     run_generation,
 )
+from gaya_pipeline.publish import (
+    PublishError,
+    PublishSummary,
+    create_r2_client,
+    run_publish,
+)
 from gaya_pipeline.validation import default_scenarios_dir, validate_scenarios
 
 
@@ -39,6 +45,11 @@ def build_parser() -> argparse.ArgumentParser:
         "--force",
         action="store_true",
         help="hash 一致時も再生成する",
+    )
+
+    subparsers.add_parser(
+        "publish",
+        help="manifest と一致する Opus を R2 へ差分アップロードする",
     )
     return parser
 
@@ -78,6 +89,20 @@ def main(argv: Sequence[str] | None = None) -> int:
         _print_generation_summary(summary)
         return 0
 
+    if args.command == "publish":
+        repository_root = default_scenarios_dir().parent
+        try:
+            summary = run_publish(
+                manifest_path=repository_root / "data" / "manifest.json",
+                artifacts_dir=repository_root / "artifacts",
+                client=create_r2_client(repository_root),
+            )
+        except PublishError as error:
+            print(f"ERROR: {error}", file=sys.stderr)
+            return 1
+        _print_publish_summary(summary)
+        return 0
+
     raise AssertionError(f"unknown command: {args.command}")
 
 
@@ -92,4 +117,14 @@ def _print_generation_summary(summary: GenerationSummary) -> None:
         f"完了: 生成 {summary.generated_count} / "
         f"スキップ {summary.skipped_count} / "
         f"所要時間 {summary.elapsed_seconds:.3f}s",
+    )
+
+
+def _print_publish_summary(summary: PublishSummary) -> None:
+    for record in summary.records:
+        action = "アップロード" if record.status == "uploaded" else "スキップ"
+        print(f"{action}: {record.key} ({record.size_bytes} bytes)")
+    print(
+        f"完了: アップロード {summary.uploaded_count} / "
+        f"スキップ {summary.skipped_count}",
     )

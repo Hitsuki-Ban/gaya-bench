@@ -17,6 +17,12 @@ $env:VITE_AUDIO_BASE = "/"
 vp dev
 ```
 
+本番は R2 custom domain を指定する。
+
+```dotenv
+VITE_AUDIO_BASE=https://audio.gaya-bench.hitsuki.space/
+```
+
 ## ダミー音声
 
 リポジトリルートで既存の dummy adapter を実行し、追跡対象の

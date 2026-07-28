@@ -1,6 +1,6 @@
 {
   "format_version": 2,
-  "generated_at": "2026-07-28T00:57:43.358164+00:00",
+  "generated_at": "2026-07-28T05:43:03.873996+00:00",
   "models": [
     {
       "id": "dummy",
@@ -24,7 +24,7 @@
       "variant": "dry",
       "path": "audio/dummy/battlefield-camp/medic-001-dry.opus",
       "duration_sec": 1.2065,
-      "sha256": "cf6f250fa0e3c10f472e31b3860b22e7a79d5fbcba4600d26e1c34614ceec9e6",
+      "sha256": "a8ffc007e5c43ea44f090abce1c72543e501f2d652495135e820fcabbc47117b",
       "gen_params": {
         "requested": {
           "sample_rate_hz": 48000,
@@ -36,7 +36,7 @@
           "tone_hz": 536
         }
       },
-      "rtf": 0.025703
+      "rtf": 0.02679
     },
     {
       "model": "dummy",
@@ -45,7 +45,7 @@
       "variant": "dry",
       "path": "audio/dummy/battlefield-camp/medic-002-dry.opus",
       "duration_sec": 1.2065,
-      "sha256": "6c1a57952f4d4b9f756e57d87a12b1efcb5d72cf1bbb24ec87ac846e69c381ef",
+      "sha256": "459c98a80a3add9f4aa1b647f207fd3041664f4b314e8ecfa8b8e54743841a4c",
       "gen_params": {
         "requested": {
           "sample_rate_hz": 48000,
@@ -57,7 +57,7 @@
           "tone_hz": 453
         }
       },
-      "rtf": 0.025085
+      "rtf": 0.033878
     },
     {
       "model": "dummy",
@@ -66,7 +66,7 @@
       "variant": "dry",
       "path": "audio/dummy/battlefield-camp/medic-003-dry.opus",
       "duration_sec": 1.2065,
-      "sha256": "02d1a26dba20bf45b92f6308506caf41023e8d945249eda3b4ff3755138b4c23",
+      "sha256": "16b3bd43162a72014d679c2e5572e3d1dffcd57fdbf8cbbbefc55ee62a594620",
       "gen_params": {
         "requested": {
           "sample_rate_hz": 48000,
@@ -78,7 +78,7 @@
           "tone_hz": 607
         }
       },
-      "rtf": 0.028767
+      "rtf": 0.033178
     },
     {
       "model": "dummy",
@@ -87,7 +87,7 @@
       "variant": "dry",
       "path": "audio/dummy/battlefield-camp/medic-004-dry.opus",
       "duration_sec": 1.2065,
-      "sha256": "3f140d3947cc44feba1f254a29b5ff5f663e4fd1a34c98d8ffb81393d804d791",
+      "sha256": "b87dd45b83893d80ff0885e20a77a2380b2622543e52f1e0e1b07898c4964aa8",
       "gen_params": {
         "requested": {
           "sample_rate_hz": 48000,
@@ -99,7 +99,7 @@
           "tone_hz": 512
         }
       },
-      "rtf": 0.024268
+      "rtf": 0.031446
     },
     {
       "model": "dummy",
@@ -108,7 +108,7 @@
       "variant": "dry",
       "path": "audio/dummy/battlefield-camp/messenger-001-dry.opus",
       "duration_sec": 1.2065,
-      "sha256": "59dfe55367b13b050ab151c84cdc99530d65b3d94ff94560d9e3895ba52137c3",
+      "sha256": "6119e09b9febee535ed16939356720fc121afd131e8f9d9ef5d60217416cb5bb",
       "gen_params": {
         "requested": {
           "sample_rate_hz": 48000,
@@ -120,7 +120,7 @@
           "tone_hz": 537
         }
       },
-      "rtf": 0.020559
+      "rtf": 0.02667
     },
     {
       "model": "dummy",
@@ -129,7 +129,7 @@
       "variant": "dry",
       "path": "audio/dummy/battlefield-camp/messenger-002-dry.opus",
       "duration_sec": 1.2065,
-      "sha256": "0379efa0aeb35c796baf737c7238516b247a21e6ce029ceccaea1a94af3b46d2",
+      "sha256": "c3786a810dff99db7aad678cb290d4411c35e4616e40d8342ce29e96675ef55f",
       "gen_params": {
         "requested": {
           "sample_rate_hz": 48000,
@@ -141,7 +141,7 @@
           "tone_hz": 416
         }
       },
-      "rtf": 0.020817
+      "rtf": 0.028298
     },
     {
       "model": "dummy",
@@ -150,7 +150,7 @@
       "variant": "dry",
       "path": "audio/dummy/battlefield-camp/messenger-003-dry.opus",
       "duration_sec": 1.2065,
-      "sha256": "5e12b8d9c085fa5bb6814689ebbefbea327033331b0df1d94634df8d98ff1a0b",
+      "sha256": "39127f893ca0cd0e7aa605256712968f4da6439d034ec9d2eff85d3fb3c3a9fd",
       "gen_params": {
         "requested": {
           "sample_rate_hz": 48000,
@@ -162,7 +162,7 @@
           "tone_hz": 608
         }
       },
-      "rtf": 0.020494
+      "rtf": 0.031475
     },
     {
       "model": "dummy",
@@ -171,7 +171,7 @@
       "variant": "dry",
       "path": "audio/dummy/battlefield-camp/veteran-soldier-001-dry.opus",
       "duration_sec": 1.2065,
-      "sha256": "b5dac942996518f7568dc6f0bf8e9e90fc77452bd6666071dfd5ee6782473449",
+      "sha256": "d10e65e6075b5f7b438c73aebf6df84711799dc27b3b042374ab49899681e3cf",
       "gen_params": {
         "requested": {
           "sample_rate_hz": 48000,
@@ -183,7 +183,7 @@
           "tone_hz": 714
         }
       },
-      "rtf": 0.020021
+      "rtf": 0.028584
     },
     {
       "model": "dummy",
@@ -192,7 +192,7 @@
       "variant": "dry",
       "path": "audio/dummy/battlefield-camp/veteran-soldier-002-dry.opus",
       "duration_sec": 1.2065,
-      "sha256": "643e992b58ab41611271d4e690d16c27bc27ab9fe4c808187273dd823863b477",
+      "sha256": "949b55eaff0d2896abb03d98353a5a1639a252eb5b83383c0f2d9daaa75aeb74",
       "gen_params": {
         "requested": {
           "sample_rate_hz": 48000,
@@ -204,7 +204,7 @@
           "tone_hz": 508
         }
       },
-      "rtf": 0.021397
+      "rtf": 0.028324
     },
     {
       "model": "dummy",
@@ -213,7 +213,7 @@
       "variant": "dry",
       "path": "audio/dummy/battlefield-camp/wounded-001-dry.opus",
       "duration_sec": 1.2065,
-      "sha256": "6b4dccd8cffeb02a0190a4f7318b389f058b593dc9ec25668719190e6c6c618b",
+      "sha256": "860cbe60de1e6634f10ff1da63a3760edf05982d0449bec6a141fff38549a577",
       "gen_params": {
         "requested": {
           "sample_rate_hz": 48000,
@@ -225,7 +225,7 @@
           "tone_hz": 701
         }
       },
-      "rtf": 0.021181
+      "rtf": 0.025065
     },
     {
       "model": "dummy",
@@ -234,7 +234,7 @@
       "variant": "dry",
       "path": "audio/dummy/battlefield-camp/wounded-002-dry.opus",
       "duration_sec": 1.2065,
-      "sha256": "5e1bbfa6165d8eac1990915d8441324e5c2f4bf045c464c38c261e0b2be59a62",
+      "sha256": "519c754e4abfbc7569a50081858b175d0008816ae4ee1a8363d4ad61b581309f",
       "gen_params": {
         "requested": {
           "sample_rate_hz": 48000,
@@ -246,7 +246,7 @@
           "tone_hz": 678
         }
       },
-      "rtf": 0.024264
+      "rtf": 0.026976
     },
     {
       "model": "dummy",
@@ -255,7 +255,7 @@
       "variant": "dry",
       "path": "audio/dummy/battlefield-camp/wounded-003-dry.opus",
       "duration_sec": 1.2065,
-      "sha256": "b2b92728f026975549eb9e1d06e432d88fc8a346e22c09c1b6febddd94044e2e",
+      "sha256": "6f9e31ddd452ee82b302224711fcf966220c9445055d7cc5975094bf552e0b77",
       "gen_params": {
         "requested": {
           "sample_rate_hz": 48000,
@@ -267,7 +267,7 @@
           "tone_hz": 673
         }
       },
-      "rtf": 0.020436
+      "rtf": 0.027583
     },
     {
       "model": "dummy",
@@ -276,7 +276,7 @@
       "variant": "dry",
       "path": "audio/dummy/castle-gate/captain-001-dry.opus",
       "duration_sec": 1.2065,
-      "sha256": "3669f29538e4ac61d4990ba822757bd24e87fb5c83f7dedef45d7f1db5c9b0f9",
+      "sha256": "ee5084a541768d171f2d7639f5db7dfeec1f9a5368a87bc882e6f99361591e6d",
       "gen_params": {
         "requested": {
           "sample_rate_hz": 48000,
@@ -288,7 +288,7 @@
           "tone_hz": 645
         }
       },
-      "rtf": 0.023521
+      "rtf": 0.027395
     },
     {
       "model": "dummy",
@@ -297,7 +297,7 @@
       "variant": "dry",
       "path": "audio/dummy/castle-gate/captain-002-dry.opus",
       "duration_sec": 1.2065,
-      "sha256": "434d671981e95800923e836f3ee29a43c6c7e5976769192a9bba7b079b5b02ef",
+      "sha256": "0b9e502d8821cf9045db3eaa6481c41717bb76ef2cd968c7bcbad1cb0f6d09f8",
       "gen_params": {
         "requested": {
           "sample_rate_hz": 48000,
@@ -309,7 +309,7 @@
           "tone_hz": 476
         }
       },
-      "rtf": 0.02036
+      "rtf": 0.032418
     },
     {
       "model": "dummy",
@@ -318,7 +318,7 @@
       "variant": "dry",
       "path": "audio/dummy/castle-gate/guard-onna-001-dry.opus",
       "duration_sec": 1.2065,
-      "sha256": "ad6feb28ff5a9c8acb5732b60e2b3fcdc7c8dca08059410539567babe513c77d",
+      "sha256": "48b82800a59ba18c16412e4673b84ea5fc09ce17513cc52cdb6183d867a248f2",
       "gen_params": {
         "requested": {
           "sample_rate_hz": 48000,
@@ -330,7 +330,7 @@
           "tone_hz": 539
         }
       },
-      "rtf": 0.022256
+      "rtf": 0.023807
     },
     {
       "model": "dummy",
@@ -339,7 +339,7 @@
       "variant": "dry",
       "path": "audio/dummy/castle-gate/guard-onna-002-dry.opus",
       "duration_sec": 1.2065,
-      "sha256": "8ca1a442ece79999509994eb04be406cf33f921f36956ff83d03056779156458",
+      "sha256": "ce3c7ab735b518cae81481dff4e4a488c2ccdfd1a2f1eaedbbeaef84a7c9c56b",
       "gen_params": {
         "requested": {
           "sample_rate_hz": 48000,
@@ -351,7 +351,7 @@
           "tone_hz": 430
         }
       },
-      "rtf": 0.03368
+      "rtf": 0.0337
     },
     {
       "model": "dummy",
@@ -360,7 +360,7 @@
       "variant": "dry",
       "path": "audio/dummy/castle-gate/guard-onna-003-dry.opus",
       "duration_sec": 1.2065,
-      "sha256": "dd25892d3d0829c1ff3d7fc4fed4bb2df61070130df4218460bcbf2f310b5f98",
+      "sha256": "a556c9595b115acf15add3ac332ee339eef9332e597750cace89d698ccd119e5",
       "gen_params": {
         "requested": {
           "sample_rate_hz": 48000,
@@ -372,7 +372,7 @@
           "tone_hz": 668
         }
       },
-      "rtf": 0.023047
+      "rtf": 0.032661
     },
     {
       "model": "dummy",
@@ -381,7 +381,7 @@
       "variant": "dry",
       "path": "audio/dummy/castle-gate/guard-otoko-001-dry.opus",
       "duration_sec": 1.2065,
-      "sha256": "3dfe1fffb38787d491c25cb19d933df8ba12c232b78d445e277de9d4b63eb51e",
+      "sha256": "000289efed223bf6d3962e2467a4c84cb1eede5cf3f3daafc7b158b617c60063",
       "gen_params": {
         "requested": {
           "sample_rate_hz": 48000,
@@ -393,7 +393,7 @@
           "tone_hz": 432
         }
       },
-      "rtf": 0.021002
+      "rtf": 0.030394
     },
     {
       "model": "dummy",
@@ -402,7 +402,7 @@
       "variant": "dry",
       "path": "audio/dummy/castle-gate/guard-otoko-002-dry.opus",
       "duration_sec": 1.2065,
-      "sha256": "bd50e7011a3ccb12557d07c5f21bf9c0fb95b2d95553f18422f4e942c7de81fb",
+      "sha256": "db31c2c727eae9e26f6e156380f6d2f21601e4a09883ca57f9859b2a749b79a9",
       "gen_params": {
         "requested": {
           "sample_rate_hz": 48000,
@@ -414,7 +414,7 @@
           "tone_hz": 697
         }
       },
-      "rtf": 0.027339
+      "rtf": 0.034224
     },
     {
       "model": "dummy",
@@ -423,7 +423,7 @@
       "variant": "dry",
       "path": "audio/dummy/castle-gate/guard-otoko-003-dry.opus",
       "duration_sec": 1.2065,
-      "sha256": "5854551c3633d3014e4bd1581fb494571c5218ad6914f19e27209202711c3d8e",
+      "sha256": "65cab10b39e0cfdfb527ab3e25df7d273cb86cdd0d7bb0c8ce4c7a6704255527",
       "gen_params": {
         "requested": {
           "sample_rate_hz": 48000,
@@ -435,7 +435,7 @@
           "tone_hz": 672
         }
       },
-      "rtf": 0.023341
+      "rtf": 0.027747
     },
     {
       "model": "dummy",
@@ -444,7 +444,7 @@
       "variant": "dry",
       "path": "audio/dummy/castle-gate/guard-otoko-004-dry.opus",
       "duration_sec": 1.2065,
-      "sha256": "276ea07f7461435519a22dcf2ccb3e1768fbf23e3f99cf862504abd34118bcec",
+      "sha256": "750c4c7d3bd745f7bfe8f3746ff96a4834124016cdca7fbad199c5c220434172",
       "gen_params": {
         "requested": {
           "sample_rate_hz": 48000,
@@ -456,7 +456,7 @@
           "tone_hz": 513
         }
       },
-      "rtf": 0.023765
+      "rtf": 0.027064
     },
     {
       "model": "dummy",
@@ -465,7 +465,7 @@
       "variant": "dry",
       "path": "audio/dummy/castle-gate/merchant-001-dry.opus",
       "duration_sec": 1.2065,
-      "sha256": "9e7b7f47cbd98ef3dcf9811fdba658c560289f351634ffb31a5f139cb1a8f6ab",
+      "sha256": "4d63b69b4916c737ef749dbb254132678f3e9b9c0902a7e1be233e8f0b9ea27b",
       "gen_params": {
         "requested": {
           "sample_rate_hz": 48000,
@@ -477,7 +477,7 @@
           "tone_hz": 719
         }
       },
-      "rtf": 0.023496
+      "rtf": 0.048334
     },
     {
       "model": "dummy",
@@ -486,7 +486,7 @@
       "variant": "dry",
       "path": "audio/dummy/castle-gate/merchant-002-dry.opus",
       "duration_sec": 1.2065,
-      "sha256": "217ee81d381abf29bf8b759b8c258bbcd15b0acd3ba8aee9c6caad04ebfee08f",
+      "sha256": "fdce4c05266d1eb474edee2688bbc5b3b10674a51ac65c4891d39fc729ab12dc",
       "gen_params": {
         "requested": {
           "sample_rate_hz": 48000,
@@ -498,7 +498,7 @@
           "tone_hz": 625
         }
       },
-      "rtf": 0.023645
+      "rtf": 0.038434
     },
     {
       "model": "dummy",
@@ -507,7 +507,7 @@
       "variant": "dry",
       "path": "audio/dummy/castle-gate/merchant-003-dry.opus",
       "duration_sec": 1.2065,
-      "sha256": "9e70a231cf10b33423f764c7243683a48a3d1b06bcfc7f656229df3ab4cd830a",
+      "sha256": "0a09a5aba6918a9640517e8f530f92130b212dc0949848c6e5355ad51d8f6395",
       "gen_params": {
         "requested": {
           "sample_rate_hz": 48000,
@@ -519,7 +519,7 @@
           "tone_hz": 455
         }
       },
-      "rtf": 0.023042
+      "rtf": 0.030914
     },
     {
       "model": "dummy",
@@ -528,7 +528,7 @@
       "variant": "dry",
       "path": "audio/dummy/chinatown-chat/chakan-obaa-001-dry.opus",
       "duration_sec": 1.2065,
-      "sha256": "b09703de93dc99badb5e17631cd999cd534b07624c24a89c877f2305e1f069ea",
+      "sha256": "ce8e5ac590e6dd1b2b530bccb69fea4c8021d76096b7bfffe992b4d9d085d06a",
       "gen_params": {
         "requested": {
           "sample_rate_hz": 48000,
@@ -540,7 +540,7 @@
           "tone_hz": 574
         }
       },
-      "rtf": 0.029681
+      "rtf": 0.028683
     },
     {
       "model": "dummy",
@@ -549,7 +549,7 @@
       "variant": "dry",
       "path": "audio/dummy/chinatown-chat/chakan-obaa-002-dry.opus",
       "duration_sec": 1.2065,
-      "sha256": "3d8abeeb9fbd237916408f49ccf3b5a642d02ca2189abf9c1562655575ade9e2",
+      "sha256": "1922428940771ed9b403142787a03fb8c5fbd9e28a9d68a7bd318f9c3405b0c5",
       "gen_params": {
         "requested": {
           "sample_rate_hz": 48000,
@@ -561,7 +561,7 @@
           "tone_hz": 474
         }
       },
-      "rtf": 0.033343
+      "rtf": 0.029402
     },
     {
       "model": "dummy",
@@ -570,7 +570,7 @@
       "variant": "dry",
       "path": "audio/dummy/chinatown-chat/chakan-obaa-003-dry.opus",
       "duration_sec": 1.2065,
-      "sha256": "a1a3b8bbb5a804327b76d147f0f8e876886d39ca73071f28cdd438808fdc7633",
+      "sha256": "e4d21cb6139922511d2a85080b66bd31b01ba7f8957e128081935ee815346f93",
       "gen_params": {
         "requested": {
           "sample_rate_hz": 48000,
@@ -582,7 +582,7 @@
           "tone_hz": 707
         }
       },
-      "rtf": 0.02365
+      "rtf": 0.037981
     },
     {
       "model": "dummy",
@@ -591,7 +591,7 @@
       "variant": "dry",
       "path": "audio/dummy/chinatown-chat/kanpo-shujin-001-dry.opus",
       "duration_sec": 1.2065,
-      "sha256": "8ab3fef24ac67e6550579e6d10f8fa37208314e4289de253191a7b212f3b5ed8",
+      "sha256": "635c1194bca69cb3e018b2197317c4cdaaf7349f109b94b838f49fb63bc7839e",
       "gen_params": {
         "requested": {
           "sample_rate_hz": 48000,
@@ -603,7 +603,7 @@
           "tone_hz": 445
         }
       },
-      "rtf": 0.023169
+      "rtf": 0.030904
     },
     {
       "model": "dummy",
@@ -612,7 +612,7 @@
       "variant": "dry",
       "path": "audio/dummy/chinatown-chat/kanpo-shujin-002-dry.opus",
       "duration_sec": 1.2065,
-      "sha256": "20bdc7969d42e01fa5ec19166a90a67be8594ce3d252f7ea4c6f4e27cf65f6f7",
+      "sha256": "9181c2698001143b2d605cab46203b344427e8bdc6cca53a1a9bc57edfe6ee06",
       "gen_params": {
         "requested": {
           "sample_rate_hz": 48000,
@@ -624,7 +624,7 @@
           "tone_hz": 632
         }
       },
-      "rtf": 0.02741
+      "rtf": 0.027034
     },
     {
       "model": "dummy",
@@ -633,7 +633,7 @@
       "variant": "dry",
       "path": "audio/dummy/chinatown-chat/mahjong-inkyo-001-dry.opus",
       "duration_sec": 1.2065,
-      "sha256": "9ce43d999c1982e5eecffa7ad1095df8141b479141b6add1841fce79aced2d5f",
+      "sha256": "f422f251122ecdc7944dc6da451138ce54ae72e2e6a37a815fbddf2cea6e4192",
       "gen_params": {
         "requested": {
           "sample_rate_hz": 48000,
@@ -645,7 +645,7 @@
           "tone_hz": 488
         }
       },
-      "rtf": 0.022442
+      "rtf": 0.029965
     },
     {
       "model": "dummy",
@@ -654,7 +654,7 @@
       "variant": "dry",
       "path": "audio/dummy/chinatown-chat/mahjong-inkyo-002-dry.opus",
       "duration_sec": 1.2065,
-      "sha256": "7914fb4377767887c36dc584389198bd1715f5b3cf90018efd08be2deb7b6573",
+      "sha256": "b564621871111540843a98e7bb129b3ae10f9da729ddd968af7725975c200ff8",
       "gen_params": {
         "requested": {
           "sample_rate_hz": 48000,
@@ -666,7 +666,7 @@
           "tone_hz": 559
         }
       },
-      "rtf": 0.027967
+      "rtf": 0.030551
     },
     {
       "model": "dummy",
@@ -675,7 +675,7 @@
       "variant": "dry",
       "path": "audio/dummy/chinatown-chat/mahjong-inkyo-003-dry.opus",
       "duration_sec": 1.2065,
-      "sha256": "c669bd8b9999ff5cd66e8431c7f5f6b1352a137e60f2d284f93d79d101698ba9",
+      "sha256": "aba5c2f86eb5a04ac5d66afa43ae2c63ced0ba904d72d5e2acfacb1d5442cf3e",
       "gen_params": {
         "requested": {
           "sample_rate_hz": 48000,
@@ -687,7 +687,7 @@
           "tone_hz": 644
         }
       },
-      "rtf": 0.029168
+      "rtf": 0.035254
     },
     {
       "model": "dummy",
@@ -696,7 +696,7 @@
       "variant": "dry",
       "path": "audio/dummy/chinatown-chat/wakate-tenin-001-dry.opus",
       "duration_sec": 1.2065,
-      "sha256": "39faf51b7c69529fb2c6890d3b237240290cb0150bf15ed2e523e3b33ee61139",
+      "sha256": "42dd119c02aff75976dc9186614bddd489d2649e3f8e534289849bd2abafe5ab",
       "gen_params": {
         "requested": {
           "sample_rate_hz": 48000,
@@ -708,7 +708,7 @@
           "tone_hz": 624
         }
       },
-      "rtf": 0.023615
+      "rtf": 0.027557
     },
     {
       "model": "dummy",
@@ -717,7 +717,7 @@
       "variant": "dry",
       "path": "audio/dummy/chinatown-chat/wakate-tenin-002-dry.opus",
       "duration_sec": 1.2065,
-      "sha256": "ed3cd998a757b0603d5047b854ab2df8c6eacb4b0007841617a4df1ad2e31bdc",
+      "sha256": "c5236f33ac22891c7124fc7265ea61500d44d6070a7b46a9caca1238e5a74519",
       "gen_params": {
         "requested": {
           "sample_rate_hz": 48000,
@@ -729,7 +729,7 @@
           "tone_hz": 515
         }
       },
-      "rtf": 0.027026
+      "rtf": 0.029095
     },
     {
       "model": "dummy",
@@ -738,7 +738,7 @@
       "variant": "dry",
       "path": "audio/dummy/chinatown-street/kaimono-musume-001-dry.opus",
       "duration_sec": 1.2065,
-      "sha256": "d4106f45fdb8d4fd0aff19ea2b97c5d182c5d9adab4f19c8ea92c67e139ce5b7",
+      "sha256": "ffdc11045b58dbac0b95d1a78c32462bf227ffbef6db178c11a598b4942f14a7",
       "gen_params": {
         "requested": {
           "sample_rate_hz": 48000,
@@ -750,7 +750,7 @@
           "tone_hz": 400
         }
       },
-      "rtf": 0.02175
+      "rtf": 0.026779
     },
     {
       "model": "dummy",
@@ -759,7 +759,7 @@
       "variant": "dry",
       "path": "audio/dummy/chinatown-street/kaimono-musume-002-dry.opus",
       "duration_sec": 1.2065,
-      "sha256": "0d9d2bd6534f501e258f518ad992e53293f354267011821719c45edeada99d6e",
+      "sha256": "043d5c448df1718f05a8fbf493e51fc019c79483edcda6f26be78101c3942b7f",
       "gen_params": {
         "requested": {
           "sample_rate_hz": 48000,
@@ -771,7 +771,7 @@
           "tone_hz": 621
         }
       },
-      "rtf": 0.022188
+      "rtf": 0.026751
     },
     {
       "model": "dummy",
@@ -780,7 +780,7 @@
       "variant": "dry",
       "path": "audio/dummy/chinatown-street/nimotsu-ani-001-dry.opus",
       "duration_sec": 1.2065,
-      "sha256": "0af2580d23a801318918b2a2b11f118f48f9a175d2e15526df480d0295d2f825",
+      "sha256": "5d45082d6666d5a93db3e5993c82c3d1fcda358b42918a673edab3bc6d3bfdf6",
       "gen_params": {
         "requested": {
           "sample_rate_hz": 48000,
@@ -792,7 +792,7 @@
           "tone_hz": 559
         }
       },
-      "rtf": 0.02705
+      "rtf": 0.020584
     },
     {
       "model": "dummy",
@@ -801,7 +801,7 @@
       "variant": "dry",
       "path": "audio/dummy/chinatown-street/nimotsu-ani-002-dry.opus",
       "duration_sec": 1.2065,
-      "sha256": "86c8bf1ac2f76c13113dc97d4f403097f7281b6d952fe91ea4f1694b77e73a31",
+      "sha256": "458cd6ebd1df9e416cdc4cd6e0003efc47f77d7f3f524ddf05a7b532eb19c8aa",
       "gen_params": {
         "requested": {
           "sample_rate_hz": 48000,
@@ -813,7 +813,7 @@
           "tone_hz": 554
         }
       },
-      "rtf": 0.020261
+      "rtf": 0.028404
     },
     {
       "model": "dummy",
@@ -822,7 +822,7 @@
       "variant": "dry",
       "path": "audio/dummy/chinatown-street/shokudo-oyaji-001-dry.opus",
       "duration_sec": 1.2065,
-      "sha256": "23adeac8b667bfea5b3563a7c75eeb4bb3896d346a15ca711fc57f78f05c6db1",
+      "sha256": "f09ec534caab6c46889962fd42faf30c2c352f5f96b0d772c8d544af79804ad5",
       "gen_params": {
         "requested": {
           "sample_rate_hz": 48000,
@@ -834,7 +834,7 @@
           "tone_hz": 598
         }
       },
-      "rtf": 0.021678
+      "rtf": 0.030063
     },
     {
       "model": "dummy",
@@ -843,7 +843,7 @@
       "variant": "dry",
       "path": "audio/dummy/chinatown-street/shokudo-oyaji-002-dry.opus",
       "duration_sec": 1.2065,
-      "sha256": "b62ffd8cfbf0bddc96ee659422460bab6cc26aa0bf712ed36d051aeabfbd69d5",
+      "sha256": "12a49aa022b4919117a610448ba0d5c6c0e9ca6e279369fd8437bcc3e95cc44c",
       "gen_params": {
         "requested": {
           "sample_rate_hz": 48000,
@@ -855,7 +855,7 @@
           "tone_hz": 527
         }
       },
-      "rtf": 0.024559
+      "rtf": 0.02625
     },
     {
       "model": "dummy",
@@ -864,7 +864,7 @@
       "variant": "dry",
       "path": "audio/dummy/chinatown-street/shokudo-oyaji-003-dry.opus",
       "duration_sec": 1.2065,
-      "sha256": "eb840529cc26151a8a52d63956630fd35a6e42e53450cc750ff21152b350402a",
+      "sha256": "a2c7e997e070762d343e48f4ae20fc2cb7a320a48f77c06705f58b9f96ccefc9",
       "gen_params": {
         "requested": {
           "sample_rate_hz": 48000,
@@ -876,7 +876,7 @@
           "tone_hz": 659
         }
       },
-      "rtf": 0.021507
+      "rtf": 0.025737
     },
     {
       "model": "dummy",
@@ -885,7 +885,7 @@
       "variant": "dry",
       "path": "audio/dummy/chinatown-street/tenshin-okami-001-dry.opus",
       "duration_sec": 1.2065,
-      "sha256": "8bd1378fc03ce0e38a4a3fca319b17b0f9109c4cb173d3877b5c9def83c30df1",
+      "sha256": "2b905c1c5b19cc37b7019f0f3bf59e596e2bc53367c94606b2a84f4eb812ccfd",
       "gen_params": {
         "requested": {
           "sample_rate_hz": 48000,
@@ -897,7 +897,7 @@
           "tone_hz": 599
         }
       },
-      "rtf": 0.029249
+      "rtf": 0.032924
     },
     {
       "model": "dummy",
@@ -906,7 +906,7 @@
       "variant": "dry",
       "path": "audio/dummy/chinatown-street/tenshin-okami-002-dry.opus",
       "duration_sec": 1.2065,
-      "sha256": "ed2680949ff29414d6dd2119add316ce9221d0bd7e6c50293754c4dde8e3ef11",
+      "sha256": "0d88b849be5e0abf55fea3d6ad7e1abed042510e646c7276091fe6441e26ec6f",
       "gen_params": {
         "requested": {
           "sample_rate_hz": 48000,
@@ -918,7 +918,7 @@
           "tone_hz": 656
         }
       },
-      "rtf": 0.027839
+      "rtf": 0.037525
     },
     {
       "model": "dummy",
@@ -927,7 +927,7 @@
       "variant": "dry",
       "path": "audio/dummy/chinatown-street/tenshin-okami-003-dry.opus",
       "duration_sec": 1.2065,
-      "sha256": "723d42561cf755e74d8fecf9300f572cdf5b9844d3790c988998a63f6fbc8017",
+      "sha256": "40f562bf5c7ad7fc70e2ae4a4c15797b61ac35336d624a2f78aae0cc096fbb0c",
       "gen_params": {
         "requested": {
           "sample_rate_hz": 48000,
@@ -939,7 +939,7 @@
           "tone_hz": 694
         }
       },
-      "rtf": 0.022044
+      "rtf": 0.027946
     },
     {
       "model": "dummy",
@@ -948,7 +948,7 @@
       "variant": "dry",
       "path": "audio/dummy/clockwork-plaza/fortune-doll-001-dry.opus",
       "duration_sec": 1.2065,
-      "sha256": "fce96196b8594fdac9f1ae54d6ac8bd8ccf7d9a95b97248af6cc4525239bd3a7",
+      "sha256": "a9be472f204ba904100c53eaef932ed850e7809918154d7c5a56688d5a8b230e",
       "gen_params": {
         "requested": {
           "sample_rate_hz": 48000,
@@ -960,7 +960,7 @@
           "tone_hz": 591
         }
       },
-      "rtf": 0.025554
+      "rtf": 0.025502
     },
     {
       "model": "dummy",
@@ -969,7 +969,7 @@
       "variant": "dry",
       "path": "audio/dummy/clockwork-plaza/fortune-doll-002-dry.opus",
       "duration_sec": 1.2065,
-      "sha256": "307fde7d0dad8291f26dab0e16f6458170bca7df32fa3c27ebacb523fa2f73f2",
+      "sha256": "06de39d6bbab36c36a55d490dcabe9878a7ef0a79d3a837a2f358894fa7759f8",
       "gen_params": {
         "requested": {
           "sample_rate_hz": 48000,
@@ -981,7 +981,7 @@
           "tone_hz": 514
         }
       },
-      "rtf": 0.030158
+      "rtf": 0.026264
     },
     {
       "model": "dummy",
@@ -990,7 +990,7 @@
       "variant": "dry",
       "path": "audio/dummy/clockwork-plaza/fortune-doll-003-dry.opus",
       "duration_sec": 1.2065,
-      "sha256": "a976e85562cb4cdaa23446002b461200f31635fcc689692d979796cae8a03a70",
+      "sha256": "eb0c238f1c0b47e19bc030fa0face8cd171789d9392b096f4ea24fe6f6c377fd",
       "gen_params": {
         "requested": {
           "sample_rate_hz": 48000,
@@ -1002,7 +1002,7 @@
           "tone_hz": 697
         }
       },
-      "rtf": 0.022638
+      "rtf": 0.027863
     },
     {
       "model": "dummy",
@@ -1011,7 +1011,7 @@
       "variant": "dry",
       "path": "audio/dummy/clockwork-plaza/guide-automaton-001-dry.opus",
       "duration_sec": 1.2065,
-      "sha256": "56bd2bd6f4676a48bb2c7028aef48affb72eefd1e7820dfbb906f17c954b9c24",
+      "sha256": "f8ba0261b87ad40d760237e903c1840fe43283b175a87662cfa85b531573e5bd",
       "gen_params": {
         "requested": {
           "sample_rate_hz": 48000,
@@ -1023,7 +1023,7 @@
           "tone_hz": 402
         }
       },
-      "rtf": 0.021768
+      "rtf": 0.024051
     },
     {
       "model": "dummy",
@@ -1032,7 +1032,7 @@
       "variant": "dry",
       "path": "audio/dummy/clockwork-plaza/guide-automaton-002-dry.opus",
       "duration_sec": 1.2065,
-      "sha256": "b977f0d623b9e7c1488ad53ac5e6983f865d843718e530628838760145e42da1",
+      "sha256": "e02e4c5331dc088459c6c7aeafb4730a62ef8ce46801d6a61f35df80d2a1cf2b",
       "gen_params": {
         "requested": {
           "sample_rate_hz": 48000,
@@ -1044,7 +1044,7 @@
           "tone_hz": 387
         }
       },
-      "rtf": 0.02535
+      "rtf": 0.027388
     },
     {
       "model": "dummy",
@@ -1053,7 +1053,7 @@
       "variant": "dry",
       "path": "audio/dummy/clockwork-plaza/guide-automaton-003-dry.opus",
       "duration_sec": 1.2065,
-      "sha256": "e0e81b78ca11f2b0cd7c0f5be15c9e1fd78eb1593efd947976703896e249eb3b",
+      "sha256": "6f65ed51bc4cd28b5bd90a438d8e8a154fd1a84b17ea191e68df591d03165ed2",
       "gen_params": {
         "requested": {
           "sample_rate_hz": 48000,
@@ -1065,7 +1065,7 @@
           "tone_hz": 578
         }
       },
-      "rtf": 0.026661
+      "rtf": 0.028051
     },
     {
       "model": "dummy",
@@ -1074,7 +1074,7 @@
       "variant": "dry",
       "path": "audio/dummy/clockwork-plaza/sentry-unit-001-dry.opus",
       "duration_sec": 1.2065,
-      "sha256": "e406fd47226c2c1dcbf034ab2307a2bf93394bc28c06320b29cfedeb52ea8aeb",
+      "sha256": "e93f2f5af49d3bcc2d12f537d20e11bc931195a5eda5e7f3a2a558d296b3ef50",
       "gen_params": {
         "requested": {
           "sample_rate_hz": 48000,
@@ -1086,7 +1086,7 @@
           "tone_hz": 483
         }
       },
-      "rtf": 0.027827
+      "rtf": 0.027626
     },
     {
       "model": "dummy",
@@ -1095,7 +1095,7 @@
       "variant": "dry",
       "path": "audio/dummy/clockwork-plaza/sentry-unit-002-dry.opus",
       "duration_sec": 1.2065,
-      "sha256": "c58f0d36e3434c13c710d72883cb4a3119e471dc50da2d936c1ba3afdebd9867",
+      "sha256": "fc38a88d62d30b3b28e6ff071d9e2f90dce09ec055cb128129ce78a248fc729c",
       "gen_params": {
         "requested": {
           "sample_rate_hz": 48000,
@@ -1107,7 +1107,7 @@
           "tone_hz": 532
         }
       },
-      "rtf": 0.026797
+      "rtf": 0.025176
     },
     {
       "model": "dummy",
@@ -1116,7 +1116,7 @@
       "variant": "dry",
       "path": "audio/dummy/clockwork-plaza/sentry-unit-003-dry.opus",
       "duration_sec": 1.2065,
-      "sha256": "705e57c4d89d4708df31acf5818ff93767f953d652bbbc565fe33da7abef540f",
+      "sha256": "f5593a7bf3b5b88e1207173e902beaf71dbd6809de15129407254e6e30ca092c",
       "gen_params": {
         "requested": {
           "sample_rate_hz": 48000,
@@ -1128,7 +1128,7 @@
           "tone_hz": 402
         }
       },
-      "rtf": 0.024379
+      "rtf": 0.023635
     },
     {
       "model": "dummy",
@@ -1137,7 +1137,7 @@
       "variant": "dry",
       "path": "audio/dummy/clockwork-plaza/vendor-doll-001-dry.opus",
       "duration_sec": 1.2065,
-      "sha256": "dcc15725bde42ab3795e95af93baa42309ed50c425580b3ebf89a2026af6d4e5",
+      "sha256": "fd2724d0150bc080b7e21dd66057a07f4ffce26928e21417fe5d797bef416f19",
       "gen_params": {
         "requested": {
           "sample_rate_hz": 48000,
@@ -1149,7 +1149,7 @@
           "tone_hz": 445
         }
       },
-      "rtf": 0.023602
+      "rtf": 0.034366
     },
     {
       "model": "dummy",
@@ -1158,7 +1158,7 @@
       "variant": "dry",
       "path": "audio/dummy/clockwork-plaza/vendor-doll-002-dry.opus",
       "duration_sec": 1.2065,
-      "sha256": "9dc0770f4afc7c7071bec8c2937b7eeb5e550c18ce0c1a7c11c6c8152d605998",
+      "sha256": "d9141ddf32ccbf79a33da1e17c5cf2609716d3a1df02331a08cf8d3709f8fb0c",
       "gen_params": {
         "requested": {
           "sample_rate_hz": 48000,
@@ -1170,7 +1170,7 @@
           "tone_hz": 442
         }
       },
-      "rtf": 0.022283
+      "rtf": 0.031796
     },
     {
       "model": "dummy",
@@ -1179,7 +1179,7 @@
       "variant": "dry",
       "path": "audio/dummy/clockwork-plaza/vendor-doll-003-dry.opus",
       "duration_sec": 1.2065,
-      "sha256": "bb3c6f7dfd2fdb9f18830fb989f021a673a434c8b22db17765e2a5d4c23298ec",
+      "sha256": "b5ff189b71192214cef52044062232f92790550eb8c8af84db9c7741bd28fe0e",
       "gen_params": {
         "requested": {
           "sample_rate_hz": 48000,
@@ -1191,7 +1191,7 @@
           "tone_hz": 558
         }
       },
-      "rtf": 0.021753
+      "rtf": 0.02627
     },
     {
       "model": "dummy",
@@ -1200,7 +1200,7 @@
       "variant": "dry",
       "path": "audio/dummy/dungeon-entrance/old-guide-001-dry.opus",
       "duration_sec": 1.2065,
-      "sha256": "507c54e1caba509b8d8a974c2934592dc7589cb258fbb0bd3af01938d3eadd36",
+      "sha256": "c8e9ee4ba293a276bb5698c7a26c1cda900d174ddbd4fb90b914f10dd59a3d2c",
       "gen_params": {
         "requested": {
           "sample_rate_hz": 48000,
@@ -1212,7 +1212,7 @@
           "tone_hz": 594
         }
       },
-      "rtf": 0.022676
+      "rtf": 0.024225
     },
     {
       "model": "dummy",
@@ -1221,7 +1221,7 @@
       "variant": "dry",
       "path": "audio/dummy/dungeon-entrance/old-guide-002-dry.opus",
       "duration_sec": 1.2065,
-      "sha256": "66d3f329f05c300227892236bc08ab1575341095536ca251c069e85222106e97",
+      "sha256": "76488e841d258f582af695c7b44d7054b02d62f38f0359a4e12cad2a21662bdd",
       "gen_params": {
         "requested": {
           "sample_rate_hz": 48000,
@@ -1233,7 +1233,7 @@
           "tone_hz": 433
         }
       },
-      "rtf": 0.020099
+      "rtf": 0.036825
     },
     {
       "model": "dummy",
@@ -1242,7 +1242,7 @@
       "variant": "dry",
       "path": "audio/dummy/dungeon-entrance/old-guide-003-dry.opus",
       "duration_sec": 1.2065,
-      "sha256": "983696d857e99475ae264ab6b0f4e6ba9f99992dfe04f67db53c92396f46f107",
+      "sha256": "3f36ee6b7d03f3439b3a32111d0e359bdaf6fe1e7ebcdbe4de62df969aab918a",
       "gen_params": {
         "requested": {
           "sample_rate_hz": 48000,
@@ -1254,7 +1254,7 @@
           "tone_hz": 625
         }
       },
-      "rtf": 0.026819
+      "rtf": 0.03912
     },
     {
       "model": "dummy",
@@ -1263,7 +1263,7 @@
       "variant": "dry",
       "path": "audio/dummy/dungeon-entrance/rookie-archer-001-dry.opus",
       "duration_sec": 1.2065,
-      "sha256": "1a6a5a7ee7bd6aca5540b69c4156e0b71892aff8b9a72f82df09bd3cd1728227",
+      "sha256": "d15173ed22f5cb46f5e9ea447e2cc8a6195bc02c94f1be4b0e57d3f315a6336b",
       "gen_params": {
         "requested": {
           "sample_rate_hz": 48000,
@@ -1275,7 +1275,7 @@
           "tone_hz": 515
         }
       },
-      "rtf": 0.025345
+      "rtf": 0.028445
     },
     {
       "model": "dummy",
@@ -1284,7 +1284,7 @@
       "variant": "dry",
       "path": "audio/dummy/dungeon-entrance/rookie-archer-002-dry.opus",
       "duration_sec": 1.2065,
-      "sha256": "966e13e28ef6c7b5e45fe7daf0c7b3d1a654ac81bc90326703a134034bca2cb0",
+      "sha256": "c3272311726fcf999979e201d58e3f1e35d50af9ef77753295788071f4cbab03",
       "gen_params": {
         "requested": {
           "sample_rate_hz": 48000,
@@ -1296,7 +1296,7 @@
           "tone_hz": 366
         }
       },
-      "rtf": 0.022494
+      "rtf": 0.026965
     },
     {
       "model": "dummy",
@@ -1305,7 +1305,7 @@
       "variant": "dry",
       "path": "audio/dummy/dungeon-entrance/rookie-archer-003-dry.opus",
       "duration_sec": 1.2065,
-      "sha256": "7191d5367abe14f5e1d89250fd74b09b355650986bab9d9ac26d6b439f88eb48",
+      "sha256": "2573259ee35cd5451913c26c1d8cb42aa3f4e12f5031f33601546854a99c2900",
       "gen_params": {
         "requested": {
           "sample_rate_hz": 48000,
@@ -1317,7 +1317,7 @@
           "tone_hz": 605
         }
       },
-      "rtf": 0.025111
+      "rtf": 0.050412
     },
     {
       "model": "dummy",
@@ -1326,7 +1326,7 @@
       "variant": "dry",
       "path": "audio/dummy/dungeon-entrance/scout-001-dry.opus",
       "duration_sec": 1.2065,
-      "sha256": "6aa57e0c9ebec3b24094434c4021ea6dcc6601e84ab047c255c0120d0788f1c4",
+      "sha256": "ed42e95abbf9dab3612d6c998ea129c29f59d0120397ae00c94f5934c4359343",
       "gen_params": {
         "requested": {
           "sample_rate_hz": 48000,
@@ -1338,7 +1338,7 @@
           "tone_hz": 478
         }
       },
-      "rtf": 0.021596
+      "rtf": 0.032177
     },
     {
       "model": "dummy",
@@ -1347,7 +1347,7 @@
       "variant": "dry",
       "path": "audio/dummy/dungeon-entrance/scout-002-dry.opus",
       "duration_sec": 1.2065,
-      "sha256": "b966cad83e08e81f8d308871fb237258291cfa84e46a58808dd8ceed4cac1b41",
+      "sha256": "486b8cd7a98100887ace2e2239ef955259c50bade32fa37e00bef18b14ac58df",
       "gen_params": {
         "requested": {
           "sample_rate_hz": 48000,
@@ -1359,7 +1359,7 @@
           "tone_hz": 405
         }
       },
-      "rtf": 0.022919
+      "rtf": 0.027872
     },
     {
       "model": "dummy",
@@ -1368,7 +1368,7 @@
       "variant": "dry",
       "path": "audio/dummy/dungeon-entrance/scout-003-dry.opus",
       "duration_sec": 1.2065,
-      "sha256": "370c6c98fb67650004db00e31c50d638a86fcad51aa72d842358be8b6e33b2e5",
+      "sha256": "40a36195d6221ba83622e7e2dc14f6ddf5ef1170bc225d53654fd58e0bdba704",
       "gen_params": {
         "requested": {
           "sample_rate_hz": 48000,
@@ -1380,7 +1380,7 @@
           "tone_hz": 447
         }
       },
-      "rtf": 0.025299
+      "rtf": 0.026184
     },
     {
       "model": "dummy",
@@ -1389,7 +1389,7 @@
       "variant": "dry",
       "path": "audio/dummy/dungeon-entrance/vanguard-001-dry.opus",
       "duration_sec": 1.2065,
-      "sha256": "4bed98e9930231a6c1e411e7b60b4c8e595a418c0483f2ea9412fd92b147ff28",
+      "sha256": "a6dfca0bb81a7548d43793e7e5b1a95de0c04422d8811516310bfc7144b49d91",
       "gen_params": {
         "requested": {
           "sample_rate_hz": 48000,
@@ -1401,7 +1401,7 @@
           "tone_hz": 518
         }
       },
-      "rtf": 0.027741
+      "rtf": 0.024277
     },
     {
       "model": "dummy",
@@ -1410,7 +1410,7 @@
       "variant": "dry",
       "path": "audio/dummy/dungeon-entrance/vanguard-002-dry.opus",
       "duration_sec": 1.2065,
-      "sha256": "a16c72924a8880723ee44e40fbd2fa7587d063d749b68233f17ea921659a20db",
+      "sha256": "a73ff6a569bd2447ce8d3576ccf0a1f6745f0f3738729b94653b159e09b38069",
       "gen_params": {
         "requested": {
           "sample_rate_hz": 48000,
@@ -1422,7 +1422,7 @@
           "tone_hz": 385
         }
       },
-      "rtf": 0.026629
+      "rtf": 0.031188
     },
     {
       "model": "dummy",
@@ -1431,7 +1431,7 @@
       "variant": "dry",
       "path": "audio/dummy/dungeon-entrance/vanguard-003-dry.opus",
       "duration_sec": 1.2065,
-      "sha256": "28f093e438d44ec86c571946354c0f6a99a681ddaa08eda78f8cb15f14d080d0",
+      "sha256": "2497cbb1d2e3b71f3da5a507746c99bd3f416edecfd5ad3eadcbcace0b50a9a0",
       "gen_params": {
         "requested": {
           "sample_rate_hz": 48000,
@@ -1443,7 +1443,7 @@
           "tone_hz": 683
         }
       },
-      "rtf": 0.026758
+      "rtf": 0.02134
     },
     {
       "model": "dummy",
@@ -1452,7 +1452,7 @@
       "variant": "dry",
       "path": "audio/dummy/festival-night/matsuri-kid-001-dry.opus",
       "duration_sec": 1.2065,
-      "sha256": "ae2cc4b7f55a115309535d4f6cdd347b78bb433fd84ca7f9c23b724f90bbf4f2",
+      "sha256": "73ce5da15c2d4f721d23199a9b31fffc6da2e01d5ca883853e87c029adca2abd",
       "gen_params": {
         "requested": {
           "sample_rate_hz": 48000,
@@ -1464,7 +1464,7 @@
           "tone_hz": 535
         }
       },
-      "rtf": 0.025546
+      "rtf": 0.026581
     },
     {
       "model": "dummy",
@@ -1473,7 +1473,7 @@
       "variant": "dry",
       "path": "audio/dummy/festival-night/matsuri-kid-002-dry.opus",
       "duration_sec": 1.2065,
-      "sha256": "c6a6e2879d9cb3f91f3836df6e70e3205bc2fe2a935f5034f9d20eaf198e2449",
+      "sha256": "e3094de89c356077b5ecc5f02ed7e4a923eaecda8c3950a8399feef923bbc22e",
       "gen_params": {
         "requested": {
           "sample_rate_hz": 48000,
@@ -1485,7 +1485,7 @@
           "tone_hz": 405
         }
       },
-      "rtf": 0.02319
+      "rtf": 0.024443
     },
     {
       "model": "dummy",
@@ -1494,7 +1494,7 @@
       "variant": "dry",
       "path": "audio/dummy/festival-night/matsuri-kid-003-dry.opus",
       "duration_sec": 1.2065,
-      "sha256": "e8ceac0fe56176455b03033ec8942e4ebdcf0a7f7c0231fe98206a2ca0d8bd1d",
+      "sha256": "8a6b416d365f5976b50f414d06d5a5ba127d1c90abdb46684443e6b40dfa3431",
       "gen_params": {
         "requested": {
           "sample_rate_hz": 48000,
@@ -1506,7 +1506,7 @@
           "tone_hz": 658
         }
       },
-      "rtf": 0.021017
+      "rtf": 0.029848
     },
     {
       "model": "dummy",
@@ -1515,7 +1515,7 @@
       "variant": "dry",
       "path": "audio/dummy/festival-night/matsuri-wakamono-001-dry.opus",
       "duration_sec": 1.2065,
-      "sha256": "bf0dbd01856fee3849fe9187fc7f394c8d895a65a831a772243023adcdc1fa47",
+      "sha256": "839bf4f5d5944b421383c4153bede30fb5b2eb8492ad32111e81a0cba0530110",
       "gen_params": {
         "requested": {
           "sample_rate_hz": 48000,
@@ -1527,7 +1527,7 @@
           "tone_hz": 698
         }
       },
-      "rtf": 0.030312
+      "rtf": 0.026637
     },
     {
       "model": "dummy",
@@ -1536,7 +1536,7 @@
       "variant": "dry",
       "path": "audio/dummy/festival-night/matsuri-wakamono-002-dry.opus",
       "duration_sec": 1.2065,
-      "sha256": "05e7c05df4d74ea6cab0ac049935e9078885bde98340afa4a1dbbf64f7a6077d",
+      "sha256": "ba8ef21deac89a93af8a3c0e3478aa09684f6155a521de6fac341736c6360ba5",
       "gen_params": {
         "requested": {
           "sample_rate_hz": 48000,
@@ -1548,7 +1548,7 @@
           "tone_hz": 475
         }
       },
-      "rtf": 0.020637
+      "rtf": 0.030577
     },
     {
       "model": "dummy",
@@ -1557,7 +1557,7 @@
       "variant": "dry",
       "path": "audio/dummy/festival-night/matsuri-wakamono-003-dry.opus",
       "duration_sec": 1.2065,
-      "sha256": "b0f14b86cec7ce3659eaf05483e6a0bfad9bc3518a40e591bea7a1ad1b9354d9",
+      "sha256": "5f1eba2de5bd2a033bc0c1e01fb554c5302c0a8405baa2754a5aad5406fcb4f9",
       "gen_params": {
         "requested": {
           "sample_rate_hz": 48000,
@@ -1569,7 +1569,7 @@
           "tone_hz": 712
         }
       },
-      "rtf": 0.022109
+      "rtf": 0.024746
     },
     {
       "model": "dummy",
@@ -1578,7 +1578,7 @@
       "variant": "dry",
       "path": "audio/dummy/festival-night/mikoshi-katsugite-001-dry.opus",
       "duration_sec": 1.2065,
-      "sha256": "a4ed03053e410cfb5b3268d4428ae30e5202af3c7497a57cc1d050677baa087a",
+      "sha256": "f532c87a851e268a4c974187096718d00e17ffc15e97c049e04c8f79a7d1e883",
       "gen_params": {
         "requested": {
           "sample_rate_hz": 48000,
@@ -1590,7 +1590,7 @@
           "tone_hz": 367
         }
       },
-      "rtf": 0.024536
+      "rtf": 0.030941
     },
     {
       "model": "dummy",
@@ -1599,7 +1599,7 @@
       "variant": "dry",
       "path": "audio/dummy/festival-night/mikoshi-katsugite-002-dry.opus",
       "duration_sec": 1.2065,
-      "sha256": "e786a3e7ae100433ae9df64479dafb635d8897120814369dcc6f6e347a8d675e",
+      "sha256": "46d79addf3b3fd037b14832ed7862b075e2ae0dd056d86d33aa4114be1b85080",
       "gen_params": {
         "requested": {
           "sample_rate_hz": 48000,
@@ -1611,7 +1611,7 @@
           "tone_hz": 563
         }
       },
-      "rtf": 0.025566
+      "rtf": 0.021213
     },
     {
       "model": "dummy",
@@ -1620,7 +1620,7 @@
       "variant": "dry",
       "path": "audio/dummy/festival-night/mikoshi-katsugite-003-dry.opus",
       "duration_sec": 1.2065,
-      "sha256": "0aeac296b87a5e0e3861a318df5a70cc9eb0cfb8161e902543e8ce35f357f233",
+      "sha256": "42fa24d4a5159aae12a856cca0b9a192ae5d870337721433f518b2cf270b2fa7",
       "gen_params": {
         "requested": {
           "sample_rate_hz": 48000,
@@ -1632,7 +1632,7 @@
           "tone_hz": 703
         }
       },
-      "rtf": 0.025381
+      "rtf": 0.023755
     },
     {
       "model": "dummy",
@@ -1641,7 +1641,7 @@
       "variant": "dry",
       "path": "audio/dummy/festival-night/yatai-obasan-001-dry.opus",
       "duration_sec": 1.2065,
-      "sha256": "7d05520dd0b9c32c4ce555ea571d8b67c09cfa9506ab53abdd19049053093310",
+      "sha256": "097d1383dc3d12c21b7bce7c36b39ba72f8639d8199a8d2b9b6c01ecb644f893",
       "gen_params": {
         "requested": {
           "sample_rate_hz": 48000,
@@ -1653,7 +1653,7 @@
           "tone_hz": 525
         }
       },
-      "rtf": 0.02184
+      "rtf": 0.030429
     },
     {
       "model": "dummy",
@@ -1662,7 +1662,7 @@
       "variant": "dry",
       "path": "audio/dummy/festival-night/yatai-obasan-002-dry.opus",
       "duration_sec": 1.2065,
-      "sha256": "d8257bdf0c1592c69c4d0bd8122d4c42575ba16d1b006d6291267e3c69e250fa",
+      "sha256": "18e04a27d9536d6cbe572e83e3e3e6152be6dc548b87a4f26aa7f370d22b8995",
       "gen_params": {
         "requested": {
           "sample_rate_hz": 48000,
@@ -1674,7 +1674,7 @@
           "tone_hz": 713
         }
       },
-      "rtf": 0.020699
+      "rtf": 0.026451
     },
     {
       "model": "dummy",
@@ -1683,7 +1683,7 @@
       "variant": "dry",
       "path": "audio/dummy/festival-night/yatai-obasan-003-dry.opus",
       "duration_sec": 1.2065,
-      "sha256": "8877582af30f18133b12e320acb71a517271a7f576e8c4a5c701054e73a33439",
+      "sha256": "abefc3853381574be7d9ed03ef5e3e5905cea5a141dd91f8f12e76bb39be3c5a",
       "gen_params": {
         "requested": {
           "sample_rate_hz": 48000,
@@ -1695,7 +1695,7 @@
           "tone_hz": 509
         }
       },
-      "rtf": 0.023995
+      "rtf": 0.027734
     },
     {
       "model": "dummy",
@@ -1704,7 +1704,7 @@
       "variant": "dry",
       "path": "audio/dummy/goblin-camp/goblin-cook-001-dry.opus",
       "duration_sec": 1.2065,
-      "sha256": "feed2ab8a6a86c4a8c0bc0023e73c1b132150bf27a57b1a67d458c4c9d0f189a",
+      "sha256": "e0f590755923ee2ea471c12e550c67db242549b30208d41b5017eef78831d4d3",
       "gen_params": {
         "requested": {
           "sample_rate_hz": 48000,
@@ -1716,7 +1716,7 @@
           "tone_hz": 646
         }
       },
-      "rtf": 0.024891
+      "rtf": 0.039139
     },
     {
       "model": "dummy",
@@ -1725,7 +1725,7 @@
       "variant": "dry",
       "path": "audio/dummy/goblin-camp/goblin-cook-002-dry.opus",
       "duration_sec": 1.2065,
-      "sha256": "8bcd379a0e6cab51d8194843bbdc36209a03847e1d26f9469eff7238d52b82a3",
+      "sha256": "2d300cf36be5b196c1d73552840988e6c5e6e1ac65b8ea6fefa9da4a2b3a66e5",
       "gen_params": {
         "requested": {
           "sample_rate_hz": 48000,
@@ -1737,7 +1737,7 @@
           "tone_hz": 682
         }
       },
-      "rtf": 0.02339
+      "rtf": 0.034903
     },
     {
       "model": "dummy",
@@ -1746,7 +1746,7 @@
       "variant": "dry",
       "path": "audio/dummy/goblin-camp/goblin-cook-003-dry.opus",
       "duration_sec": 1.2065,
-      "sha256": "900b160172e909e42ebd4e32f08c709817700dd07e136d3dca4bfdc9d3524257",
+      "sha256": "54afba170891d79348c57c77576e1c8b47f8ff6e1f25eadbbaae8a580e2be760",
       "gen_params": {
         "requested": {
           "sample_rate_hz": 48000,
@@ -1758,7 +1758,7 @@
           "tone_hz": 520
         }
       },
-      "rtf": 0.026615
+      "rtf": 0.029889
     },
     {
       "model": "dummy",
@@ -1767,7 +1767,7 @@
       "variant": "dry",
       "path": "audio/dummy/goblin-camp/goblin-lookout-001-dry.opus",
       "duration_sec": 1.2065,
-      "sha256": "b2a277df85216de71fcad0307896c6c389d43b1f965f8118387aef1a22dd5b90",
+      "sha256": "d7399c6038e50a24a1d8188934dd2915e20c609a5c7ab69443d13ed693e60f1d",
       "gen_params": {
         "requested": {
           "sample_rate_hz": 48000,
@@ -1779,7 +1779,7 @@
           "tone_hz": 575
         }
       },
-      "rtf": 0.02291
+      "rtf": 0.02409
     },
     {
       "model": "dummy",
@@ -1788,7 +1788,7 @@
       "variant": "dry",
       "path": "audio/dummy/goblin-camp/goblin-lookout-002-dry.opus",
       "duration_sec": 1.2065,
-      "sha256": "38bbc8325e8f5a0c92a185a52cf8c4d1ca5da8e1c66f2508aed04bd160695d71",
+      "sha256": "b690a0ba65e3e068278ad375d461731d81c7647a5be632abe58b11f9fb1b10a7",
       "gen_params": {
         "requested": {
           "sample_rate_hz": 48000,
@@ -1800,7 +1800,7 @@
           "tone_hz": 563
         }
       },
-      "rtf": 0.026826
+      "rtf": 0.02042
     },
     {
       "model": "dummy",
@@ -1809,7 +1809,7 @@
       "variant": "dry",
       "path": "audio/dummy/goblin-camp/goblin-lookout-003-dry.opus",
       "duration_sec": 1.2065,
-      "sha256": "bcca8aa2a4b9fc8b31e6ac3b72c2d37c36d176fa261848d953b07c325690d102",
+      "sha256": "282351890bc67a4401821c8185938e36cc2bdd4fc2601dcbddadbf8d078f6e4a",
       "gen_params": {
         "requested": {
           "sample_rate_hz": 48000,
@@ -1821,7 +1821,7 @@
           "tone_hz": 632
         }
       },
-      "rtf": 0.026843
+      "rtf": 0.022671
     },
     {
       "model": "dummy",
@@ -1830,7 +1830,7 @@
       "variant": "dry",
       "path": "audio/dummy/goblin-camp/goblin-shaman-001-dry.opus",
       "duration_sec": 1.2065,
-      "sha256": "c761de12a65f3b84a7def30a37793544d60759004e9922aa6e4f32272f4e5514",
+      "sha256": "a28869bd9f534e6645611f785f598095d25c48fae6d814b675296670684d8a46",
       "gen_params": {
         "requested": {
           "sample_rate_hz": 48000,
@@ -1842,7 +1842,7 @@
           "tone_hz": 370
         }
       },
-      "rtf": 0.028838
+      "rtf": 0.03578
     },
     {
       "model": "dummy",
@@ -1851,7 +1851,7 @@
       "variant": "dry",
       "path": "audio/dummy/goblin-camp/goblin-shaman-002-dry.opus",
       "duration_sec": 1.2065,
-      "sha256": "0ed0aa81c1c1d2f90ba6343326a61b08a422970a1ce84b92bb2ffbd216e260eb",
+      "sha256": "2b6f49da7167444a038f6049edc6ea8675f6a44b9808c525d974b5909962804b",
       "gen_params": {
         "requested": {
           "sample_rate_hz": 48000,
@@ -1863,7 +1863,7 @@
           "tone_hz": 411
         }
       },
-      "rtf": 0.028144
+      "rtf": 0.032289
     },
     {
       "model": "dummy",
@@ -1872,7 +1872,7 @@
       "variant": "dry",
       "path": "audio/dummy/goblin-camp/goblin-shaman-003-dry.opus",
       "duration_sec": 1.2065,
-      "sha256": "08cbe745ffe413a82a54a3553d88a405b26f5525b844fef68301b72eb6cfb916",
+      "sha256": "3df182a84402f54b3c2429592eda71792ed6b7c330e2f6a86432def66c8ef02d",
       "gen_params": {
         "requested": {
           "sample_rate_hz": 48000,
@@ -1884,7 +1884,7 @@
           "tone_hz": 704
         }
       },
-      "rtf": 0.028638
+      "rtf": 0.035369
     },
     {
       "model": "dummy",
@@ -1893,7 +1893,7 @@
       "variant": "dry",
       "path": "audio/dummy/goblin-camp/orc-brother-001-dry.opus",
       "duration_sec": 1.2065,
-      "sha256": "db6755c5cd0c1dd408aea8e9507a8642716e1deb608133ca85c91a93e84cc3e4",
+      "sha256": "b9067b32d714f41cd06c01f479e1623ad7dd38e3c2b5c3b0619c8bf950c03ba6",
       "gen_params": {
         "requested": {
           "sample_rate_hz": 48000,
@@ -1905,7 +1905,7 @@
           "tone_hz": 569
         }
       },
-      "rtf": 0.02801
+      "rtf": 0.031174
     },
     {
       "model": "dummy",
@@ -1914,7 +1914,7 @@
       "variant": "dry",
       "path": "audio/dummy/goblin-camp/orc-brother-002-dry.opus",
       "duration_sec": 1.2065,
-      "sha256": "441f1072274136b56df4ff6d5bada9168b1e354b05a5bcb3118d62329bf3524c",
+      "sha256": "8117512bca1c590c9737adf85b5dbc13491f6f6d1dc57ba0bfc4c0b33231917c",
       "gen_params": {
         "requested": {
           "sample_rate_hz": 48000,
@@ -1926,7 +1926,7 @@
           "tone_hz": 554
         }
       },
-      "rtf": 0.026885
+      "rtf": 0.030787
     },
     {
       "model": "dummy",
@@ -1935,7 +1935,7 @@
       "variant": "dry",
       "path": "audio/dummy/goblin-camp/orc-brother-003-dry.opus",
       "duration_sec": 1.2065,
-      "sha256": "983964447bd9b590592c2585745aac375799a592047254fc7e4dd245c8b09263",
+      "sha256": "aa00c9eab1af88444dbd67fbd96c030a4cb49c02b8c1a41ce68efe78785e08ec",
       "gen_params": {
         "requested": {
           "sample_rate_hz": 48000,
@@ -1947,7 +1947,7 @@
           "tone_hz": 457
         }
       },
-      "rtf": 0.02508
+      "rtf": 0.036344
     },
     {
       "model": "dummy",
@@ -1956,7 +1956,7 @@
       "variant": "dry",
       "path": "audio/dummy/guild-hall/receptionist-001-dry.opus",
       "duration_sec": 1.2065,
-      "sha256": "84c2b1fae3283cdab3d1a1e41b6180d3857c29d20a4149925343ff88be669c2e",
+      "sha256": "0b1d1c425c8372982d1150cf33fe5b314d37f8437341b82cf778ee67a76ccb68",
       "gen_params": {
         "requested": {
           "sample_rate_hz": 48000,
@@ -1968,7 +1968,7 @@
           "tone_hz": 652
         }
       },
-      "rtf": 0.028116
+      "rtf": 0.03159
     },
     {
       "model": "dummy",
@@ -1977,7 +1977,7 @@
       "variant": "dry",
       "path": "audio/dummy/guild-hall/receptionist-002-dry.opus",
       "duration_sec": 1.2065,
-      "sha256": "dde88c4fdadac246eee45619cedf70b86ded700e85a7b832076e5c04f03a3b7c",
+      "sha256": "2423cfb7ca92093b613b16e3aa4ce41837aaa573990c2891ed8a88d7cee8740a",
       "gen_params": {
         "requested": {
           "sample_rate_hz": 48000,
@@ -1989,7 +1989,7 @@
           "tone_hz": 611
         }
       },
-      "rtf": 0.026231
+      "rtf": 0.024938
     },
     {
       "model": "dummy",
@@ -1998,7 +1998,7 @@
       "variant": "dry",
       "path": "audio/dummy/guild-hall/receptionist-003-dry.opus",
       "duration_sec": 1.2065,
-      "sha256": "78c495530b3ec65464f840c663215bbe691190938ac49d0d8ec4b533247cb881",
+      "sha256": "797339d13b65b446d8a2b6f36d5af216d59b3d2e34dc958344c9cb71a8fd20cb",
       "gen_params": {
         "requested": {
           "sample_rate_hz": 48000,
@@ -2010,7 +2010,7 @@
           "tone_hz": 611
         }
       },
-      "rtf": 0.023863
+      "rtf": 0.031651
     },
     {
       "model": "dummy",
@@ -2019,7 +2019,7 @@
       "variant": "dry",
       "path": "audio/dummy/guild-hall/rookie-001-dry.opus",
       "duration_sec": 1.2065,
-      "sha256": "c2ff825904b3c410eb16cec96f63c9324826901ca77063598cf9d8f5cf2d7be3",
+      "sha256": "837b786c7c3255f5f7ba31e8380c3c9148b0a410e60af1c07dbabdffe10184bf",
       "gen_params": {
         "requested": {
           "sample_rate_hz": 48000,
@@ -2031,7 +2031,7 @@
           "tone_hz": 676
         }
       },
-      "rtf": 0.023449
+      "rtf": 0.030653
     },
     {
       "model": "dummy",
@@ -2040,7 +2040,7 @@
       "variant": "dry",
       "path": "audio/dummy/guild-hall/rookie-002-dry.opus",
       "duration_sec": 1.2065,
-      "sha256": "e1c4b3e0cbdd035a5d761f5da7189ae8dbbf7c76425c00dd14cecd0e4e482a1e",
+      "sha256": "dbf0c457faf697ac9b08c2ddc2f672682f148f35994f3a4b7abef7ccbe23f90c",
       "gen_params": {
         "requested": {
           "sample_rate_hz": 48000,
@@ -2052,7 +2052,7 @@
           "tone_hz": 587
         }
       },
-      "rtf": 0.022645
+      "rtf": 0.032554
     },
     {
       "model": "dummy",
@@ -2061,7 +2061,7 @@
       "variant": "dry",
       "path": "audio/dummy/guild-hall/rookie-003-dry.opus",
       "duration_sec": 1.2065,
-      "sha256": "aa9a68ca32363435b55542882826f8777754a5a7c22935723f2bba9ba000141d",
+      "sha256": "cfb15ae032a2a82e286966c6d1defd5321725ba318171d9d672608fbda3bc418",
       "gen_params": {
         "requested": {
           "sample_rate_hz": 48000,
@@ -2073,7 +2073,7 @@
           "tone_hz": 360
         }
       },
-      "rtf": 0.024161
+      "rtf": 0.020685
     },
     {
       "model": "dummy",
@@ -2082,7 +2082,7 @@
       "variant": "dry",
       "path": "audio/dummy/guild-hall/veteran-001-dry.opus",
       "duration_sec": 1.2065,
-      "sha256": "39f5a78a85a98883782b8cc6f1b4575e60db94e9610b93534c7469b0ce8f312c",
+      "sha256": "d44d20fee057ab2a111365d7062b3a2db9473caa4dd66e59829aec46233ec7d6",
       "gen_params": {
         "requested": {
           "sample_rate_hz": 48000,
@@ -2094,7 +2094,7 @@
           "tone_hz": 486
         }
       },
-      "rtf": 0.027252
+      "rtf": 0.028749
     },
     {
       "model": "dummy",
@@ -2103,7 +2103,7 @@
       "variant": "dry",
       "path": "audio/dummy/guild-hall/veteran-002-dry.opus",
       "duration_sec": 1.2065,
-      "sha256": "beb453f01765c0a37d161310037589b25dde9a9e8217982ab154144dafa5249d",
+      "sha256": "ee50c1cd9623ae5b24990ffd44d60d31f4509a2cf9cd54a650c3fc86cb31981c",
       "gen_params": {
         "requested": {
           "sample_rate_hz": 48000,
@@ -2115,7 +2115,7 @@
           "tone_hz": 611
         }
       },
-      "rtf": 0.02641
+      "rtf": 0.03178
     },
     {
       "model": "dummy",
@@ -2124,7 +2124,7 @@
       "variant": "dry",
       "path": "audio/dummy/guild-hall/veteran-003-dry.opus",
       "duration_sec": 1.2065,
-      "sha256": "5f460b89ac8ad6a2747b5ac2a7194c5484c5a4f4b1f470a10e8d4658ba65d25c",
+      "sha256": "b7c455914cf8a818527b576cae7cc2dffaa9c62679fc7165383e4d86c7e34333",
       "gen_params": {
         "requested": {
           "sample_rate_hz": 48000,
@@ -2136,7 +2136,7 @@
           "tone_hz": 653
         }
       },
-      "rtf": 0.021765
+      "rtf": 0.033003
     },
     {
       "model": "dummy",
@@ -2145,7 +2145,7 @@
       "variant": "dry",
       "path": "audio/dummy/guild-hall/weary-001-dry.opus",
       "duration_sec": 1.2065,
-      "sha256": "e12e9330260f04af996eaa207901b21f2dba6cef8868b617221b3c4e940916c1",
+      "sha256": "99a8733a50e277e39cccd7fdfb65d249dbe4298977214e047973707273601c19",
       "gen_params": {
         "requested": {
           "sample_rate_hz": 48000,
@@ -2157,7 +2157,7 @@
           "tone_hz": 525
         }
       },
-      "rtf": 0.022245
+      "rtf": 0.020287
     },
     {
       "model": "dummy",
@@ -2166,7 +2166,7 @@
       "variant": "dry",
       "path": "audio/dummy/guild-hall/weary-002-dry.opus",
       "duration_sec": 1.2065,
-      "sha256": "27629936c8016ae3ebdeecdee4ab58c514d58b5838677a6c4181412f6785d585",
+      "sha256": "d816e541ce9504edeb4a88e4400eaeac4e545ad58cff8dc48853062c21edc602",
       "gen_params": {
         "requested": {
           "sample_rate_hz": 48000,
@@ -2178,7 +2178,7 @@
           "tone_hz": 645
         }
       },
-      "rtf": 0.029217
+      "rtf": 0.024323
     },
     {
       "model": "dummy",
@@ -2187,7 +2187,7 @@
       "variant": "dry",
       "path": "audio/dummy/guild-hall/weary-003-dry.opus",
       "duration_sec": 1.2065,
-      "sha256": "711a119b8024be58849482dac702579efa6b72fc9fb4ed34b98163d5711228fd",
+      "sha256": "1fef2ef02eb747c7636f957e64d7068ac6cf160f63869a6428083e1d8aa368f5",
       "gen_params": {
         "requested": {
           "sample_rate_hz": 48000,
@@ -2199,7 +2199,7 @@
           "tone_hz": 424
         }
       },
-      "rtf": 0.02407
+      "rtf": 0.02099
     },
     {
       "model": "dummy",
@@ -2208,7 +2208,7 @@
       "variant": "dry",
       "path": "audio/dummy/market-day/fruit-vendor-001-dry.opus",
       "duration_sec": 1.2065,
-      "sha256": "0e85ca66abbbb808398dabf16e0d3162e1220b512d345884a145196cf4a6096e",
+      "sha256": "490fa551861a023f90633df113651d9fa2a7c18037442ad8a2cc6065655bed09",
       "gen_params": {
         "requested": {
           "sample_rate_hz": 48000,
@@ -2220,7 +2220,7 @@
           "tone_hz": 628
         }
       },
-      "rtf": 0.022719
+      "rtf": 0.021393
     },
     {
       "model": "dummy",
@@ -2229,7 +2229,7 @@
       "variant": "dry",
       "path": "audio/dummy/market-day/fruit-vendor-002-dry.opus",
       "duration_sec": 1.2065,
-      "sha256": "938b82b70281df6138cf951244c9c3d75f5c47a4c937cfca7626204b992a1f89",
+      "sha256": "04c24a1214af921ce5a4e11beb89890661f407f703e61c516bf873ea7382ae9c",
       "gen_params": {
         "requested": {
           "sample_rate_hz": 48000,
@@ -2241,7 +2241,7 @@
           "tone_hz": 680
         }
       },
-      "rtf": 0.022743
+      "rtf": 0.031336
     },
     {
       "model": "dummy",
@@ -2250,7 +2250,7 @@
       "variant": "dry",
       "path": "audio/dummy/market-day/shopper-001-dry.opus",
       "duration_sec": 1.2065,
-      "sha256": "0bd2fe4d73c946c1c39c044b3b51f893edf0c93bd4cb0a59635d0c638058e08a",
+      "sha256": "c119ba232d961eee5adc7cbc47c51895add9f2c529a7a2d0d780bd2942b7ea9b",
       "gen_params": {
         "requested": {
           "sample_rate_hz": 48000,
@@ -2262,7 +2262,7 @@
           "tone_hz": 596
         }
       },
-      "rtf": 0.029015
+      "rtf": 0.020815
     },
     {
       "model": "dummy",
@@ -2271,7 +2271,7 @@
       "variant": "dry",
       "path": "audio/dummy/market-day/shopper-002-dry.opus",
       "duration_sec": 1.2065,
-      "sha256": "7e4e3cc8c5adad557f5fc259adc1a0becd36a75841adb8d369a491f4d88dc7ef",
+      "sha256": "9a3a5a91d112df0fafd4278075ab96632665f2e92d921943a3e78155ff6c52ae",
       "gen_params": {
         "requested": {
           "sample_rate_hz": 48000,
@@ -2283,7 +2283,7 @@
           "tone_hz": 597
         }
       },
-      "rtf": 0.025408
+      "rtf": 0.021135
     },
     {
       "model": "dummy",
@@ -2292,7 +2292,7 @@
       "variant": "dry",
       "path": "audio/dummy/market-day/street-kid-001-dry.opus",
       "duration_sec": 1.2065,
-      "sha256": "fc17d488571e7e35d929853f4a394ccf2b404e084ed5e7b8f0842223a2b3f73a",
+      "sha256": "ef2a8795db978bf1d92e62c5cd3c68325ba6c61beb894ddcd66c77440f7dabc1",
       "gen_params": {
         "requested": {
           "sample_rate_hz": 48000,
@@ -2304,7 +2304,7 @@
           "tone_hz": 652
         }
       },
-      "rtf": 0.022639
+      "rtf": 0.024511
     },
     {
       "model": "dummy",
@@ -2313,7 +2313,7 @@
       "variant": "dry",
       "path": "audio/dummy/market-day/street-kid-002-dry.opus",
       "duration_sec": 1.2065,
-      "sha256": "b4673022e1d4f92889dd3ad1efe37eaefabd5fc3f8a1f235e79a0dd974993368",
+      "sha256": "985edac790eb6659dbc3bc5add79a36aa47731e3cea5f0bf1747420e1fed2225",
       "gen_params": {
         "requested": {
           "sample_rate_hz": 48000,
@@ -2325,7 +2325,7 @@
           "tone_hz": 639
         }
       },
-      "rtf": 0.031214
+      "rtf": 0.022305
     },
     {
       "model": "dummy",
@@ -2334,7 +2334,7 @@
       "variant": "dry",
       "path": "audio/dummy/spirit-forest/elder-tree-001-dry.opus",
       "duration_sec": 1.2065,
-      "sha256": "749c54038505d4722e4e81f9a6a407e5ed55205d02f46862ae6b1517ca91c474",
+      "sha256": "73cb8b4bb898dc182ed59d914a4bfda3a4643b94746ccaef647ed9762ad0f49e",
       "gen_params": {
         "requested": {
           "sample_rate_hz": 48000,
@@ -2346,7 +2346,7 @@
           "tone_hz": 451
         }
       },
-      "rtf": 0.026753
+      "rtf": 0.026366
     },
     {
       "model": "dummy",
@@ -2355,7 +2355,7 @@
       "variant": "dry",
       "path": "audio/dummy/spirit-forest/elder-tree-002-dry.opus",
       "duration_sec": 1.2065,
-      "sha256": "686a7209c66e2474660508421c274af525ae210a4caf645a3ba79fd38ed26c8f",
+      "sha256": "aff94acda68cf73cb4a79d898286ead00a549b62eda5f959e50c80336115444c",
       "gen_params": {
         "requested": {
           "sample_rate_hz": 48000,
@@ -2367,7 +2367,7 @@
           "tone_hz": 451
         }
       },
-      "rtf": 0.022575
+      "rtf": 0.033238
     },
     {
       "model": "dummy",
@@ -2376,7 +2376,7 @@
       "variant": "dry",
       "path": "audio/dummy/spirit-forest/elder-tree-003-dry.opus",
       "duration_sec": 1.2065,
-      "sha256": "8a35f5c05a8e5515fe9b8b59f3d38d038146a0e0491d029292b1b261b8d59273",
+      "sha256": "4a41ea0ee5fb89683c16b3fc71efcc8d953a599d755fbfcc70e01b4e4b2a5d23",
       "gen_params": {
         "requested": {
           "sample_rate_hz": 48000,
@@ -2388,7 +2388,7 @@
           "tone_hz": 615
         }
       },
-      "rtf": 0.024407
+      "rtf": 0.033232
     },
     {
       "model": "dummy",
@@ -2397,7 +2397,7 @@
       "variant": "dry",
       "path": "audio/dummy/spirit-forest/pixie-001-dry.opus",
       "duration_sec": 1.2065,
-      "sha256": "cc398694512c373722253e19c8c87886488961bda482e0f687c3e888ba802b4e",
+      "sha256": "fc99f3f7df0bce456012b74ecc31919b2ba2e49f82591e91b3b252a3910d3476",
       "gen_params": {
         "requested": {
           "sample_rate_hz": 48000,
@@ -2409,7 +2409,7 @@
           "tone_hz": 626
         }
       },
-      "rtf": 0.031604
+      "rtf": 0.024568
     },
     {
       "model": "dummy",
@@ -2418,7 +2418,7 @@
       "variant": "dry",
       "path": "audio/dummy/spirit-forest/pixie-002-dry.opus",
       "duration_sec": 1.2065,
-      "sha256": "784a43969c8eee9fe32852f0425183a527f7a43228f81b0e21146dd93943b9aa",
+      "sha256": "6d82bfb4a330e73c1e9a9404528d2c8284e0cd146306267d61faf91d251fe02d",
       "gen_params": {
         "requested": {
           "sample_rate_hz": 48000,
@@ -2430,7 +2430,7 @@
           "tone_hz": 458
         }
       },
-      "rtf": 0.028111
+      "rtf": 0.029936
     },
     {
       "model": "dummy",
@@ -2439,7 +2439,7 @@
       "variant": "dry",
       "path": "audio/dummy/spirit-forest/pixie-003-dry.opus",
       "duration_sec": 1.2065,
-      "sha256": "657a6329d031fc78aa6adc72deecf2ef635db24161371b34c63b2aff5541c4ea",
+      "sha256": "a89572294e8549bb7a75bc6f42a4908796e3673c88161d098c9c34ec2105c175",
       "gen_params": {
         "requested": {
           "sample_rate_hz": 48000,
@@ -2451,7 +2451,7 @@
           "tone_hz": 694
         }
       },
-      "rtf": 0.022977
+      "rtf": 0.026083
     },
     {
       "model": "dummy",
@@ -2460,7 +2460,7 @@
       "variant": "dry",
       "path": "audio/dummy/spirit-forest/spring-sprite-001-dry.opus",
       "duration_sec": 1.2065,
-      "sha256": "009205745e6330a9fbfe062faa49282f2d4b4dfbb9e58bf1f0c1d4ae0dc15f3b",
+      "sha256": "3028cfe9a624a855fb7ae3c228aa54a0ea7bf6c158b5d29caec87d059ce878d3",
       "gen_params": {
         "requested": {
           "sample_rate_hz": 48000,
@@ -2472,7 +2472,7 @@
           "tone_hz": 400
         }
       },
-      "rtf": 0.021247
+      "rtf": 0.026057
     },
     {
       "model": "dummy",
@@ -2481,7 +2481,7 @@
       "variant": "dry",
       "path": "audio/dummy/spirit-forest/spring-sprite-002-dry.opus",
       "duration_sec": 1.2065,
-      "sha256": "9434393fb2f16ceeee3631da6cc2b9ac649e3874b78f16eb47230bba1deb58b2",
+      "sha256": "5478e2700b1ee15862217bf823ee95bfbb7c9da7e1fb971573fa4106f519ba05",
       "gen_params": {
         "requested": {
           "sample_rate_hz": 48000,
@@ -2493,7 +2493,7 @@
           "tone_hz": 466
         }
       },
-      "rtf": 0.025015
+      "rtf": 0.025815
     },
     {
       "model": "dummy",
@@ -2502,7 +2502,7 @@
       "variant": "dry",
       "path": "audio/dummy/spirit-forest/spring-sprite-003-dry.opus",
       "duration_sec": 1.2065,
-      "sha256": "f7aef2cb5aee9f8991aa926dfd3561102ee52db39fac888996f0d4b73b4cb8a9",
+      "sha256": "c925fb2976efc0336b9363d46aa1bd5c8d22797f68d1611fb38797c4ac9c6dc5",
       "gen_params": {
         "requested": {
           "sample_rate_hz": 48000,
@@ -2514,7 +2514,7 @@
           "tone_hz": 598
         }
       },
-      "rtf": 0.029357
+      "rtf": 0.032391
     },
     {
       "model": "dummy",
@@ -2523,7 +2523,7 @@
       "variant": "dry",
       "path": "audio/dummy/spirit-forest/wisp-001-dry.opus",
       "duration_sec": 1.2065,
-      "sha256": "4bb224fcead8c76ac207cf17e038dc94c2e103c1befa85006e4a4cbe03832c6a",
+      "sha256": "4c6e1354ad5da73465c991fa13b0c43205beb38223cadacb5505da2693e7ece8",
       "gen_params": {
         "requested": {
           "sample_rate_hz": 48000,
@@ -2535,7 +2535,7 @@
           "tone_hz": 390
         }
       },
-      "rtf": 0.021167
+      "rtf": 0.037255
     },
     {
       "model": "dummy",
@@ -2544,7 +2544,7 @@
       "variant": "dry",
       "path": "audio/dummy/spirit-forest/wisp-002-dry.opus",
       "duration_sec": 1.2065,
-      "sha256": "9948d69d6c83da5d3a5741970abe8c3fe687cbcb41c7908d11f705b88056b23e",
+      "sha256": "62658a81e4a7d84595c8ef0bfb781c59b992d97c03ad79cc438fff54a92d70b6",
       "gen_params": {
         "requested": {
           "sample_rate_hz": 48000,
@@ -2556,7 +2556,7 @@
           "tone_hz": 521
         }
       },
-      "rtf": 0.022367
+      "rtf": 0.026159
     },
     {
       "model": "dummy",
@@ -2565,7 +2565,7 @@
       "variant": "dry",
       "path": "audio/dummy/spirit-forest/wisp-003-dry.opus",
       "duration_sec": 1.2065,
-      "sha256": "bc9597ccfb210e805d5e73cfc03251d488f86dceb0d953f7f8dd15f88212b3b4",
+      "sha256": "bdb4ad8364ef55592f0a968fd2b2652ede7a6f634ac210961403d55e8ee5c9cf",
       "gen_params": {
         "requested": {
           "sample_rate_hz": 48000,
@@ -2577,7 +2577,7 @@
           "tone_hz": 469
         }
       },
-      "rtf": 0.028617
+      "rtf": 0.029858
     },
     {
       "model": "dummy",
@@ -2586,7 +2586,7 @@
       "variant": "dry",
       "path": "audio/dummy/tavern-night/barmaid-001-dry.opus",
       "duration_sec": 1.2065,
-      "sha256": "9e1bc6f431550d7f3fe516c4aecc7e737d734e48c7014b96bfe1b15b8c006051",
+      "sha256": "1a1f71b8c884cebad13d8e19512a95d993f988db7f8bd2a5b0728e43e56b20ec",
       "gen_params": {
         "requested": {
           "sample_rate_hz": 48000,
@@ -2598,7 +2598,7 @@
           "tone_hz": 397
         }
       },
-      "rtf": 0.023218
+      "rtf": 0.028873
     },
     {
       "model": "dummy",
@@ -2607,7 +2607,7 @@
       "variant": "dry",
       "path": "audio/dummy/tavern-night/barmaid-002-dry.opus",
       "duration_sec": 1.2065,
-      "sha256": "fc6b39f1185afe82d22b93a4f2ae539238b7ed240ec66272f1d390a899620903",
+      "sha256": "8f8ea06563b4c4a0b91ccca10e5b83fa4a0691e3dfbd9796a347dd74f5bfa81e",
       "gen_params": {
         "requested": {
           "sample_rate_hz": 48000,
@@ -2619,7 +2619,7 @@
           "tone_hz": 619
         }
       },
-      "rtf": 0.027261
+      "rtf": 0.033881
     },
     {
       "model": "dummy",
@@ -2628,7 +2628,7 @@
       "variant": "dry",
       "path": "audio/dummy/tavern-night/drunkard-001-dry.opus",
       "duration_sec": 1.2065,
-      "sha256": "6a3022b9b5fe85e8425715a7f5e3aea8a465388bb3b62a9a287ffb6452c778d3",
+      "sha256": "518c22a2f203a9cf1ce2e715cdf0fd17f111361b6b8e9b246fabd313a628f298",
       "gen_params": {
         "requested": {
           "sample_rate_hz": 48000,
@@ -2640,7 +2640,7 @@
           "tone_hz": 518
         }
       },
-      "rtf": 0.01979
+      "rtf": 0.032108
     },
     {
       "model": "dummy",
@@ -2649,7 +2649,7 @@
       "variant": "dry",
       "path": "audio/dummy/tavern-night/drunkard-002-dry.opus",
       "duration_sec": 1.2065,
-      "sha256": "96e6e77689061c89b92234122f128e65f027a5df988351451ff0b89b9e8df17a",
+      "sha256": "791cb7552439af8b12ac3312b39e48f6ce8f4f6495316ff8d71d98cb5cf35413",
       "gen_params": {
         "requested": {
           "sample_rate_hz": 48000,
@@ -2661,7 +2661,7 @@
           "tone_hz": 667
         }
       },
-      "rtf": 0.026219
+      "rtf": 0.02952
     },
     {
       "model": "dummy",
@@ -2670,7 +2670,7 @@
       "variant": "dry",
       "path": "audio/dummy/tavern-night/old-regular-001-dry.opus",
       "duration_sec": 1.2065,
-      "sha256": "7788e3597e3eb530cc01a3d71a251dd85568b05167c0fcccf7f0654cf4181bc5",
+      "sha256": "ab1d0cb484e4b332d9053144c091a58cbee0c437dfd82ee615721d5dc3e2d516",
       "gen_params": {
         "requested": {
           "sample_rate_hz": 48000,
@@ -2682,7 +2682,7 @@
           "tone_hz": 504
         }
       },
-      "rtf": 0.027245
+      "rtf": 0.02908
     },
     {
       "model": "dummy",
@@ -2691,7 +2691,7 @@
       "variant": "dry",
       "path": "audio/dummy/tavern-night/old-regular-002-dry.opus",
       "duration_sec": 1.2065,
-      "sha256": "6a7e9e609ddcc435f5419c182309afcf605ee284fb3dd51d3b6247f2acf004fe",
+      "sha256": "dfe2d6d00774beab1475ebb0fb558771f40a87f03793dfa584a6c3cb612cb5f2",
       "gen_params": {
         "requested": {
           "sample_rate_hz": 48000,
@@ -2703,7 +2703,7 @@
           "tone_hz": 414
         }
       },
-      "rtf": 0.024969
+      "rtf": 0.026226
     },
     {
       "model": "dummy",
@@ -2712,7 +2712,7 @@
       "variant": "dry",
       "path": "audio/dummy/village-morning/farm-wife-001-dry.opus",
       "duration_sec": 1.2065,
-      "sha256": "ecb4c9d70fea9c816a3000dde1173e6b4576567b7452f598c2d50006fba59c16",
+      "sha256": "949c9c1df17a4d3dda676546f67098e12dceb9f83183b4b0ccb65dc07e067e0d",
       "gen_params": {
         "requested": {
           "sample_rate_hz": 48000,
@@ -2724,7 +2724,7 @@
           "tone_hz": 571
         }
       },
-      "rtf": 0.022023
+      "rtf": 0.028463
     },
     {
       "model": "dummy",
@@ -2733,7 +2733,7 @@
       "variant": "dry",
       "path": "audio/dummy/village-morning/farm-wife-002-dry.opus",
       "duration_sec": 1.2065,
-      "sha256": "e8c5de6a89b17f20156f17cf6a81eeadece7cd04d3cfe0978dd9c74dbf022327",
+      "sha256": "df4b394f5c2e2cbd6d34bb3430ea325ed19e72ba9f47af4a3708da160423a5e7",
       "gen_params": {
         "requested": {
           "sample_rate_hz": 48000,
@@ -2745,7 +2745,7 @@
           "tone_hz": 511
         }
       },
-      "rtf": 0.028511
+      "rtf": 0.030841
     },
     {
       "model": "dummy",
@@ -2754,7 +2754,7 @@
       "variant": "dry",
       "path": "audio/dummy/village-morning/farmer-man-001-dry.opus",
       "duration_sec": 1.2065,
-      "sha256": "abc7331899737580a3e7de96f0ddac00d414bf04fbc82d692c63bc307aad14b9",
+      "sha256": "527777febe6ba7c2a5bc1d174314c658ae0d59dde7beb06ab2b7dd27cc7da65d",
       "gen_params": {
         "requested": {
           "sample_rate_hz": 48000,
@@ -2766,7 +2766,7 @@
           "tone_hz": 586
         }
       },
-      "rtf": 0.025175
+      "rtf": 0.028009
     },
     {
       "model": "dummy",
@@ -2775,7 +2775,7 @@
       "variant": "dry",
       "path": "audio/dummy/village-morning/farmer-man-002-dry.opus",
       "duration_sec": 1.2065,
-      "sha256": "3649005040406c1610f26c7a2807620c96c65db3d40361137fb0ab743d6b14db",
+      "sha256": "2131a52c755baac5d87966ffc70e359e47948405b0525ed78d50906c5f0c1e5e",
       "gen_params": {
         "requested": {
           "sample_rate_hz": 48000,
@@ -2787,7 +2787,7 @@
           "tone_hz": 512
         }
       },
-      "rtf": 0.023808
+      "rtf": 0.030471
     },
     {
       "model": "dummy",
@@ -2796,7 +2796,7 @@
       "variant": "dry",
       "path": "audio/dummy/village-morning/granny-001-dry.opus",
       "duration_sec": 1.2065,
-      "sha256": "bc7844a15e0a4d05b5fc7c9247ee928c66405084bfbbd292a4864435a9be27fa",
+      "sha256": "08f41c1e0112563a075b812abfd3e79a275f359194870411f3dee88199b3f17d",
       "gen_params": {
         "requested": {
           "sample_rate_hz": 48000,
@@ -2808,7 +2808,7 @@
           "tone_hz": 413
         }
       },
-      "rtf": 0.02715
+      "rtf": 0.023773
     },
     {
       "model": "dummy",
@@ -2817,7 +2817,7 @@
       "variant": "dry",
       "path": "audio/dummy/village-morning/granny-002-dry.opus",
       "duration_sec": 1.2065,
-      "sha256": "0e8e54d3cf0e20fe27b8424a7f717c9afab8dc1817a2f4b6e3b908771db922bf",
+      "sha256": "bb5394f4c1fc8eea126d97461f489e063111557297a26d82364b5c6009b8bc59",
       "gen_params": {
         "requested": {
           "sample_rate_hz": 48000,
@@ -2829,7 +2829,7 @@
           "tone_hz": 528
         }
       },
-      "rtf": 0.026865
+      "rtf": 0.028624
     },
     {
       "model": "dummy",
@@ -2838,7 +2838,7 @@
       "variant": "dry",
       "path": "audio/dummy/village-morning/granny-003-dry.opus",
       "duration_sec": 1.2065,
-      "sha256": "7e72f0234e55bf36687963324ca5dd70e422621c321a585f4a7cb029f82fc6cb",
+      "sha256": "0c0f061ea98962b133fe42f46c5e8516aefb86be0652c2301d5c728cf01ebb8d",
       "gen_params": {
         "requested": {
           "sample_rate_hz": 48000,
@@ -2850,7 +2850,7 @@
           "tone_hz": 603
         }
       },
-      "rtf": 0.019848
+      "rtf": 0.023704
     },
     {
       "model": "dummy",
@@ -2859,7 +2859,7 @@
       "variant": "dry",
       "path": "audio/dummy/village-morning/granny-004-dry.opus",
       "duration_sec": 1.2065,
-      "sha256": "aa03496a7777c270f5cd748bc7aa5849057b47fb578754054042fb26ee8f3346",
+      "sha256": "6fac779b82427211d8787fde3479bca497b867385990a1e3ddebc489c95f213c",
       "gen_params": {
         "requested": {
           "sample_rate_hz": 48000,
@@ -2871,7 +2871,7 @@
           "tone_hz": 698
         }
       },
-      "rtf": 0.025947
+      "rtf": 0.027343
     },
     {
       "model": "dummy",
@@ -2880,7 +2880,7 @@
       "variant": "dry",
       "path": "audio/dummy/village-morning/teen-boy-001-dry.opus",
       "duration_sec": 1.2065,
-      "sha256": "b91551241a1019cfa74057e8c1fe9b03d197ec14205d4cffbf3a4e831aa03496",
+      "sha256": "575b6c416e145651d5737692cb4a3770a543ab29f541e6f45df97a19c33c9b31",
       "gen_params": {
         "requested": {
           "sample_rate_hz": 48000,
@@ -2892,7 +2892,7 @@
           "tone_hz": 714
         }
       },
-      "rtf": 0.024771
+      "rtf": 0.024983
     },
     {
       "model": "dummy",
@@ -2901,7 +2901,7 @@
       "variant": "dry",
       "path": "audio/dummy/village-morning/teen-boy-002-dry.opus",
       "duration_sec": 1.2065,
-      "sha256": "a20845867d7427665262f7f275469541cc6ac89ee4560a8fd8cf80111c896e99",
+      "sha256": "254c7b1d7c4582cc46d03c986085481c261d31747d1c92016f596ee64b2a6de7",
       "gen_params": {
         "requested": {
           "sample_rate_hz": 48000,
@@ -2913,7 +2913,7 @@
           "tone_hz": 666
         }
       },
-      "rtf": 0.025256
+      "rtf": 0.026305
     },
     {
       "model": "dummy",
@@ -2922,7 +2922,7 @@
       "variant": "dry",
       "path": "audio/dummy/village-morning/teen-boy-003-dry.opus",
       "duration_sec": 1.2065,
-      "sha256": "1bc0f15b80f1037f4b5c350e21c953191ea2fc799d7b3713d4b7cb31978b54dc",
+      "sha256": "63177920abad1986b9567425f66c42d7631f497788ca5471a30d54e8ad1817a8",
       "gen_params": {
         "requested": {
           "sample_rate_hz": 48000,
@@ -2934,7 +2934,7 @@
           "tone_hz": 674
         }
       },
-      "rtf": 0.022099
+      "rtf": 0.027819
     },
     {
       "model": "dummy",
@@ -2943,7 +2943,7 @@
       "variant": "dry",
       "path": "audio/dummy/village-morning/teen-boy-004-dry.opus",
       "duration_sec": 1.2065,
-      "sha256": "1df191c1af5e1bdf0143c0a55563788e4fd9ffca1799f1388dfa532c579e7328",
+      "sha256": "4912dda860be49cfec62df782571bec916fe4a7b07d2f6154e40d719bdc5ffeb",
       "gen_params": {
         "requested": {
           "sample_rate_hz": 48000,
@@ -2955,7 +2955,7 @@
           "tone_hz": 634
         }
       },
-      "rtf": 0.024546
+      "rtf": 0.02797
     },
     {
       "model": "dummy",
@@ -2964,7 +2964,7 @@
       "variant": "dry",
       "path": "audio/dummy/west-crowd/isogi-shinshi-001-dry.opus",
       "duration_sec": 1.2065,
-      "sha256": "d1357c2d156586f1e3793365ad9909da9b728c3eba550f65ff25140c312378d8",
+      "sha256": "bbc377492ea4c4555fc41ee0448f428354d43cfcdde1201d9b3558cbf336dd5c",
       "gen_params": {
         "requested": {
           "sample_rate_hz": 48000,
@@ -2976,7 +2976,7 @@
           "tone_hz": 461
         }
       },
-      "rtf": 0.025872
+      "rtf": 0.031482
     },
     {
       "model": "dummy",
@@ -2985,7 +2985,7 @@
       "variant": "dry",
       "path": "audio/dummy/west-crowd/isogi-shinshi-002-dry.opus",
       "duration_sec": 1.2065,
-      "sha256": "f0612a1085077776bf20a6b58f1de1c27e1829f5db1b5c165590b8b10b3f3d5c",
+      "sha256": "03a8d1b412b161499604932dd8ad6f66874eed52b1046619dabfc37d543a37f0",
       "gen_params": {
         "requested": {
           "sample_rate_hz": 48000,
@@ -2997,7 +2997,7 @@
           "tone_hz": 700
         }
       },
-      "rtf": 0.025547
+      "rtf": 0.034244
     },
     {
       "model": "dummy",
@@ -3006,7 +3006,7 @@
       "variant": "dry",
       "path": "audio/dummy/west-crowd/isogi-shinshi-003-dry.opus",
       "duration_sec": 1.2065,
-      "sha256": "f9c5935f96dedbf70e23a2fa258f5568cd8a55ef71171c6780cca519cc317b99",
+      "sha256": "442bfc04d6add4abbd45d24e59505066f3faee45ff68824146a4c8ac921f9d1f",
       "gen_params": {
         "requested": {
           "sample_rate_hz": 48000,
@@ -3018,7 +3018,7 @@
           "tone_hz": 417
         }
       },
-      "rtf": 0.023169
+      "rtf": 0.031091
     },
     {
       "model": "dummy",
@@ -3027,7 +3027,7 @@
       "variant": "dry",
       "path": "audio/dummy/west-crowd/machibouke-seinen-001-dry.opus",
       "duration_sec": 1.2065,
-      "sha256": "22a3fd2baa00d8377115dc13945c227f8fcf3e10e5cc5049bb4c4fb91ab09505",
+      "sha256": "18ee520b28b75fa09a7dddd8de98dbfc4a6e532b35f575f9ddcbec944993be45",
       "gen_params": {
         "requested": {
           "sample_rate_hz": 48000,
@@ -3039,7 +3039,7 @@
           "tone_hz": 608
         }
       },
-      "rtf": 0.02071
+      "rtf": 0.028561
     },
     {
       "model": "dummy",
@@ -3048,7 +3048,7 @@
       "variant": "dry",
       "path": "audio/dummy/west-crowd/machibouke-seinen-002-dry.opus",
       "duration_sec": 1.2065,
-      "sha256": "64ba177ce08a7a0ffdfe4ac773f0932e575b2c922d8fb88e8ac4daeef8ef9f5e",
+      "sha256": "9723fa77d5cc42ec0074bdeca712d1b480688aa4f9296c8cbe6d6afdf136cd7f",
       "gen_params": {
         "requested": {
           "sample_rate_hz": 48000,
@@ -3060,7 +3060,7 @@
           "tone_hz": 651
         }
       },
-      "rtf": 0.022076
+      "rtf": 0.023354
     },
     {
       "model": "dummy",
@@ -3069,7 +3069,7 @@
       "variant": "dry",
       "path": "audio/dummy/west-crowd/oshaberi-fujin-001-dry.opus",
       "duration_sec": 1.2065,
-      "sha256": "09abd460174ff24b119dbb3d7993e789e8479342a306eb1938138da10dab30e1",
+      "sha256": "3e0ddada136a87538f0bd25dad40f6d370b8b4ec8da808ddb1a9974699c366bd",
       "gen_params": {
         "requested": {
           "sample_rate_hz": 48000,
@@ -3081,7 +3081,7 @@
           "tone_hz": 602
         }
       },
-      "rtf": 0.029299
+      "rtf": 0.036091
     },
     {
       "model": "dummy",
@@ -3090,7 +3090,7 @@
       "variant": "dry",
       "path": "audio/dummy/west-crowd/oshaberi-fujin-002-dry.opus",
       "duration_sec": 1.2065,
-      "sha256": "a042cb53cf87bfd7ccd8cc7f580cf9119d90b5e748a6d6af47507a41e5153b47",
+      "sha256": "26e550c52ca0ffc37c8e6ebc0b2e68a70a8dc4d283a48b028de9b6d162e03006",
       "gen_params": {
         "requested": {
           "sample_rate_hz": 48000,
@@ -3102,7 +3102,7 @@
           "tone_hz": 399
         }
       },
-      "rtf": 0.028676
+      "rtf": 0.034558
     },
     {
       "model": "dummy",
@@ -3111,7 +3111,7 @@
       "variant": "dry",
       "path": "audio/dummy/west-crowd/oshaberi-fujin-003-dry.opus",
       "duration_sec": 1.2065,
-      "sha256": "64cd35cba745fc404f437b1a4f3eaa5aca14c919f2ccc435a905b9febee79107",
+      "sha256": "d7a6e30a5a7fcdc130e98a0f1509cdbd454bc02259cc0dc9d9266182cec451e6",
       "gen_params": {
         "requested": {
           "sample_rate_hz": 48000,
@@ -3123,7 +3123,7 @@
           "tone_hz": 620
         }
       },
-      "rtf": 0.023078
+      "rtf": 0.038738
     },
     {
       "model": "dummy",
@@ -3132,7 +3132,7 @@
       "variant": "dry",
       "path": "audio/dummy/west-crowd/shinbun-shounen-001-dry.opus",
       "duration_sec": 1.2065,
-      "sha256": "ceacda0fb6cb5ace12205b55f3ee42fbd4c71f6580a065d5e01b679d6dca7ada",
+      "sha256": "262781a46004f24be8962712507541b9b9995492e186ce2b114ebf9305d170bc",
       "gen_params": {
         "requested": {
           "sample_rate_hz": 48000,
@@ -3144,7 +3144,7 @@
           "tone_hz": 528
         }
       },
-      "rtf": 0.020275
+      "rtf": 0.04682
     },
     {
       "model": "dummy",
@@ -3153,7 +3153,7 @@
       "variant": "dry",
       "path": "audio/dummy/west-crowd/shinbun-shounen-002-dry.opus",
       "duration_sec": 1.2065,
-      "sha256": "de221c4d4caa1034885050eab699dc785ec1e6c0baaaef6fd6748aa2b9b11b1e",
+      "sha256": "f6063ae3de632e429386fa1e9b472179152918122817862386f63f06e88130fe",
       "gen_params": {
         "requested": {
           "sample_rate_hz": 48000,
@@ -3165,7 +3165,7 @@
           "tone_hz": 435
         }
       },
-      "rtf": 0.023661
+      "rtf": 0.034429
     },
     {
       "model": "dummy",
@@ -3174,7 +3174,7 @@
       "variant": "dry",
       "path": "audio/dummy/west-market/cheese-shujin-001-dry.opus",
       "duration_sec": 1.2065,
-      "sha256": "569d50a4a06648671b465e5eebf7a76b194d46f7aa920c91c6093dcf807808ea",
+      "sha256": "c228fb049595369db3a5b4f9122acfe5165d356959e5635a1d61b468f972d8f7",
       "gen_params": {
         "requested": {
           "sample_rate_hz": 48000,
@@ -3186,7 +3186,7 @@
           "tone_hz": 512
         }
       },
-      "rtf": 0.029411
+      "rtf": 0.029079
     },
     {
       "model": "dummy",
@@ -3195,7 +3195,7 @@
       "variant": "dry",
       "path": "audio/dummy/west-market/cheese-shujin-002-dry.opus",
       "duration_sec": 1.2065,
-      "sha256": "c6eba6548c454b19a24e0ee4d5d3320a5ac5b96f64f474ae299c42143e6c5e9b",
+      "sha256": "f46918b9cc78b96c276a1e020bbb91c12b875ad241f3574976d3f823e2392589",
       "gen_params": {
         "requested": {
           "sample_rate_hz": 48000,
@@ -3207,7 +3207,7 @@
           "tone_hz": 697
         }
       },
-      "rtf": 0.023294
+      "rtf": 0.031188
     },
     {
       "model": "dummy",
@@ -3216,7 +3216,7 @@
       "variant": "dry",
       "path": "audio/dummy/west-market/cheese-shujin-003-dry.opus",
       "duration_sec": 1.2065,
-      "sha256": "c7be6d77ac59ffb9bc4df5c95cd4568747b77e08d7e2811a642a965899d67091",
+      "sha256": "eff6a9f9bae1552e663619a57519b8cbfcf5e28c02ba7bd6290f87889ea316f4",
       "gen_params": {
         "requested": {
           "sample_rate_hz": 48000,
@@ -3228,7 +3228,7 @@
           "tone_hz": 628
         }
       },
-      "rtf": 0.030679
+      "rtf": 0.030719
     },
     {
       "model": "dummy",
@@ -3237,7 +3237,7 @@
       "variant": "dry",
       "path": "audio/dummy/west-market/hana-uri-001-dry.opus",
       "duration_sec": 1.2065,
-      "sha256": "f40bce3d00d66c2bcabc1f963c7f41f403d540a70a6bbefec2641181338642a0",
+      "sha256": "12b44e33e949d5ce4247fe78b3e60256a046e95d645eacdf6a6fda5a63322667",
       "gen_params": {
         "requested": {
           "sample_rate_hz": 48000,
@@ -3249,7 +3249,7 @@
           "tone_hz": 644
         }
       },
-      "rtf": 0.025257
+      "rtf": 0.03051
     },
     {
       "model": "dummy",
@@ -3258,7 +3258,7 @@
       "variant": "dry",
       "path": "audio/dummy/west-market/hana-uri-002-dry.opus",
       "duration_sec": 1.2065,
-      "sha256": "7dc3351f0d66d4b3cc7516c76e3f681d15e31b07927fbc82878172f3c741c3c6",
+      "sha256": "ed713623a03ffa5981f41be469a221ae1e1e672894729e302567dfb9e9609414",
       "gen_params": {
         "requested": {
           "sample_rate_hz": 48000,
@@ -3270,7 +3270,7 @@
           "tone_hz": 392
         }
       },
-      "rtf": 0.021485
+      "rtf": 0.026553
     },
     {
       "model": "dummy",
@@ -3279,7 +3279,7 @@
       "variant": "dry",
       "path": "audio/dummy/west-market/hana-uri-003-dry.opus",
       "duration_sec": 1.2065,
-      "sha256": "1d682b8d18240a97672907211713d17d2f8e8862d0cf55944bbc3c98c05b98de",
+      "sha256": "67e29028f75eccca7e544ae1b2a7f005af3f47971345607378ebf4b1ac99c219",
       "gen_params": {
         "requested": {
           "sample_rate_hz": 48000,
@@ -3291,7 +3291,7 @@
           "tone_hz": 497
         }
       },
-      "rtf": 0.025604
+      "rtf": 0.030325
     },
     {
       "model": "dummy",
@@ -3300,7 +3300,7 @@
       "variant": "dry",
       "path": "audio/dummy/west-market/kankou-fujin-001-dry.opus",
       "duration_sec": 1.2065,
-      "sha256": "bca44e75166fabd473a36a85ca647430cc4dca4d24bed62f74fd7bdfe792637d",
+      "sha256": "6700bf54eea16ac4a3551ad1d89076ddabe08a39ecc782a058abffadbc3713d6",
       "gen_params": {
         "requested": {
           "sample_rate_hz": 48000,
@@ -3312,7 +3312,7 @@
           "tone_hz": 628
         }
       },
-      "rtf": 0.02449
+      "rtf": 0.026156
     },
     {
       "model": "dummy",
@@ -3321,7 +3321,7 @@
       "variant": "dry",
       "path": "audio/dummy/west-market/kankou-fujin-002-dry.opus",
       "duration_sec": 1.2065,
-      "sha256": "b560b4fda293537daa485e9ad35a5156b876a9834498ac1b8e97ac6156716a30",
+      "sha256": "8daf971470f944b1f964b854c42ebbe8c0f1dfefee0bdad13b27fe9d7d75d460",
       "gen_params": {
         "requested": {
           "sample_rate_hz": 48000,
@@ -3333,7 +3333,7 @@
           "tone_hz": 618
         }
       },
-      "rtf": 0.030545
+      "rtf": 0.026469
     },
     {
       "model": "dummy",
@@ -3342,7 +3342,7 @@
       "variant": "dry",
       "path": "audio/dummy/west-market/kankou-fujin-003-dry.opus",
       "duration_sec": 1.2065,
-      "sha256": "c1c539a7290db4113a84264fd2b81841ac9b20458a29e08a1e6d58b55d378a7d",
+      "sha256": "ee6eac05578efa79c3bc2c9430455b988e55ee6f0f8e78d5485c36c00d587215",
       "gen_params": {
         "requested": {
           "sample_rate_hz": 48000,
@@ -3354,7 +3354,7 @@
           "tone_hz": 416
         }
       },
-      "rtf": 0.026134
+      "rtf": 0.025797
     },
     {
       "model": "dummy",
@@ -3363,7 +3363,7 @@
       "variant": "dry",
       "path": "audio/dummy/west-market/kyuuji-001-dry.opus",
       "duration_sec": 1.2065,
-      "sha256": "277c9fdfbca5ac8d0f8f50b04d4fa38886a42c73dbc5c8519ada4430276a241b",
+      "sha256": "1502b04ee0fa7eae9adff390b928a45bc782f204b6854cc5b71d1ce976640d63",
       "gen_params": {
         "requested": {
           "sample_rate_hz": 48000,
@@ -3375,7 +3375,7 @@
           "tone_hz": 527
         }
       },
-      "rtf": 0.030857
+      "rtf": 0.028072
     },
     {
       "model": "dummy",
@@ -3384,7 +3384,7 @@
       "variant": "dry",
       "path": "audio/dummy/west-market/kyuuji-002-dry.opus",
       "duration_sec": 1.2065,
-      "sha256": "efd961eb13e93458790c5f7225988163c4c445d4e5e1e4d86ee55888efaf1ab4",
+      "sha256": "485db1e3f6e899fb86eaf8769bd2ff99c85c2fa8965bffeb822c155124b17810",
       "gen_params": {
         "requested": {
           "sample_rate_hz": 48000,
@@ -3396,7 +3396,7 @@
           "tone_hz": 707
         }
       },
-      "rtf": 0.02878
+      "rtf": 0.024915
     }
   ],
   "failures": []
