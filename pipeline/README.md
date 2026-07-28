@@ -533,3 +533,60 @@ uv run --project pipeline --locked --extra cosyvoice3 gaya gen --model cosyvoice
 [CosyVoice code](https://github.com/QwenAudio/CosyVoice) と [Fun-CosyVoice3-0.5B-2512 weight](https://huggingface.co/FunAudioLLM/Fun-CosyVoice3-0.5B-2512) は Apache-2.0。上流は生成音声の権利条件を別途定義しておらず、固定 code / model card / 論文には内蔵 watermark の開示がない。これは watermark が存在しないことの保証ではない。参照音声は `assets/voices/metadata.yaml` の素材別ライセンス、クレジット、再配布条件にも従い、無断の声真似、詐欺、なりすまし、誤認を招く利用を禁止する。
 
 Windows native 以外、Python / package / cu121 / ORT provider の不一致、code / submodule の revision または clean status 不一致、固定 file の欠落・hash 不一致、予期しない model candidate、参照 WAV 不備、model identity の変化、無効 waveform、OOM は明示的に失敗する。CPU TTS、WSL、別 CUDA wheel、RL / vLLM / TensorRT / JIT / 量子化 weight、ModelScope / Hugging Face download、クラウドへ自動切替しない。
+
+## Supertonic 3
+
+`supertonic-3` は、99M の公式固定 voice を使う Windows CPU / ONNX の軽量 baseline である。検証経路は Windows 11 / Python 3.12 / `supertonic==1.3.1` / `onnxruntime==1.23.1` / `CPUExecutionProvider` のみ。GPU、Voice Builder、Play/API、custom voice、clone、実行時 download は使わない。
+
+```console
+uv sync --project pipeline --locked --extra supertonic3
+```
+
+code の停止告知を含む最終状態は `supertone-inc/supertonic@7e2804f96016a7028cb1ed627353c61c1e9dd281`、SDK は `supertone-inc/supertonic-py@908a56486e821e833a80530ff0cae3ad0b046fce`（1.3.1）として記録する。runtime asset は SDK 1.3.1 が固定する `Supertone/supertonic-3@724fb5abbf5502583fb520898d45929e62f02c0b` を取得する。
+
+```powershell
+hf download Supertone/supertonic-3 `
+  LICENSE README.md config.json `
+  onnx/duration_predictor.onnx `
+  onnx/text_encoder.onnx `
+  onnx/tts.json `
+  onnx/unicode_indexer.json `
+  onnx/vector_estimator.onnx `
+  onnx/vocoder.onnx `
+  voice_styles/F1.json voice_styles/F2.json voice_styles/F3.json `
+  voice_styles/F4.json voice_styles/F5.json `
+  voice_styles/M1.json voice_styles/M2.json voice_styles/M3.json `
+  voice_styles/M4.json voice_styles/M5.json `
+  --revision 724fb5abbf5502583fb520898d45929e62f02c0b `
+  --local-dir models/supertonic/weights-724fb5
+
+$env:GAYA_SUPERTONIC3_ROOT = (
+  Resolve-Path "models/supertonic/weights-724fb5"
+)
+```
+
+adapter は `.cache/` を除く19ファイル、合計401,297,315 bytesを生成前に size / SHA-256 で照合する。root、固定ファイル、preset voice、SDK / ORT / NumPy / SoundFile version、`tts_version=v1.7.3`、44.1kHz、四つの ONNX session のいずれかが不一致なら model load 前後の該当 gate で失敗する。別 snapshot、network、GPU、別 provider へ切り替えない。固定値は `seed=42`、`steps=8`、`speed=1.05`、intra-op 10 threads、inter-op 1 thread である。
+
+| scenario / character | preset |
+| --- | --- |
+| `tavern-night/barmaid` | `F2` |
+| `tavern-night/drunkard` | `M1` |
+| `tavern-night/old-regular` | `M5` |
+| `market-day/fruit-vendor` | `M1` |
+| `market-day/shopper` | `F1` |
+| `market-day/street-kid` | `F2` |
+
+この割当は公式 preset description に基づく固定選択であり、voice diversity の評価軸には使わない。表にない role を gender / age から推測せず失敗する。`line.reading` が non-empty string なら実入力として優先し、それ以外は `line.text` をそのまま使う。emotion、intensity、delivery、character voice、reference voice はモデル入力にしない。公式資料は10個の expression tag を述べるが、公開資料で確認できるのは一部だけなので本 adapter では全 tag を禁止し、capability は reading のみ `true` とする。
+
+```console
+uv run --project pipeline --locked --extra supertonic3 gaya gen --model supertonic-3 --scenario tavern-night
+uv run --project pipeline --locked --extra supertonic3 gaya gen --model supertonic-3 --scenario market-day
+```
+
+2026-07-29 に Windows 11 build 26200、Intel Core i9-10850K（10 cores / 20 logical processors）、Python 3.12.13 で実測した。2シナリオ12行は失敗0件、直後の再実行は各6行すべて skip した。native 出力は44.1kHz mono PCM16、共通後処理後は48kHz monoである。生成 RTF は0.284〜0.455、平均0.354、最終 loudness は -18.04〜-17.97 LUFS、最大 true peak は -1.00 dBTP。Windows process `PeakWorkingSet64` の最大は540,426,240 bytes（515.4 MiB）で、ONNX session は全て `CPUExecutionProvider`、GPU VRAM は使用しない。
+
+[Supertonic code と SDK](https://github.com/supertone-inc/supertonic) は MIT、[公式 weight](https://huggingface.co/Supertone/supertonic-3/tree/724fb5abbf5502583fb520898d45929e62f02c0b) は BigScience Open RAIL-M。これは非商用限定ではなく、通常の商用ゲーム向け事前生成音声を一律には禁止しない。licensor は Output に権利を主張しないが、出力の著作権や第三者非侵害を保証するものではない。
+
+OpenRAIL-M Attachment A(e) により、サイトと将来のゲームでは「一部の音声は AI text-to-speech により機械生成された」ことを明確かつ理解可能な形で開示する。無断の実在人物模倣、なりすまし、害意ある虚偽、嫌がらせ、差別など同 Attachment の禁止用途には使わない。配布物は審査済みの事前生成 WAV / Opus に限定する。ONNX、preset JSON または model derivative を配布する場合は別途、ライセンス全文、notices、変更表示および downstream use restrictions が必要になるため、この baseline の配布設計には含めない。公式資料は watermark を開示していないが、不存在は保証しない。
+
+上流は2026-07-23に今後の開発・公式 support の終了を告知し、Voice Builder / Play / API は2026-08-31に終了予定である。本 baseline は既に保存した固定 asset と offline SDK のみを利用し、これらの service availability を前提にしない。

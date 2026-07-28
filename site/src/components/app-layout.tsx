@@ -59,11 +59,23 @@ export function AppLayout() {
       </header>
 
       <main className="mx-auto max-w-[1480px] px-4 py-5 sm:px-6 sm:py-6">
+        <MachineGeneratedAudioNotice />
         <AudioProvider fallback={<AudioBootShell />}>
           <Outlet />
         </AudioProvider>
       </main>
     </div>
+  );
+}
+
+export function MachineGeneratedAudioNotice() {
+  return (
+    <p
+      className="mb-5 rounded-md border border-primary/25 bg-primary/6 px-3 py-2 text-xs leading-5 text-muted-foreground"
+      role="note"
+    >
+      掲載音声は AI テキスト読み上げ（TTS）により機械生成されています。
+    </p>
   );
 }
 
