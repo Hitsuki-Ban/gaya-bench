@@ -1,6 +1,6 @@
 {
   "format_version": 2,
-  "generated_at": "2026-07-28T14:22:56.649254+00:00",
+  "generated_at": "2026-07-28T15:57:41.500431+00:00",
   "models": [
     {
       "id": "chatterbox-multilingual-v3",
@@ -13,6 +13,19 @@
         "clone": true,
         "nonverbal": false,
         "reading": false
+      }
+    },
+    {
+      "id": "cosyvoice3-0.5b-2512",
+      "name": "CosyVoice 3 0.5B 2512",
+      "version": "CosyVoice 074ca6dc9e80a2f424f1f74b48bdd7d3fea531cc; Matcha-TTS dd9105b34bf2be2230f4aa1e4769fb586a3c824e; FunAudioLLM/Fun-CosyVoice3-0.5B-2512 29e01c4e8d000f4bcd70751be16fa94bf3d85a18",
+      "license_note": "CosyVoice コードと Fun-CosyVoice3-0.5B-2512 公式重みは Apache-2.0。生成音声の権利条件は公式資料に明記されていない。公式ソースは電子透かしを開示していない。参照音声の利用規約・クレジット・再配布条件にも従い、無断の声真似や誤認を招く利用を禁止する。",
+      "capabilities": {
+        "emotion": true,
+        "voice_prompt": false,
+        "clone": true,
+        "nonverbal": false,
+        "reading": true
       }
     },
     {
@@ -1314,6 +1327,2094 @@
       "loudness": {
         "i_lufs": -17.94,
         "tp_dbtp": -0.99,
+        "shortfall": false
+      }
+    },
+    {
+      "model": "cosyvoice3-0.5b-2512",
+      "scenario": "market-day",
+      "line": "fruit-vendor-001",
+      "variant": "dry",
+      "path": "audio/cosyvoice3-0.5b-2512/market-day/fruit-vendor-001-dry.opus",
+      "duration_sec": 5.8865,
+      "sha256": "e87ed6dfbefaa799fb041afb36078a473eeef94efe589fd0d236aa8b1baf261c",
+      "gen_params": {
+        "requested": {
+          "upstream_repository": "QwenAudio/CosyVoice",
+          "upstream_revision": "074ca6dc9e80a2f424f1f74b48bdd7d3fea531cc",
+          "matcha_repository": "shivammehta25/Matcha-TTS",
+          "matcha_revision": "dd9105b34bf2be2230f4aa1e4769fb586a3c824e",
+          "weights_repository": "FunAudioLLM/Fun-CosyVoice3-0.5B-2512",
+          "weights_revision": "29e01c4e8d000f4bcd70751be16fa94bf3d85a18",
+          "code_root_environment": "GAYA_COSYVOICE_CODE_ROOT",
+          "model_root_environment": "GAYA_COSYVOICE3_MODEL_ROOT",
+          "model_files": {
+            "CosyVoice-BlankEN/config.json": {
+              "size": 659,
+              "sha256": "168aa1bd401abc3bc262ba15ba4e499627a8b4e006e9d050b47c22de20660185"
+            },
+            "CosyVoice-BlankEN/generation_config.json": {
+              "size": 242,
+              "sha256": "e558847a8b4402616f1273797b015104dc266fe4b520056fca88823ba8f8ebe6"
+            },
+            "CosyVoice-BlankEN/merges.txt": {
+              "size": 1402109,
+              "sha256": "ac8ff86a72bee70828fbc1119bc4398c6f3a9a6e490d7b0dbe917be025478bd0"
+            },
+            "CosyVoice-BlankEN/model.safetensors": {
+              "size": 988097824,
+              "sha256": "130282af0dfa9fe5840737cc49a0d339d06075f83c5a315c3372c9a0740d0b96"
+            },
+            "CosyVoice-BlankEN/tokenizer_config.json": {
+              "size": 1287,
+              "sha256": "482bd979881423375ca5414e4e0d94cd7c5349dbb17fffd46b4d36d71e62a1bc"
+            },
+            "CosyVoice-BlankEN/vocab.json": {
+              "size": 2776833,
+              "sha256": "ca10d7e9fb3ed18575dd1e277a2579c16d108e32f27439684afa0e10b1440910"
+            },
+            "campplus.onnx": {
+              "size": 28303423,
+              "sha256": "a6ac6a63997761ae2997373e2ee1c47040854b4b759ea41ec48e4e42df0f4d73"
+            },
+            "cosyvoice3.yaml": {
+              "size": 6934,
+              "sha256": "f5a6b2c6f05139d0f18861a1fe506f751e787026b77c05f7e8fef9f8a4405965"
+            },
+            "flow.pt": {
+              "size": 1329116148,
+              "sha256": "a6fab32a7825e5b0bc855ddd948f8db9370b0a786fbc249caa4595e95b608e4b"
+            },
+            "hift.pt": {
+              "size": 83202622,
+              "sha256": "b279d7641eb97ae55b3b540cfba4f953c26492a2df758328a89a4d007ab87a65"
+            },
+            "llm.pt": {
+              "size": 2024669519,
+              "sha256": "69f43bd545131c30e98947fb360ea8b4dc9916d8e83dded7757c7ea4f5a24970"
+            },
+            "speech_tokenizer_v3.onnx": {
+              "size": 969451503,
+              "sha256": "23236a74175dbdda47afc66dbadd5bcb41303c467a57c261cb8539ad9db9208d"
+            }
+          },
+          "architecture": "CosyVoice3",
+          "model_architecture": "CosyVoice3Model",
+          "device": "cuda:0",
+          "sample_rate_hz": 24000,
+          "torch_version": "2.3.1+cu121",
+          "torchaudio_version": "2.3.1+cu121",
+          "cuda_version": "12.1",
+          "onnxruntime_gpu_version": "1.18.0",
+          "transformers_version": "4.51.3",
+          "numpy_version": "1.26.4",
+          "soundfile_version": "0.12.1",
+          "modelscope_version": "1.20.0",
+          "seed": 1986,
+          "fp16": true,
+          "load_trt": false,
+          "load_vllm": false,
+          "stream": false,
+          "speed": 1.0,
+          "text_frontend": false,
+          "zero_shot_speaker_id": "",
+          "offline_environment": {
+            "HF_HUB_OFFLINE": "1",
+            "TRANSFORMERS_OFFLINE": "1",
+            "MODELSCOPE_OFFLINE": "1"
+          },
+          "emotion_instructions": {
+            "neutral": "a neutral emotion",
+            "cheerful": "a cheerful emotion",
+            "angry": "an angry emotion",
+            "sad": "a sad emotion",
+            "fearful": "a fearful emotion",
+            "surprised": "a surprised emotion",
+            "tired": "a tired emotion",
+            "drunk": "a drunken emotion",
+            "whisper": "a whispering delivery",
+            "shout": "a shouting delivery",
+            "laughing": "a laughing delivery",
+            "pain": "an emotion of pain"
+          },
+          "intensity_instructions": {
+            "1": "slightly",
+            "2": "clearly",
+            "3": "strongly"
+          },
+          "instruction_prefix": "You are a helpful assistant. Speak in Japanese",
+          "instruction_delivery_prefix": "Follow this delivery direction exactly:",
+          "instruction_end": "<|endofprompt|>",
+          "reference_assignments": {
+            "tavern-night/drunkard": "hadou-emotion-11",
+            "tavern-night/old-regular": "hadou-emotion-11",
+            "market-day/fruit-vendor": "hadou-emotion-11",
+            "market-day/shopper": "lux-emotion-76",
+            "market-day/street-kid": "tsukuyomi-corpus-94"
+          },
+          "watermark_disclosed_by_official_source": false
+        },
+        "realized": {
+          "phase_peak_vram_mib": {
+            "runtime_load": {
+              "allocated_mib": 3370.4365234375,
+              "reserved_mib": 3482.0
+            },
+            "generation": {
+              "allocated_mib": 4268.37255859375,
+              "reserved_mib": 5256.0
+            }
+          },
+          "providers": {
+            "speech_tokenizer": [
+              "CUDAExecutionProvider",
+              "CPUExecutionProvider"
+            ],
+            "campplus": [
+              "CPUExecutionProvider"
+            ]
+          },
+          "seed": 1986,
+          "fp16": true,
+          "stream": false,
+          "speed": 1.0,
+          "text_frontend": false,
+          "sample_rate_hz": 24000,
+          "samples": 141120,
+          "duration_sec": 5.88,
+          "source_text": "安いよ安いよ！今朝もぎのリンゴだよ！",
+          "tts_text": "ヤスイヨヤスイヨ！ケサモギノリンゴダヨ！",
+          "reading_source": "pyopenjtalk.g2p(kana=True)",
+          "instruction": "You are a helpful assistant. Speak in Japanese strongly with a shouting delivery. Follow this delivery direction exactly: 通り全体に届く呼び込み。リズムがあり、張っているが濁らない。<|endofprompt|>",
+          "emotion": "shout",
+          "intensity": 3,
+          "delivery": "通り全体に届く呼び込み。リズムがあり、張っているが濁らない。",
+          "reference_selection_source": "adapter.assignment:market-day/fruit-vendor",
+          "reference_voice": "hadou-emotion-11",
+          "reference_sha256": "e98033d63f847c4113d8b47e264bca82f38212519da8d62661133847b3d221bc",
+          "reference_samples": 480192,
+          "reference_duration_sec": 10.004,
+          "watermark_disclosed_by_official_source": false
+        }
+      },
+      "rtf": 8.602992,
+      "loudness": {
+        "i_lufs": -17.99,
+        "tp_dbtp": -1.62,
+        "shortfall": false
+      }
+    },
+    {
+      "model": "cosyvoice3-0.5b-2512",
+      "scenario": "market-day",
+      "line": "fruit-vendor-002",
+      "variant": "dry",
+      "path": "audio/cosyvoice3-0.5b-2512/market-day/fruit-vendor-002-dry.opus",
+      "duration_sec": 4.4465,
+      "sha256": "aa04cc5b892b8c24f3d841f9d6361edf8b29b3eb7e5cbc86a390919c4fc0d39e",
+      "gen_params": {
+        "requested": {
+          "upstream_repository": "QwenAudio/CosyVoice",
+          "upstream_revision": "074ca6dc9e80a2f424f1f74b48bdd7d3fea531cc",
+          "matcha_repository": "shivammehta25/Matcha-TTS",
+          "matcha_revision": "dd9105b34bf2be2230f4aa1e4769fb586a3c824e",
+          "weights_repository": "FunAudioLLM/Fun-CosyVoice3-0.5B-2512",
+          "weights_revision": "29e01c4e8d000f4bcd70751be16fa94bf3d85a18",
+          "code_root_environment": "GAYA_COSYVOICE_CODE_ROOT",
+          "model_root_environment": "GAYA_COSYVOICE3_MODEL_ROOT",
+          "model_files": {
+            "CosyVoice-BlankEN/config.json": {
+              "size": 659,
+              "sha256": "168aa1bd401abc3bc262ba15ba4e499627a8b4e006e9d050b47c22de20660185"
+            },
+            "CosyVoice-BlankEN/generation_config.json": {
+              "size": 242,
+              "sha256": "e558847a8b4402616f1273797b015104dc266fe4b520056fca88823ba8f8ebe6"
+            },
+            "CosyVoice-BlankEN/merges.txt": {
+              "size": 1402109,
+              "sha256": "ac8ff86a72bee70828fbc1119bc4398c6f3a9a6e490d7b0dbe917be025478bd0"
+            },
+            "CosyVoice-BlankEN/model.safetensors": {
+              "size": 988097824,
+              "sha256": "130282af0dfa9fe5840737cc49a0d339d06075f83c5a315c3372c9a0740d0b96"
+            },
+            "CosyVoice-BlankEN/tokenizer_config.json": {
+              "size": 1287,
+              "sha256": "482bd979881423375ca5414e4e0d94cd7c5349dbb17fffd46b4d36d71e62a1bc"
+            },
+            "CosyVoice-BlankEN/vocab.json": {
+              "size": 2776833,
+              "sha256": "ca10d7e9fb3ed18575dd1e277a2579c16d108e32f27439684afa0e10b1440910"
+            },
+            "campplus.onnx": {
+              "size": 28303423,
+              "sha256": "a6ac6a63997761ae2997373e2ee1c47040854b4b759ea41ec48e4e42df0f4d73"
+            },
+            "cosyvoice3.yaml": {
+              "size": 6934,
+              "sha256": "f5a6b2c6f05139d0f18861a1fe506f751e787026b77c05f7e8fef9f8a4405965"
+            },
+            "flow.pt": {
+              "size": 1329116148,
+              "sha256": "a6fab32a7825e5b0bc855ddd948f8db9370b0a786fbc249caa4595e95b608e4b"
+            },
+            "hift.pt": {
+              "size": 83202622,
+              "sha256": "b279d7641eb97ae55b3b540cfba4f953c26492a2df758328a89a4d007ab87a65"
+            },
+            "llm.pt": {
+              "size": 2024669519,
+              "sha256": "69f43bd545131c30e98947fb360ea8b4dc9916d8e83dded7757c7ea4f5a24970"
+            },
+            "speech_tokenizer_v3.onnx": {
+              "size": 969451503,
+              "sha256": "23236a74175dbdda47afc66dbadd5bcb41303c467a57c261cb8539ad9db9208d"
+            }
+          },
+          "architecture": "CosyVoice3",
+          "model_architecture": "CosyVoice3Model",
+          "device": "cuda:0",
+          "sample_rate_hz": 24000,
+          "torch_version": "2.3.1+cu121",
+          "torchaudio_version": "2.3.1+cu121",
+          "cuda_version": "12.1",
+          "onnxruntime_gpu_version": "1.18.0",
+          "transformers_version": "4.51.3",
+          "numpy_version": "1.26.4",
+          "soundfile_version": "0.12.1",
+          "modelscope_version": "1.20.0",
+          "seed": 1986,
+          "fp16": true,
+          "load_trt": false,
+          "load_vllm": false,
+          "stream": false,
+          "speed": 1.0,
+          "text_frontend": false,
+          "zero_shot_speaker_id": "",
+          "offline_environment": {
+            "HF_HUB_OFFLINE": "1",
+            "TRANSFORMERS_OFFLINE": "1",
+            "MODELSCOPE_OFFLINE": "1"
+          },
+          "emotion_instructions": {
+            "neutral": "a neutral emotion",
+            "cheerful": "a cheerful emotion",
+            "angry": "an angry emotion",
+            "sad": "a sad emotion",
+            "fearful": "a fearful emotion",
+            "surprised": "a surprised emotion",
+            "tired": "a tired emotion",
+            "drunk": "a drunken emotion",
+            "whisper": "a whispering delivery",
+            "shout": "a shouting delivery",
+            "laughing": "a laughing delivery",
+            "pain": "an emotion of pain"
+          },
+          "intensity_instructions": {
+            "1": "slightly",
+            "2": "clearly",
+            "3": "strongly"
+          },
+          "instruction_prefix": "You are a helpful assistant. Speak in Japanese",
+          "instruction_delivery_prefix": "Follow this delivery direction exactly:",
+          "instruction_end": "<|endofprompt|>",
+          "reference_assignments": {
+            "tavern-night/drunkard": "hadou-emotion-11",
+            "tavern-night/old-regular": "hadou-emotion-11",
+            "market-day/fruit-vendor": "hadou-emotion-11",
+            "market-day/shopper": "lux-emotion-76",
+            "market-day/street-kid": "tsukuyomi-corpus-94"
+          },
+          "watermark_disclosed_by_official_source": false
+        },
+        "realized": {
+          "phase_peak_vram_mib": {
+            "runtime_load": {
+              "allocated_mib": 3370.4365234375,
+              "reserved_mib": 3482.0
+            },
+            "generation": {
+              "allocated_mib": 4293.86767578125,
+              "reserved_mib": 5210.0
+            }
+          },
+          "providers": {
+            "speech_tokenizer": [
+              "CUDAExecutionProvider",
+              "CPUExecutionProvider"
+            ],
+            "campplus": [
+              "CPUExecutionProvider"
+            ]
+          },
+          "seed": 1986,
+          "fp16": true,
+          "stream": false,
+          "speed": 1.0,
+          "text_frontend": false,
+          "sample_rate_hz": 24000,
+          "samples": 106560,
+          "duration_sec": 4.44,
+          "source_text": "お、姐さんお目が高いね！",
+          "tts_text": "オ、ネーサンオメガタカイネ！",
+          "reading_source": "pyopenjtalk.g2p(kana=True)",
+          "instruction": "You are a helpful assistant. Speak in Japanese clearly with a cheerful emotion. Follow this delivery direction exactly: 客への軽口。呼び込みより一段落とした商売声。<|endofprompt|>",
+          "emotion": "cheerful",
+          "intensity": 2,
+          "delivery": "客への軽口。呼び込みより一段落とした商売声。",
+          "reference_selection_source": "adapter.assignment:market-day/fruit-vendor",
+          "reference_voice": "hadou-emotion-11",
+          "reference_sha256": "e98033d63f847c4113d8b47e264bca82f38212519da8d62661133847b3d221bc",
+          "reference_samples": 480192,
+          "reference_duration_sec": 10.004,
+          "watermark_disclosed_by_official_source": false
+        }
+      },
+      "rtf": 1.561546,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -3.27,
+        "shortfall": false
+      }
+    },
+    {
+      "model": "cosyvoice3-0.5b-2512",
+      "scenario": "market-day",
+      "line": "shopper-001",
+      "variant": "dry",
+      "path": "audio/cosyvoice3-0.5b-2512/market-day/shopper-001-dry.opus",
+      "duration_sec": 9.4865,
+      "sha256": "3c29467fb326c0885cb025f3fc1871526019c6985c0557e17e629cc902657750",
+      "gen_params": {
+        "requested": {
+          "upstream_repository": "QwenAudio/CosyVoice",
+          "upstream_revision": "074ca6dc9e80a2f424f1f74b48bdd7d3fea531cc",
+          "matcha_repository": "shivammehta25/Matcha-TTS",
+          "matcha_revision": "dd9105b34bf2be2230f4aa1e4769fb586a3c824e",
+          "weights_repository": "FunAudioLLM/Fun-CosyVoice3-0.5B-2512",
+          "weights_revision": "29e01c4e8d000f4bcd70751be16fa94bf3d85a18",
+          "code_root_environment": "GAYA_COSYVOICE_CODE_ROOT",
+          "model_root_environment": "GAYA_COSYVOICE3_MODEL_ROOT",
+          "model_files": {
+            "CosyVoice-BlankEN/config.json": {
+              "size": 659,
+              "sha256": "168aa1bd401abc3bc262ba15ba4e499627a8b4e006e9d050b47c22de20660185"
+            },
+            "CosyVoice-BlankEN/generation_config.json": {
+              "size": 242,
+              "sha256": "e558847a8b4402616f1273797b015104dc266fe4b520056fca88823ba8f8ebe6"
+            },
+            "CosyVoice-BlankEN/merges.txt": {
+              "size": 1402109,
+              "sha256": "ac8ff86a72bee70828fbc1119bc4398c6f3a9a6e490d7b0dbe917be025478bd0"
+            },
+            "CosyVoice-BlankEN/model.safetensors": {
+              "size": 988097824,
+              "sha256": "130282af0dfa9fe5840737cc49a0d339d06075f83c5a315c3372c9a0740d0b96"
+            },
+            "CosyVoice-BlankEN/tokenizer_config.json": {
+              "size": 1287,
+              "sha256": "482bd979881423375ca5414e4e0d94cd7c5349dbb17fffd46b4d36d71e62a1bc"
+            },
+            "CosyVoice-BlankEN/vocab.json": {
+              "size": 2776833,
+              "sha256": "ca10d7e9fb3ed18575dd1e277a2579c16d108e32f27439684afa0e10b1440910"
+            },
+            "campplus.onnx": {
+              "size": 28303423,
+              "sha256": "a6ac6a63997761ae2997373e2ee1c47040854b4b759ea41ec48e4e42df0f4d73"
+            },
+            "cosyvoice3.yaml": {
+              "size": 6934,
+              "sha256": "f5a6b2c6f05139d0f18861a1fe506f751e787026b77c05f7e8fef9f8a4405965"
+            },
+            "flow.pt": {
+              "size": 1329116148,
+              "sha256": "a6fab32a7825e5b0bc855ddd948f8db9370b0a786fbc249caa4595e95b608e4b"
+            },
+            "hift.pt": {
+              "size": 83202622,
+              "sha256": "b279d7641eb97ae55b3b540cfba4f953c26492a2df758328a89a4d007ab87a65"
+            },
+            "llm.pt": {
+              "size": 2024669519,
+              "sha256": "69f43bd545131c30e98947fb360ea8b4dc9916d8e83dded7757c7ea4f5a24970"
+            },
+            "speech_tokenizer_v3.onnx": {
+              "size": 969451503,
+              "sha256": "23236a74175dbdda47afc66dbadd5bcb41303c467a57c261cb8539ad9db9208d"
+            }
+          },
+          "architecture": "CosyVoice3",
+          "model_architecture": "CosyVoice3Model",
+          "device": "cuda:0",
+          "sample_rate_hz": 24000,
+          "torch_version": "2.3.1+cu121",
+          "torchaudio_version": "2.3.1+cu121",
+          "cuda_version": "12.1",
+          "onnxruntime_gpu_version": "1.18.0",
+          "transformers_version": "4.51.3",
+          "numpy_version": "1.26.4",
+          "soundfile_version": "0.12.1",
+          "modelscope_version": "1.20.0",
+          "seed": 1986,
+          "fp16": true,
+          "load_trt": false,
+          "load_vllm": false,
+          "stream": false,
+          "speed": 1.0,
+          "text_frontend": false,
+          "zero_shot_speaker_id": "",
+          "offline_environment": {
+            "HF_HUB_OFFLINE": "1",
+            "TRANSFORMERS_OFFLINE": "1",
+            "MODELSCOPE_OFFLINE": "1"
+          },
+          "emotion_instructions": {
+            "neutral": "a neutral emotion",
+            "cheerful": "a cheerful emotion",
+            "angry": "an angry emotion",
+            "sad": "a sad emotion",
+            "fearful": "a fearful emotion",
+            "surprised": "a surprised emotion",
+            "tired": "a tired emotion",
+            "drunk": "a drunken emotion",
+            "whisper": "a whispering delivery",
+            "shout": "a shouting delivery",
+            "laughing": "a laughing delivery",
+            "pain": "an emotion of pain"
+          },
+          "intensity_instructions": {
+            "1": "slightly",
+            "2": "clearly",
+            "3": "strongly"
+          },
+          "instruction_prefix": "You are a helpful assistant. Speak in Japanese",
+          "instruction_delivery_prefix": "Follow this delivery direction exactly:",
+          "instruction_end": "<|endofprompt|>",
+          "reference_assignments": {
+            "tavern-night/drunkard": "hadou-emotion-11",
+            "tavern-night/old-regular": "hadou-emotion-11",
+            "market-day/fruit-vendor": "hadou-emotion-11",
+            "market-day/shopper": "lux-emotion-76",
+            "market-day/street-kid": "tsukuyomi-corpus-94"
+          },
+          "watermark_disclosed_by_official_source": false
+        },
+        "realized": {
+          "phase_peak_vram_mib": {
+            "runtime_load": {
+              "allocated_mib": 3370.4365234375,
+              "reserved_mib": 3482.0
+            },
+            "generation": {
+              "allocated_mib": 4296.30712890625,
+              "reserved_mib": 5260.0
+            }
+          },
+          "providers": {
+            "speech_tokenizer": [
+              "CUDAExecutionProvider",
+              "CPUExecutionProvider"
+            ],
+            "campplus": [
+              "CPUExecutionProvider"
+            ]
+          },
+          "seed": 1986,
+          "fp16": true,
+          "stream": false,
+          "speed": 1.0,
+          "text_frontend": false,
+          "sample_rate_hz": 24000,
+          "samples": 227520,
+          "duration_sec": 9.48,
+          "source_text": "あら、こっちのほうが新鮮じゃないの。",
+          "tts_text": "アラ、コッチノホーガシンセンジャナイノ。",
+          "reading_source": "pyopenjtalk.g2p(kana=True)",
+          "instruction": "You are a helpful assistant. Speak in Japanese clearly with a neutral emotion. Follow this delivery direction exactly: 独り言まじりの品定め。語尾に少し得意げな色。<|endofprompt|>",
+          "emotion": "neutral",
+          "intensity": 2,
+          "delivery": "独り言まじりの品定め。語尾に少し得意げな色。",
+          "reference_selection_source": "adapter.assignment:market-day/shopper",
+          "reference_voice": "lux-emotion-76",
+          "reference_sha256": "432de3f3fb40c5838a80e5fb509977176352a8db03a10e8fb37cca1e83bcc4b5",
+          "reference_samples": 537000,
+          "reference_duration_sec": 11.1875,
+          "watermark_disclosed_by_official_source": false
+        }
+      },
+      "rtf": 1.902106,
+      "loudness": {
+        "i_lufs": -18.16,
+        "tp_dbtp": -1.0,
+        "shortfall": false
+      }
+    },
+    {
+      "model": "cosyvoice3-0.5b-2512",
+      "scenario": "market-day",
+      "line": "shopper-002",
+      "variant": "dry",
+      "path": "audio/cosyvoice3-0.5b-2512/market-day/shopper-002-dry.opus",
+      "duration_sec": 6.7265,
+      "sha256": "bd8095d0dfe8a36cd6cfa3e86430cda57f1f2e4f3b9bde07492bd315f7823276",
+      "gen_params": {
+        "requested": {
+          "upstream_repository": "QwenAudio/CosyVoice",
+          "upstream_revision": "074ca6dc9e80a2f424f1f74b48bdd7d3fea531cc",
+          "matcha_repository": "shivammehta25/Matcha-TTS",
+          "matcha_revision": "dd9105b34bf2be2230f4aa1e4769fb586a3c824e",
+          "weights_repository": "FunAudioLLM/Fun-CosyVoice3-0.5B-2512",
+          "weights_revision": "29e01c4e8d000f4bcd70751be16fa94bf3d85a18",
+          "code_root_environment": "GAYA_COSYVOICE_CODE_ROOT",
+          "model_root_environment": "GAYA_COSYVOICE3_MODEL_ROOT",
+          "model_files": {
+            "CosyVoice-BlankEN/config.json": {
+              "size": 659,
+              "sha256": "168aa1bd401abc3bc262ba15ba4e499627a8b4e006e9d050b47c22de20660185"
+            },
+            "CosyVoice-BlankEN/generation_config.json": {
+              "size": 242,
+              "sha256": "e558847a8b4402616f1273797b015104dc266fe4b520056fca88823ba8f8ebe6"
+            },
+            "CosyVoice-BlankEN/merges.txt": {
+              "size": 1402109,
+              "sha256": "ac8ff86a72bee70828fbc1119bc4398c6f3a9a6e490d7b0dbe917be025478bd0"
+            },
+            "CosyVoice-BlankEN/model.safetensors": {
+              "size": 988097824,
+              "sha256": "130282af0dfa9fe5840737cc49a0d339d06075f83c5a315c3372c9a0740d0b96"
+            },
+            "CosyVoice-BlankEN/tokenizer_config.json": {
+              "size": 1287,
+              "sha256": "482bd979881423375ca5414e4e0d94cd7c5349dbb17fffd46b4d36d71e62a1bc"
+            },
+            "CosyVoice-BlankEN/vocab.json": {
+              "size": 2776833,
+              "sha256": "ca10d7e9fb3ed18575dd1e277a2579c16d108e32f27439684afa0e10b1440910"
+            },
+            "campplus.onnx": {
+              "size": 28303423,
+              "sha256": "a6ac6a63997761ae2997373e2ee1c47040854b4b759ea41ec48e4e42df0f4d73"
+            },
+            "cosyvoice3.yaml": {
+              "size": 6934,
+              "sha256": "f5a6b2c6f05139d0f18861a1fe506f751e787026b77c05f7e8fef9f8a4405965"
+            },
+            "flow.pt": {
+              "size": 1329116148,
+              "sha256": "a6fab32a7825e5b0bc855ddd948f8db9370b0a786fbc249caa4595e95b608e4b"
+            },
+            "hift.pt": {
+              "size": 83202622,
+              "sha256": "b279d7641eb97ae55b3b540cfba4f953c26492a2df758328a89a4d007ab87a65"
+            },
+            "llm.pt": {
+              "size": 2024669519,
+              "sha256": "69f43bd545131c30e98947fb360ea8b4dc9916d8e83dded7757c7ea4f5a24970"
+            },
+            "speech_tokenizer_v3.onnx": {
+              "size": 969451503,
+              "sha256": "23236a74175dbdda47afc66dbadd5bcb41303c467a57c261cb8539ad9db9208d"
+            }
+          },
+          "architecture": "CosyVoice3",
+          "model_architecture": "CosyVoice3Model",
+          "device": "cuda:0",
+          "sample_rate_hz": 24000,
+          "torch_version": "2.3.1+cu121",
+          "torchaudio_version": "2.3.1+cu121",
+          "cuda_version": "12.1",
+          "onnxruntime_gpu_version": "1.18.0",
+          "transformers_version": "4.51.3",
+          "numpy_version": "1.26.4",
+          "soundfile_version": "0.12.1",
+          "modelscope_version": "1.20.0",
+          "seed": 1986,
+          "fp16": true,
+          "load_trt": false,
+          "load_vllm": false,
+          "stream": false,
+          "speed": 1.0,
+          "text_frontend": false,
+          "zero_shot_speaker_id": "",
+          "offline_environment": {
+            "HF_HUB_OFFLINE": "1",
+            "TRANSFORMERS_OFFLINE": "1",
+            "MODELSCOPE_OFFLINE": "1"
+          },
+          "emotion_instructions": {
+            "neutral": "a neutral emotion",
+            "cheerful": "a cheerful emotion",
+            "angry": "an angry emotion",
+            "sad": "a sad emotion",
+            "fearful": "a fearful emotion",
+            "surprised": "a surprised emotion",
+            "tired": "a tired emotion",
+            "drunk": "a drunken emotion",
+            "whisper": "a whispering delivery",
+            "shout": "a shouting delivery",
+            "laughing": "a laughing delivery",
+            "pain": "an emotion of pain"
+          },
+          "intensity_instructions": {
+            "1": "slightly",
+            "2": "clearly",
+            "3": "strongly"
+          },
+          "instruction_prefix": "You are a helpful assistant. Speak in Japanese",
+          "instruction_delivery_prefix": "Follow this delivery direction exactly:",
+          "instruction_end": "<|endofprompt|>",
+          "reference_assignments": {
+            "tavern-night/drunkard": "hadou-emotion-11",
+            "tavern-night/old-regular": "hadou-emotion-11",
+            "market-day/fruit-vendor": "hadou-emotion-11",
+            "market-day/shopper": "lux-emotion-76",
+            "market-day/street-kid": "tsukuyomi-corpus-94"
+          },
+          "watermark_disclosed_by_official_source": false
+        },
+        "realized": {
+          "phase_peak_vram_mib": {
+            "runtime_load": {
+              "allocated_mib": 3370.4365234375,
+              "reserved_mib": 3482.0
+            },
+            "generation": {
+              "allocated_mib": 4294.29052734375,
+              "reserved_mib": 5258.0
+            }
+          },
+          "providers": {
+            "speech_tokenizer": [
+              "CUDAExecutionProvider",
+              "CPUExecutionProvider"
+            ],
+            "campplus": [
+              "CPUExecutionProvider"
+            ]
+          },
+          "seed": 1986,
+          "fp16": true,
+          "stream": false,
+          "speed": 1.0,
+          "text_frontend": false,
+          "sample_rate_hz": 24000,
+          "samples": 161280,
+          "duration_sec": 6.72,
+          "source_text": "もうちょっと、まからないの？",
+          "tts_text": "モーチョット、マカラナイノ？",
+          "reading_source": "pyopenjtalk.g2p(kana=True)",
+          "instruction": "You are a helpful assistant. Speak in Japanese slightly with a cheerful emotion. Follow this delivery direction exactly: 冗談めかした値切り。上目遣いの甘え声だが本気。<|endofprompt|>",
+          "emotion": "cheerful",
+          "intensity": 1,
+          "delivery": "冗談めかした値切り。上目遣いの甘え声だが本気。",
+          "reference_selection_source": "adapter.assignment:market-day/shopper",
+          "reference_voice": "lux-emotion-76",
+          "reference_sha256": "432de3f3fb40c5838a80e5fb509977176352a8db03a10e8fb37cca1e83bcc4b5",
+          "reference_samples": 537000,
+          "reference_duration_sec": 11.1875,
+          "watermark_disclosed_by_official_source": false
+        }
+      },
+      "rtf": 1.549496,
+      "loudness": {
+        "i_lufs": -18.19,
+        "tp_dbtp": -1.0,
+        "shortfall": false
+      }
+    },
+    {
+      "model": "cosyvoice3-0.5b-2512",
+      "scenario": "market-day",
+      "line": "street-kid-001",
+      "variant": "dry",
+      "path": "audio/cosyvoice3-0.5b-2512/market-day/street-kid-001-dry.opus",
+      "duration_sec": 6.0865,
+      "sha256": "898cca30ec202a8080644b1a19dad9b03c98da6e0dc94e1078c73cfbd848e512",
+      "gen_params": {
+        "requested": {
+          "upstream_repository": "QwenAudio/CosyVoice",
+          "upstream_revision": "074ca6dc9e80a2f424f1f74b48bdd7d3fea531cc",
+          "matcha_repository": "shivammehta25/Matcha-TTS",
+          "matcha_revision": "dd9105b34bf2be2230f4aa1e4769fb586a3c824e",
+          "weights_repository": "FunAudioLLM/Fun-CosyVoice3-0.5B-2512",
+          "weights_revision": "29e01c4e8d000f4bcd70751be16fa94bf3d85a18",
+          "code_root_environment": "GAYA_COSYVOICE_CODE_ROOT",
+          "model_root_environment": "GAYA_COSYVOICE3_MODEL_ROOT",
+          "model_files": {
+            "CosyVoice-BlankEN/config.json": {
+              "size": 659,
+              "sha256": "168aa1bd401abc3bc262ba15ba4e499627a8b4e006e9d050b47c22de20660185"
+            },
+            "CosyVoice-BlankEN/generation_config.json": {
+              "size": 242,
+              "sha256": "e558847a8b4402616f1273797b015104dc266fe4b520056fca88823ba8f8ebe6"
+            },
+            "CosyVoice-BlankEN/merges.txt": {
+              "size": 1402109,
+              "sha256": "ac8ff86a72bee70828fbc1119bc4398c6f3a9a6e490d7b0dbe917be025478bd0"
+            },
+            "CosyVoice-BlankEN/model.safetensors": {
+              "size": 988097824,
+              "sha256": "130282af0dfa9fe5840737cc49a0d339d06075f83c5a315c3372c9a0740d0b96"
+            },
+            "CosyVoice-BlankEN/tokenizer_config.json": {
+              "size": 1287,
+              "sha256": "482bd979881423375ca5414e4e0d94cd7c5349dbb17fffd46b4d36d71e62a1bc"
+            },
+            "CosyVoice-BlankEN/vocab.json": {
+              "size": 2776833,
+              "sha256": "ca10d7e9fb3ed18575dd1e277a2579c16d108e32f27439684afa0e10b1440910"
+            },
+            "campplus.onnx": {
+              "size": 28303423,
+              "sha256": "a6ac6a63997761ae2997373e2ee1c47040854b4b759ea41ec48e4e42df0f4d73"
+            },
+            "cosyvoice3.yaml": {
+              "size": 6934,
+              "sha256": "f5a6b2c6f05139d0f18861a1fe506f751e787026b77c05f7e8fef9f8a4405965"
+            },
+            "flow.pt": {
+              "size": 1329116148,
+              "sha256": "a6fab32a7825e5b0bc855ddd948f8db9370b0a786fbc249caa4595e95b608e4b"
+            },
+            "hift.pt": {
+              "size": 83202622,
+              "sha256": "b279d7641eb97ae55b3b540cfba4f953c26492a2df758328a89a4d007ab87a65"
+            },
+            "llm.pt": {
+              "size": 2024669519,
+              "sha256": "69f43bd545131c30e98947fb360ea8b4dc9916d8e83dded7757c7ea4f5a24970"
+            },
+            "speech_tokenizer_v3.onnx": {
+              "size": 969451503,
+              "sha256": "23236a74175dbdda47afc66dbadd5bcb41303c467a57c261cb8539ad9db9208d"
+            }
+          },
+          "architecture": "CosyVoice3",
+          "model_architecture": "CosyVoice3Model",
+          "device": "cuda:0",
+          "sample_rate_hz": 24000,
+          "torch_version": "2.3.1+cu121",
+          "torchaudio_version": "2.3.1+cu121",
+          "cuda_version": "12.1",
+          "onnxruntime_gpu_version": "1.18.0",
+          "transformers_version": "4.51.3",
+          "numpy_version": "1.26.4",
+          "soundfile_version": "0.12.1",
+          "modelscope_version": "1.20.0",
+          "seed": 1986,
+          "fp16": true,
+          "load_trt": false,
+          "load_vllm": false,
+          "stream": false,
+          "speed": 1.0,
+          "text_frontend": false,
+          "zero_shot_speaker_id": "",
+          "offline_environment": {
+            "HF_HUB_OFFLINE": "1",
+            "TRANSFORMERS_OFFLINE": "1",
+            "MODELSCOPE_OFFLINE": "1"
+          },
+          "emotion_instructions": {
+            "neutral": "a neutral emotion",
+            "cheerful": "a cheerful emotion",
+            "angry": "an angry emotion",
+            "sad": "a sad emotion",
+            "fearful": "a fearful emotion",
+            "surprised": "a surprised emotion",
+            "tired": "a tired emotion",
+            "drunk": "a drunken emotion",
+            "whisper": "a whispering delivery",
+            "shout": "a shouting delivery",
+            "laughing": "a laughing delivery",
+            "pain": "an emotion of pain"
+          },
+          "intensity_instructions": {
+            "1": "slightly",
+            "2": "clearly",
+            "3": "strongly"
+          },
+          "instruction_prefix": "You are a helpful assistant. Speak in Japanese",
+          "instruction_delivery_prefix": "Follow this delivery direction exactly:",
+          "instruction_end": "<|endofprompt|>",
+          "reference_assignments": {
+            "tavern-night/drunkard": "hadou-emotion-11",
+            "tavern-night/old-regular": "hadou-emotion-11",
+            "market-day/fruit-vendor": "hadou-emotion-11",
+            "market-day/shopper": "lux-emotion-76",
+            "market-day/street-kid": "tsukuyomi-corpus-94"
+          },
+          "watermark_disclosed_by_official_source": false
+        },
+        "realized": {
+          "phase_peak_vram_mib": {
+            "runtime_load": {
+              "allocated_mib": 3370.4365234375,
+              "reserved_mib": 3482.0
+            },
+            "generation": {
+              "allocated_mib": 4293.2587890625,
+              "reserved_mib": 5268.0
+            }
+          },
+          "providers": {
+            "speech_tokenizer": [
+              "CUDAExecutionProvider",
+              "CPUExecutionProvider"
+            ],
+            "campplus": [
+              "CPUExecutionProvider"
+            ]
+          },
+          "seed": 1986,
+          "fp16": true,
+          "stream": false,
+          "speed": 1.0,
+          "text_frontend": false,
+          "sample_rate_hz": 24000,
+          "samples": 145920,
+          "duration_sec": 6.08,
+          "source_text": "わーっ！ごめんよおじさん！",
+          "tts_text": "ワーッ！ゴメンヨオジサン！",
+          "reading_source": "pyopenjtalk.g2p(kana=True)",
+          "instruction": "You are a helpful assistant. Speak in Japanese strongly with a surprised emotion. Follow this delivery direction exactly: 走りながら叫ぶ。悪びれない明るい謝罪。<|endofprompt|>",
+          "emotion": "surprised",
+          "intensity": 3,
+          "delivery": "走りながら叫ぶ。悪びれない明るい謝罪。",
+          "reference_selection_source": "adapter.assignment:market-day/street-kid",
+          "reference_voice": "tsukuyomi-corpus-94",
+          "reference_sha256": "06547a71a939b3355985d32c59dc703bad06e4ea044550342bb8b4e6513d4777",
+          "reference_samples": 645580,
+          "reference_duration_sec": 13.449583333333333,
+          "watermark_disclosed_by_official_source": false
+        }
+      },
+      "rtf": 2.206792,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -3.31,
+        "shortfall": false
+      }
+    },
+    {
+      "model": "cosyvoice3-0.5b-2512",
+      "scenario": "market-day",
+      "line": "street-kid-002",
+      "variant": "dry",
+      "path": "audio/cosyvoice3-0.5b-2512/market-day/street-kid-002-dry.opus",
+      "duration_sec": 4.8465,
+      "sha256": "ae1a2d06122c76c0c7369c504a07292c035ea472efc61232d4318148831c404f",
+      "gen_params": {
+        "requested": {
+          "upstream_repository": "QwenAudio/CosyVoice",
+          "upstream_revision": "074ca6dc9e80a2f424f1f74b48bdd7d3fea531cc",
+          "matcha_repository": "shivammehta25/Matcha-TTS",
+          "matcha_revision": "dd9105b34bf2be2230f4aa1e4769fb586a3c824e",
+          "weights_repository": "FunAudioLLM/Fun-CosyVoice3-0.5B-2512",
+          "weights_revision": "29e01c4e8d000f4bcd70751be16fa94bf3d85a18",
+          "code_root_environment": "GAYA_COSYVOICE_CODE_ROOT",
+          "model_root_environment": "GAYA_COSYVOICE3_MODEL_ROOT",
+          "model_files": {
+            "CosyVoice-BlankEN/config.json": {
+              "size": 659,
+              "sha256": "168aa1bd401abc3bc262ba15ba4e499627a8b4e006e9d050b47c22de20660185"
+            },
+            "CosyVoice-BlankEN/generation_config.json": {
+              "size": 242,
+              "sha256": "e558847a8b4402616f1273797b015104dc266fe4b520056fca88823ba8f8ebe6"
+            },
+            "CosyVoice-BlankEN/merges.txt": {
+              "size": 1402109,
+              "sha256": "ac8ff86a72bee70828fbc1119bc4398c6f3a9a6e490d7b0dbe917be025478bd0"
+            },
+            "CosyVoice-BlankEN/model.safetensors": {
+              "size": 988097824,
+              "sha256": "130282af0dfa9fe5840737cc49a0d339d06075f83c5a315c3372c9a0740d0b96"
+            },
+            "CosyVoice-BlankEN/tokenizer_config.json": {
+              "size": 1287,
+              "sha256": "482bd979881423375ca5414e4e0d94cd7c5349dbb17fffd46b4d36d71e62a1bc"
+            },
+            "CosyVoice-BlankEN/vocab.json": {
+              "size": 2776833,
+              "sha256": "ca10d7e9fb3ed18575dd1e277a2579c16d108e32f27439684afa0e10b1440910"
+            },
+            "campplus.onnx": {
+              "size": 28303423,
+              "sha256": "a6ac6a63997761ae2997373e2ee1c47040854b4b759ea41ec48e4e42df0f4d73"
+            },
+            "cosyvoice3.yaml": {
+              "size": 6934,
+              "sha256": "f5a6b2c6f05139d0f18861a1fe506f751e787026b77c05f7e8fef9f8a4405965"
+            },
+            "flow.pt": {
+              "size": 1329116148,
+              "sha256": "a6fab32a7825e5b0bc855ddd948f8db9370b0a786fbc249caa4595e95b608e4b"
+            },
+            "hift.pt": {
+              "size": 83202622,
+              "sha256": "b279d7641eb97ae55b3b540cfba4f953c26492a2df758328a89a4d007ab87a65"
+            },
+            "llm.pt": {
+              "size": 2024669519,
+              "sha256": "69f43bd545131c30e98947fb360ea8b4dc9916d8e83dded7757c7ea4f5a24970"
+            },
+            "speech_tokenizer_v3.onnx": {
+              "size": 969451503,
+              "sha256": "23236a74175dbdda47afc66dbadd5bcb41303c467a57c261cb8539ad9db9208d"
+            }
+          },
+          "architecture": "CosyVoice3",
+          "model_architecture": "CosyVoice3Model",
+          "device": "cuda:0",
+          "sample_rate_hz": 24000,
+          "torch_version": "2.3.1+cu121",
+          "torchaudio_version": "2.3.1+cu121",
+          "cuda_version": "12.1",
+          "onnxruntime_gpu_version": "1.18.0",
+          "transformers_version": "4.51.3",
+          "numpy_version": "1.26.4",
+          "soundfile_version": "0.12.1",
+          "modelscope_version": "1.20.0",
+          "seed": 1986,
+          "fp16": true,
+          "load_trt": false,
+          "load_vllm": false,
+          "stream": false,
+          "speed": 1.0,
+          "text_frontend": false,
+          "zero_shot_speaker_id": "",
+          "offline_environment": {
+            "HF_HUB_OFFLINE": "1",
+            "TRANSFORMERS_OFFLINE": "1",
+            "MODELSCOPE_OFFLINE": "1"
+          },
+          "emotion_instructions": {
+            "neutral": "a neutral emotion",
+            "cheerful": "a cheerful emotion",
+            "angry": "an angry emotion",
+            "sad": "a sad emotion",
+            "fearful": "a fearful emotion",
+            "surprised": "a surprised emotion",
+            "tired": "a tired emotion",
+            "drunk": "a drunken emotion",
+            "whisper": "a whispering delivery",
+            "shout": "a shouting delivery",
+            "laughing": "a laughing delivery",
+            "pain": "an emotion of pain"
+          },
+          "intensity_instructions": {
+            "1": "slightly",
+            "2": "clearly",
+            "3": "strongly"
+          },
+          "instruction_prefix": "You are a helpful assistant. Speak in Japanese",
+          "instruction_delivery_prefix": "Follow this delivery direction exactly:",
+          "instruction_end": "<|endofprompt|>",
+          "reference_assignments": {
+            "tavern-night/drunkard": "hadou-emotion-11",
+            "tavern-night/old-regular": "hadou-emotion-11",
+            "market-day/fruit-vendor": "hadou-emotion-11",
+            "market-day/shopper": "lux-emotion-76",
+            "market-day/street-kid": "tsukuyomi-corpus-94"
+          },
+          "watermark_disclosed_by_official_source": false
+        },
+        "realized": {
+          "phase_peak_vram_mib": {
+            "runtime_load": {
+              "allocated_mib": 3370.4365234375,
+              "reserved_mib": 3482.0
+            },
+            "generation": {
+              "allocated_mib": 4296.2392578125,
+              "reserved_mib": 5226.0
+            }
+          },
+          "providers": {
+            "speech_tokenizer": [
+              "CUDAExecutionProvider",
+              "CPUExecutionProvider"
+            ],
+            "campplus": [
+              "CPUExecutionProvider"
+            ]
+          },
+          "seed": 1986,
+          "fp16": true,
+          "stream": false,
+          "speed": 1.0,
+          "text_frontend": false,
+          "sample_rate_hz": 24000,
+          "samples": 116160,
+          "duration_sec": 4.84,
+          "source_text": "ねえねえ、剣持ってる！すごーい！",
+          "tts_text": "ネーネー、ケンモッテル！スゴーイ！",
+          "reading_source": "pyopenjtalk.g2p(kana=True)",
+          "instruction": "You are a helpful assistant. Speak in Japanese strongly with a cheerful emotion. Follow this delivery direction exactly: 興奮した早口。「すごーい」で音程が跳ね上がる。<|endofprompt|>",
+          "emotion": "cheerful",
+          "intensity": 3,
+          "delivery": "興奮した早口。「すごーい」で音程が跳ね上がる。",
+          "reference_selection_source": "adapter.assignment:market-day/street-kid",
+          "reference_voice": "tsukuyomi-corpus-94",
+          "reference_sha256": "06547a71a939b3355985d32c59dc703bad06e4ea044550342bb8b4e6513d4777",
+          "reference_samples": 645580,
+          "reference_duration_sec": 13.449583333333333,
+          "watermark_disclosed_by_official_source": false
+        }
+      },
+      "rtf": 1.528462,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -2.41,
+        "shortfall": false
+      }
+    },
+    {
+      "model": "cosyvoice3-0.5b-2512",
+      "scenario": "tavern-night",
+      "line": "barmaid-001",
+      "variant": "dry",
+      "path": "audio/cosyvoice3-0.5b-2512/tavern-night/barmaid-001-dry.opus",
+      "duration_sec": 3.3265,
+      "sha256": "0a1f6d696ea1ee0265ada966cc048198742bda251433146046a4a8dfc7929346",
+      "gen_params": {
+        "requested": {
+          "upstream_repository": "QwenAudio/CosyVoice",
+          "upstream_revision": "074ca6dc9e80a2f424f1f74b48bdd7d3fea531cc",
+          "matcha_repository": "shivammehta25/Matcha-TTS",
+          "matcha_revision": "dd9105b34bf2be2230f4aa1e4769fb586a3c824e",
+          "weights_repository": "FunAudioLLM/Fun-CosyVoice3-0.5B-2512",
+          "weights_revision": "29e01c4e8d000f4bcd70751be16fa94bf3d85a18",
+          "code_root_environment": "GAYA_COSYVOICE_CODE_ROOT",
+          "model_root_environment": "GAYA_COSYVOICE3_MODEL_ROOT",
+          "model_files": {
+            "CosyVoice-BlankEN/config.json": {
+              "size": 659,
+              "sha256": "168aa1bd401abc3bc262ba15ba4e499627a8b4e006e9d050b47c22de20660185"
+            },
+            "CosyVoice-BlankEN/generation_config.json": {
+              "size": 242,
+              "sha256": "e558847a8b4402616f1273797b015104dc266fe4b520056fca88823ba8f8ebe6"
+            },
+            "CosyVoice-BlankEN/merges.txt": {
+              "size": 1402109,
+              "sha256": "ac8ff86a72bee70828fbc1119bc4398c6f3a9a6e490d7b0dbe917be025478bd0"
+            },
+            "CosyVoice-BlankEN/model.safetensors": {
+              "size": 988097824,
+              "sha256": "130282af0dfa9fe5840737cc49a0d339d06075f83c5a315c3372c9a0740d0b96"
+            },
+            "CosyVoice-BlankEN/tokenizer_config.json": {
+              "size": 1287,
+              "sha256": "482bd979881423375ca5414e4e0d94cd7c5349dbb17fffd46b4d36d71e62a1bc"
+            },
+            "CosyVoice-BlankEN/vocab.json": {
+              "size": 2776833,
+              "sha256": "ca10d7e9fb3ed18575dd1e277a2579c16d108e32f27439684afa0e10b1440910"
+            },
+            "campplus.onnx": {
+              "size": 28303423,
+              "sha256": "a6ac6a63997761ae2997373e2ee1c47040854b4b759ea41ec48e4e42df0f4d73"
+            },
+            "cosyvoice3.yaml": {
+              "size": 6934,
+              "sha256": "f5a6b2c6f05139d0f18861a1fe506f751e787026b77c05f7e8fef9f8a4405965"
+            },
+            "flow.pt": {
+              "size": 1329116148,
+              "sha256": "a6fab32a7825e5b0bc855ddd948f8db9370b0a786fbc249caa4595e95b608e4b"
+            },
+            "hift.pt": {
+              "size": 83202622,
+              "sha256": "b279d7641eb97ae55b3b540cfba4f953c26492a2df758328a89a4d007ab87a65"
+            },
+            "llm.pt": {
+              "size": 2024669519,
+              "sha256": "69f43bd545131c30e98947fb360ea8b4dc9916d8e83dded7757c7ea4f5a24970"
+            },
+            "speech_tokenizer_v3.onnx": {
+              "size": 969451503,
+              "sha256": "23236a74175dbdda47afc66dbadd5bcb41303c467a57c261cb8539ad9db9208d"
+            }
+          },
+          "architecture": "CosyVoice3",
+          "model_architecture": "CosyVoice3Model",
+          "device": "cuda:0",
+          "sample_rate_hz": 24000,
+          "torch_version": "2.3.1+cu121",
+          "torchaudio_version": "2.3.1+cu121",
+          "cuda_version": "12.1",
+          "onnxruntime_gpu_version": "1.18.0",
+          "transformers_version": "4.51.3",
+          "numpy_version": "1.26.4",
+          "soundfile_version": "0.12.1",
+          "modelscope_version": "1.20.0",
+          "seed": 1986,
+          "fp16": true,
+          "load_trt": false,
+          "load_vllm": false,
+          "stream": false,
+          "speed": 1.0,
+          "text_frontend": false,
+          "zero_shot_speaker_id": "",
+          "offline_environment": {
+            "HF_HUB_OFFLINE": "1",
+            "TRANSFORMERS_OFFLINE": "1",
+            "MODELSCOPE_OFFLINE": "1"
+          },
+          "emotion_instructions": {
+            "neutral": "a neutral emotion",
+            "cheerful": "a cheerful emotion",
+            "angry": "an angry emotion",
+            "sad": "a sad emotion",
+            "fearful": "a fearful emotion",
+            "surprised": "a surprised emotion",
+            "tired": "a tired emotion",
+            "drunk": "a drunken emotion",
+            "whisper": "a whispering delivery",
+            "shout": "a shouting delivery",
+            "laughing": "a laughing delivery",
+            "pain": "an emotion of pain"
+          },
+          "intensity_instructions": {
+            "1": "slightly",
+            "2": "clearly",
+            "3": "strongly"
+          },
+          "instruction_prefix": "You are a helpful assistant. Speak in Japanese",
+          "instruction_delivery_prefix": "Follow this delivery direction exactly:",
+          "instruction_end": "<|endofprompt|>",
+          "reference_assignments": {
+            "tavern-night/drunkard": "hadou-emotion-11",
+            "tavern-night/old-regular": "hadou-emotion-11",
+            "market-day/fruit-vendor": "hadou-emotion-11",
+            "market-day/shopper": "lux-emotion-76",
+            "market-day/street-kid": "tsukuyomi-corpus-94"
+          },
+          "watermark_disclosed_by_official_source": false
+        },
+        "realized": {
+          "phase_peak_vram_mib": {
+            "runtime_load": {
+              "allocated_mib": 3370.4365234375,
+              "reserved_mib": 3482.0
+            },
+            "generation": {
+              "allocated_mib": 4267.59130859375,
+              "reserved_mib": 5202.0
+            }
+          },
+          "providers": {
+            "speech_tokenizer": [
+              "CUDAExecutionProvider",
+              "CPUExecutionProvider"
+            ],
+            "campplus": [
+              "CPUExecutionProvider"
+            ]
+          },
+          "seed": 1986,
+          "fp16": true,
+          "stream": false,
+          "speed": 1.0,
+          "text_frontend": false,
+          "sample_rate_hz": 24000,
+          "samples": 79680,
+          "duration_sec": 3.32,
+          "source_text": "はいよっ、エール二つお待ち！",
+          "tts_text": "ハイヨッ、エールフタツオマチ！",
+          "reading_source": "pyopenjtalk.g2p(kana=True)",
+          "instruction": "You are a helpful assistant. Speak in Japanese clearly with a cheerful emotion. Follow this delivery direction exactly: 客へ呼びかける。喧騒に負けないやや大きめの声。語尾が弾む。<|endofprompt|>",
+          "emotion": "cheerful",
+          "intensity": 2,
+          "delivery": "客へ呼びかける。喧騒に負けないやや大きめの声。語尾が弾む。",
+          "reference_selection_source": "character.reference_voice",
+          "reference_voice": "amitaro-countdown",
+          "reference_sha256": "fdc3ffc571a329250168b9b228e9ebfa660d885677e19bc5547b9a6dbe7509eb",
+          "reference_samples": 526148,
+          "reference_duration_sec": 10.961416666666667,
+          "watermark_disclosed_by_official_source": false
+        }
+      },
+      "rtf": 15.61601,
+      "loudness": {
+        "i_lufs": -17.99,
+        "tp_dbtp": -1.95,
+        "shortfall": false
+      }
+    },
+    {
+      "model": "cosyvoice3-0.5b-2512",
+      "scenario": "tavern-night",
+      "line": "barmaid-002",
+      "variant": "dry",
+      "path": "audio/cosyvoice3-0.5b-2512/tavern-night/barmaid-002-dry.opus",
+      "duration_sec": 6.9665,
+      "sha256": "940028974a4e098fe7e47b57190040089dbf02a28807183bf78ddbc284c2e2b2",
+      "gen_params": {
+        "requested": {
+          "upstream_repository": "QwenAudio/CosyVoice",
+          "upstream_revision": "074ca6dc9e80a2f424f1f74b48bdd7d3fea531cc",
+          "matcha_repository": "shivammehta25/Matcha-TTS",
+          "matcha_revision": "dd9105b34bf2be2230f4aa1e4769fb586a3c824e",
+          "weights_repository": "FunAudioLLM/Fun-CosyVoice3-0.5B-2512",
+          "weights_revision": "29e01c4e8d000f4bcd70751be16fa94bf3d85a18",
+          "code_root_environment": "GAYA_COSYVOICE_CODE_ROOT",
+          "model_root_environment": "GAYA_COSYVOICE3_MODEL_ROOT",
+          "model_files": {
+            "CosyVoice-BlankEN/config.json": {
+              "size": 659,
+              "sha256": "168aa1bd401abc3bc262ba15ba4e499627a8b4e006e9d050b47c22de20660185"
+            },
+            "CosyVoice-BlankEN/generation_config.json": {
+              "size": 242,
+              "sha256": "e558847a8b4402616f1273797b015104dc266fe4b520056fca88823ba8f8ebe6"
+            },
+            "CosyVoice-BlankEN/merges.txt": {
+              "size": 1402109,
+              "sha256": "ac8ff86a72bee70828fbc1119bc4398c6f3a9a6e490d7b0dbe917be025478bd0"
+            },
+            "CosyVoice-BlankEN/model.safetensors": {
+              "size": 988097824,
+              "sha256": "130282af0dfa9fe5840737cc49a0d339d06075f83c5a315c3372c9a0740d0b96"
+            },
+            "CosyVoice-BlankEN/tokenizer_config.json": {
+              "size": 1287,
+              "sha256": "482bd979881423375ca5414e4e0d94cd7c5349dbb17fffd46b4d36d71e62a1bc"
+            },
+            "CosyVoice-BlankEN/vocab.json": {
+              "size": 2776833,
+              "sha256": "ca10d7e9fb3ed18575dd1e277a2579c16d108e32f27439684afa0e10b1440910"
+            },
+            "campplus.onnx": {
+              "size": 28303423,
+              "sha256": "a6ac6a63997761ae2997373e2ee1c47040854b4b759ea41ec48e4e42df0f4d73"
+            },
+            "cosyvoice3.yaml": {
+              "size": 6934,
+              "sha256": "f5a6b2c6f05139d0f18861a1fe506f751e787026b77c05f7e8fef9f8a4405965"
+            },
+            "flow.pt": {
+              "size": 1329116148,
+              "sha256": "a6fab32a7825e5b0bc855ddd948f8db9370b0a786fbc249caa4595e95b608e4b"
+            },
+            "hift.pt": {
+              "size": 83202622,
+              "sha256": "b279d7641eb97ae55b3b540cfba4f953c26492a2df758328a89a4d007ab87a65"
+            },
+            "llm.pt": {
+              "size": 2024669519,
+              "sha256": "69f43bd545131c30e98947fb360ea8b4dc9916d8e83dded7757c7ea4f5a24970"
+            },
+            "speech_tokenizer_v3.onnx": {
+              "size": 969451503,
+              "sha256": "23236a74175dbdda47afc66dbadd5bcb41303c467a57c261cb8539ad9db9208d"
+            }
+          },
+          "architecture": "CosyVoice3",
+          "model_architecture": "CosyVoice3Model",
+          "device": "cuda:0",
+          "sample_rate_hz": 24000,
+          "torch_version": "2.3.1+cu121",
+          "torchaudio_version": "2.3.1+cu121",
+          "cuda_version": "12.1",
+          "onnxruntime_gpu_version": "1.18.0",
+          "transformers_version": "4.51.3",
+          "numpy_version": "1.26.4",
+          "soundfile_version": "0.12.1",
+          "modelscope_version": "1.20.0",
+          "seed": 1986,
+          "fp16": true,
+          "load_trt": false,
+          "load_vllm": false,
+          "stream": false,
+          "speed": 1.0,
+          "text_frontend": false,
+          "zero_shot_speaker_id": "",
+          "offline_environment": {
+            "HF_HUB_OFFLINE": "1",
+            "TRANSFORMERS_OFFLINE": "1",
+            "MODELSCOPE_OFFLINE": "1"
+          },
+          "emotion_instructions": {
+            "neutral": "a neutral emotion",
+            "cheerful": "a cheerful emotion",
+            "angry": "an angry emotion",
+            "sad": "a sad emotion",
+            "fearful": "a fearful emotion",
+            "surprised": "a surprised emotion",
+            "tired": "a tired emotion",
+            "drunk": "a drunken emotion",
+            "whisper": "a whispering delivery",
+            "shout": "a shouting delivery",
+            "laughing": "a laughing delivery",
+            "pain": "an emotion of pain"
+          },
+          "intensity_instructions": {
+            "1": "slightly",
+            "2": "clearly",
+            "3": "strongly"
+          },
+          "instruction_prefix": "You are a helpful assistant. Speak in Japanese",
+          "instruction_delivery_prefix": "Follow this delivery direction exactly:",
+          "instruction_end": "<|endofprompt|>",
+          "reference_assignments": {
+            "tavern-night/drunkard": "hadou-emotion-11",
+            "tavern-night/old-regular": "hadou-emotion-11",
+            "market-day/fruit-vendor": "hadou-emotion-11",
+            "market-day/shopper": "lux-emotion-76",
+            "market-day/street-kid": "tsukuyomi-corpus-94"
+          },
+          "watermark_disclosed_by_official_source": false
+        },
+        "realized": {
+          "phase_peak_vram_mib": {
+            "runtime_load": {
+              "allocated_mib": 3370.4365234375,
+              "reserved_mib": 3482.0
+            },
+            "generation": {
+              "allocated_mib": 4296.20166015625,
+              "reserved_mib": 5242.0
+            }
+          },
+          "providers": {
+            "speech_tokenizer": [
+              "CUDAExecutionProvider",
+              "CPUExecutionProvider"
+            ],
+            "campplus": [
+              "CPUExecutionProvider"
+            ]
+          },
+          "seed": 1986,
+          "fp16": true,
+          "stream": false,
+          "speed": 1.0,
+          "text_frontend": false,
+          "sample_rate_hz": 24000,
+          "samples": 167040,
+          "duration_sec": 6.96,
+          "source_text": "こらっ、ツケはもう利かないって言ったろ！",
+          "tts_text": "コラッ、ツケワモーキカナイッテイッタロ！",
+          "reading_source": "pyopenjtalk.g2p(kana=True)",
+          "instruction": "You are a helpful assistant. Speak in Japanese clearly with an angry emotion. Follow this delivery direction exactly: 怒っているが本気ではない。呆れ半分の叱り口調。<|endofprompt|>",
+          "emotion": "angry",
+          "intensity": 2,
+          "delivery": "怒っているが本気ではない。呆れ半分の叱り口調。",
+          "reference_selection_source": "character.reference_voice",
+          "reference_voice": "amitaro-countdown",
+          "reference_sha256": "fdc3ffc571a329250168b9b228e9ebfa660d885677e19bc5547b9a6dbe7509eb",
+          "reference_samples": 526148,
+          "reference_duration_sec": 10.961416666666667,
+          "watermark_disclosed_by_official_source": false
+        }
+      },
+      "rtf": 1.707261,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -1.66,
+        "shortfall": false
+      }
+    },
+    {
+      "model": "cosyvoice3-0.5b-2512",
+      "scenario": "tavern-night",
+      "line": "drunkard-001",
+      "variant": "dry",
+      "path": "audio/cosyvoice3-0.5b-2512/tavern-night/drunkard-001-dry.opus",
+      "duration_sec": 7.4065,
+      "sha256": "3e1271947df0fdc4fcbe9b076ef9230866912e0ba42db85772e4d412cb8eb265",
+      "gen_params": {
+        "requested": {
+          "upstream_repository": "QwenAudio/CosyVoice",
+          "upstream_revision": "074ca6dc9e80a2f424f1f74b48bdd7d3fea531cc",
+          "matcha_repository": "shivammehta25/Matcha-TTS",
+          "matcha_revision": "dd9105b34bf2be2230f4aa1e4769fb586a3c824e",
+          "weights_repository": "FunAudioLLM/Fun-CosyVoice3-0.5B-2512",
+          "weights_revision": "29e01c4e8d000f4bcd70751be16fa94bf3d85a18",
+          "code_root_environment": "GAYA_COSYVOICE_CODE_ROOT",
+          "model_root_environment": "GAYA_COSYVOICE3_MODEL_ROOT",
+          "model_files": {
+            "CosyVoice-BlankEN/config.json": {
+              "size": 659,
+              "sha256": "168aa1bd401abc3bc262ba15ba4e499627a8b4e006e9d050b47c22de20660185"
+            },
+            "CosyVoice-BlankEN/generation_config.json": {
+              "size": 242,
+              "sha256": "e558847a8b4402616f1273797b015104dc266fe4b520056fca88823ba8f8ebe6"
+            },
+            "CosyVoice-BlankEN/merges.txt": {
+              "size": 1402109,
+              "sha256": "ac8ff86a72bee70828fbc1119bc4398c6f3a9a6e490d7b0dbe917be025478bd0"
+            },
+            "CosyVoice-BlankEN/model.safetensors": {
+              "size": 988097824,
+              "sha256": "130282af0dfa9fe5840737cc49a0d339d06075f83c5a315c3372c9a0740d0b96"
+            },
+            "CosyVoice-BlankEN/tokenizer_config.json": {
+              "size": 1287,
+              "sha256": "482bd979881423375ca5414e4e0d94cd7c5349dbb17fffd46b4d36d71e62a1bc"
+            },
+            "CosyVoice-BlankEN/vocab.json": {
+              "size": 2776833,
+              "sha256": "ca10d7e9fb3ed18575dd1e277a2579c16d108e32f27439684afa0e10b1440910"
+            },
+            "campplus.onnx": {
+              "size": 28303423,
+              "sha256": "a6ac6a63997761ae2997373e2ee1c47040854b4b759ea41ec48e4e42df0f4d73"
+            },
+            "cosyvoice3.yaml": {
+              "size": 6934,
+              "sha256": "f5a6b2c6f05139d0f18861a1fe506f751e787026b77c05f7e8fef9f8a4405965"
+            },
+            "flow.pt": {
+              "size": 1329116148,
+              "sha256": "a6fab32a7825e5b0bc855ddd948f8db9370b0a786fbc249caa4595e95b608e4b"
+            },
+            "hift.pt": {
+              "size": 83202622,
+              "sha256": "b279d7641eb97ae55b3b540cfba4f953c26492a2df758328a89a4d007ab87a65"
+            },
+            "llm.pt": {
+              "size": 2024669519,
+              "sha256": "69f43bd545131c30e98947fb360ea8b4dc9916d8e83dded7757c7ea4f5a24970"
+            },
+            "speech_tokenizer_v3.onnx": {
+              "size": 969451503,
+              "sha256": "23236a74175dbdda47afc66dbadd5bcb41303c467a57c261cb8539ad9db9208d"
+            }
+          },
+          "architecture": "CosyVoice3",
+          "model_architecture": "CosyVoice3Model",
+          "device": "cuda:0",
+          "sample_rate_hz": 24000,
+          "torch_version": "2.3.1+cu121",
+          "torchaudio_version": "2.3.1+cu121",
+          "cuda_version": "12.1",
+          "onnxruntime_gpu_version": "1.18.0",
+          "transformers_version": "4.51.3",
+          "numpy_version": "1.26.4",
+          "soundfile_version": "0.12.1",
+          "modelscope_version": "1.20.0",
+          "seed": 1986,
+          "fp16": true,
+          "load_trt": false,
+          "load_vllm": false,
+          "stream": false,
+          "speed": 1.0,
+          "text_frontend": false,
+          "zero_shot_speaker_id": "",
+          "offline_environment": {
+            "HF_HUB_OFFLINE": "1",
+            "TRANSFORMERS_OFFLINE": "1",
+            "MODELSCOPE_OFFLINE": "1"
+          },
+          "emotion_instructions": {
+            "neutral": "a neutral emotion",
+            "cheerful": "a cheerful emotion",
+            "angry": "an angry emotion",
+            "sad": "a sad emotion",
+            "fearful": "a fearful emotion",
+            "surprised": "a surprised emotion",
+            "tired": "a tired emotion",
+            "drunk": "a drunken emotion",
+            "whisper": "a whispering delivery",
+            "shout": "a shouting delivery",
+            "laughing": "a laughing delivery",
+            "pain": "an emotion of pain"
+          },
+          "intensity_instructions": {
+            "1": "slightly",
+            "2": "clearly",
+            "3": "strongly"
+          },
+          "instruction_prefix": "You are a helpful assistant. Speak in Japanese",
+          "instruction_delivery_prefix": "Follow this delivery direction exactly:",
+          "instruction_end": "<|endofprompt|>",
+          "reference_assignments": {
+            "tavern-night/drunkard": "hadou-emotion-11",
+            "tavern-night/old-regular": "hadou-emotion-11",
+            "market-day/fruit-vendor": "hadou-emotion-11",
+            "market-day/shopper": "lux-emotion-76",
+            "market-day/street-kid": "tsukuyomi-corpus-94"
+          },
+          "watermark_disclosed_by_official_source": false
+        },
+        "realized": {
+          "phase_peak_vram_mib": {
+            "runtime_load": {
+              "allocated_mib": 3370.4365234375,
+              "reserved_mib": 3482.0
+            },
+            "generation": {
+              "allocated_mib": 4296.28857421875,
+              "reserved_mib": 5272.0
+            }
+          },
+          "providers": {
+            "speech_tokenizer": [
+              "CUDAExecutionProvider",
+              "CPUExecutionProvider"
+            ],
+            "campplus": [
+              "CPUExecutionProvider"
+            ]
+          },
+          "seed": 1986,
+          "fp16": true,
+          "stream": false,
+          "speed": 1.0,
+          "text_frontend": false,
+          "sample_rate_hz": 24000,
+          "samples": 177600,
+          "duration_sec": 7.4,
+          "source_text": "だからよぉ……俺は悪くねぇんだって……",
+          "tts_text": "ダカラヨォ……オレワワルクネーンダッテ……",
+          "reading_source": "pyopenjtalk.g2p(kana=True)",
+          "instruction": "You are a helpful assistant. Speak in Japanese clearly with a drunken emotion. Follow this delivery direction exactly: 呂律が回らず、語尾が伸びて沈む。愚痴っぽい。<|endofprompt|>",
+          "emotion": "drunk",
+          "intensity": 2,
+          "delivery": "呂律が回らず、語尾が伸びて沈む。愚痴っぽい。",
+          "reference_selection_source": "adapter.assignment:tavern-night/drunkard",
+          "reference_voice": "hadou-emotion-11",
+          "reference_sha256": "e98033d63f847c4113d8b47e264bca82f38212519da8d62661133847b3d221bc",
+          "reference_samples": 480192,
+          "reference_duration_sec": 10.004,
+          "watermark_disclosed_by_official_source": false
+        }
+      },
+      "rtf": 2.184332,
+      "loudness": {
+        "i_lufs": -18.06,
+        "tp_dbtp": -1.0,
+        "shortfall": false
+      }
+    },
+    {
+      "model": "cosyvoice3-0.5b-2512",
+      "scenario": "tavern-night",
+      "line": "drunkard-002",
+      "variant": "dry",
+      "path": "audio/cosyvoice3-0.5b-2512/tavern-night/drunkard-002-dry.opus",
+      "duration_sec": 4.8465,
+      "sha256": "e38ac40a0f1dc1262abee9b493b9fbbb42fea612a0fd7a6cfdeef63f85ecbe71",
+      "gen_params": {
+        "requested": {
+          "upstream_repository": "QwenAudio/CosyVoice",
+          "upstream_revision": "074ca6dc9e80a2f424f1f74b48bdd7d3fea531cc",
+          "matcha_repository": "shivammehta25/Matcha-TTS",
+          "matcha_revision": "dd9105b34bf2be2230f4aa1e4769fb586a3c824e",
+          "weights_repository": "FunAudioLLM/Fun-CosyVoice3-0.5B-2512",
+          "weights_revision": "29e01c4e8d000f4bcd70751be16fa94bf3d85a18",
+          "code_root_environment": "GAYA_COSYVOICE_CODE_ROOT",
+          "model_root_environment": "GAYA_COSYVOICE3_MODEL_ROOT",
+          "model_files": {
+            "CosyVoice-BlankEN/config.json": {
+              "size": 659,
+              "sha256": "168aa1bd401abc3bc262ba15ba4e499627a8b4e006e9d050b47c22de20660185"
+            },
+            "CosyVoice-BlankEN/generation_config.json": {
+              "size": 242,
+              "sha256": "e558847a8b4402616f1273797b015104dc266fe4b520056fca88823ba8f8ebe6"
+            },
+            "CosyVoice-BlankEN/merges.txt": {
+              "size": 1402109,
+              "sha256": "ac8ff86a72bee70828fbc1119bc4398c6f3a9a6e490d7b0dbe917be025478bd0"
+            },
+            "CosyVoice-BlankEN/model.safetensors": {
+              "size": 988097824,
+              "sha256": "130282af0dfa9fe5840737cc49a0d339d06075f83c5a315c3372c9a0740d0b96"
+            },
+            "CosyVoice-BlankEN/tokenizer_config.json": {
+              "size": 1287,
+              "sha256": "482bd979881423375ca5414e4e0d94cd7c5349dbb17fffd46b4d36d71e62a1bc"
+            },
+            "CosyVoice-BlankEN/vocab.json": {
+              "size": 2776833,
+              "sha256": "ca10d7e9fb3ed18575dd1e277a2579c16d108e32f27439684afa0e10b1440910"
+            },
+            "campplus.onnx": {
+              "size": 28303423,
+              "sha256": "a6ac6a63997761ae2997373e2ee1c47040854b4b759ea41ec48e4e42df0f4d73"
+            },
+            "cosyvoice3.yaml": {
+              "size": 6934,
+              "sha256": "f5a6b2c6f05139d0f18861a1fe506f751e787026b77c05f7e8fef9f8a4405965"
+            },
+            "flow.pt": {
+              "size": 1329116148,
+              "sha256": "a6fab32a7825e5b0bc855ddd948f8db9370b0a786fbc249caa4595e95b608e4b"
+            },
+            "hift.pt": {
+              "size": 83202622,
+              "sha256": "b279d7641eb97ae55b3b540cfba4f953c26492a2df758328a89a4d007ab87a65"
+            },
+            "llm.pt": {
+              "size": 2024669519,
+              "sha256": "69f43bd545131c30e98947fb360ea8b4dc9916d8e83dded7757c7ea4f5a24970"
+            },
+            "speech_tokenizer_v3.onnx": {
+              "size": 969451503,
+              "sha256": "23236a74175dbdda47afc66dbadd5bcb41303c467a57c261cb8539ad9db9208d"
+            }
+          },
+          "architecture": "CosyVoice3",
+          "model_architecture": "CosyVoice3Model",
+          "device": "cuda:0",
+          "sample_rate_hz": 24000,
+          "torch_version": "2.3.1+cu121",
+          "torchaudio_version": "2.3.1+cu121",
+          "cuda_version": "12.1",
+          "onnxruntime_gpu_version": "1.18.0",
+          "transformers_version": "4.51.3",
+          "numpy_version": "1.26.4",
+          "soundfile_version": "0.12.1",
+          "modelscope_version": "1.20.0",
+          "seed": 1986,
+          "fp16": true,
+          "load_trt": false,
+          "load_vllm": false,
+          "stream": false,
+          "speed": 1.0,
+          "text_frontend": false,
+          "zero_shot_speaker_id": "",
+          "offline_environment": {
+            "HF_HUB_OFFLINE": "1",
+            "TRANSFORMERS_OFFLINE": "1",
+            "MODELSCOPE_OFFLINE": "1"
+          },
+          "emotion_instructions": {
+            "neutral": "a neutral emotion",
+            "cheerful": "a cheerful emotion",
+            "angry": "an angry emotion",
+            "sad": "a sad emotion",
+            "fearful": "a fearful emotion",
+            "surprised": "a surprised emotion",
+            "tired": "a tired emotion",
+            "drunk": "a drunken emotion",
+            "whisper": "a whispering delivery",
+            "shout": "a shouting delivery",
+            "laughing": "a laughing delivery",
+            "pain": "an emotion of pain"
+          },
+          "intensity_instructions": {
+            "1": "slightly",
+            "2": "clearly",
+            "3": "strongly"
+          },
+          "instruction_prefix": "You are a helpful assistant. Speak in Japanese",
+          "instruction_delivery_prefix": "Follow this delivery direction exactly:",
+          "instruction_end": "<|endofprompt|>",
+          "reference_assignments": {
+            "tavern-night/drunkard": "hadou-emotion-11",
+            "tavern-night/old-regular": "hadou-emotion-11",
+            "market-day/fruit-vendor": "hadou-emotion-11",
+            "market-day/shopper": "lux-emotion-76",
+            "market-day/street-kid": "tsukuyomi-corpus-94"
+          },
+          "watermark_disclosed_by_official_source": false
+        },
+        "realized": {
+          "phase_peak_vram_mib": {
+            "runtime_load": {
+              "allocated_mib": 3370.4365234375,
+              "reserved_mib": 3482.0
+            },
+            "generation": {
+              "allocated_mib": 4293.3203125,
+              "reserved_mib": 5224.0
+            }
+          },
+          "providers": {
+            "speech_tokenizer": [
+              "CUDAExecutionProvider",
+              "CPUExecutionProvider"
+            ],
+            "campplus": [
+              "CPUExecutionProvider"
+            ]
+          },
+          "seed": 1986,
+          "fp16": true,
+          "stream": false,
+          "speed": 1.0,
+          "text_frontend": false,
+          "sample_rate_hz": 24000,
+          "samples": 116160,
+          "duration_sec": 4.84,
+          "source_text": "うぃっ……もう一杯だけ、な？",
+          "tts_text": "ウィッ……モーイッパイダケ、ナ？",
+          "reading_source": "pyopenjtalk.g2p(kana=True)",
+          "instruction": "You are a helpful assistant. Speak in Japanese strongly with a drunken emotion. Follow this delivery direction exactly: しゃっくり混じり。哀願するような上ずった声。<|endofprompt|>",
+          "emotion": "drunk",
+          "intensity": 3,
+          "delivery": "しゃっくり混じり。哀願するような上ずった声。",
+          "reference_selection_source": "adapter.assignment:tavern-night/drunkard",
+          "reference_voice": "hadou-emotion-11",
+          "reference_sha256": "e98033d63f847c4113d8b47e264bca82f38212519da8d62661133847b3d221bc",
+          "reference_samples": 480192,
+          "reference_duration_sec": 10.004,
+          "watermark_disclosed_by_official_source": false
+        }
+      },
+      "rtf": 1.724484,
+      "loudness": {
+        "i_lufs": -18.01,
+        "tp_dbtp": -1.62,
+        "shortfall": false
+      }
+    },
+    {
+      "model": "cosyvoice3-0.5b-2512",
+      "scenario": "tavern-night",
+      "line": "old-regular-001",
+      "variant": "dry",
+      "path": "audio/cosyvoice3-0.5b-2512/tavern-night/old-regular-001-dry.opus",
+      "duration_sec": 8.8865,
+      "sha256": "39c1fdcd19b0201c27ed7a60e05204468d90fbdab0053a8e8a57ab00a990cb8d",
+      "gen_params": {
+        "requested": {
+          "upstream_repository": "QwenAudio/CosyVoice",
+          "upstream_revision": "074ca6dc9e80a2f424f1f74b48bdd7d3fea531cc",
+          "matcha_repository": "shivammehta25/Matcha-TTS",
+          "matcha_revision": "dd9105b34bf2be2230f4aa1e4769fb586a3c824e",
+          "weights_repository": "FunAudioLLM/Fun-CosyVoice3-0.5B-2512",
+          "weights_revision": "29e01c4e8d000f4bcd70751be16fa94bf3d85a18",
+          "code_root_environment": "GAYA_COSYVOICE_CODE_ROOT",
+          "model_root_environment": "GAYA_COSYVOICE3_MODEL_ROOT",
+          "model_files": {
+            "CosyVoice-BlankEN/config.json": {
+              "size": 659,
+              "sha256": "168aa1bd401abc3bc262ba15ba4e499627a8b4e006e9d050b47c22de20660185"
+            },
+            "CosyVoice-BlankEN/generation_config.json": {
+              "size": 242,
+              "sha256": "e558847a8b4402616f1273797b015104dc266fe4b520056fca88823ba8f8ebe6"
+            },
+            "CosyVoice-BlankEN/merges.txt": {
+              "size": 1402109,
+              "sha256": "ac8ff86a72bee70828fbc1119bc4398c6f3a9a6e490d7b0dbe917be025478bd0"
+            },
+            "CosyVoice-BlankEN/model.safetensors": {
+              "size": 988097824,
+              "sha256": "130282af0dfa9fe5840737cc49a0d339d06075f83c5a315c3372c9a0740d0b96"
+            },
+            "CosyVoice-BlankEN/tokenizer_config.json": {
+              "size": 1287,
+              "sha256": "482bd979881423375ca5414e4e0d94cd7c5349dbb17fffd46b4d36d71e62a1bc"
+            },
+            "CosyVoice-BlankEN/vocab.json": {
+              "size": 2776833,
+              "sha256": "ca10d7e9fb3ed18575dd1e277a2579c16d108e32f27439684afa0e10b1440910"
+            },
+            "campplus.onnx": {
+              "size": 28303423,
+              "sha256": "a6ac6a63997761ae2997373e2ee1c47040854b4b759ea41ec48e4e42df0f4d73"
+            },
+            "cosyvoice3.yaml": {
+              "size": 6934,
+              "sha256": "f5a6b2c6f05139d0f18861a1fe506f751e787026b77c05f7e8fef9f8a4405965"
+            },
+            "flow.pt": {
+              "size": 1329116148,
+              "sha256": "a6fab32a7825e5b0bc855ddd948f8db9370b0a786fbc249caa4595e95b608e4b"
+            },
+            "hift.pt": {
+              "size": 83202622,
+              "sha256": "b279d7641eb97ae55b3b540cfba4f953c26492a2df758328a89a4d007ab87a65"
+            },
+            "llm.pt": {
+              "size": 2024669519,
+              "sha256": "69f43bd545131c30e98947fb360ea8b4dc9916d8e83dded7757c7ea4f5a24970"
+            },
+            "speech_tokenizer_v3.onnx": {
+              "size": 969451503,
+              "sha256": "23236a74175dbdda47afc66dbadd5bcb41303c467a57c261cb8539ad9db9208d"
+            }
+          },
+          "architecture": "CosyVoice3",
+          "model_architecture": "CosyVoice3Model",
+          "device": "cuda:0",
+          "sample_rate_hz": 24000,
+          "torch_version": "2.3.1+cu121",
+          "torchaudio_version": "2.3.1+cu121",
+          "cuda_version": "12.1",
+          "onnxruntime_gpu_version": "1.18.0",
+          "transformers_version": "4.51.3",
+          "numpy_version": "1.26.4",
+          "soundfile_version": "0.12.1",
+          "modelscope_version": "1.20.0",
+          "seed": 1986,
+          "fp16": true,
+          "load_trt": false,
+          "load_vllm": false,
+          "stream": false,
+          "speed": 1.0,
+          "text_frontend": false,
+          "zero_shot_speaker_id": "",
+          "offline_environment": {
+            "HF_HUB_OFFLINE": "1",
+            "TRANSFORMERS_OFFLINE": "1",
+            "MODELSCOPE_OFFLINE": "1"
+          },
+          "emotion_instructions": {
+            "neutral": "a neutral emotion",
+            "cheerful": "a cheerful emotion",
+            "angry": "an angry emotion",
+            "sad": "a sad emotion",
+            "fearful": "a fearful emotion",
+            "surprised": "a surprised emotion",
+            "tired": "a tired emotion",
+            "drunk": "a drunken emotion",
+            "whisper": "a whispering delivery",
+            "shout": "a shouting delivery",
+            "laughing": "a laughing delivery",
+            "pain": "an emotion of pain"
+          },
+          "intensity_instructions": {
+            "1": "slightly",
+            "2": "clearly",
+            "3": "strongly"
+          },
+          "instruction_prefix": "You are a helpful assistant. Speak in Japanese",
+          "instruction_delivery_prefix": "Follow this delivery direction exactly:",
+          "instruction_end": "<|endofprompt|>",
+          "reference_assignments": {
+            "tavern-night/drunkard": "hadou-emotion-11",
+            "tavern-night/old-regular": "hadou-emotion-11",
+            "market-day/fruit-vendor": "hadou-emotion-11",
+            "market-day/shopper": "lux-emotion-76",
+            "market-day/street-kid": "tsukuyomi-corpus-94"
+          },
+          "watermark_disclosed_by_official_source": false
+        },
+        "realized": {
+          "phase_peak_vram_mib": {
+            "runtime_load": {
+              "allocated_mib": 3370.4365234375,
+              "reserved_mib": 3482.0
+            },
+            "generation": {
+              "allocated_mib": 4295.9697265625,
+              "reserved_mib": 5282.0
+            }
+          },
+          "providers": {
+            "speech_tokenizer": [
+              "CUDAExecutionProvider",
+              "CPUExecutionProvider"
+            ],
+            "campplus": [
+              "CPUExecutionProvider"
+            ]
+          },
+          "seed": 1986,
+          "fp16": true,
+          "stream": false,
+          "speed": 1.0,
+          "text_frontend": false,
+          "sample_rate_hz": 24000,
+          "samples": 213120,
+          "duration_sec": 8.88,
+          "source_text": "近頃は物騒でいかんなぁ。",
+          "tts_text": "チカゴロワブッソーデイカンナー。",
+          "reading_source": "pyopenjtalk.g2p(kana=True)",
+          "instruction": "You are a helpful assistant. Speak in Japanese slightly with a tired emotion. Follow this delivery direction exactly: ため息まじり。独り言と話しかけの中間くらいの声量。<|endofprompt|>",
+          "emotion": "tired",
+          "intensity": 1,
+          "delivery": "ため息まじり。独り言と話しかけの中間くらいの声量。",
+          "reference_selection_source": "adapter.assignment:tavern-night/old-regular",
+          "reference_voice": "hadou-emotion-11",
+          "reference_sha256": "e98033d63f847c4113d8b47e264bca82f38212519da8d62661133847b3d221bc",
+          "reference_samples": 480192,
+          "reference_duration_sec": 10.004,
+          "watermark_disclosed_by_official_source": false
+        }
+      },
+      "rtf": 1.386571,
+      "loudness": {
+        "i_lufs": -18.07,
+        "tp_dbtp": -1.0,
+        "shortfall": false
+      }
+    },
+    {
+      "model": "cosyvoice3-0.5b-2512",
+      "scenario": "tavern-night",
+      "line": "old-regular-002",
+      "variant": "dry",
+      "path": "audio/cosyvoice3-0.5b-2512/tavern-night/old-regular-002-dry.opus",
+      "duration_sec": 2.6065,
+      "sha256": "406ff487700adb020a3add282dfef64d226544ad4802f8a87f9c07dc20ba40a0",
+      "gen_params": {
+        "requested": {
+          "upstream_repository": "QwenAudio/CosyVoice",
+          "upstream_revision": "074ca6dc9e80a2f424f1f74b48bdd7d3fea531cc",
+          "matcha_repository": "shivammehta25/Matcha-TTS",
+          "matcha_revision": "dd9105b34bf2be2230f4aa1e4769fb586a3c824e",
+          "weights_repository": "FunAudioLLM/Fun-CosyVoice3-0.5B-2512",
+          "weights_revision": "29e01c4e8d000f4bcd70751be16fa94bf3d85a18",
+          "code_root_environment": "GAYA_COSYVOICE_CODE_ROOT",
+          "model_root_environment": "GAYA_COSYVOICE3_MODEL_ROOT",
+          "model_files": {
+            "CosyVoice-BlankEN/config.json": {
+              "size": 659,
+              "sha256": "168aa1bd401abc3bc262ba15ba4e499627a8b4e006e9d050b47c22de20660185"
+            },
+            "CosyVoice-BlankEN/generation_config.json": {
+              "size": 242,
+              "sha256": "e558847a8b4402616f1273797b015104dc266fe4b520056fca88823ba8f8ebe6"
+            },
+            "CosyVoice-BlankEN/merges.txt": {
+              "size": 1402109,
+              "sha256": "ac8ff86a72bee70828fbc1119bc4398c6f3a9a6e490d7b0dbe917be025478bd0"
+            },
+            "CosyVoice-BlankEN/model.safetensors": {
+              "size": 988097824,
+              "sha256": "130282af0dfa9fe5840737cc49a0d339d06075f83c5a315c3372c9a0740d0b96"
+            },
+            "CosyVoice-BlankEN/tokenizer_config.json": {
+              "size": 1287,
+              "sha256": "482bd979881423375ca5414e4e0d94cd7c5349dbb17fffd46b4d36d71e62a1bc"
+            },
+            "CosyVoice-BlankEN/vocab.json": {
+              "size": 2776833,
+              "sha256": "ca10d7e9fb3ed18575dd1e277a2579c16d108e32f27439684afa0e10b1440910"
+            },
+            "campplus.onnx": {
+              "size": 28303423,
+              "sha256": "a6ac6a63997761ae2997373e2ee1c47040854b4b759ea41ec48e4e42df0f4d73"
+            },
+            "cosyvoice3.yaml": {
+              "size": 6934,
+              "sha256": "f5a6b2c6f05139d0f18861a1fe506f751e787026b77c05f7e8fef9f8a4405965"
+            },
+            "flow.pt": {
+              "size": 1329116148,
+              "sha256": "a6fab32a7825e5b0bc855ddd948f8db9370b0a786fbc249caa4595e95b608e4b"
+            },
+            "hift.pt": {
+              "size": 83202622,
+              "sha256": "b279d7641eb97ae55b3b540cfba4f953c26492a2df758328a89a4d007ab87a65"
+            },
+            "llm.pt": {
+              "size": 2024669519,
+              "sha256": "69f43bd545131c30e98947fb360ea8b4dc9916d8e83dded7757c7ea4f5a24970"
+            },
+            "speech_tokenizer_v3.onnx": {
+              "size": 969451503,
+              "sha256": "23236a74175dbdda47afc66dbadd5bcb41303c467a57c261cb8539ad9db9208d"
+            }
+          },
+          "architecture": "CosyVoice3",
+          "model_architecture": "CosyVoice3Model",
+          "device": "cuda:0",
+          "sample_rate_hz": 24000,
+          "torch_version": "2.3.1+cu121",
+          "torchaudio_version": "2.3.1+cu121",
+          "cuda_version": "12.1",
+          "onnxruntime_gpu_version": "1.18.0",
+          "transformers_version": "4.51.3",
+          "numpy_version": "1.26.4",
+          "soundfile_version": "0.12.1",
+          "modelscope_version": "1.20.0",
+          "seed": 1986,
+          "fp16": true,
+          "load_trt": false,
+          "load_vllm": false,
+          "stream": false,
+          "speed": 1.0,
+          "text_frontend": false,
+          "zero_shot_speaker_id": "",
+          "offline_environment": {
+            "HF_HUB_OFFLINE": "1",
+            "TRANSFORMERS_OFFLINE": "1",
+            "MODELSCOPE_OFFLINE": "1"
+          },
+          "emotion_instructions": {
+            "neutral": "a neutral emotion",
+            "cheerful": "a cheerful emotion",
+            "angry": "an angry emotion",
+            "sad": "a sad emotion",
+            "fearful": "a fearful emotion",
+            "surprised": "a surprised emotion",
+            "tired": "a tired emotion",
+            "drunk": "a drunken emotion",
+            "whisper": "a whispering delivery",
+            "shout": "a shouting delivery",
+            "laughing": "a laughing delivery",
+            "pain": "an emotion of pain"
+          },
+          "intensity_instructions": {
+            "1": "slightly",
+            "2": "clearly",
+            "3": "strongly"
+          },
+          "instruction_prefix": "You are a helpful assistant. Speak in Japanese",
+          "instruction_delivery_prefix": "Follow this delivery direction exactly:",
+          "instruction_end": "<|endofprompt|>",
+          "reference_assignments": {
+            "tavern-night/drunkard": "hadou-emotion-11",
+            "tavern-night/old-regular": "hadou-emotion-11",
+            "market-day/fruit-vendor": "hadou-emotion-11",
+            "market-day/shopper": "lux-emotion-76",
+            "market-day/street-kid": "tsukuyomi-corpus-94"
+          },
+          "watermark_disclosed_by_official_source": false
+        },
+        "realized": {
+          "phase_peak_vram_mib": {
+            "runtime_load": {
+              "allocated_mib": 3370.4365234375,
+              "reserved_mib": 3482.0
+            },
+            "generation": {
+              "allocated_mib": 4295.9697265625,
+              "reserved_mib": 5182.0
+            }
+          },
+          "providers": {
+            "speech_tokenizer": [
+              "CUDAExecutionProvider",
+              "CPUExecutionProvider"
+            ],
+            "campplus": [
+              "CPUExecutionProvider"
+            ]
+          },
+          "seed": 1986,
+          "fp16": true,
+          "stream": false,
+          "speed": 1.0,
+          "text_frontend": false,
+          "sample_rate_hz": 24000,
+          "samples": 62400,
+          "duration_sec": 2.6,
+          "source_text": "ほっほ、若いのは元気でいい。",
+          "tts_text": "ホッホ、ワカイノワゲンキデイイ。",
+          "reading_source": "pyopenjtalk.g2p(kana=True)",
+          "instruction": "You are a helpful assistant. Speak in Japanese slightly with a laughing delivery. Follow this delivery direction exactly: 静かな含み笑いから始まる。目を細めて言う感じ。<|endofprompt|>",
+          "emotion": "laughing",
+          "intensity": 1,
+          "delivery": "静かな含み笑いから始まる。目を細めて言う感じ。",
+          "reference_selection_source": "adapter.assignment:tavern-night/old-regular",
+          "reference_voice": "hadou-emotion-11",
+          "reference_sha256": "e98033d63f847c4113d8b47e264bca82f38212519da8d62661133847b3d221bc",
+          "reference_samples": 480192,
+          "reference_duration_sec": 10.004,
+          "watermark_disclosed_by_official_source": false
+        }
+      },
+      "rtf": 1.738016,
+      "loudness": {
+        "i_lufs": -17.98,
+        "tp_dbtp": -2.6,
         "shortfall": false
       }
     },
