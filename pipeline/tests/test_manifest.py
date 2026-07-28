@@ -41,6 +41,11 @@ def _clip(
         "sha256": sha256,
         "gen_params": {},
         "rtf": 0.5,
+        "loudness": {
+            "i_lufs": -18.0,
+            "tp_dbtp": -1.0,
+            "shortfall": False,
+        },
     }
 
 
@@ -130,6 +135,26 @@ def test_load_manifest_rejects_invalid_failures(
     _write_manifest(manifest_path, _manifest(failures=failures))
 
     with pytest.raises(ManifestError, match=message):
+        load_manifest(manifest_path)
+
+
+@pytest.mark.parametrize(
+    "loudness",
+    [
+        {"i_lufs": -18.0, "tp_dbtp": -1.0},
+        {"i_lufs": -18.0, "tp_dbtp": -1.0, "shortfall": "false"},
+    ],
+)
+def test_load_manifest_rejects_invalid_clip_loudness(
+    tmp_path: Path,
+    loudness: dict[str, object],
+) -> None:
+    manifest_path = tmp_path / "manifest.json"
+    clip = _clip("barmaid-001", "a" * 64)
+    clip["loudness"] = loudness
+    _write_manifest(manifest_path, _manifest(clips=[clip]))
+
+    with pytest.raises(ManifestError, match="loudness"):
         load_manifest(manifest_path)
 
 

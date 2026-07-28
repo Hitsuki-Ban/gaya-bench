@@ -91,6 +91,11 @@ export interface Clip {
   readonly sha256: string;
   readonly gen_params: { readonly [key: string]: JsonValue };
   readonly rtf: number;
+  readonly loudness: {
+    readonly i_lufs: number;
+    readonly tp_dbtp: number;
+    readonly shortfall: boolean;
+  };
 }
 
 export type GenerationFailureReason = "generation_failed";

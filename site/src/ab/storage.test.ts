@@ -361,5 +361,6 @@ function clip(model: string): Clip {
     sha256: model,
     gen_params: {},
     rtf: 0.1,
+    loudness: { i_lufs: -18, tp_dbtp: -1, shortfall: false },
   };
 }

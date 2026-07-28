@@ -159,7 +159,7 @@ function MatrixToolbar({
       <div className="flex flex-wrap items-center gap-2">
         <Badge variant="outline">
           <AudioWaveform aria-hidden="true" data-icon="inline-start" />
-          -18 LUFS / mono / 48kHz
+          -18 LUFS 目標 / mono / 48kHz
         </Badge>
         <Badge variant="secondary">表示モデル {visibleModelCount}</Badge>
       </div>

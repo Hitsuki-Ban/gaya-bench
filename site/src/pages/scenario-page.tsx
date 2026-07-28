@@ -74,9 +74,10 @@ export function ScenarioPage() {
         <div>
           <h2 className="text-sm font-semibold">試聴条件</h2>
           <p className="mt-1 text-sm leading-6 text-muted-foreground">
-            全クリップはモデル間の音量差を抑えるため、変換後に -18 LUFS / peak -1 dBTP / mono /
-            48kHz へ正規化しています。囁きや叫びの意図的な音量差も均されるため、
-            音質・発音・演技を中心に比較してください。v1 は距離感や残響を加えない dry 音声です。
+            全クリップはモデル間の音量差を抑えるため、変換後に -18 LUFS 目標 / peak -1 dBTP / mono /
+            48kHz へ正規化しています。囁きなどピーク制約で目標に届かない音声は -18±1.5 LUFS
+            の範囲でベストエフォートとしています。意図的な音量差も均されるため、音質・発音・
+            演技を中心に比較してください。v1 は距離感や残響を加えない dry 音声です。
           </p>
         </div>
       </aside>

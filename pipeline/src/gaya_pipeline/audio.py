@@ -13,7 +13,8 @@ class AudioProcessingError(RuntimeError):
     pass
 
 
-LOUDNESS_TOLERANCE_LU = 0.2
+LOUDNESS_TARGET_TOLERANCE_LU = 0.2
+LOUDNESS_GATE_TOLERANCE_LU = 1.5
 TRUE_PEAK_TOLERANCE_DB = 0.1
 MAX_LIMITER_CORRECTION_PASSES = 2
 
@@ -26,7 +27,7 @@ class AudioTools:
 
 @dataclass(frozen=True)
 class PostprocessProfile:
-    algorithm_version: int = 2
+    algorithm_version: int = 3
     integrated_lufs: float = -18.0
     loudness_range_lu: float = 7.0
     true_peak_dbtp: float = -1.0
@@ -73,6 +74,19 @@ class LoudnessReport:
             "true_peak_dbtp": self.true_peak_dbtp,
             "loudness_range_lu": self.loudness_range_lu,
             "normalization_type": self.normalization_type,
+        }
+
+    def as_manifest_dict(
+        self,
+        profile: PostprocessProfile,
+    ) -> dict[str, float | bool]:
+        return {
+            "i_lufs": self.integrated_lufs,
+            "tp_dbtp": self.true_peak_dbtp,
+            "shortfall": (
+                abs(self.integrated_lufs - profile.integrated_lufs)
+                > LOUDNESS_TARGET_TOLERANCE_LU
+            ),
         }
 
 
@@ -353,7 +367,8 @@ def _loudness_matches_profile(
     profile: PostprocessProfile,
 ) -> bool:
     return (
-        abs(report.integrated_lufs - profile.integrated_lufs) <= LOUDNESS_TOLERANCE_LU
+        abs(report.integrated_lufs - profile.integrated_lufs)
+        <= LOUDNESS_TARGET_TOLERANCE_LU
         and report.true_peak_dbtp <= profile.true_peak_dbtp + TRUE_PEAK_TOLERANCE_DB
     )
 
@@ -362,12 +377,16 @@ def _validate_loudness_report(
     report: LoudnessReport,
     profile: PostprocessProfile,
 ) -> None:
-    if _loudness_matches_profile(report, profile):
+    if (
+        abs(report.integrated_lufs - profile.integrated_lufs)
+        <= LOUDNESS_GATE_TOLERANCE_LU
+        and report.true_peak_dbtp <= profile.true_peak_dbtp + TRUE_PEAK_TOLERANCE_DB
+    ):
         return
     raise AudioProcessingError(
         "正規化後 WAV が loudness profile を満たしません: "
         f"I={report.integrated_lufs:g} LUFS "
-        f"(target={profile.integrated_lufs:g}±{LOUDNESS_TOLERANCE_LU:g}), "
+        f"(target={profile.integrated_lufs:g}±{LOUDNESS_GATE_TOLERANCE_LU:g}), "
         f"TP={report.true_peak_dbtp:g} dBTP "
         f"(max={profile.true_peak_dbtp + TRUE_PEAK_TOLERANCE_DB:g})",
     )

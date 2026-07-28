@@ -15,6 +15,7 @@ from gaya_pipeline.adapters.dummy import DummyAdapter
 from gaya_pipeline.audio import PostprocessProfile, find_audio_tools, probe_audio
 from gaya_pipeline.generation import (
     GenerationError,
+    GenerationFailureRecord,
     GenerationRecord,
     GenerationSummary,
     run_generation,
@@ -121,6 +122,10 @@ def test_dummy_two_scenario_e2e_and_idempotency(
         assert opus_path.is_file()
         assert clip["sha256"] == _sha256(opus_path)
         assert clip["rtf"] >= 0
+        assert set(clip["loudness"]) == {"i_lufs", "tp_dbtp", "shortfall"}
+        assert clip["loudness"]["i_lufs"] == pytest.approx(-18.0, abs=0.2)
+        assert clip["loudness"]["tp_dbtp"] <= -0.9
+        assert clip["loudness"]["shortfall"] is False
 
     tools = find_audio_tools()
     opus_probe = probe_audio(tools, opus_files[0])
@@ -213,8 +218,9 @@ def test_selector_hash_invalidation_force_and_failed_replacement(
         json.dumps(broken_metadata, ensure_ascii=False),
         encoding="utf-8",
     )
-    with pytest.raises(GenerationError, match="生成メタの項目"):
-        run_selected()
+    broken = run_selected()
+    assert broken.failed_count == 1
+    assert "生成メタの項目" in broken.failures[0].message
     forced_after_broken_metadata = run_selected(force=True)
     assert forced_after_broken_metadata.generated_count == 1
     stable_bytes = {path: path.read_bytes() for path in stable_artifact_paths}
@@ -229,11 +235,9 @@ def test_selector_hash_invalidation_force_and_failed_replacement(
         raise RuntimeError("CUDA out of memory")
 
     monkeypatch.setattr(DummyAdapter, "generate", fail_generation)
-    with pytest.raises(
-        GenerationError,
-        match="tavern-night/barmaid-001.*CUDA out of memory",
-    ):
-        run_selected(force=True)
+    failed = run_selected(force=True)
+    assert failed.failed_count == 1
+    assert "CUDA out of memory" in failed.failures[0].message
     assert {path: path.read_bytes() for path in stable_artifact_paths} == stable_bytes
     assert not list(output_dir.glob("*.pending.*"))
     failed_manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
@@ -322,11 +326,10 @@ def test_adapter_boundary_errors_are_controlled(
         raise RuntimeError("prompt preprocessing failed")
 
     monkeypatch.setattr(DummyAdapter, "generation_input", fail_input)
-    with pytest.raises(
-        GenerationError,
-        match="tavern-night/barmaid-001.*adapter 入力構築.*prompt preprocessing",
-    ):
-        run_selected()
+    failed = run_selected()
+    assert failed.failed_count == 1
+    assert "adapter 入力構築" in failed.failures[0].message
+    assert "prompt preprocessing" in failed.failures[0].message
 
 
 def test_adapter_prepare_runs_once_before_generation_input(
@@ -421,10 +424,10 @@ def test_postprocess_algorithm_version_invalidates_cached_audio(
         artifacts_dir / "audio" / "dummy" / "tavern-night" / "barmaid-001-dry.json"
     )
     metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
-    assert metadata["postprocess"]["algorithm_version"] == 2
+    assert metadata["postprocess"]["algorithm_version"] == 3
 
 
-def test_later_batch_failure_keeps_manifest_in_sync(
+def test_later_batch_failure_continues_and_keeps_manifest_in_sync(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -470,12 +473,13 @@ def test_later_batch_failure_keeps_manifest_in_sync(
         return original_generate(adapter, job, output_wav)
 
     monkeypatch.setattr(DummyAdapter, "generate", fail_second_generation)
-    with pytest.raises(
-        GenerationError,
-        match="tavern-night/barmaid-002.*CUDA out of memory later",
-    ):
-        run_scenario(force=True)
+    summary = run_scenario(force=True)
 
+    assert generation_count == 6
+    assert summary.generated_count == 5
+    assert summary.failed_count == 1
+    assert summary.failures[0].line_id == "barmaid-002"
+    assert "CUDA out of memory later" in summary.failures[0].message
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     assert len(manifest["clips"]) == 5
     assert manifest["failures"] == [
@@ -492,7 +496,7 @@ def test_later_batch_failure_keeps_manifest_in_sync(
         assert clip["sha256"] == _sha256(artifacts_dir / clip["path"])
 
 
-def test_first_batch_failure_stops_and_preserves_unprocessed_results(
+def test_first_batch_failure_continues_remaining_lines(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -509,12 +513,9 @@ def test_first_batch_failure_stops_and_preserves_unprocessed_results(
     )
     assert baseline.generated_count == 6
     old_manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-    unprocessed = {
-        clip["line"]: clip
-        for clip in old_manifest["clips"]
-        if clip["line"] != "barmaid-001"
-    }
+    baseline_sha = {clip["line"]: clip["sha256"] for clip in old_manifest["clips"]}
     generation_count = 0
+    original_generate = DummyAdapter.generate
 
     def fail_first_generation(
         adapter: DummyAdapter,
@@ -523,25 +524,31 @@ def test_first_batch_failure_stops_and_preserves_unprocessed_results(
     ) -> Mapping[str, Any]:
         nonlocal generation_count
         generation_count += 1
-        raise RuntimeError("first job failed")
+        if generation_count == 1:
+            raise RuntimeError("first job failed")
+        return original_generate(adapter, job, output_wav)
 
     monkeypatch.setattr(DummyAdapter, "generate", fail_first_generation)
-    with pytest.raises(
-        GenerationError,
-        match="tavern-night/barmaid-001.*first job failed",
-    ):
-        run_generation(
-            model_id="dummy",
-            scenarios_dir=scenarios_dir,
-            artifacts_dir=artifacts_dir,
-            manifest_path=manifest_path,
-            scenario_id="tavern-night",
-            force=True,
-        )
+    summary = run_generation(
+        model_id="dummy",
+        scenarios_dir=scenarios_dir,
+        artifacts_dir=artifacts_dir,
+        manifest_path=manifest_path,
+        scenario_id="tavern-night",
+        force=True,
+    )
 
     output = json.loads(manifest_path.read_text(encoding="utf-8"))
-    assert generation_count == 1
-    assert {clip["line"]: clip for clip in output["clips"]} == unprocessed
+    assert generation_count == 6
+    assert summary.generated_count == 5
+    assert summary.failed_count == 1
+    assert summary.failures[0].line_id == "barmaid-001"
+    assert "first job failed" in summary.failures[0].message
+    assert len(output["clips"]) == 5
+    assert all(
+        clip["sha256"] != baseline_sha[clip["line"]]
+        for clip in output["clips"]
+    )
     assert output["failures"][0]["line"] == "barmaid-001"
 
 
@@ -617,6 +624,7 @@ def test_gen_cli_routes_selectors_and_logs(
                     rtf=0.5,
                 ),
             ),
+            failures=(),
             elapsed_seconds=0.5,
             manifest_updated=True,
         )
@@ -643,4 +651,35 @@ def test_gen_cli_routes_selectors_and_logs(
     assert received["line_id"] == "barmaid-001"
     assert received["force"] is True
     assert "生成=0.250s RTF=0.500" in output
+    assert "失敗 0" in output
     assert "所要時間 0.500s" in output
+
+
+def test_gen_cli_prints_failure_summary_last_and_returns_nonzero(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    def fake_run_generation(**arguments: object) -> GenerationSummary:
+        del arguments
+        return GenerationSummary(
+            records=(),
+            failures=(
+                GenerationFailureRecord(
+                    scenario_id="castle-gate",
+                    line_id="guard-onna-003",
+                    message="loudness gate exceeded",
+                ),
+            ),
+            elapsed_seconds=0.5,
+            manifest_updated=True,
+        )
+
+    monkeypatch.setattr(cli, "run_generation", fake_run_generation)
+
+    exit_code = cli.main(["gen", "--model", "dummy"])
+    output = capsys.readouterr().out
+
+    assert exit_code == 1
+    assert "失敗サマリ:" in output
+    assert "castle-gate/guard-onna-003: loudness gate exceeded" in output
+    assert output.rstrip().endswith("失敗 1 / 所要時間 0.500s")

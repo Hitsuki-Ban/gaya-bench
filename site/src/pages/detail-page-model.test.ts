@@ -121,6 +121,7 @@ function clip(): Clip {
     sha256: "hash",
     gen_params: {},
     rtf: 0.1,
+    loudness: { i_lufs: -18, tp_dbtp: -1, shortfall: false },
   };
 }
 

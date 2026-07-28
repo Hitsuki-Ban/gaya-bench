@@ -31,7 +31,9 @@ const CLIP_KEYS = [
   "sha256",
   "gen_params",
   "rtf",
+  "loudness",
 ] as const;
+const LOUDNESS_KEYS = ["i_lufs", "tp_dbtp", "shortfall"] as const;
 const FAILURE_KEYS = ["model", "scenario", "line", "variant", "reason"] as const;
 const SCENARIO_REQUIRED_KEYS = [
   "format_version",
@@ -199,6 +201,11 @@ function validateClip(value: unknown, index: number): Clip {
   assertNonNegativeFiniteNumber(value.duration_sec, `${label}.duration_sec`);
   assertNonNegativeFiniteNumber(value.rtf, `${label}.rtf`);
   assertRecord(value.gen_params, `${label}.gen_params`);
+  assertRecord(value.loudness, `${label}.loudness`);
+  assertExactKeys(value.loudness, LOUDNESS_KEYS, [], `${label}.loudness`);
+  assertFiniteNumber(value.loudness.i_lufs, `${label}.loudness.i_lufs`);
+  assertFiniteNumber(value.loudness.tp_dbtp, `${label}.loudness.tp_dbtp`);
+  assertBoolean(value.loudness.shortfall, `${label}.loudness.shortfall`);
   assertString(value.path, `${label}.path`);
   assertRelativeClipPath(value.path, `${label}.path`);
 
@@ -530,6 +537,12 @@ function assertStringArray(value: unknown, label: string): asserts value is stri
 function assertNonNegativeFiniteNumber(value: unknown, label: string): void {
   if (typeof value !== "number" || !Number.isFinite(value) || value < 0) {
     throw new GayaDataError(`${label} は0以上の有限数が必要です。`);
+  }
+}
+
+function assertFiniteNumber(value: unknown, label: string): void {
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    throw new GayaDataError(`${label} は有限数である必要があります`);
   }
 }
 

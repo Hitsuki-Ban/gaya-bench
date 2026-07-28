@@ -15,6 +15,7 @@ from gaya_pipeline.adapters.base import Adapter, LineJob
 from gaya_pipeline.audio import (
     AudioProcessingError,
     AudioTools,
+    LoudnessReport,
     PostprocessProfile,
     encode_opus,
     find_audio_tools,
@@ -61,8 +62,16 @@ class GenerationRecord:
 
 
 @dataclass(frozen=True)
+class GenerationFailureRecord:
+    scenario_id: str
+    line_id: str
+    message: str
+
+
+@dataclass(frozen=True)
 class GenerationSummary:
     records: tuple[GenerationRecord, ...]
+    failures: tuple[GenerationFailureRecord, ...]
     elapsed_seconds: float
     manifest_updated: bool
 
@@ -73,6 +82,10 @@ class GenerationSummary:
     @property
     def skipped_count(self) -> int:
         return sum(record.status == "skipped" for record in self.records)
+
+    @property
+    def failed_count(self) -> int:
+        return len(self.failures)
 
 
 def run_generation(
@@ -135,6 +148,7 @@ def run_generation(
         ) from error
 
     records: list[GenerationRecord] = []
+    failures: list[GenerationFailureRecord] = []
     clips: list[dict[str, Any]] = []
     manifest_updated = False
 
@@ -165,7 +179,7 @@ def run_generation(
         ) as error:
             failure = _failure_result(adapter.profile.id, job)
             try:
-                update_manifest(
+                changed = update_manifest(
                     manifest_path,
                     manifest,
                     adapter.profile,
@@ -174,14 +188,22 @@ def run_generation(
                     replace_model_results=False,
                     replace_scenario_results=None,
                 )
+                manifest_updated = manifest_updated or changed
+                if changed:
+                    manifest = load_manifest(manifest_path)
             except (ManifestError, OSError, TypeError, ValueError) as write_error:
                 raise GenerationError(
                     f"{job.scenario_id}/{job.line_id}: {error}; "
                     f"manifest への失敗記録にも失敗しました: {write_error}",
                 ) from error
-            raise GenerationError(
-                f"{job.scenario_id}/{job.line_id}: {error}",
-            ) from error
+            failures.append(
+                GenerationFailureRecord(
+                    scenario_id=job.scenario_id,
+                    line_id=job.line_id,
+                    message=str(error),
+                ),
+            )
+            continue
         records.append(record)
         clips.append(clip)
         try:
@@ -202,22 +224,24 @@ def run_generation(
                 f"{job.scenario_id}/{job.line_id}: {error}",
             ) from error
 
-    try:
-        final_manifest_updated = update_manifest(
-            manifest_path,
-            manifest,
-            adapter.profile,
-            clips,
-            [],
-            replace_model_results=scenario_id is None,
-            replace_scenario_results=scenario_id if line_id is None else None,
-        )
-    except (ManifestError, OSError, TypeError, ValueError) as error:
-        raise GenerationError(str(error)) from error
-    manifest_updated = manifest_updated or final_manifest_updated
+    if not failures:
+        try:
+            final_manifest_updated = update_manifest(
+                manifest_path,
+                manifest,
+                adapter.profile,
+                clips,
+                [],
+                replace_model_results=scenario_id is None,
+                replace_scenario_results=scenario_id if line_id is None else None,
+            )
+        except (ManifestError, OSError, TypeError, ValueError) as error:
+            raise GenerationError(str(error)) from error
+        manifest_updated = manifest_updated or final_manifest_updated
 
     return GenerationSummary(
         records=tuple(records),
+        failures=tuple(failures),
         elapsed_seconds=time.perf_counter() - started_at,
         manifest_updated=manifest_updated,
     )
@@ -318,6 +342,7 @@ def _process_job(
             adapter.profile.id,
             job,
             metadata,
+            profile,
             status="skipped",
         )
 
@@ -409,6 +434,7 @@ def _process_job(
         adapter.profile.id,
         job,
         metadata,
+        profile,
         status="generated",
     )
 
@@ -582,6 +608,7 @@ def _record_and_clip_from_metadata(
     model_id: str,
     job: LineJob,
     metadata: dict[str, Any],
+    profile: PostprocessProfile,
     *,
     status: Literal["generated", "skipped"],
 ) -> tuple[GenerationRecord, dict[str, Any]]:
@@ -591,6 +618,12 @@ def _record_and_clip_from_metadata(
         duration_sec = float(metadata["duration_sec"])
         opus_sha256 = str(metadata["opus_sha256"])
         gen_params = metadata["gen_params"]
+        loudness = LoudnessReport(
+            integrated_lufs=float(metadata["loudness"]["integrated_lufs"]),
+            true_peak_dbtp=float(metadata["loudness"]["true_peak_dbtp"]),
+            loudness_range_lu=float(metadata["loudness"]["loudness_range_lu"]),
+            normalization_type=str(metadata["loudness"]["normalization_type"]),
+        )
     except (KeyError, TypeError, ValueError) as error:
         raise GenerationError("生成メタに必要な項目がありません。") from error
     if not isinstance(gen_params, dict):
@@ -613,6 +646,7 @@ def _record_and_clip_from_metadata(
         "sha256": opus_sha256,
         "gen_params": gen_params,
         "rtf": rtf,
+        "loudness": loudness.as_manifest_dict(profile),
     }
     return record, clip
 
