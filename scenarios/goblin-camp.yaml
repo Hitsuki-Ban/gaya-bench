@@ -16,6 +16,7 @@ scene:
 characters:
   - id: goblin-lookout
     name: ゴブリンの見張り
+    kind: creature
     gender: male
     age: teen
     archetype: 小鬼の斥候
@@ -27,6 +28,7 @@ characters:
 
   - id: goblin-cook
     name: ゴブリンの料理番
+    kind: creature
     gender: female
     age: child
     archetype: 小鬼の炊事係
@@ -38,6 +40,7 @@ characters:
 
   - id: orc-brother
     name: オークの兄貴分
+    kind: creature
     gender: male
     age: middle_aged
     archetype: 群れの頭
@@ -49,6 +52,7 @@ characters:
 
   - id: goblin-shaman
     name: 老いた小鬼の呪い師
+    kind: creature
     gender: neutral
     age: elderly
     archetype: 小鬼の祈祷師

@@ -16,6 +16,7 @@ scene:
 characters:
   - id: pixie
     name: 悪戯な妖精
+    kind: spirit
     gender: neutral
     age: child
     archetype: 森の小妖精
@@ -27,6 +28,7 @@ characters:
 
   - id: elder-tree
     name: 老樹の精
+    kind: spirit
     gender: male
     age: elderly
     archetype: 森の古木
@@ -38,6 +40,7 @@ characters:
 
   - id: wisp
     name: 鬼火
+    kind: spirit
     gender: neutral
     age: young_adult
     archetype: さまよう火の霊
@@ -49,6 +52,7 @@ characters:
 
   - id: spring-sprite
     name: 泉の精
+    kind: spirit
     gender: female
     age: young_adult
     archetype: 水の精霊

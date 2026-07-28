@@ -16,6 +16,7 @@ scene:
 characters:
   - id: guide-automaton
     name: 案内オートマトン
+    kind: machine
     gender: neutral
     age: adult
     archetype: 案内係の自動人形
@@ -28,6 +29,7 @@ characters:
 
   - id: sentry-unit
     name: 警備機
+    kind: machine
     gender: male
     age: middle_aged
     archetype: 警備用自動機
@@ -39,6 +41,7 @@ characters:
 
   - id: vendor-doll
     name: 壊れかけの販売カラクリ
+    kind: machine
     gender: female
     age: young_adult
     archetype: 物売りの自動人形
@@ -50,6 +53,7 @@ characters:
 
   - id: fortune-doll
     name: からくり占い人形
+    kind: machine
     gender: female
     age: young_adult
     archetype: 占いカラクリ
