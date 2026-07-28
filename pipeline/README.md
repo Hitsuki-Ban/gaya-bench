@@ -35,9 +35,11 @@ uv run --project pipeline gaya gen --model dummy --scenario tavern-night
 uv run --project pipeline gaya gen --model dummy --scenario tavern-night --line barmaid-001
 ```
 
-生成物は `artifacts/audio/`、公開用メタデータは `data/manifest.json` に出力される。`ffmpeg` と `ffprobe`（libopus encoder を含む）が必須。正規化後の48kHz PCMは再測定され、-18 ±0.2 LUFS / peak -0.9 dBTP以下を満たさない場合はlookahead limiterで最大2回補正する。続いて最終Opusをデコードして再測定し、Integrated Loudness が -18 ±1.5 LUFS を外れるか、True Peak が -0.9 dBTP を超えた場合は生成を失敗させる。±0.2 LUFSを外れるが硬い許容範囲内にある場合は `shortfall` として公開する。
+生成物は `artifacts/audio/`、公開用メタデータは `data/manifest.json` に出力される。`ffmpeg` と `ffprobe`（libopus encoder を含む）が必須。後処理 algorithm v7 は -18 LUFS / 48kHz mono に正規化し、エンコード前の `pre_encode_true_peak_target_dbtp` を -1.75 dBTP に固定する。正規化後PCMを再測定し、目標を満たさない場合はlookahead limiterで最大2回補正する。各WAVは libopus 64kbps VBR / application audio で1回だけエンコードする。
 
-後処理algorithm v6が生成するsidecarはformat v2を使用し、`loudness.normalized_wav` にエンコード前WAV、`loudness.encoded_opus` に最終Opusの測定値を記録する。旧format v1 sidecarは自動移行せず拒否するため、再生成するときは `--force` を明示する。`data/manifest.json` はformat v3を使用し、`clip.loudness.source: encoded_opus` とともに最終Opusの測定値だけを公開する。各 `(model, scenario, line, variant)` の最新結果は成功 (`clips`) または失敗 (`failures`) のどちらか一方に記録する。失敗したキーは次回実行時にキャッシュを使わず再生成し、成功すれば `clips` に戻る。公開 manifest の失敗理由は `generation_failed` のみで、例外の詳細は保存しない。
+最終Opusはデコードして再測定し、Integrated Loudness が -18 ±1.5 LUFS を外れるか、True Peak が `distribution_true_peak_max_dbtp` の -0.9 dBTP を超えた場合は生成を失敗させる。エンコード前目標を満たしていても最終 gate を省略せず、codec overshoot は fail-fast で拒否する。±0.2 LUFSを外れるが硬い許容範囲内にある場合は `shortfall` として公開する。-1.75 dBTP の選定根拠と381件の比較結果は [Opus配信用True Peakエンコード前シーリング実測](../docs/research/opus-true-peak-ceiling.md) に記録する。
+
+algorithm v7が生成するsidecarはformat v2を使用し、`loudness.normalized_wav` にエンコード前WAV、`loudness.encoded_opus` に最終Opusの測定値を記録する。sidecar format v2以外は拒否し、再生成するときは `--force` を明示する。`data/manifest.json` はformat v3を使用し、`clip.loudness.source: encoded_opus` とともに最終Opusの測定値だけを公開する。各 `(model, scenario, line, variant)` の最新結果は成功 (`clips`) または失敗 (`failures`) のどちらか一方に記録する。失敗したキーは次回実行時にキャッシュを使わず再生成し、成功すれば `clips` に戻る。公開 manifest の失敗理由は `generation_failed` のみで、例外の詳細は保存しない。
 
 ## R2 への公開
 
