@@ -4,7 +4,7 @@ import hashlib
 import math
 import struct
 import wave
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Any
 
@@ -25,6 +25,13 @@ class DummyAdapter:
             reading=False,
         ),
     )
+
+    def prepare(
+        self,
+        jobs: Sequence[LineJob],
+        artifacts_dir: Path,
+    ) -> None:
+        del jobs, artifacts_dir
 
     def generation_params(self) -> Mapping[str, Any]:
         return {
