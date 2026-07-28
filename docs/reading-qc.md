@@ -1,58 +1,69 @@
 # 読み・韻律 QC
 
-`gaya qc` は公開 manifest の最終 Opus を再解析し、読みの一致と未校正の
-韻律 feature を独立 JSON report に記録する。dry 音声、sidecar、
-`data/manifest.json` は変更しない。
+`gaya qc --run-id` は generation run の ledger、sidecar、WAV/Opus を結合し、
+各 take を Gate 1 mechanical、Gate 2 content、Gate 3 report-only の順に
+評価する。公開 manifest v3 は入力にも出力にも使わない。
 
-## 対象と出力
-
-対象集合は `data/manifest.json` format v3 の `clips` だけである。
-ローカルに残った未公開 artifact は配布対象の真値ではないため自動探索しない。
-各 Opus は解析前に manifest の SHA-256 と照合する。
-全対象の存在、artifacts 内への収まり、SHA-256、出力先との衝突を
-model load 前に preflight する。実行中に manifest または音声が変わった
-場合も report を確定せず失敗する。
-
-出力は既定で `artifacts/qc/report.json` format v1 とする。report は
-ASR model/revision、依存 version、manifest SHA-256、各 clip の
-`(model, scenario, line, variant, audio_sha256)` を含むため、#76 の
-take gate は公開 manifest を変更せずに同一音声へ結合できる。
-絞り込み実行では `source.clip_set` を `manifest.clips.selection` とし、
-`source.selection` に selector と `filtered` coverage を記録する。
+## 実行境界
 
 ```console
 uv sync --project pipeline --locked --extra qc
-uv run --project pipeline --locked --extra qc gaya qc
+uv run --project pipeline --locked --extra qc gaya qc --run-id <run-id>
 ```
 
-対象を絞る場合:
+`run-id` は `artifacts/takes` 配下の単一 path segment でなければならない。
+対象集合は `ledger.source.groups` と `ledger.attempts` で固定され、model、
+scenario、line による部分実行は行わない。
 
-```console
-uv run --project pipeline --locked --extra qc gaya qc \
-  --model qwen3-tts-12hz-1.7b \
-  --scenario chinatown-street \
-  --line shokudo-oyaji-002
-```
+TTS と QC は同一 process にロードしない。`gaya gen` の process が終了した後に
+独立した `gaya qc` process を起動し、そこで Kana Whisper をロードする。
+adapter の `unload` や CPU runtime への切替は設けない。
 
-明示 reading と Kana ASR が不一致の場合、`mismatch` として report を
-書いたうえで終了 code 1 を返す。個別解析エラーも `analysis_error` として
-report に残して終了 code 1 とする。
-韻律 feature と、期待 reading 自体を確定できない状態は本 Issue では
-品質閾値に使わない。
+run-local の出力は次の二つである。
 
-## 読み判定
+- `artifacts/takes/<run-id>/qc-report.json`: gate 理由、ASR、未校正の韻律 feature
+- `artifacts/takes/<run-id>/manifest-v4.json`: terminal run の eligible take だけを
+  投影した local snapshot
 
-期待 reading は `line.reading` を最優先する。省略時は既存の
-`pyopenjtalk.g2p(text, kana=True)` を使うが、`辛い / 行った / 人気 /
-大分` のような多読み語を含む行では自動 G2P を正解とみなさず
-`needs_reading` にする。`gaya validate` はその場で warning を出し、
-`line.reading` の明記を求める。
+ledger は attempt ごとに原子的に checkpoint する。`planned`、`generated`、
+`blocked` のいずれかが残る run では snapshot を書かず、終了 code 1 を返す。
+全 attempt が terminal なら、eligible がない group を `no_eligible_take` として
+記録し、snapshot 全体を検証してから原子的に確定する。
 
-明示 reading のある行だけを `pass / mismatch` の hard 判定対象にする。
-多読み語を含むが reading がない行は `needs_reading`、それ以外の
-PyOpenJTalk 由来 reading は比較値と Kana-CER を残しつつ
-`review_required` とする。自動 G2P を唯一の正解として終了 code 1 の
-根拠にはしない。
+## Ledger join
+
+model load 前に run-id、ledger、scenario source hash、sidecar identity、
+generation input hash、take recipe、requested parameters、toolchain、
+WAV/Opus path と SHA-256 を照合する。欠損や provenance の不一致は音質不良とは
+みなさず `blocked` とする。入力が検査中に変化した場合も `blocked` である。
+
+terminal attempt は再分類しない。再実行時は `blocked` だけを同じ provenance で
+再評価し、まだ解消していなければ ledger を書き換えず `blocked` のまま残す。
+`generation_failed` は generation phase の terminal 結果として Gate 対象外とする。
+
+## Gate 1: mechanical
+
+最終 Opus を独立に decode/probe/measure し、sidecar の記録を判定値として信用しない。
+次を hard reject とする。
+
+- decode 不可、空音声、非有限 sample、48 kHz mono Opus でない
+- Integrated Loudness が -18 ±1.5 LUFS の範囲外
+- True Peak が -0.9 dBTP を上回る
+- active speech が 0 秒
+
+mechanical reject は `mechanical=reject, content=not_run` と記録する。
+provenance、tool、runtime の都合で検査を完了できない場合は
+`mechanical=blocked, content=not_run` とし、reject に変換しない。
+
+## Gate 2: content
+
+期待 reading は `line.reading` を最優先する。明示 reading と Kana ASR が一致すれば
+`pass`、不一致なら `reject` とする。空 ASR、runtime error、検査中の artifact
+変更は `blocked` であり、誤読として reject しない。
+
+`line.reading` がない場合は既存の日本語 reading 解決を report に残すが、G2P
+推定や多読み語を正解とはみなさず `review_required` とする。
+`review_required` は eligible であり、pass へ変換しない。
 
 ASR は次の単一路径に固定する。
 
@@ -63,31 +74,16 @@ ASR は次の単一路径に固定する。
 - dtype: FP16
 - license: model MIT
 
-Kana Whisper は日本語音声を片仮名列へ直接転写するため、通常の ASR が
-同形表記 `辛い` に戻して `からい / つらい` の音声差を失う問題を避ける。
-model は固定 revision を明示 download した後、ローカル snapshot だけを
-ロードする。依存、CUDA 13.0、FP16 対応 GPU、ffmpeg のいずれかが欠ける
-場合は準備段階で失敗し、CPU や別 model へ切り替えない。
+固定 revision をローカル snapshot に取得してから load し、依存、CUDA、FP16
+対応 GPU、ffmpeg のいずれかが欠ける場合は `blocked` とする。CPU、別 model、
+別 revision へ切り替えない。
 
-`chinatown-street/shokudo-oyaji-002` の正解は
-`ウチノマーボーワカライヨ、カクゴシナ！` と scenario に明記する。
-旧 Qwen dry の `ツライ` は保持し、QC mismatch の回帰対象とする。
+## Gate 3: report-only
 
-## 韻律 feature
+`librosa==0.11.0` で duration、active speech、mora speed、pause、F0、energy を
+記録する。active speech 0 だけは Gate 1 の無効音声判定に使う。それ以外は
+校正済み scorer、順位、合否閾値を持たず、ledger では
+`features.status=unscored` のままとする。
 
-`librosa==0.11.0` で次を clip ごとに記録する。
-
-- 全体時間、非静音時間、推定 mora 数、全体/発音中 mora 毎秒
-- 80 ms 以上の内部 pause 数・合計・最長、先頭/末尾静音
-- pYIN の F0 median / p10 / p90 / semitone 標準偏差 / voiced ratio
-- RMS energy の median / p95 dBFS
-
-F0 を得られない場合は `null` とし、0 Hz を混ぜない。pause、F0、
-energy、話速は report-only の未校正 feature であり、#74 の統合結論に
-従って本 Issue では reject 閾値や自動補正を設けない。
-
-## 修正版の扱い
-
-QC は `suggested_reading` を提示するだけで dry 音声を上書きしない。
-reading 対応 model の再生成は明示的な別操作とし、将来 corrected variant
-を導入する場合も dry と同一 key に置き換えない。
+QC は音声を上書き・削除しない。hard reject と generation failure の artifact は
+run に監査用として残るが、manifest v4 candidates には決して含めない。

@@ -3,25 +3,46 @@ from __future__ import annotations
 import hashlib
 import json
 import math
-import os
-import tempfile
 from collections.abc import Mapping
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Protocol
 
 import yaml
 
+from gaya_pipeline.adapters import get_model_profile
+from gaya_pipeline.audio import (
+    AudioProcessingError,
+    AudioProbe,
+    AudioTools,
+    EncodedLoudnessReport,
+    PostprocessProfile,
+    find_audio_tools,
+    measure_encoded_opus,
+    probe_audio,
+)
 from gaya_pipeline.japanese_reading import (
     JapaneseReadingError,
-    contains_japanese_ideograph,
     find_ambiguous_japanese_readings,
     normalize_japanese_reading,
     resolve_japanese_reading,
 )
-from gaya_pipeline.manifest import ManifestError, load_manifest
-from gaya_pipeline.validation import validate_scenarios
+from gaya_pipeline.take_identity import canonical_json
+from gaya_pipeline.take_ledger import (
+    TERMINAL_STATUSES,
+    TakeLedgerError,
+    read_ledger,
+    transition_attempt,
+    write_ledger_atomic,
+)
+from gaya_pipeline.take_manifest_v4 import (
+    TakeManifestError,
+    candidate_from_attempt,
+    validate_manifest_v4,
+)
+from gaya_pipeline.take_sidecar import TakeSidecarError, validate_take_sidecar
+from gaya_pipeline.validation import validate_scenario_ids
 
 
 class QCError(RuntimeError):
@@ -50,176 +71,398 @@ class QCRuntime(Protocol):
 
 @dataclass(frozen=True)
 class QCSummary:
-    output_path: Path
-    clip_count: int
-    pass_count: int
-    mismatch_count: int
-    needs_reading_count: int
-    review_required_count: int
-    analysis_error_count: int
+    ledger_path: Path
+    report_path: Path
+    snapshot_path: Path | None
+    attempt_count: int
+    eligible_count: int
+    hard_rejected_count: int
+    blocked_count: int
+    generation_failed_count: int
+    pending_count: int
 
 
 @dataclass(frozen=True)
-class _QCClipInput:
-    clip: Mapping[str, Any]
+class _ScenarioInput:
     line: Mapping[str, Any]
-    audio_path: Path
     expected_reading: Mapping[str, Any]
 
 
+@dataclass(frozen=True)
+class _MechanicalPass:
+    wav_probe: AudioProbe
+    opus_probe: AudioProbe
+    loudness: EncodedLoudnessReport
+    sidecar: Mapping[str, Any]
+
+
+@dataclass(frozen=True)
+class _PendingInspection:
+    slot: tuple[str, str, str, str, int]
+    attempt: dict[str, Any]
+    scenario: _ScenarioInput
+    opus_path: Path
+    mechanical: _MechanicalPass
+
+
+class _ProvenanceError(RuntimeError):
+    pass
+
+
 REPORT_FORMAT_VERSION = 1
+GATE_POLICY_VERSION = "take-gates-v1"
+VARIANT = "dry"
 
 
 def run_qc(
     *,
-    manifest_path: Path,
+    run_id: str,
     scenarios_dir: Path,
     artifacts_dir: Path,
-    output_path: Path,
     runtime: QCRuntime,
-    model_id: str | None = None,
-    scenario_id: str | None = None,
-    line_id: str | None = None,
 ) -> QCSummary:
-    if line_id is not None and scenario_id is None:
-        raise QCError("--line を指定する場合は --scenario も必要です。")
-
-    manifest_path = manifest_path.resolve()
-    manifest_sha256 = _file_sha256(manifest_path)
-    catalog = _load_scenario_catalog(scenarios_dir)
-    try:
-        manifest = load_manifest(manifest_path)
-    except ManifestError as error:
-        raise QCError(str(error)) from error
-    if _file_sha256(manifest_path) != manifest_sha256:
-        raise QCError("manifest が読み込み中に変更されました。")
-
-    selected_clips = [
-        clip
-        for clip in manifest["clips"]
-        if (model_id is None or clip["model"] == model_id)
-        and (scenario_id is None or clip["scenario"] == scenario_id)
-        and (line_id is None or clip["line"] == line_id)
-    ]
-    if not selected_clips:
-        raise QCError("指定条件に一致する manifest clip がありません。")
-
+    _require_path_segment(run_id, "run_id")
     artifacts_dir = artifacts_dir.resolve()
-    clip_inputs = _preflight_clips(
-        selected_clips,
-        catalog=catalog,
-        artifacts_dir=artifacts_dir,
-    )
-    output_path = output_path.resolve()
-    _validate_output_path(
-        output_path,
-        manifest_path=manifest_path,
-        manifest_clips=manifest["clips"],
-        artifacts_dir=artifacts_dir,
-    )
+    takes_root = (artifacts_dir / "takes").resolve()
+    run_root = (takes_root / run_id).resolve()
+    if not run_root.is_relative_to(takes_root):
+        raise QCError("run root が artifacts/takes の外を参照しています。")
+    ledger_path = run_root / "ledger.json"
+    report_path = run_root / "qc-report.json"
+    snapshot_path = run_root / "manifest-v4.json"
 
     try:
-        runtime.prepare()
-        runtime_description = dict(runtime.describe())
-    except Exception as error:
-        raise QCError(f"QC runtime の準備に失敗しました: {error}") from error
+        ledger = read_ledger(ledger_path)
+    except (OSError, json.JSONDecodeError, TakeLedgerError) as error:
+        raise QCError(f"run ledger を読み込めません: {ledger_path}: {error}") from error
+    if ledger["run_id"] != run_id:
+        raise QCError("run_id と ledger.run_id が一致しません。")
+    try:
+        snapshot_path.unlink(missing_ok=True)
+    except OSError as error:
+        raise QCError(f"既存 v4 snapshot を無効化できません: {snapshot_path}") from error
 
-    clip_reports: list[dict[str, Any]] = []
-    counts = {
-        "pass": 0,
-        "mismatch": 0,
-        "needs_reading": 0,
-        "review_required": 0,
-        "analysis_error": 0,
-    }
+    generated_at = _utc_now()
+    attempt_reports: dict[tuple[str, str, str, str, int], dict[str, Any]] = {}
+    pending: list[_PendingInspection] = []
+    runtime_description: dict[str, Any] = {"status": "not_required"}
 
-    for clip_input in clip_inputs:
-        clip = clip_input.clip
-        report = _clip_identity(clip)
-        try:
-            mora_count = (
-                count_japanese_mora(clip_input.expected_reading["normalized"])
-                if clip_input.expected_reading["normalized"] is not None
-                else 0
+    try:
+        scenarios = _load_scenarios(
+            scenarios_dir,
+            ledger_source=ledger["source"],
+        )
+        tools = (
+            find_audio_tools()
+            if any(
+                attempt["status"] not in {"planned", "generation_failed"}
+                for attempt in ledger["attempts"]
             )
-            inspection = runtime.inspect(
-                clip_input.audio_path,
-                mora_count=mora_count,
-            )
-            _validate_audio_artifact(
-                clip_input.audio_path,
-                str(clip["sha256"]),
-            )
-            report.update(
-                _evaluate_reading(
-                    line=clip_input.line,
-                    expected=clip_input.expected_reading,
-                    inspection=inspection,
-                ),
-            )
-            status = str(report["status"])
-            counts[status] += 1
-        except Exception as error:
-            report["status"] = "analysis_error"
-            report["qc_error"] = str(error)
-            counts["analysis_error"] += 1
-        clip_reports.append(report)
-
-    if _file_sha256(manifest_path) != manifest_sha256:
-        raise QCError("QC 実行中に manifest が変更されました。")
-    for clip_input in clip_inputs:
-        _validate_audio_artifact(
-            clip_input.audio_path,
-            str(clip_input.clip["sha256"]),
+            else None
+        )
+    except (AudioProcessingError, _ProvenanceError) as error:
+        ledger = _block_mutable_attempts(
+            ledger,
+            ledger_path=ledger_path,
+            reason=str(error),
+            reports=attempt_reports,
+        )
+        if not any(
+            attempt["status"] in {"generated", "blocked"}
+            for attempt in ledger["attempts"]
+        ):
+            raise QCError(f"terminal run の provenance 検証に失敗しました: {error}") from error
+        runtime_description = {
+            "status": "blocked",
+            "error": str(error),
+        }
+        return _finish(
+            ledger=ledger,
+            ledger_path=ledger_path,
+            report_path=report_path,
+            snapshot_path=snapshot_path,
+            run_id=run_id,
+            run_root=run_root,
+            scenarios_dir=scenarios_dir,
+            tools=None,
+            profile=PostprocessProfile(),
+            attempt_reports=attempt_reports,
+            runtime_description=runtime_description,
+            generated_at=generated_at,
+            model_profile=None,
         )
 
-    generated_at = datetime.now(timezone.utc).isoformat()
-    is_full_manifest = (
-        model_id is None
-        and scenario_id is None
-        and line_id is None
-    )
-    report_document = {
-        "format_version": REPORT_FORMAT_VERSION,
-        "algorithm_version": 1,
-        "generated_at": generated_at,
-        "source": {
-            "manifest": manifest_path.as_posix(),
-            "manifest_format_version": manifest["format_version"],
-            "manifest_sha256": manifest_sha256,
-            "manifest_generated_at": manifest["generated_at"],
-            "clip_set": (
-                "manifest.clips"
-                if is_full_manifest
-                else "manifest.clips.selection"
+    try:
+        model_profile = get_model_profile(str(ledger["source"]["model"]))
+    except Exception as error:
+        ledger = _block_mutable_attempts(
+            ledger,
+            ledger_path=ledger_path,
+            reason=f"model profile を解決できません: {error}",
+            reports=attempt_reports,
+        )
+        runtime_description = {
+            "status": "blocked",
+            "error": f"model profile を解決できません: {error}",
+        }
+        return _finish(
+            ledger=ledger,
+            ledger_path=ledger_path,
+            report_path=report_path,
+            snapshot_path=snapshot_path,
+            run_id=run_id,
+            run_root=run_root,
+            scenarios_dir=scenarios_dir,
+            tools=tools,
+            profile=PostprocessProfile(),
+            attempt_reports=attempt_reports,
+            runtime_description=runtime_description,
+            generated_at=generated_at,
+            model_profile=None,
+        )
+
+    profile = PostprocessProfile()
+    for attempt in list(ledger["attempts"]):
+        slot = _attempt_slot(attempt)
+        report = _attempt_identity(attempt)
+        attempt_reports[slot] = report
+        status = str(attempt["status"])
+        if status in {"planned", "generation_failed"}:
+            report.update(
+                {
+                    "status": status,
+                    "gates": None,
+                    "mechanical": {"status": "not_run"},
+                    "content": {"status": "not_run"},
+                },
+            )
+            continue
+        if tools is None:
+            raise AssertionError("audio attempt に音声 toolchain がありません。")
+
+        scenario = scenarios.get((str(attempt["scenario"]), str(attempt["line"])))
+        if scenario is None:
+            ledger = _record_blocked(
+                ledger,
+                ledger_path=ledger_path,
+                attempt=attempt,
+                reason="ledger attempt に対応する scenario line がありません。",
+                report=report,
+            )
+            continue
+
+        try:
+            mechanical = _mechanical_gate(
+                attempt=attempt,
+                run_id=run_id,
+                run_root=run_root,
+                ledger_source=ledger["source"],
+                tools=tools,
+                profile=profile,
+            )
+        except _ProvenanceError as error:
+            if status in TERMINAL_STATUSES:
+                raise QCError(
+                    f"terminal attempt の provenance 検証に失敗しました: "
+                    f"{_slot_text(slot)}: {error}",
+                ) from error
+            ledger = _record_blocked(
+                ledger,
+                ledger_path=ledger_path,
+                attempt=attempt,
+                reason=str(error),
+                report=report,
+            )
+            continue
+        except AudioProcessingError as error:
+            if status == "eligible":
+                raise QCError(
+                    f"eligible attempt の mechanical 再検証に失敗しました: "
+                    f"{_slot_text(slot)}: {error}",
+                ) from error
+            if status in TERMINAL_STATUSES:
+                report.update(
+                    {
+                        "status": status,
+                        "gates": dict(attempt["gates"]),
+                        "mechanical": {
+                            "status": attempt["gates"]["mechanical"],
+                            "reason": "terminal_not_rechecked",
+                        },
+                        "content": {
+                            "status": attempt["gates"]["content"],
+                            "inspection": "terminal_not_repeated",
+                        },
+                    },
+                )
+                continue
+            ledger = _record_hard_rejected(
+                ledger,
+                ledger_path=ledger_path,
+                attempt=attempt,
+                reason=str(error),
+                report=report,
+            )
+            continue
+
+        if status in TERMINAL_STATUSES:
+            report.update(
+                {
+                    "status": status,
+                    "gates": dict(attempt["gates"]),
+                    "mechanical": _mechanical_report(mechanical),
+                    "content": {
+                        "status": attempt["gates"]["content"],
+                        "inspection": "terminal_not_repeated",
+                    },
+                },
+            )
+            continue
+
+        pending.append(
+            _PendingInspection(
+                slot=slot,
+                attempt=attempt,
+                scenario=scenario,
+                opus_path=run_root / attempt["audio"]["opus_path"],
+                mechanical=mechanical,
             ),
-            "selection": {
-                "coverage": "full" if is_full_manifest else "filtered",
-                "model": model_id,
-                "scenario": scenario_id,
-                "line": line_id,
-            },
-        },
-        "runtime": runtime_description,
-        "summary": {
-            "clip_count": len(selected_clips),
-            "pass": counts["pass"],
-            "mismatch": counts["mismatch"],
-            "needs_reading": counts["needs_reading"],
-            "review_required": counts["review_required"],
-            "analysis_error": counts["analysis_error"],
-        },
-        "clips": clip_reports,
-    }
-    _atomic_write_json(output_path, report_document)
-    return QCSummary(
-        output_path=output_path,
-        clip_count=len(selected_clips),
-        pass_count=counts["pass"],
-        mismatch_count=counts["mismatch"],
-        needs_reading_count=counts["needs_reading"],
-        review_required_count=counts["review_required"],
-        analysis_error_count=counts["analysis_error"],
+        )
+
+    if pending:
+        try:
+            runtime.prepare()
+            runtime_description = {
+                "status": "ready",
+                **dict(runtime.describe()),
+            }
+        except Exception as error:
+            reason = f"QC runtime の準備に失敗しました: {error}"
+            runtime_description = {"status": "blocked", "error": reason}
+            for item in pending:
+                report = attempt_reports[item.slot]
+                current = _find_attempt(ledger, item.slot)
+                ledger = _record_blocked(
+                    ledger,
+                    ledger_path=ledger_path,
+                    attempt=current,
+                    reason=reason,
+                    report=report,
+                    mechanical=item.mechanical,
+                    content_blocked=True,
+                )
+        else:
+            for item in pending:
+                report = attempt_reports[item.slot]
+                current = _find_attempt(ledger, item.slot)
+                try:
+                    inspection = runtime.inspect(
+                        item.opus_path,
+                        mora_count=count_japanese_mora(
+                            str(item.scenario.expected_reading["normalized"]),
+                        ),
+                    )
+                except Exception as error:
+                    ledger = _record_blocked(
+                        ledger,
+                        ledger_path=ledger_path,
+                        attempt=current,
+                        reason=f"QC runtime inspection に失敗しました: {error}",
+                        report=report,
+                        mechanical=item.mechanical,
+                        content_blocked=True,
+                    )
+                    continue
+
+                try:
+                    _verify_inputs_unchanged(
+                        item,
+                        run_root=run_root,
+                        scenarios_dir=scenarios_dir,
+                        ledger_source=ledger["source"],
+                    )
+                except _ProvenanceError as error:
+                    ledger = _record_blocked(
+                        ledger,
+                        ledger_path=ledger_path,
+                        attempt=current,
+                        reason=str(error),
+                        report=report,
+                    )
+                    continue
+
+                active_speech = inspection.prosody.get("active_speech_sec")
+                if not _finite_number(active_speech):
+                    ledger = _record_blocked(
+                        ledger,
+                        ledger_path=ledger_path,
+                        attempt=current,
+                        reason="QC runtime の active_speech_sec が不正です。",
+                        report=report,
+                        mechanical=item.mechanical,
+                        content_blocked=True,
+                    )
+                    continue
+                if active_speech <= 0:
+                    ledger = _record_hard_rejected(
+                        ledger,
+                        ledger_path=ledger_path,
+                        attempt=current,
+                        reason="active_speech_sec が 0 または不正です。",
+                        report=report,
+                        mechanical=item.mechanical,
+                    )
+                    continue
+                if not inspection.transcript.strip():
+                    ledger = _record_blocked(
+                        ledger,
+                        ledger_path=ledger_path,
+                        attempt=current,
+                        reason="Kana ASR transcript が空です。",
+                        report=report,
+                        mechanical=item.mechanical,
+                        content_blocked=True,
+                    )
+                    continue
+
+                content_status, content_report = _content_gate(
+                    expected=item.scenario.expected_reading,
+                    inspection=inspection,
+                )
+                if content_status == "reject":
+                    ledger = _record_content_rejected(
+                        ledger,
+                        ledger_path=ledger_path,
+                        attempt=current,
+                        report=report,
+                        mechanical=item.mechanical,
+                        content=content_report,
+                    )
+                else:
+                    ledger = _record_eligible(
+                        ledger,
+                        ledger_path=ledger_path,
+                        attempt=current,
+                        content_status=content_status,
+                        report=report,
+                        mechanical=item.mechanical,
+                        content=content_report,
+                    )
+
+    return _finish(
+        ledger=ledger,
+        ledger_path=ledger_path,
+        report_path=report_path,
+        snapshot_path=snapshot_path,
+        run_id=run_id,
+        run_root=run_root,
+        scenarios_dir=scenarios_dir,
+        tools=tools,
+        profile=profile,
+        attempt_reports=attempt_reports,
+        runtime_description=runtime_description,
+        generated_at=generated_at,
+        model_profile=model_profile.as_manifest_entry(),
     )
 
 
@@ -233,118 +476,67 @@ def count_japanese_mora(reading: str) -> int:
     )
 
 
-def _load_scenario_catalog(
+def _load_scenarios(
     scenarios_dir: Path,
-) -> dict[tuple[str, str], Mapping[str, Any]]:
-    validation = validate_scenarios(scenarios_dir)
+    *,
+    ledger_source: Mapping[str, Any],
+) -> dict[tuple[str, str], _ScenarioInput]:
+    scenarios_dir = scenarios_dir.resolve()
+    scenario_ids = _source_scenario_ids(ledger_source)
+    validation = validate_scenario_ids(scenarios_dir, scenario_ids)
     if validation.problems:
         details = "\n".join(str(problem) for problem in validation.problems)
-        raise QCError(f"scenario 検証に失敗しました:\n{details}")
+        raise _ProvenanceError(f"scenario 検証に失敗しました:\n{details}")
 
-    catalog: dict[tuple[str, str], Mapping[str, Any]] = {}
-    for scenario_path in sorted(scenarios_dir.resolve().glob("*.yaml")):
+    catalog: dict[tuple[str, str], _ScenarioInput] = {}
+    for scenario_id in scenario_ids:
+        scenario_path = scenarios_dir / f"{scenario_id}.yaml"
         try:
-            document = yaml.safe_load(scenario_path.read_text(encoding="utf-8"))
+            source_bytes = scenario_path.read_bytes()
+            document = yaml.safe_load(source_bytes.decode("utf-8"))
         except (OSError, UnicodeError, yaml.YAMLError) as error:
-            raise QCError(f"scenario を読み込めません: {scenario_path}") from error
-        scenario_id = str(document["id"])
+            raise _ProvenanceError(
+                f"scenario source を読み込めません: {scenario_path}",
+            ) from error
+        if not isinstance(document, dict) or document.get("id") != scenario_id:
+            raise _ProvenanceError(
+                f"scenario source id が一致しません: {scenario_path}",
+            )
         for line in document["lines"]:
-            catalog[(scenario_id, str(line["id"]))] = line
+            try:
+                expected = _expected_reading(line)
+            except (JapaneseReadingError, TypeError, ValueError) as error:
+                raise _ProvenanceError(
+                    f"scenario reading を解決できません: "
+                    f"{scenario_id}/{line.get('id')}: {error}",
+                ) from error
+            catalog[(scenario_id, str(line["id"]))] = _ScenarioInput(
+                line=line,
+                expected_reading=expected,
+            )
+
+    actual_source_sha = _current_scenario_source_sha(
+        scenarios_dir,
+        scenario_ids=scenario_ids,
+    )
+    if actual_source_sha != ledger_source["scenario_sha256"]:
+        raise _ProvenanceError("scenario source SHA-256 が ledger と一致しません。")
     return catalog
 
 
-def _preflight_clips(
-    clips: list[Mapping[str, Any]],
-    *,
-    catalog: Mapping[tuple[str, str], Mapping[str, Any]],
-    artifacts_dir: Path,
-) -> list[_QCClipInput]:
-    inputs: list[_QCClipInput] = []
-    for clip in clips:
-        key = (str(clip["scenario"]), str(clip["line"]))
-        line = catalog.get(key)
-        if line is None:
-            raise QCError(
-                "manifest clip に対応する scenario line がありません: "
-                f"{key[0]}/{key[1]}",
-            )
-
-        unresolved_path = artifacts_dir / str(clip["path"])
-        try:
-            audio_path = unresolved_path.resolve(strict=True)
-        except OSError as error:
-            raise QCError(
-                f"audio artifact が存在しません: {unresolved_path}",
-            ) from error
-        if not audio_path.is_relative_to(artifacts_dir):
-            raise QCError(
-                f"audio artifact path が artifacts 外を参照しています: {unresolved_path}",
-            )
-        if not audio_path.is_file():
-            raise QCError(f"audio artifact が通常ファイルではありません: {audio_path}")
-        _validate_audio_artifact(audio_path, str(clip["sha256"]))
-        inputs.append(
-            _QCClipInput(
-                clip=clip,
-                line=line,
-                audio_path=audio_path,
-                expected_reading=_expected_reading(line),
-            ),
-        )
-    return inputs
-
-
-def _validate_output_path(
-    output_path: Path,
-    *,
-    manifest_path: Path,
-    manifest_clips: list[Mapping[str, Any]],
-    artifacts_dir: Path,
-) -> None:
-    protected_paths = {
-        manifest_path,
-        *(
-            (artifacts_dir / str(clip["path"])).resolve()
-            for clip in manifest_clips
-        ),
-    }
-    if output_path in protected_paths:
-        raise QCError(
-            "QC report の出力先は manifest または audio artifact と同一にできません: "
-            f"{output_path}",
-        )
-
-
 def _expected_reading(line: Mapping[str, Any]) -> dict[str, Any]:
-    ambiguous = find_ambiguous_japanese_readings(line["text"])
     explicit = line.get("reading")
-    has_explicit = isinstance(explicit, str) and bool(explicit.strip())
-    if ambiguous and not has_explicit:
-        return {
-            "text": None,
-            "source": None,
-            "normalized": None,
-            "authoritative": False,
-            "ambiguous_terms": [
-                {
-                    "surface": item.surface,
-                    "candidates": list(item.candidates),
-                }
-                for item in ambiguous
-            ],
-        }
-    try:
-        reading = resolve_japanese_reading(
-            text=line["text"],
-            reading=explicit,
-        )
-    except JapaneseReadingError as error:
-        raise QCError(str(error)) from error
+    authoritative = isinstance(explicit, str) and bool(explicit.strip())
+    reading = resolve_japanese_reading(
+        text=line["text"],
+        reading=explicit,
+    )
+    ambiguous = find_ambiguous_japanese_readings(line["text"])
     return {
         "text": reading.text,
         "source": reading.source,
         "normalized": normalize_japanese_reading(reading.text),
-        "authoritative": has_explicit,
+        "authoritative": authoritative,
         "ambiguous_terms": [
             {
                 "surface": item.surface,
@@ -355,112 +547,749 @@ def _expected_reading(line: Mapping[str, Any]) -> dict[str, Any]:
     }
 
 
-def _evaluate_reading(
+def _mechanical_gate(
     *,
-    line: Mapping[str, Any],
+    attempt: Mapping[str, Any],
+    run_id: str,
+    run_root: Path,
+    ledger_source: Mapping[str, Any],
+    tools: AudioTools,
+    profile: PostprocessProfile,
+) -> _MechanicalPass:
+    audio = attempt["audio"]
+    wav_path = _resolve_run_artifact(run_root, str(audio["wav_path"]))
+    opus_path = _resolve_run_artifact(run_root, str(audio["opus_path"]))
+    sidecar_path = opus_path.with_suffix(".json")
+    for name, path in (
+        ("WAV", wav_path),
+        ("Opus", opus_path),
+        ("sidecar", sidecar_path),
+    ):
+        if not path.is_file():
+            raise _ProvenanceError(f"take {name} がありません: {path}")
+    if _file_sha256(sidecar_path) != audio["sidecar_sha256"]:
+        raise _ProvenanceError("take sidecar SHA-256 が ledger と一致しません。")
+    try:
+        sidecar = validate_take_sidecar(
+            json.loads(sidecar_path.read_text(encoding="utf-8")),
+        )
+    except (OSError, UnicodeError, json.JSONDecodeError, TakeSidecarError) as error:
+        raise _ProvenanceError(f"take sidecar が不正です: {sidecar_path}: {error}") from error
+
+    expected_identity = (
+        run_id,
+        attempt["model"],
+        attempt["scenario"],
+        attempt["line"],
+        attempt["variant"],
+        attempt["take_index"],
+    )
+    actual_identity = tuple(
+        sidecar[key]
+        for key in ("run_id", "model", "scenario", "line", "variant", "take_index")
+    )
+    if actual_identity != expected_identity:
+        raise _ProvenanceError("ledger と sidecar の run/slot identity が一致しません。")
+    if attempt["variant"] != VARIANT:
+        raise _ProvenanceError(f"未対応の take variant です: {attempt['variant']}")
+    expected_root = (
+        f"audio/{attempt['model']}/{attempt['scenario']}/{attempt['line']}/"
+        f"{attempt['variant']}/take-{attempt['take_index']:04d}"
+    )
+    if audio["wav_path"] != f"{expected_root}.wav":
+        raise _ProvenanceError("ledger WAV path が slot と一致しません。")
+    if audio["opus_path"] != f"{expected_root}.opus":
+        raise _ProvenanceError("ledger Opus path が slot と一致しません。")
+    for key in ("take_id", "generation_input_sha256"):
+        if attempt[key] != sidecar[key]:
+            raise _ProvenanceError(f"ledger と sidecar の {key} が一致しません。")
+    for kind, path in (("wav", wav_path), ("opus", opus_path)):
+        actual_sha = _file_sha256(path)
+        if actual_sha != audio[f"{kind}_sha256"]:
+            raise _ProvenanceError(f"take {kind.upper()} SHA-256 が ledger と一致しません。")
+        if actual_sha != sidecar[f"{kind}_sha256"]:
+            raise _ProvenanceError(f"take {kind.upper()} SHA-256 が sidecar と一致しません。")
+    expected_generation = {
+        "status": "succeeded",
+        "seed": sidecar["take"]["seed"],
+        "sampling": sidecar["take"]["sampling"],
+        "rtf": sidecar["rtf"],
+    }
+    if attempt["generation"] != expected_generation:
+        raise _ProvenanceError("ledger と sidecar の generation provenance が一致しません。")
+    if sidecar["take"]["recipe_version"] != ledger_source["recipe_version"]:
+        raise _ProvenanceError("sidecar recipe version が ledger と一致しません。")
+    if sidecar["postprocess"] != profile.as_dict():
+        raise _ProvenanceError("sidecar postprocess profile が現行契約と一致しません。")
+    if sidecar["toolchain"] != tools.as_identity():
+        raise _ProvenanceError("sidecar toolchain が現在の音声 toolchain と一致しません。")
+
+    wav_probe = probe_audio(tools, wav_path)
+    if (
+        not wav_probe.codec_name.startswith("pcm_")
+        or wav_probe.sample_rate_hz != profile.sample_rate_hz
+        or wav_probe.channels != profile.channels
+    ):
+        raise AudioProcessingError("WAV の形式が QC profile と一致しません。")
+    opus_probe = probe_audio(tools, opus_path)
+    if (
+        opus_probe.codec_name != "opus"
+        or opus_probe.sample_rate_hz != profile.sample_rate_hz
+        or opus_probe.channels != profile.channels
+    ):
+        raise AudioProcessingError("Opus の形式が QC profile と一致しません。")
+    if round(opus_probe.duration_sec, 6) != sidecar["duration_sec"]:
+        raise _ProvenanceError("Opus duration が sidecar と一致しません。")
+    loudness = measure_encoded_opus(tools, opus_path, profile)
+    return _MechanicalPass(
+        wav_probe=wav_probe,
+        opus_probe=opus_probe,
+        loudness=loudness,
+        sidecar=sidecar,
+    )
+
+
+def _verify_inputs_unchanged(
+    pending: _PendingInspection,
+    *,
+    run_root: Path,
+    scenarios_dir: Path,
+    ledger_source: Mapping[str, Any],
+) -> None:
+    attempt = pending.attempt
+    for kind in ("wav", "opus"):
+        path = _resolve_run_artifact(
+            run_root,
+            str(attempt["audio"][f"{kind}_path"]),
+        )
+        if _file_sha256(path) != attempt["audio"][f"{kind}_sha256"]:
+            raise _ProvenanceError(
+                f"QC 実行中に take {kind.upper()} が変更されました。",
+            )
+    sidecar_path = _resolve_run_artifact(
+        run_root,
+        str(attempt["audio"]["opus_path"]),
+    ).with_suffix(".json")
+    try:
+        current_sidecar = validate_take_sidecar(
+            json.loads(sidecar_path.read_text(encoding="utf-8")),
+        )
+    except (OSError, UnicodeError, json.JSONDecodeError, TakeSidecarError) as error:
+        raise _ProvenanceError(
+            "QC 実行中に take sidecar を再検証できません。",
+        ) from error
+    if current_sidecar != pending.mechanical.sidecar:
+        raise _ProvenanceError("QC 実行中に take sidecar が変更されました。")
+    actual_scenario_sha = _current_scenario_source_sha(
+        scenarios_dir.resolve(),
+        scenario_ids=_source_scenario_ids(ledger_source),
+    )
+    if actual_scenario_sha != ledger_source["scenario_sha256"]:
+        raise _ProvenanceError("QC 実行中に scenario source が変更されました。")
+
+
+def _revalidate_snapshot_inputs(
+    *,
+    ledger: Mapping[str, Any],
+    run_id: str,
+    run_root: Path,
+    scenarios_dir: Path,
+    tools: AudioTools | None,
+    profile: PostprocessProfile,
+    attempt_reports: dict[
+        tuple[str, str, str, str, int],
+        dict[str, Any],
+    ],
+) -> None:
+    scenario_sha = _current_scenario_source_sha(
+        scenarios_dir.resolve(),
+        scenario_ids=_source_scenario_ids(ledger["source"]),
+    )
+    if scenario_sha != ledger["source"]["scenario_sha256"]:
+        raise QCError("v4 snapshot 確定前に scenario source が変更されました。")
+    eligible = [
+        attempt
+        for attempt in ledger["attempts"]
+        if attempt["status"] == "eligible"
+    ]
+    if eligible and tools is None:
+        raise QCError("eligible snapshot の音声 toolchain がありません。")
+    for attempt in eligible:
+        try:
+            mechanical = _mechanical_gate(
+                attempt=attempt,
+                run_id=run_id,
+                run_root=run_root,
+                ledger_source=ledger["source"],
+                tools=tools,
+                profile=profile,
+            )
+        except (AudioProcessingError, _ProvenanceError) as error:
+            raise QCError(
+                f"eligible attempt の snapshot 再検証に失敗しました: "
+                f"{_slot_text(_attempt_slot(attempt))}: {error}",
+            ) from error
+        report = attempt_reports[_attempt_slot(attempt)]
+        report["mechanical"] = _mechanical_report(mechanical)
+
+
+def _content_gate(
+    *,
     expected: Mapping[str, Any],
     inspection: RuntimeInspection,
-) -> dict[str, Any]:
-    expected_normalized = expected["normalized"]
+) -> tuple[str, dict[str, Any]]:
     transcript = inspection.transcript.strip()
-    asr_reading: str | None = None
-    unresolved_reason: str | None = None
-
-    if expected_normalized is None:
-        unresolved_reason = "expected_reading_ambiguous"
-    elif not transcript:
-        asr_reading = ""
-    elif contains_japanese_ideograph(transcript):
-        ambiguous_surfaces = {
-            item.surface
-            for item in find_ambiguous_japanese_readings(line["text"])
-        }
-        if any(surface in transcript for surface in ambiguous_surfaces):
-            unresolved_reason = "asr_orthography_ambiguous"
-        else:
-            asr_reading = resolve_japanese_reading(text=transcript).text
-    else:
-        asr_reading = transcript
-
-    asr_normalized = (
-        normalize_japanese_reading(asr_reading)
-        if asr_reading is not None
-        else None
+    actual = normalize_japanese_reading(transcript)
+    expected_normalized = str(expected["normalized"])
+    matches = actual == expected_normalized
+    status = (
+        "pass"
+        if expected["authoritative"] and matches
+        else "reject"
+        if expected["authoritative"]
+        else "review_required"
     )
-    if expected_normalized is None:
-        status = "needs_reading"
-        cer = None
-        reading_mismatch = None
-    elif unresolved_reason is not None:
-        status = "review_required"
-        cer = None
-        reading_mismatch = None
-    else:
-        assert isinstance(expected_normalized, str)
-        assert isinstance(asr_normalized, str)
-        matches_expected = expected_normalized == asr_normalized
-        if expected["authoritative"]:
-            status = "pass" if matches_expected else "mismatch"
-            reading_mismatch = not matches_expected
-        else:
-            status = "review_required"
-            reading_mismatch = None
-        cer = _character_error_rate(expected_normalized, asr_normalized)
-
-    reason = unresolved_reason
-    if status == "mismatch":
-        reason = _ambiguous_mismatch_reason(
-            expected_normalized,
-            asr_normalized,
-            expected["ambiguous_terms"],
-        ) or "reading_differs"
-
-    return {
+    return status, {
         "status": status,
         "expected_reading": dict(expected),
         "asr": {
             "text": inspection.transcript,
-            "normalized_reading": asr_normalized,
+            "normalized_reading": actual,
             "average_log_probability": inspection.average_log_probability,
         },
         "reading": {
-            "character_error_rate": cer,
-            "reading_mismatch": reading_mismatch,
-            "reason": reason,
-            "suggested_reading": (
-                expected["text"] if status == "mismatch" else None
+            "character_error_rate": _character_error_rate(
+                expected_normalized,
+                actual,
+            ),
+            "reading_mismatch": (
+                not matches if expected["authoritative"] else None
             ),
         },
         "prosody": dict(inspection.prosody),
     }
 
 
-def _ambiguous_mismatch_reason(
-    expected: str,
-    actual: str,
-    ambiguous_terms: Any,
-) -> str | None:
-    for term in ambiguous_terms:
-        candidates = [
-            normalize_japanese_reading(candidate)
-            for candidate in term["candidates"]
-        ]
-        expected_candidates = [
-            candidate for candidate in candidates if candidate in expected
-        ]
-        actual_candidates = [
-            candidate for candidate in candidates if candidate in actual
-        ]
-        if (
-            expected_candidates
-            and actual_candidates
-            and expected_candidates[0] != actual_candidates[0]
-        ):
-            return (
-                f"ambiguous_reading:{term['surface']}:"
-                f"{expected_candidates[0]}->{actual_candidates[0]}"
+def _record_blocked(
+    ledger: dict[str, Any],
+    *,
+    ledger_path: Path,
+    attempt: Mapping[str, Any],
+    reason: str,
+    report: dict[str, Any],
+    mechanical: _MechanicalPass | None = None,
+    content_blocked: bool = False,
+) -> dict[str, Any]:
+    mechanical_status = "pass" if mechanical is not None else "blocked"
+    content_status = "blocked" if content_blocked else "not_run"
+    current_status = str(attempt["status"])
+    if current_status == "generated":
+        replacement = {
+            **attempt,
+            "gates": {
+                "mechanical": mechanical_status,
+                "content": content_status,
+            },
+            "features": {"status": "unscored"},
+            "status": "blocked",
+        }
+        ledger = _checkpoint(
+            ledger,
+            ledger_path=ledger_path,
+            slot=_attempt_slot(attempt),
+            replacement=replacement,
+        )
+    report.update(
+        {
+            "status": "blocked",
+            "gates": {
+                "mechanical": mechanical_status,
+                "content": content_status,
+            },
+            "mechanical": (
+                _mechanical_report(mechanical)
+                if mechanical is not None
+                else {"status": "blocked", "reason": reason}
+            ),
+            "content": {
+                "status": content_status,
+                "reason": reason,
+            },
+        },
+    )
+    return ledger
+
+
+def _record_hard_rejected(
+    ledger: dict[str, Any],
+    *,
+    ledger_path: Path,
+    attempt: Mapping[str, Any],
+    reason: str,
+    report: dict[str, Any],
+    mechanical: _MechanicalPass | None = None,
+) -> dict[str, Any]:
+    replacement = {
+        **attempt,
+        "gates": {"mechanical": "reject", "content": "not_run"},
+        "features": {"status": "unscored"},
+        "status": "hard_rejected",
+    }
+    ledger = _checkpoint(
+        ledger,
+        ledger_path=ledger_path,
+        slot=_attempt_slot(attempt),
+        replacement=replacement,
+    )
+    mechanical_report = (
+        _mechanical_report(mechanical)
+        if mechanical is not None
+        else {"status": "reject"}
+    )
+    mechanical_report.update({"status": "reject", "reason": reason})
+    report.update(
+        {
+            "status": "hard_rejected",
+            "gates": dict(replacement["gates"]),
+            "mechanical": mechanical_report,
+            "content": {"status": "not_run"},
+        },
+    )
+    return ledger
+
+
+def _record_content_rejected(
+    ledger: dict[str, Any],
+    *,
+    ledger_path: Path,
+    attempt: Mapping[str, Any],
+    report: dict[str, Any],
+    mechanical: _MechanicalPass,
+    content: Mapping[str, Any],
+) -> dict[str, Any]:
+    replacement = {
+        **attempt,
+        "gates": {"mechanical": "pass", "content": "reject"},
+        "features": {"status": "unscored"},
+        "status": "hard_rejected",
+    }
+    ledger = _checkpoint(
+        ledger,
+        ledger_path=ledger_path,
+        slot=_attempt_slot(attempt),
+        replacement=replacement,
+    )
+    report.update(
+        {
+            "status": "hard_rejected",
+            "gates": dict(replacement["gates"]),
+            "mechanical": _mechanical_report(mechanical),
+            "content": dict(content),
+        },
+    )
+    return ledger
+
+
+def _record_eligible(
+    ledger: dict[str, Any],
+    *,
+    ledger_path: Path,
+    attempt: Mapping[str, Any],
+    content_status: str,
+    report: dict[str, Any],
+    mechanical: _MechanicalPass,
+    content: Mapping[str, Any],
+) -> dict[str, Any]:
+    replacement = {
+        **attempt,
+        "gates": {"mechanical": "pass", "content": content_status},
+        "features": {"status": "unscored"},
+        "status": "eligible",
+    }
+    ledger = _checkpoint(
+        ledger,
+        ledger_path=ledger_path,
+        slot=_attempt_slot(attempt),
+        replacement=replacement,
+    )
+    report.update(
+        {
+            "status": "eligible",
+            "gates": dict(replacement["gates"]),
+            "mechanical": _mechanical_report(mechanical),
+            "content": dict(content),
+        },
+    )
+    return ledger
+
+
+def _block_mutable_attempts(
+    ledger: dict[str, Any],
+    *,
+    ledger_path: Path,
+    reason: str,
+    reports: dict[tuple[str, str, str, str, int], dict[str, Any]],
+) -> dict[str, Any]:
+    for attempt in list(ledger["attempts"]):
+        slot = _attempt_slot(attempt)
+        report = reports.setdefault(slot, _attempt_identity(attempt))
+        if attempt["status"] == "generated":
+            ledger = _record_blocked(
+                ledger,
+                ledger_path=ledger_path,
+                attempt=attempt,
+                reason=reason,
+                report=report,
             )
-    return None
+        elif attempt["status"] == "blocked":
+            _record_blocked(
+                ledger,
+                ledger_path=ledger_path,
+                attempt=attempt,
+                reason=reason,
+                report=report,
+            )
+        else:
+            report.update(
+                {
+                    "status": attempt["status"],
+                    "gates": attempt.get("gates"),
+                    "mechanical": {"status": "not_run", "reason": reason},
+                    "content": {"status": "not_run"},
+                },
+            )
+    return ledger
+
+
+def _checkpoint(
+    ledger: dict[str, Any],
+    *,
+    ledger_path: Path,
+    slot: tuple[str, str, str, str, int],
+    replacement: dict[str, Any],
+) -> dict[str, Any]:
+    try:
+        next_ledger = transition_attempt(
+            ledger,
+            slot=slot,
+            replacement=replacement,
+        )
+        write_ledger_atomic(ledger_path, next_ledger)
+    except (OSError, TakeLedgerError) as error:
+        raise QCError(
+            f"QC ledger checkpoint に失敗しました: {_slot_text(slot)}: {error}",
+        ) from error
+    return next_ledger
+
+
+def _finish(
+    *,
+    ledger: dict[str, Any],
+    ledger_path: Path,
+    report_path: Path,
+    snapshot_path: Path,
+    run_id: str,
+    run_root: Path,
+    scenarios_dir: Path,
+    tools: AudioTools | None,
+    profile: PostprocessProfile,
+    attempt_reports: dict[
+        tuple[str, str, str, str, int],
+        dict[str, Any],
+    ],
+    runtime_description: Mapping[str, Any],
+    generated_at: str,
+    model_profile: Mapping[str, Any] | None,
+) -> QCSummary:
+    counts = {
+        status: sum(
+            attempt["status"] == status for attempt in ledger["attempts"]
+        )
+        for status in (
+            "eligible",
+            "hard_rejected",
+            "blocked",
+            "generation_failed",
+            "planned",
+            "generated",
+        )
+    }
+    pending_count = counts["planned"] + counts["generated"]
+    reports = [
+        dict(
+            attempt_reports.get(
+                _attempt_slot(attempt),
+                {
+                    **_attempt_identity(attempt),
+                    "status": attempt["status"],
+                    "gates": attempt.get("gates"),
+                    "mechanical": {"status": "not_run"},
+                    "content": {"status": "not_run"},
+                },
+            ),
+        )
+        for attempt in ledger["attempts"]
+    ]
+    report_document = {
+        "format_version": REPORT_FORMAT_VERSION,
+        "generated_at": generated_at,
+        "gate_policy_version": GATE_POLICY_VERSION,
+        "run_id": ledger["run_id"],
+        "source": {
+            "ledger": ledger_path.as_posix(),
+            "scenario_sha256": ledger["source"]["scenario_sha256"],
+            "model": ledger["source"]["model"],
+            "recipe_version": ledger["source"]["recipe_version"],
+        },
+        "runtime": dict(runtime_description),
+        "summary": {
+            "attempt_count": len(ledger["attempts"]),
+            **counts,
+            "pending": pending_count,
+        },
+        "attempts": reports,
+    }
+    _atomic_write_json(report_path, report_document)
+
+    written_snapshot: Path | None = None
+    if all(
+        attempt["status"] in TERMINAL_STATUSES
+        for attempt in ledger["attempts"]
+    ):
+        try:
+            current_ledger = read_ledger(ledger_path)
+        except (OSError, json.JSONDecodeError, TakeLedgerError) as error:
+            raise QCError("v4 snapshot 確定前に ledger を再検証できません。") from error
+        if current_ledger != ledger:
+            raise QCError("v4 snapshot 確定前に ledger が変更されました。")
+        _revalidate_snapshot_inputs(
+            ledger=ledger,
+            run_id=run_id,
+            run_root=run_root,
+            scenarios_dir=scenarios_dir,
+            tools=tools,
+            profile=profile,
+            attempt_reports=attempt_reports,
+        )
+        if model_profile is None:
+            raise QCError("v4 snapshot に必要な model profile がありません。")
+        candidates = []
+        reports_by_slot = {
+            _attempt_slot(report): report
+            for report in attempt_reports.values()
+        }
+        for attempt in ledger["attempts"]:
+            if attempt["status"] != "eligible":
+                continue
+            report = reports_by_slot[_attempt_slot(attempt)]
+            mechanical = report.get("mechanical")
+            if (
+                not isinstance(mechanical, Mapping)
+                or "duration_sec" not in mechanical
+                or "loudness" not in mechanical
+                or "generation_params" not in mechanical
+            ):
+                raise QCError(
+                    "eligible attempt の snapshot provenance が report にありません: "
+                    f"{_slot_text(_attempt_slot(attempt))}",
+                )
+            candidates.append(
+                candidate_from_attempt(
+                    attempt,
+                    duration_sec=float(mechanical["duration_sec"]),
+                    loudness=dict(mechanical["loudness"]),
+                    gate_policy_version=GATE_POLICY_VERSION,
+                    recipe_version=str(ledger["source"]["recipe_version"]),
+                    requested_params=dict(
+                        mechanical["generation_params"]["requested"],
+                    ),
+                    realized_params=dict(
+                        mechanical["generation_params"]["realized"],
+                    ),
+                ),
+            )
+        candidate_groups = {
+            tuple(candidate[key] for key in ("model", "scenario", "line", "variant"))
+            for candidate in candidates
+        }
+        failures = [
+            {**dict(group), "reason": "no_eligible_take"}
+            for group in ledger["source"]["groups"]
+            if tuple(
+                group[key] for key in ("model", "scenario", "line", "variant")
+            )
+            not in candidate_groups
+        ]
+        manifest = {
+            "format_version": 4,
+            "generated_at": generated_at,
+            "models": [dict(model_profile)],
+            "candidates": candidates,
+            "curations": [],
+            "failures": failures,
+        }
+        try:
+            validate_manifest_v4(manifest)
+        except (TakeManifestError, TakeLedgerError) as error:
+            raise QCError(f"v4 snapshot の構築に失敗しました: {error}") from error
+        _atomic_write_json(snapshot_path, manifest)
+        written_snapshot = snapshot_path
+
+    return QCSummary(
+        ledger_path=ledger_path,
+        report_path=report_path,
+        snapshot_path=written_snapshot,
+        attempt_count=len(ledger["attempts"]),
+        eligible_count=counts["eligible"],
+        hard_rejected_count=counts["hard_rejected"],
+        blocked_count=counts["blocked"],
+        generation_failed_count=counts["generation_failed"],
+        pending_count=pending_count,
+    )
+
+
+def _mechanical_report(mechanical: _MechanicalPass) -> dict[str, Any]:
+    return {
+        "status": "pass",
+        "duration_sec": round(mechanical.opus_probe.duration_sec, 6),
+        "wav": {
+            "codec": mechanical.wav_probe.codec_name,
+            "sample_rate_hz": mechanical.wav_probe.sample_rate_hz,
+            "channels": mechanical.wav_probe.channels,
+        },
+        "opus": {
+            "codec": mechanical.opus_probe.codec_name,
+            "sample_rate_hz": mechanical.opus_probe.sample_rate_hz,
+            "channels": mechanical.opus_probe.channels,
+        },
+        "loudness": mechanical.loudness.as_manifest_dict(PostprocessProfile()),
+        "generation_params": {
+            "requested": dict(mechanical.sidecar["gen_params"]["requested"]),
+            "realized": dict(mechanical.sidecar["gen_params"]["realized"]),
+        },
+    }
+
+
+def _resolve_run_artifact(run_root: Path, relative: str) -> Path:
+    path = (run_root / relative).resolve()
+    if not path.is_relative_to(run_root.resolve()):
+        raise _ProvenanceError(f"take artifact が run root 外を参照しています: {relative}")
+    return path
+
+
+def _source_scenario_ids(
+    ledger_source: Mapping[str, Any],
+) -> list[str]:
+    return sorted(
+        {str(group["scenario"]) for group in ledger_source["groups"]},
+    )
+
+
+def _current_scenario_source_sha(
+    scenarios_dir: Path,
+    *,
+    scenario_ids: list[str],
+) -> str:
+    source_files: list[dict[str, str]] = []
+    for scenario_id in scenario_ids:
+        path = scenarios_dir / f"{scenario_id}.yaml"
+        try:
+            source_bytes = path.read_bytes()
+        except OSError as error:
+            raise _ProvenanceError(
+                f"scenario source を再検証できません: {path}",
+            ) from error
+        source_files.append(
+            {
+                "path": path.name,
+                "sha256": hashlib.sha256(source_bytes).hexdigest(),
+            },
+        )
+    return hashlib.sha256(
+        canonical_json(source_files).encode("utf-8"),
+    ).hexdigest()
+
+
+def _file_sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    try:
+        with path.open("rb") as source:
+            for chunk in iter(lambda: source.read(1024 * 1024), b""):
+                digest.update(chunk)
+    except OSError as error:
+        raise _ProvenanceError(f"take artifact を読み込めません: {path}") from error
+    return digest.hexdigest()
+
+
+def _atomic_write_json(path: Path, payload: Mapping[str, Any]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    pending = path.with_name(f".{path.name}.pending")
+    try:
+        pending.write_text(
+            json.dumps(payload, ensure_ascii=False, indent=2, allow_nan=False) + "\n",
+            encoding="utf-8",
+        )
+        pending.replace(path)
+    except (OSError, TypeError, ValueError) as error:
+        raise QCError(f"QC JSON を原子的に書き込めません: {path}: {error}") from error
+    finally:
+        pending.unlink(missing_ok=True)
+
+
+def _finite_number(value: Any) -> bool:
+    return (
+        not isinstance(value, bool)
+        and isinstance(value, int | float)
+        and math.isfinite(value)
+    )
+
+
+def _attempt_slot(
+    attempt: Mapping[str, Any],
+) -> tuple[str, str, str, str, int]:
+    return (
+        str(attempt["model"]),
+        str(attempt["scenario"]),
+        str(attempt["line"]),
+        str(attempt["variant"]),
+        int(attempt["take_index"]),
+    )
+
+
+def _find_attempt(
+    ledger: Mapping[str, Any],
+    slot: tuple[str, str, str, str, int],
+) -> dict[str, Any]:
+    for attempt in ledger["attempts"]:
+        if _attempt_slot(attempt) == slot:
+            return attempt
+    raise QCError(f"ledger attempt が見つかりません: {_slot_text(slot)}")
+
+
+def _attempt_identity(attempt: Mapping[str, Any]) -> dict[str, Any]:
+    identity = {
+        key: attempt[key]
+        for key in ("model", "scenario", "line", "variant", "take_index")
+    }
+    if "take_id" in attempt:
+        identity["take_id"] = attempt["take_id"]
+    return identity
+
+
+def _slot_text(slot: tuple[str, str, str, str, int]) -> str:
+    return "/".join((*slot[:4], str(slot[4])))
+
+
+def _require_path_segment(value: Any, field: str) -> str:
+    if (
+        not isinstance(value, str)
+        or not value
+        or value in {".", ".."}
+        or "/" in value
+        or "\\" in value
+    ):
+        raise QCError(f"{field} は安全な path segment が必要です。")
+    return value
 
 
 def _character_error_rate(expected: str, actual: str) -> float:
@@ -482,63 +1311,5 @@ def _character_error_rate(expected: str, actual: str) -> float:
     return round(previous[-1] / len(expected), 6)
 
 
-def _validate_audio_artifact(path: Path, expected_sha256: str) -> None:
-    if not path.is_file():
-        raise QCError(f"audio artifact が存在しません: {path}")
-    actual_sha256 = _file_sha256(path)
-    if actual_sha256 != expected_sha256:
-        raise QCError(
-            f"audio artifact の SHA-256 が manifest と一致しません: {path}",
-        )
-
-
-def _clip_identity(clip: Mapping[str, Any]) -> dict[str, Any]:
-    return {
-        "model": clip["model"],
-        "scenario": clip["scenario"],
-        "line": clip["line"],
-        "variant": clip["variant"],
-        "path": clip["path"],
-        "audio_sha256": clip["sha256"],
-    }
-
-
-def _file_sha256(path: Path) -> str:
-    digest = hashlib.sha256()
-    try:
-        with path.open("rb") as input_file:
-            for chunk in iter(lambda: input_file.read(1024 * 1024), b""):
-                digest.update(chunk)
-    except OSError as error:
-        raise QCError(f"ファイルを読み込めません: {path}") from error
-    return digest.hexdigest()
-
-
-def _atomic_write_json(path: Path, payload: Mapping[str, Any]) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    serialized = json.dumps(
-        payload,
-        ensure_ascii=False,
-        indent=2,
-        allow_nan=False,
-    ) + "\n"
-    temporary_path: Path | None = None
-    try:
-        with tempfile.NamedTemporaryFile(
-            mode="w",
-            encoding="utf-8",
-            newline="\n",
-            dir=path.parent,
-            prefix=f".{path.name}.",
-            suffix=".tmp",
-            delete=False,
-        ) as temporary:
-            temporary.write(serialized)
-            temporary.flush()
-            os.fsync(temporary.fileno())
-            temporary_path = Path(temporary.name)
-        temporary_path.replace(path)
-    except (OSError, TypeError, ValueError) as error:
-        if temporary_path is not None:
-            temporary_path.unlink(missing_ok=True)
-        raise QCError(f"QC report を書き込めません: {path}") from error
+def _utc_now() -> str:
+    return datetime.now(UTC).isoformat(timespec="microseconds").replace("+00:00", "Z")

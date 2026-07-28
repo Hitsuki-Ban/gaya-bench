@@ -904,6 +904,7 @@ def _generate_attempt(
     replacement = _generated_attempt(
         _planned_attempt_for_plan(plan),
         sidecar,
+        sidecar_sha256=_sha256_file(sidecar_path),
     )
     return replacement, _record_from_sidecar(sidecar, "generated")
 
@@ -947,6 +948,8 @@ def _planned_attempt_for_plan(plan: _AttemptPlan) -> dict[str, Any]:
 def _generated_attempt(
     planned: dict[str, Any],
     sidecar: dict[str, Any],
+    *,
+    sidecar_sha256: str,
 ) -> dict[str, Any]:
     base = _attempt_base_path(
         str(planned["model"]),
@@ -973,6 +976,7 @@ def _generated_attempt(
             "wav_sha256": sidecar["wav_sha256"],
             "opus_path": f"{base}.opus",
             "opus_sha256": sidecar["opus_sha256"],
+            "sidecar_sha256": sidecar_sha256,
         },
         "gates": {},
         "features": {"status": "unscored"},
@@ -1064,6 +1068,13 @@ def _validate_ledger_sidecar_join(
     sidecar: dict[str, Any],
     run_root: Path,
 ) -> None:
+    sidecar_path = (
+        run_root / attempt["audio"]["opus_path"]
+    ).with_suffix(".json")
+    if _sha256_file(sidecar_path) != attempt["audio"]["sidecar_sha256"]:
+        raise GenerationError(
+            "take sidecar SHA-256 が ledger と一致しません。",
+        )
     if attempt["take_id"] != sidecar["take_id"]:
         raise GenerationError("ledger と sidecar の take_id が一致しません。")
     if attempt["generation_input_sha256"] != sidecar["generation_input_sha256"]:

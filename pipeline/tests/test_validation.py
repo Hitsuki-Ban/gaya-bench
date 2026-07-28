@@ -6,7 +6,7 @@ from pathlib import Path
 import pytest
 import yaml
 from gaya_pipeline.cli import main
-from gaya_pipeline.validation import validate_scenarios
+from gaya_pipeline.validation import validate_scenario_ids, validate_scenarios
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 SCENARIOS_DIR = REPOSITORY_ROOT / "scenarios"
@@ -53,6 +53,21 @@ def test_current_scenarios_are_valid() -> None:
     result = validate_scenarios(SCENARIOS_DIR)
 
     assert result.file_count == len(list(SCENARIOS_DIR.glob("*.yaml")))
+    assert result.problems == ()
+
+
+def test_selected_scenario_validationはrun外の壊れたfileを無視する(
+    tmp_path: Path,
+) -> None:
+    scenarios_dir = _scenarios_from_fixtures(tmp_path, "broken-schema.yaml")
+    shutil.copy2(
+        SCENARIOS_DIR / "chinatown-street.yaml",
+        scenarios_dir / "chinatown-street.yaml",
+    )
+
+    result = validate_scenario_ids(scenarios_dir, ["chinatown-street"])
+
+    assert result.file_count == 1
     assert result.problems == ()
 
 
