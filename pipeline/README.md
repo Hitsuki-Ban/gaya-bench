@@ -167,3 +167,70 @@ uv run --project pipeline --locked --extra irodori gaya gen --model irodori-tts-
 Code、model weight、codec は MIT。学習データの詳細と生成物の独立ライセンスは公開されていない。参照音声は `assets/voices/metadata.yaml` の権利条件に従う。実在人物・声優の無断模倣、誤認を招く deepfake は禁止する。上流 SilentCipher は model load 失敗時に未透かし音声へ進むが、この adapter は固定 snapshot、`watermarker.ready`、埋め込み stage の実行を必須とする。manifest には stage の実行事実を記録し、最終 Opus からの検出成功とは区別する。
 
 依存欠落、Windows native 以外、CUDA unavailable、BF16 非対応、cu128 wheel 不一致、固定 revision の取得失敗、参照 WAV 不備、SilentCipher 不可、OOM は明示的に失敗する。CPU、WSL、別 CUDA wheel、量子化、クラウド、無透かし音声への自動切替は行わない。
+
+## AivisSpeech Engine + コハク
+
+`aivisspeech-kohaku` は AivisSpeech Engine のローカル HTTP API と公式 ACML-1.0 モデル「コハク」だけを使う、日本語品質の固定声ベースラインである。検証経路は Windows native Engine の CPU 実行で、Python package や CUDA は追加しない。
+
+検証に使用した公式配布物は以下のとおり。archive SHA-256 は導入時に照合する値で、adapter は実行時に Engine version / manifest identity と AIVMX file SHA-256 を別々に検証する。
+
+| 配布物 | 固定値 | SHA-256 |
+| --- | --- | --- |
+| [AivisSpeech Engine Windows x64 1.2.0](https://github.com/Aivis-Project/AivisSpeech-Engine/releases/tag/1.2.0) | tag commit `0a310883265c64f43365fde5593b1296b14ae99b` / `AivisSpeech-Engine-Windows-x64-1.2.0.7z.001` | `bfbceba2e14dc7f23c7f3695f9ac0381baf91b15d6544e98384574eaadd271f3` |
+| [公式コハク AIVMX 1.1.0](https://hub.aivis-project.com/aivm-models/22e8ed77-94fe-4ef2-871f-a86f94e9a579) | model UUID `22e8ed77-94fe-4ef2-871f-a86f94e9a579` | `3f5c08b52bb8a64efd361268580c81510f96c927cd6905aa7dbae6851333270a` |
+
+7-Zip で Engine を展開し、コハクの `.aivmx` を `%APPDATA%\AivisSpeech-Engine\Models\` に置く。Engine の初回起動は既定モデル「まお」を自動導入する場合があるが、adapter は model UUID、speaker UUID、version、4 style、AIVMX file SHA-256 を照合してコハク以外を使わない。最初に Engine を次の固定 endpoint で起動する。
+
+```powershell
+& .\Windows-x64\run.exe `
+  --host 127.0.0.1 `
+  --port 10101 `
+  --no-use_gpu `
+  --load_all_models `
+  --output_log_utf8 `
+  --disable_mutable_api `
+  --disable_sentry
+```
+
+Engine `1.2.0` 以外、Engine manifest identity の変化、公式コハク `1.1.0` の欠落・未ロード・hash 不一致、speaker/style ID の変化、HTTP 不通、不正 JSON、非 PCM16 mono WAV は生成開始前または該当行で明示的に失敗する。HTTP client は system proxy と redirect を無効化し、別 port、別 model、既定の「まお」、Cloud API へ切り替えない。推論 device は Engine の起動設定であり API から現在値を取得できないため、adapter は未検証の device / VRAM を line metadata に記録しない。CPU ベースラインでは上記の `--no-use_gpu` 起動引数を process command line でも確認する。
+
+全 character は同じ speaker `コハク`（speaker UUID `5680ac39-43c9-487a-bc3e-018c0d29cc38`）を使う。2つの受け入れシナリオにおける割当は次のとおりで、style は character の恒久的な声色ではなく各 line の emotion から選ぶ。
+
+| scenario | character | speaker | style |
+| --- | --- | --- | --- |
+| `tavern-night` | `barmaid` | コハク | line emotion に従う |
+| `tavern-night` | `drunkard` | コハク | line emotion に従う |
+| `tavern-night` | `old-regular` | コハク | line emotion に従う |
+| `market-day` | `fruit-vendor` | コハク | line emotion に従う |
+| `market-day` | `shopper` | コハク | line emotion に従う |
+| `market-day` | `street-kid` | コハク | line emotion に従う |
+
+emotion は4つの公式 style へ粗く集約する。
+
+| line emotion | コハク style | global style ID |
+| --- | --- | --- |
+| `neutral` / `angry` / `surprised` / `shout` | ノーマル | `1878365376` |
+| `cheerful` / `laughing` | あまあま | `1878365377` |
+| `sad` / `fearful` / `pain` | せつなめ | `1878365378` |
+| `tired` / `drunk` / `whisper` | ねむたい | `1878365379` |
+
+intensity は benchmark 固有の保守的な固定値として、1/2/3 を `intonationScale` と `tempoDynamicsScale` の 0.8/1.0/1.2 に対応させる。公式仕様上、ノーマル style では `intonationScale` が無視されるため、emotion capability は4 styleによる限定的な制御であり、任意の感情演技を意味しない。固定された若い女性声1種類だけなので、男性、老人、子供を含む character の声色再現、voice prompt、clone、非言語音は非対応である。
+
+`line.reading` が non-empty string ならその値を `/audio_query` と AudioQuery の `kana` にそのまま渡し、それ以外は `line.text` を渡す。`kana` は AquesTalk 記法ではなく通常の読み上げテキストとして扱う AivisSpeech 固有仕様である。
+
+まず1行で Engine、model、speaker/style、CPU経路を確認する。
+
+```console
+uv run --project pipeline --locked gaya gen --model aivisspeech-kohaku --scenario tavern-night --line barmaid-001
+```
+
+gate 通過後、受け入れ確認用の2シナリオを生成する。
+
+```console
+uv run --project pipeline --locked gaya gen --model aivisspeech-kohaku --scenario tavern-night
+uv run --project pipeline --locked gaya gen --model aivisspeech-kohaku --scenario market-day
+```
+
+2026-07-28 に Windows 11 / AivisSpeech Engine 1.2.0 / コハク 1.1.0 を `--no-use_gpu` で起動し、process command line と Engine log の `Using CPU for inference.` を照合して上記2シナリオ（12行）を実測した。失敗0件、RTF 0.426〜0.786（平均0.502）、Engine process の GPU 使用なし（peak VRAM 0 MiB）だった。Engine process の peak working set は 2,459 MiB で、検証時は初回導入された「まお」も同時ロードしているため保守側の値である。12出力はすべて native 44.1kHz PCM16 mono で、共通後処理後の48kHz Opusは -18.02〜-17.92 LUFS、shortfall 0件だった。
+
+Engine は LGPL-3.0、公式コハク 1.1.0 は [ACML-1.0](https://github.com/Aivis-Project/ACML/blob/master/ACML-1.0.md)。営利利用とクレジットなしの利用は許諾されるが、なりすまし、攻撃・中傷、虚偽情報、特定の政治・宗教などへの賛否を呼びかける活動を含むライセンスの禁止用途には利用しない。クレジットは任意で、モデルページの推奨表記は `AivisSpeech: コハク` である。

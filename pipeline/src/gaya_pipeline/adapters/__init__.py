@@ -19,4 +19,8 @@ def create_adapter(model_id: str) -> Adapter:
         from gaya_pipeline.adapters.irodori_tts import IrodoriTTSAdapter
 
         return IrodoriTTSAdapter()
+    if model_id == "aivisspeech-kohaku":
+        from gaya_pipeline.adapters.aivisspeech import AivisSpeechAdapter
+
+        return AivisSpeechAdapter()
     raise UnknownAdapterError(f"未知の model id です: {model_id}")
