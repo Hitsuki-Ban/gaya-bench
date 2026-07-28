@@ -64,6 +64,7 @@
 
 ## 進行ルール
 
+- **mainへの直pushは原則禁止 (Directorのコンテンツ更新も含む)**。scenarios/ や data/manifest.json の更新もPRを作りCIグリーンを確認してからマージする (2026-07-28、#49の教訓)
 - チケットの依存関係はIssue本文の「依存」欄に記載
 - Directorのシナリオ・ドキュメント作業も同様にIssue化してトラッキングする (`claude` ラベル)
 - 生成モデルのショートリストは `docs/research/` の統合レポートで確定し、[model-criteria.md](model-criteria.md) に反映する
