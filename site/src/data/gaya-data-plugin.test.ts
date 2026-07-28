@@ -202,6 +202,8 @@ describe("loadBenchmarkData", () => {
     "audio//clip.opus",
     "audio/./clip.opus",
     "audio/%2e%2e/clip.opus",
+    "audio/model#x/clip.opus",
+    "audio/model?x/clip.opus",
   ])("安全でない clip path を拒否する: %s", (clipPath) => {
     const root = createFixture();
     const manifest = validManifest();

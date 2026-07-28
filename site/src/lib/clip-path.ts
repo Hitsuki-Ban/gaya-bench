@@ -6,6 +6,8 @@ export function isSafeClipPath(value: string): boolean {
     !value.startsWith("/") &&
     !value.includes("\\") &&
     !value.includes("%") &&
+    !value.includes("#") &&
+    !value.includes("?") &&
     !SCHEME.test(value) &&
     value.split("/").every((segment) => segment !== "" && segment !== "." && segment !== "..")
   );

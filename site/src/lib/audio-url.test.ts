@@ -33,6 +33,8 @@ describe("resolveAudioUrl", () => {
     "audio//clip.opus",
     "audio/./clip.opus",
     "audio/%2e%2e/clip.opus",
+    "audio/model#x/clip.opus",
+    "audio/model?x/clip.opus",
   ])("不正な path 表現を拒否する: %s", (clipPath) => {
     expect(() => resolveAudioUrl(clipPath, "/", "https://bench.example")).toThrow(
       "不正な clip path",

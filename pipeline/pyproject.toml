@@ -8,7 +8,9 @@ authors = [
 ]
 requires-python = ">=3.12"
 dependencies = [
+    "boto3>=1.43.57",
     "jsonschema>=4.26.0",
+    "python-dotenv>=1.2.2",
     "pyyaml>=6.0.3",
 ]
 
