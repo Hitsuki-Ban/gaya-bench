@@ -45,7 +45,7 @@ characters:
     archetype: 旅商人
     voice: 愛想のいいやや高めの声。早口になりがちで愛想笑いが混じる。
     personality: 如才ないが内心では急いでいる。
-    reference_voice: null
+    reference_voice: hadou-emotion-11
 
 lines:
   - id: guard-otoko-001

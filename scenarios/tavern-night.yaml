@@ -19,7 +19,7 @@ characters:
     archetype: 給仕
     voice: 明るく張りのある声。やや早口で、喧騒を通す接客の声。
     personality: 気さくで世話焼き。常連には遠慮がない。
-    reference_voice: null
+    reference_voice: amitaro-countdown
 
   - id: drunkard
     name: 酔っ払いの男

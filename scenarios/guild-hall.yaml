@@ -18,7 +18,7 @@ characters:
     archetype: 受付
     voice: 滑舌明瞭で落ち着いた声。応対に慣れた丁寧な話し方。
     personality: 事務的だが親身。忙しくても物腰は崩れない。
-    reference_voice: null
+    reference_voice: lux-emotion-76
 
   - id: veteran
     name: ベテラン冒険者

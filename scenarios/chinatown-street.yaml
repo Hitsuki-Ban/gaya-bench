@@ -37,7 +37,7 @@ characters:
     archetype: 住人の娘
     voice: 明るく軽やかな高めの声。歌うような抑揚。
     personality: おつかいの途中でつい寄り道してしまう。
-    reference_voice: null
+    reference_voice: tsukuyomi-corpus-94
 
   - id: nimotsu-ani
     name: 荷運びの兄ちゃん
