@@ -112,12 +112,12 @@ describe("A/B vote storage", () => {
       decodeStoredVotes(
         JSON.stringify({
           ...payload,
-          dataset: { ...dataset, formatVersion: 1 },
+          dataset: { ...dataset, formatVersion: 2 },
         }),
         catalog,
         dataset,
       ),
-    ).toThrow("dataset の formatVersion は 2");
+    ).toThrow("dataset の formatVersion は 3");
   });
 
   it("存在しない match、非 canonical / 不一致 pair、不正 winner、match 重複を拒否する", () => {
@@ -288,7 +288,7 @@ function fixture(): BenchmarkData {
   const fixtureScenario = scenario(speaker, fixtureLine);
   return {
     manifest: {
-      format_version: 2,
+      format_version: 3,
       generated_at: "2026-07-28T00:00:00Z",
       models,
       clips: models.map((model) => clip(model.id)),
@@ -361,6 +361,11 @@ function clip(model: string): Clip {
     sha256: model,
     gen_params: {},
     rtf: 0.1,
-    loudness: { i_lufs: -18, tp_dbtp: -1, shortfall: false },
+    loudness: {
+      source: "encoded_opus",
+      i_lufs: -18,
+      tp_dbtp: -1,
+      shortfall: false,
+    },
   };
 }

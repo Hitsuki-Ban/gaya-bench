@@ -28,7 +28,7 @@ class AudioTools:
 
 @dataclass(frozen=True)
 class PostprocessProfile:
-    algorithm_version: int = 5
+    algorithm_version: int = 6
     integrated_lufs: float = -18.0
     loudness_range_lu: float = 7.0
     true_peak_dbtp: float = -1.0
@@ -67,21 +67,34 @@ class LoudnessReport:
     integrated_lufs: float
     true_peak_dbtp: float
     loudness_range_lu: float
-    normalization_type: str
 
     def as_dict(self) -> dict[str, Any]:
         return {
             "integrated_lufs": self.integrated_lufs,
             "true_peak_dbtp": self.true_peak_dbtp,
             "loudness_range_lu": self.loudness_range_lu,
+        }
+
+
+@dataclass(frozen=True)
+class NormalizedLoudnessReport(LoudnessReport):
+    normalization_type: str
+
+    def as_dict(self) -> dict[str, Any]:
+        return {
+            **super().as_dict(),
             "normalization_type": self.normalization_type,
         }
 
+
+@dataclass(frozen=True)
+class EncodedLoudnessReport(LoudnessReport):
     def as_manifest_dict(
         self,
         profile: PostprocessProfile,
-    ) -> dict[str, float | bool]:
+    ) -> dict[str, str | float | bool]:
         return {
+            "source": "encoded_opus",
             "i_lufs": self.integrated_lufs,
             "tp_dbtp": self.true_peak_dbtp,
             "shortfall": (
@@ -117,7 +130,7 @@ def normalize_wav(
     input_wav: Path,
     output_wav: Path,
     profile: PostprocessProfile,
-) -> LoudnessReport:
+) -> NormalizedLoudnessReport:
     target = (
         f"I={profile.integrated_lufs:g}:"
         f"LRA={profile.loudness_range_lu:g}:"
@@ -223,7 +236,11 @@ def normalize_wav(
             correction_wav.replace(output_wav)
             if _loudness_matches_profile(final_report, profile):
                 return final_report
-        _validate_loudness_report(final_report, profile)
+        _validate_loudness_report(
+            final_report,
+            profile,
+            stage="正規化後 WAV",
+        )
         return final_report
     finally:
         correction_wav.unlink(missing_ok=True)
@@ -275,6 +292,30 @@ def encode_opus(
     )
 
 
+def measure_encoded_opus(
+    tools: AudioTools,
+    input_opus: Path,
+    profile: PostprocessProfile,
+) -> EncodedLoudnessReport:
+    target = (
+        f"I={profile.integrated_lufs:g}:"
+        f"LRA={profile.loudness_range_lu:g}:"
+        f"TP={profile.true_peak_dbtp:g}"
+    )
+    measurement = _measure_loudness(tools, input_opus, target)
+    report = EncodedLoudnessReport(
+        integrated_lufs=_finite_value(measurement, "input_i"),
+        true_peak_dbtp=_finite_value(measurement, "input_tp"),
+        loudness_range_lu=_finite_value(measurement, "input_lra"),
+    )
+    _validate_loudness_report(
+        report,
+        profile,
+        stage="エンコード後 Opus",
+    )
+    return report
+
+
 def probe_audio(tools: AudioTools, audio_path: Path) -> AudioProbe:
     result = _run(
         [
@@ -319,9 +360,9 @@ def _measure_normalized_output(
     output_wav: Path,
     target: str,
     normalization_type: str,
-) -> LoudnessReport:
+) -> NormalizedLoudnessReport:
     measurement = _measure_loudness(tools, output_wav, target)
-    return LoudnessReport(
+    return NormalizedLoudnessReport(
         integrated_lufs=_finite_value(measurement, "input_i"),
         true_peak_dbtp=_finite_value(measurement, "input_tp"),
         loudness_range_lu=_finite_value(measurement, "input_lra"),
@@ -381,6 +422,8 @@ def _loudness_matches_profile(
 def _validate_loudness_report(
     report: LoudnessReport,
     profile: PostprocessProfile,
+    *,
+    stage: str,
 ) -> None:
     if (
         abs(report.integrated_lufs - profile.integrated_lufs)
@@ -389,7 +432,7 @@ def _validate_loudness_report(
     ):
         return
     raise AudioProcessingError(
-        "正規化後 WAV が loudness profile を満たしません: "
+        f"{stage} が loudness profile を満たしません: "
         f"I={report.integrated_lufs:g} LUFS "
         f"(target={profile.integrated_lufs:g}±{LOUDNESS_GATE_TOLERANCE_LU:g}), "
         f"TP={report.true_peak_dbtp:g} dBTP "

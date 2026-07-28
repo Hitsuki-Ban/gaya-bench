@@ -92,6 +92,7 @@ export interface Clip {
   readonly gen_params: { readonly [key: string]: JsonValue };
   readonly rtf: number;
   readonly loudness: {
+    readonly source: "encoded_opus";
     readonly i_lufs: number;
     readonly tp_dbtp: number;
     readonly shortfall: boolean;
@@ -109,7 +110,7 @@ export interface GenerationFailure {
 }
 
 export interface Manifest {
-  readonly format_version: 2;
+  readonly format_version: 3;
   readonly generated_at: string;
   readonly models: readonly Model[];
   readonly clips: readonly Clip[];

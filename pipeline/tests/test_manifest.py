@@ -42,6 +42,7 @@ def _clip(
         "gen_params": {},
         "rtf": 0.5,
         "loudness": {
+            "source": "encoded_opus",
             "i_lufs": -18.0,
             "tp_dbtp": -1.0,
             "shortfall": False,
@@ -70,7 +71,7 @@ def _manifest(
     failures: list[dict[str, str]] | None = None,
 ) -> dict[str, object]:
     return {
-        "format_version": 2,
+        "format_version": 3,
         "generated_at": "2026-01-01T00:00:00+00:00",
         "models": [_profile(version).as_manifest_entry()],
         "clips": [] if clips is None else clips,
@@ -85,12 +86,15 @@ def _write_manifest(path: Path, manifest: dict[str, object]) -> None:
     )
 
 
-def test_load_manifest_rejects_v1_without_migration(tmp_path: Path) -> None:
+@pytest.mark.parametrize("format_version", [1, 2])
+def test_load_manifest_rejects_old_versions_without_migration(
+    tmp_path: Path,
+    format_version: int,
+) -> None:
     manifest_path = tmp_path / "manifest.json"
-    v1 = _manifest()
-    v1["format_version"] = 1
-    del v1["failures"]
-    _write_manifest(manifest_path, v1)
+    old_manifest = _manifest()
+    old_manifest["format_version"] = format_version
+    _write_manifest(manifest_path, old_manifest)
 
     with pytest.raises(ManifestError, match="format_version"):
         load_manifest(manifest_path)
@@ -141,8 +145,23 @@ def test_load_manifest_rejects_invalid_failures(
 @pytest.mark.parametrize(
     "loudness",
     [
-        {"i_lufs": -18.0, "tp_dbtp": -1.0},
-        {"i_lufs": -18.0, "tp_dbtp": -1.0, "shortfall": "false"},
+        {
+            "source": "encoded_opus",
+            "i_lufs": -18.0,
+            "tp_dbtp": -1.0,
+        },
+        {
+            "source": "encoded_opus",
+            "i_lufs": -18.0,
+            "tp_dbtp": -1.0,
+            "shortfall": "false",
+        },
+        {
+            "source": "normalized_wav",
+            "i_lufs": -18.0,
+            "tp_dbtp": -1.0,
+            "shortfall": False,
+        },
     ],
 )
 def test_load_manifest_rejects_invalid_clip_loudness(

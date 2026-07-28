@@ -37,18 +37,22 @@ describe("virtual:gaya-data integration", () => {
       benchmarkData.manifest.clips.length + benchmarkData.manifest.failures.length;
     expect(resultCount).toBeGreaterThan(0);
     expect(resultCount).toBeLessThanOrEqual(lineCount * modelCount);
-    expect(benchmarkData.manifest.format_version).toBe(2);
+    expect(benchmarkData.manifest.format_version).toBe(3);
     expect(scenarioById.has("market-day")).toBe(true);
     expect(modelById.get("dummy")?.name).toBe("Dummy Beep");
     expect(lineByKey.has("market-day/fruit-vendor-001")).toBe(true);
 
     const clips = getClipsForScenario("market-day");
-    expect(clips).toHaveLength(scenarioById.get("market-day")!.lines.length * modelCount);
+    expect(clips).toEqual(
+      benchmarkData.manifest.clips.filter((clip) => clip.scenario === "market-day"),
+    );
     expect(clipKey(clips[0]!)).toBe(
       JSON.stringify(["chatterbox-multilingual-v3", "market-day", "fruit-vendor-001", "dry"]),
     );
     expect(() => getClipsForScenario("missing")).toThrow("未知の scenario id です: missing");
-    expect(getFailuresForScenario("market-day")).toEqual([]);
+    expect(getFailuresForScenario("market-day")).toEqual(
+      benchmarkData.manifest.failures.filter((failure) => failure.scenario === "market-day"),
+    );
     expect(() => getFailuresForScenario("missing")).toThrow("未知の scenario id です: missing");
   });
 });
@@ -109,20 +113,20 @@ describe("loadBenchmarkData", () => {
     );
   });
 
-  it("manifest v1 を拒否する", () => {
+  it("manifest v2 を拒否する", () => {
     const root = createFixture();
     const manifest = validManifest();
-    manifest.format_version = 1;
+    manifest.format_version = 2;
     writeManifest(root, manifest);
 
-    expect(() => loadBenchmarkData(root)).toThrow("manifest format_version は2");
+    expect(() => loadBenchmarkData(root)).toThrow("manifest format_version は3");
   });
 
   it("clip loudness の exact key と型を検証する", () => {
     const missingRoot = createFixture();
     const missingManifest = validManifest();
-    const { shortfall: _shortfall, ...missingShortfall } = missingManifest.clips[0]!.loudness;
-    missingManifest.clips[0]!.loudness = missingShortfall as MutableClip["loudness"];
+    const { source: _source, ...missingSource } = missingManifest.clips[0]!.loudness;
+    missingManifest.clips[0]!.loudness = missingSource as MutableClip["loudness"];
     writeManifest(missingRoot, missingManifest);
     expect(() => loadBenchmarkData(missingRoot)).toThrow("loudness の項目が一致");
 
@@ -131,6 +135,12 @@ describe("loadBenchmarkData", () => {
     invalidManifest.clips[0]!.loudness.shortfall = "false" as unknown as boolean;
     writeManifest(invalidRoot, invalidManifest);
     expect(() => loadBenchmarkData(invalidRoot)).toThrow("loudness.shortfall は bool");
+
+    const invalidSourceRoot = createFixture();
+    const invalidSourceManifest = validManifest();
+    invalidSourceManifest.clips[0]!.loudness.source = "normalized_wav" as "encoded_opus";
+    writeManifest(invalidSourceRoot, invalidSourceManifest);
+    expect(() => loadBenchmarkData(invalidSourceRoot)).toThrow("loudness.source");
   });
 
   it("重複 model id、clip key、failure key を拒否する", () => {
@@ -269,6 +279,7 @@ interface MutableClip {
   gen_params: Record<string, never>;
   rtf: number;
   loudness: {
+    source: "encoded_opus";
     i_lufs: number;
     tp_dbtp: number;
     shortfall: boolean;
@@ -317,7 +328,7 @@ function writeManifest(root: string, manifest: MutableManifest): void {
 
 function validManifest(): MutableManifest {
   return {
-    format_version: 2,
+    format_version: 3,
     generated_at: "2026-07-28T00:00:00Z",
     models: [
       {
@@ -346,6 +357,7 @@ function validManifest(): MutableManifest {
         gen_params: {},
         rtf: 0.1,
         loudness: {
+          source: "encoded_opus",
           i_lufs: -18,
           tp_dbtp: -1,
           shortfall: false,

@@ -1,6 +1,6 @@
 {
-  "format_version": 2,
-  "generated_at": "2026-07-28T16:42:40.737286+00:00",
+  "format_version": 3,
+  "generated_at": "2026-07-28T17:21:05.075175+00:00",
   "models": [
     {
       "id": "chatterbox-multilingual-v3",
@@ -194,8 +194,9 @@
       },
       "rtf": 12.073376,
       "loudness": {
-        "i_lufs": -17.99,
-        "tp_dbtp": -1.31,
+        "source": "encoded_opus",
+        "i_lufs": -18.0,
+        "tp_dbtp": -1.37,
         "shortfall": false
       }
     },
@@ -298,112 +299,9 @@
       },
       "rtf": 1.922044,
       "loudness": {
-        "i_lufs": -17.99,
-        "tp_dbtp": -1.34,
-        "shortfall": false
-      }
-    },
-    {
-      "model": "chatterbox-multilingual-v3",
-      "scenario": "market-day",
-      "line": "shopper-001",
-      "variant": "dry",
-      "path": "audio/chatterbox-multilingual-v3/market-day/shopper-001-dry.opus",
-      "duration_sec": 2.4065,
-      "sha256": "ad72244891d92ab4758ef9498c6de8c8e3507e389419b638aaa45f8a47d61a6b",
-      "gen_params": {
-        "requested": {
-          "upstream_repository": "resemble-ai/chatterbox",
-          "upstream_revision": "65b18437192794391a0308a8f705b1e33e633948",
-          "weights_repository": "ResembleAI/chatterbox",
-          "weights_revision": "5bb1f6ee58e50c3b8d408bc82a6d3740c2db6e18",
-          "perth_repository": "resemble-ai/Perth",
-          "perth_revision": "ce86c49d029f42272c1902eccb675556b9ed2330",
-          "model_root_environment": "GAYA_CHATTERBOX_ROOT",
-          "model_files": {
-            "Cangjie5_TC.json": {
-              "size": 1920163,
-              "sha256": "7073fd9de919443ae88e0bd2449917a65fe54898a4413ed1edcc4b67f28bce8c"
-            },
-            "grapheme_mtl_merged_expanded_v1.json": {
-              "size": 69989,
-              "sha256": "69632f47220a788a52ce2661d096453c5655e9bf25289d89a8d832c46ee07dbf"
-            },
-            "s3gen.pt": {
-              "size": 1057165844,
-              "sha256": "9b9ff07e60b20c136e2b1b3d7563a24604e8d2c4c267888d1ee929dd0151d2a3"
-            },
-            "t3_mtl23ls_v3.safetensors": {
-              "size": 2143989928,
-              "sha256": "5abca8321ede76f8e61f1cc0d19aea6c946b28871017ce8726f8a69203f05953"
-            },
-            "ve.pt": {
-              "size": 5698626,
-              "sha256": "4b16d836bc598509860f6fa068165a8bb5e9ac84f05582dfcf278a5a372879f1"
-            }
-          },
-          "perth_checkpoint": {
-            "path": "perth_net/pretrained/implicit/perth_net_250000.pth.tar",
-            "size": 37429684,
-            "sha256": "a15bce457ebc53ce5e6c9c3f11df78cf7ee2bf9cdab0a798902135b4c4027670"
-          },
-          "architecture": "chatterbox-multilingual-v3",
-          "t3_model": "v3",
-          "language_id": "ja",
-          "device": "cuda:0",
-          "dtype": "float32",
-          "sample_rate_hz": 24000,
-          "chatterbox_version": "0.1.7",
-          "perth_version": "1.0.1",
-          "torch_version": "2.6.0+cu126",
-          "torchaudio_version": "2.6.0+cu126",
-          "cuda_version": "12.6",
-          "transformers_version": "5.2.0",
-          "diffusers_version": "0.29.0",
-          "pykakasi_version": "2.3.0",
-          "safetensors_version": "0.5.3",
-          "s3tokenizer_version": "0.3.0",
-          "seed": 42,
-          "cfg_weight": 0.5,
-          "temperature": 0.8,
-          "repetition_penalty": 1.2,
-          "min_p": 0.05,
-          "top_p": 1.0,
-          "exaggeration_by_intensity": {
-            "1": 0.3,
-            "2": 0.5,
-            "3": 0.8
-          },
-          "emotion_control": "exaggeration_only",
-          "perth_watermark": true
-        },
-        "realized": {
-          "phase_peak_vram_mib": {
-            "runtime_load": {
-              "allocated_mib": 3074.6845703125,
-              "reserved_mib": 3094.0
-            },
-            "generation": {
-              "allocated_mib": 3700.57080078125,
-              "reserved_mib": 3776.0
-            }
-          },
-          "seed": 42,
-          "sample_rate_hz": 24000,
-          "language_id": "ja",
-          "line_emotion_audit": "neutral",
-          "intensity": 2,
-          "exaggeration": 0.5,
-          "reference_selection_source": "adapter.assignment:market-day/shopper",
-          "reference_voice": "lux-emotion-76",
-          "reference_sha256": "432de3f3fb40c5838a80e5fb509977176352a8db03a10e8fb37cca1e83bcc4b5",
-          "perth_watermark_stage_executed": true
-        }
-      },
-      "rtf": 2.021525,
-      "loudness": {
-        "i_lufs": -18.09,
-        "tp_dbtp": -0.98,
+        "source": "encoded_opus",
+        "i_lufs": -17.98,
+        "tp_dbtp": -1.39,
         "shortfall": false
       }
     },
@@ -506,8 +404,9 @@
       },
       "rtf": 2.194695,
       "loudness": {
+        "source": "encoded_opus",
         "i_lufs": -18.0,
-        "tp_dbtp": -1.78,
+        "tp_dbtp": -1.83,
         "shortfall": false
       }
     },
@@ -610,8 +509,9 @@
       },
       "rtf": 15.97059,
       "loudness": {
-        "i_lufs": -17.99,
-        "tp_dbtp": -1.54,
+        "source": "encoded_opus",
+        "i_lufs": -18.02,
+        "tp_dbtp": -1.6,
         "shortfall": false
       }
     },
@@ -714,8 +614,9 @@
       },
       "rtf": 1.886427,
       "loudness": {
+        "source": "encoded_opus",
         "i_lufs": -17.99,
-        "tp_dbtp": -3.23,
+        "tp_dbtp": -3.13,
         "shortfall": false
       }
     },
@@ -818,112 +719,9 @@
       },
       "rtf": 17.534811,
       "loudness": {
-        "i_lufs": -18.12,
-        "tp_dbtp": -1.0,
-        "shortfall": false
-      }
-    },
-    {
-      "model": "chatterbox-multilingual-v3",
-      "scenario": "tavern-night",
-      "line": "barmaid-002",
-      "variant": "dry",
-      "path": "audio/chatterbox-multilingual-v3/tavern-night/barmaid-002-dry.opus",
-      "duration_sec": 3.4865,
-      "sha256": "447db344a073f37a8707f1efa4fcda9e25bccbb63802c05cec945528623bda17",
-      "gen_params": {
-        "requested": {
-          "upstream_repository": "resemble-ai/chatterbox",
-          "upstream_revision": "65b18437192794391a0308a8f705b1e33e633948",
-          "weights_repository": "ResembleAI/chatterbox",
-          "weights_revision": "5bb1f6ee58e50c3b8d408bc82a6d3740c2db6e18",
-          "perth_repository": "resemble-ai/Perth",
-          "perth_revision": "ce86c49d029f42272c1902eccb675556b9ed2330",
-          "model_root_environment": "GAYA_CHATTERBOX_ROOT",
-          "model_files": {
-            "Cangjie5_TC.json": {
-              "size": 1920163,
-              "sha256": "7073fd9de919443ae88e0bd2449917a65fe54898a4413ed1edcc4b67f28bce8c"
-            },
-            "grapheme_mtl_merged_expanded_v1.json": {
-              "size": 69989,
-              "sha256": "69632f47220a788a52ce2661d096453c5655e9bf25289d89a8d832c46ee07dbf"
-            },
-            "s3gen.pt": {
-              "size": 1057165844,
-              "sha256": "9b9ff07e60b20c136e2b1b3d7563a24604e8d2c4c267888d1ee929dd0151d2a3"
-            },
-            "t3_mtl23ls_v3.safetensors": {
-              "size": 2143989928,
-              "sha256": "5abca8321ede76f8e61f1cc0d19aea6c946b28871017ce8726f8a69203f05953"
-            },
-            "ve.pt": {
-              "size": 5698626,
-              "sha256": "4b16d836bc598509860f6fa068165a8bb5e9ac84f05582dfcf278a5a372879f1"
-            }
-          },
-          "perth_checkpoint": {
-            "path": "perth_net/pretrained/implicit/perth_net_250000.pth.tar",
-            "size": 37429684,
-            "sha256": "a15bce457ebc53ce5e6c9c3f11df78cf7ee2bf9cdab0a798902135b4c4027670"
-          },
-          "architecture": "chatterbox-multilingual-v3",
-          "t3_model": "v3",
-          "language_id": "ja",
-          "device": "cuda:0",
-          "dtype": "float32",
-          "sample_rate_hz": 24000,
-          "chatterbox_version": "0.1.7",
-          "perth_version": "1.0.1",
-          "torch_version": "2.6.0+cu126",
-          "torchaudio_version": "2.6.0+cu126",
-          "cuda_version": "12.6",
-          "transformers_version": "5.2.0",
-          "diffusers_version": "0.29.0",
-          "pykakasi_version": "2.3.0",
-          "safetensors_version": "0.5.3",
-          "s3tokenizer_version": "0.3.0",
-          "seed": 42,
-          "cfg_weight": 0.5,
-          "temperature": 0.8,
-          "repetition_penalty": 1.2,
-          "min_p": 0.05,
-          "top_p": 1.0,
-          "exaggeration_by_intensity": {
-            "1": 0.3,
-            "2": 0.5,
-            "3": 0.8
-          },
-          "emotion_control": "exaggeration_only",
-          "perth_watermark": true
-        },
-        "realized": {
-          "phase_peak_vram_mib": {
-            "runtime_load": {
-              "allocated_mib": 3074.6845703125,
-              "reserved_mib": 3094.0
-            },
-            "generation": {
-              "allocated_mib": 3512.88330078125,
-              "reserved_mib": 3622.0
-            }
-          },
-          "seed": 42,
-          "sample_rate_hz": 24000,
-          "language_id": "ja",
-          "line_emotion_audit": "angry",
-          "intensity": 2,
-          "exaggeration": 0.5,
-          "reference_selection_source": "character.reference_voice",
-          "reference_voice": "amitaro-countdown",
-          "reference_sha256": "fdc3ffc571a329250168b9b228e9ebfa660d885677e19bc5547b9a6dbe7509eb",
-          "perth_watermark_stage_executed": true
-        }
-      },
-      "rtf": 12.895689,
-      "loudness": {
-        "i_lufs": -18.01,
-        "tp_dbtp": -0.99,
+        "source": "encoded_opus",
+        "i_lufs": -18.13,
+        "tp_dbtp": -0.9,
         "shortfall": false
       }
     },
@@ -1026,8 +824,9 @@
       },
       "rtf": 2.073097,
       "loudness": {
-        "i_lufs": -18.03,
-        "tp_dbtp": -1.0,
+        "source": "encoded_opus",
+        "i_lufs": -18.04,
+        "tp_dbtp": -0.94,
         "shortfall": false
       }
     },
@@ -1130,8 +929,9 @@
       },
       "rtf": 1.92879,
       "loudness": {
-        "i_lufs": -18.05,
-        "tp_dbtp": -0.99,
+        "source": "encoded_opus",
+        "i_lufs": -18.07,
+        "tp_dbtp": -0.95,
         "shortfall": false
       }
     },
@@ -1234,112 +1034,9 @@
       },
       "rtf": 2.027657,
       "loudness": {
-        "i_lufs": -18.0,
-        "tp_dbtp": -3.45,
-        "shortfall": false
-      }
-    },
-    {
-      "model": "chatterbox-multilingual-v3",
-      "scenario": "tavern-night",
-      "line": "old-regular-002",
-      "variant": "dry",
-      "path": "audio/chatterbox-multilingual-v3/tavern-night/old-regular-002-dry.opus",
-      "duration_sec": 3.0865,
-      "sha256": "2d01632dfb035c09701c374e7ff51a41891e745ea0b129fbdb3857730c21deb0",
-      "gen_params": {
-        "requested": {
-          "upstream_repository": "resemble-ai/chatterbox",
-          "upstream_revision": "65b18437192794391a0308a8f705b1e33e633948",
-          "weights_repository": "ResembleAI/chatterbox",
-          "weights_revision": "5bb1f6ee58e50c3b8d408bc82a6d3740c2db6e18",
-          "perth_repository": "resemble-ai/Perth",
-          "perth_revision": "ce86c49d029f42272c1902eccb675556b9ed2330",
-          "model_root_environment": "GAYA_CHATTERBOX_ROOT",
-          "model_files": {
-            "Cangjie5_TC.json": {
-              "size": 1920163,
-              "sha256": "7073fd9de919443ae88e0bd2449917a65fe54898a4413ed1edcc4b67f28bce8c"
-            },
-            "grapheme_mtl_merged_expanded_v1.json": {
-              "size": 69989,
-              "sha256": "69632f47220a788a52ce2661d096453c5655e9bf25289d89a8d832c46ee07dbf"
-            },
-            "s3gen.pt": {
-              "size": 1057165844,
-              "sha256": "9b9ff07e60b20c136e2b1b3d7563a24604e8d2c4c267888d1ee929dd0151d2a3"
-            },
-            "t3_mtl23ls_v3.safetensors": {
-              "size": 2143989928,
-              "sha256": "5abca8321ede76f8e61f1cc0d19aea6c946b28871017ce8726f8a69203f05953"
-            },
-            "ve.pt": {
-              "size": 5698626,
-              "sha256": "4b16d836bc598509860f6fa068165a8bb5e9ac84f05582dfcf278a5a372879f1"
-            }
-          },
-          "perth_checkpoint": {
-            "path": "perth_net/pretrained/implicit/perth_net_250000.pth.tar",
-            "size": 37429684,
-            "sha256": "a15bce457ebc53ce5e6c9c3f11df78cf7ee2bf9cdab0a798902135b4c4027670"
-          },
-          "architecture": "chatterbox-multilingual-v3",
-          "t3_model": "v3",
-          "language_id": "ja",
-          "device": "cuda:0",
-          "dtype": "float32",
-          "sample_rate_hz": 24000,
-          "chatterbox_version": "0.1.7",
-          "perth_version": "1.0.1",
-          "torch_version": "2.6.0+cu126",
-          "torchaudio_version": "2.6.0+cu126",
-          "cuda_version": "12.6",
-          "transformers_version": "5.2.0",
-          "diffusers_version": "0.29.0",
-          "pykakasi_version": "2.3.0",
-          "safetensors_version": "0.5.3",
-          "s3tokenizer_version": "0.3.0",
-          "seed": 42,
-          "cfg_weight": 0.5,
-          "temperature": 0.8,
-          "repetition_penalty": 1.2,
-          "min_p": 0.05,
-          "top_p": 1.0,
-          "exaggeration_by_intensity": {
-            "1": 0.3,
-            "2": 0.5,
-            "3": 0.8
-          },
-          "emotion_control": "exaggeration_only",
-          "perth_watermark": true
-        },
-        "realized": {
-          "phase_peak_vram_mib": {
-            "runtime_load": {
-              "allocated_mib": 3074.6845703125,
-              "reserved_mib": 3094.0
-            },
-            "generation": {
-              "allocated_mib": 3701.77197265625,
-              "reserved_mib": 3794.0
-            }
-          },
-          "seed": 42,
-          "sample_rate_hz": 24000,
-          "language_id": "ja",
-          "line_emotion_audit": "laughing",
-          "intensity": 1,
-          "exaggeration": 0.3,
-          "reference_selection_source": "adapter.assignment:tavern-night/old-regular",
-          "reference_voice": "hadou-emotion-11",
-          "reference_sha256": "e98033d63f847c4113d8b47e264bca82f38212519da8d62661133847b3d221bc",
-          "perth_watermark_stage_executed": true
-        }
-      },
-      "rtf": 1.945701,
-      "loudness": {
-        "i_lufs": -17.94,
-        "tp_dbtp": -0.99,
+        "source": "encoded_opus",
+        "i_lufs": -18.01,
+        "tp_dbtp": -3.34,
         "shortfall": false
       }
     },
@@ -1512,8 +1209,9 @@
       },
       "rtf": 8.602992,
       "loudness": {
-        "i_lufs": -17.99,
-        "tp_dbtp": -1.62,
+        "source": "encoded_opus",
+        "i_lufs": -17.98,
+        "tp_dbtp": -1.72,
         "shortfall": false
       }
     },
@@ -1686,182 +1384,9 @@
       },
       "rtf": 1.561546,
       "loudness": {
+        "source": "encoded_opus",
         "i_lufs": -18.0,
-        "tp_dbtp": -3.27,
-        "shortfall": false
-      }
-    },
-    {
-      "model": "cosyvoice3-0.5b-2512",
-      "scenario": "market-day",
-      "line": "shopper-001",
-      "variant": "dry",
-      "path": "audio/cosyvoice3-0.5b-2512/market-day/shopper-001-dry.opus",
-      "duration_sec": 9.4865,
-      "sha256": "3c29467fb326c0885cb025f3fc1871526019c6985c0557e17e629cc902657750",
-      "gen_params": {
-        "requested": {
-          "upstream_repository": "QwenAudio/CosyVoice",
-          "upstream_revision": "074ca6dc9e80a2f424f1f74b48bdd7d3fea531cc",
-          "matcha_repository": "shivammehta25/Matcha-TTS",
-          "matcha_revision": "dd9105b34bf2be2230f4aa1e4769fb586a3c824e",
-          "weights_repository": "FunAudioLLM/Fun-CosyVoice3-0.5B-2512",
-          "weights_revision": "29e01c4e8d000f4bcd70751be16fa94bf3d85a18",
-          "code_root_environment": "GAYA_COSYVOICE_CODE_ROOT",
-          "model_root_environment": "GAYA_COSYVOICE3_MODEL_ROOT",
-          "model_files": {
-            "CosyVoice-BlankEN/config.json": {
-              "size": 659,
-              "sha256": "168aa1bd401abc3bc262ba15ba4e499627a8b4e006e9d050b47c22de20660185"
-            },
-            "CosyVoice-BlankEN/generation_config.json": {
-              "size": 242,
-              "sha256": "e558847a8b4402616f1273797b015104dc266fe4b520056fca88823ba8f8ebe6"
-            },
-            "CosyVoice-BlankEN/merges.txt": {
-              "size": 1402109,
-              "sha256": "ac8ff86a72bee70828fbc1119bc4398c6f3a9a6e490d7b0dbe917be025478bd0"
-            },
-            "CosyVoice-BlankEN/model.safetensors": {
-              "size": 988097824,
-              "sha256": "130282af0dfa9fe5840737cc49a0d339d06075f83c5a315c3372c9a0740d0b96"
-            },
-            "CosyVoice-BlankEN/tokenizer_config.json": {
-              "size": 1287,
-              "sha256": "482bd979881423375ca5414e4e0d94cd7c5349dbb17fffd46b4d36d71e62a1bc"
-            },
-            "CosyVoice-BlankEN/vocab.json": {
-              "size": 2776833,
-              "sha256": "ca10d7e9fb3ed18575dd1e277a2579c16d108e32f27439684afa0e10b1440910"
-            },
-            "campplus.onnx": {
-              "size": 28303423,
-              "sha256": "a6ac6a63997761ae2997373e2ee1c47040854b4b759ea41ec48e4e42df0f4d73"
-            },
-            "cosyvoice3.yaml": {
-              "size": 6934,
-              "sha256": "f5a6b2c6f05139d0f18861a1fe506f751e787026b77c05f7e8fef9f8a4405965"
-            },
-            "flow.pt": {
-              "size": 1329116148,
-              "sha256": "a6fab32a7825e5b0bc855ddd948f8db9370b0a786fbc249caa4595e95b608e4b"
-            },
-            "hift.pt": {
-              "size": 83202622,
-              "sha256": "b279d7641eb97ae55b3b540cfba4f953c26492a2df758328a89a4d007ab87a65"
-            },
-            "llm.pt": {
-              "size": 2024669519,
-              "sha256": "69f43bd545131c30e98947fb360ea8b4dc9916d8e83dded7757c7ea4f5a24970"
-            },
-            "speech_tokenizer_v3.onnx": {
-              "size": 969451503,
-              "sha256": "23236a74175dbdda47afc66dbadd5bcb41303c467a57c261cb8539ad9db9208d"
-            }
-          },
-          "architecture": "CosyVoice3",
-          "model_architecture": "CosyVoice3Model",
-          "device": "cuda:0",
-          "sample_rate_hz": 24000,
-          "torch_version": "2.3.1+cu121",
-          "torchaudio_version": "2.3.1+cu121",
-          "cuda_version": "12.1",
-          "onnxruntime_gpu_version": "1.18.0",
-          "transformers_version": "4.51.3",
-          "numpy_version": "1.26.4",
-          "soundfile_version": "0.12.1",
-          "modelscope_version": "1.20.0",
-          "seed": 1986,
-          "fp16": true,
-          "load_trt": false,
-          "load_vllm": false,
-          "stream": false,
-          "speed": 1.0,
-          "text_frontend": false,
-          "zero_shot_speaker_id": "",
-          "offline_environment": {
-            "HF_HUB_OFFLINE": "1",
-            "TRANSFORMERS_OFFLINE": "1",
-            "MODELSCOPE_OFFLINE": "1"
-          },
-          "emotion_instructions": {
-            "neutral": "a neutral emotion",
-            "cheerful": "a cheerful emotion",
-            "angry": "an angry emotion",
-            "sad": "a sad emotion",
-            "fearful": "a fearful emotion",
-            "surprised": "a surprised emotion",
-            "tired": "a tired emotion",
-            "drunk": "a drunken emotion",
-            "whisper": "a whispering delivery",
-            "shout": "a shouting delivery",
-            "laughing": "a laughing delivery",
-            "pain": "an emotion of pain"
-          },
-          "intensity_instructions": {
-            "1": "slightly",
-            "2": "clearly",
-            "3": "strongly"
-          },
-          "instruction_prefix": "You are a helpful assistant. Speak in Japanese",
-          "instruction_delivery_prefix": "Follow this delivery direction exactly:",
-          "instruction_end": "<|endofprompt|>",
-          "reference_assignments": {
-            "tavern-night/drunkard": "hadou-emotion-11",
-            "tavern-night/old-regular": "hadou-emotion-11",
-            "market-day/fruit-vendor": "hadou-emotion-11",
-            "market-day/shopper": "lux-emotion-76",
-            "market-day/street-kid": "tsukuyomi-corpus-94"
-          },
-          "watermark_disclosed_by_official_source": false
-        },
-        "realized": {
-          "phase_peak_vram_mib": {
-            "runtime_load": {
-              "allocated_mib": 3370.4365234375,
-              "reserved_mib": 3482.0
-            },
-            "generation": {
-              "allocated_mib": 4296.30712890625,
-              "reserved_mib": 5260.0
-            }
-          },
-          "providers": {
-            "speech_tokenizer": [
-              "CUDAExecutionProvider",
-              "CPUExecutionProvider"
-            ],
-            "campplus": [
-              "CPUExecutionProvider"
-            ]
-          },
-          "seed": 1986,
-          "fp16": true,
-          "stream": false,
-          "speed": 1.0,
-          "text_frontend": false,
-          "sample_rate_hz": 24000,
-          "samples": 227520,
-          "duration_sec": 9.48,
-          "source_text": "あら、こっちのほうが新鮮じゃないの。",
-          "tts_text": "アラ、コッチノホーガシンセンジャナイノ。",
-          "reading_source": "pyopenjtalk.g2p(kana=True)",
-          "instruction": "You are a helpful assistant. Speak in Japanese clearly with a neutral emotion. Follow this delivery direction exactly: 独り言まじりの品定め。語尾に少し得意げな色。<|endofprompt|>",
-          "emotion": "neutral",
-          "intensity": 2,
-          "delivery": "独り言まじりの品定め。語尾に少し得意げな色。",
-          "reference_selection_source": "adapter.assignment:market-day/shopper",
-          "reference_voice": "lux-emotion-76",
-          "reference_sha256": "432de3f3fb40c5838a80e5fb509977176352a8db03a10e8fb37cca1e83bcc4b5",
-          "reference_samples": 537000,
-          "reference_duration_sec": 11.1875,
-          "watermark_disclosed_by_official_source": false
-        }
-      },
-      "rtf": 1.902106,
-      "loudness": {
-        "i_lufs": -18.16,
-        "tp_dbtp": -1.0,
+        "tp_dbtp": -3.18,
         "shortfall": false
       }
     },
@@ -2034,8 +1559,9 @@
       },
       "rtf": 1.549496,
       "loudness": {
-        "i_lufs": -18.19,
-        "tp_dbtp": -1.0,
+        "source": "encoded_opus",
+        "i_lufs": -18.18,
+        "tp_dbtp": -0.94,
         "shortfall": false
       }
     },
@@ -2208,8 +1734,9 @@
       },
       "rtf": 2.206792,
       "loudness": {
-        "i_lufs": -18.0,
-        "tp_dbtp": -3.31,
+        "source": "encoded_opus",
+        "i_lufs": -18.01,
+        "tp_dbtp": -3.39,
         "shortfall": false
       }
     },
@@ -2382,8 +1909,9 @@
       },
       "rtf": 1.528462,
       "loudness": {
+        "source": "encoded_opus",
         "i_lufs": -18.0,
-        "tp_dbtp": -2.41,
+        "tp_dbtp": -2.32,
         "shortfall": false
       }
     },
@@ -2556,8 +2084,9 @@
       },
       "rtf": 15.61601,
       "loudness": {
+        "source": "encoded_opus",
         "i_lufs": -17.99,
-        "tp_dbtp": -1.95,
+        "tp_dbtp": -2.03,
         "shortfall": false
       }
     },
@@ -2730,182 +2259,9 @@
       },
       "rtf": 1.707261,
       "loudness": {
-        "i_lufs": -18.0,
-        "tp_dbtp": -1.66,
-        "shortfall": false
-      }
-    },
-    {
-      "model": "cosyvoice3-0.5b-2512",
-      "scenario": "tavern-night",
-      "line": "drunkard-001",
-      "variant": "dry",
-      "path": "audio/cosyvoice3-0.5b-2512/tavern-night/drunkard-001-dry.opus",
-      "duration_sec": 7.4065,
-      "sha256": "3e1271947df0fdc4fcbe9b076ef9230866912e0ba42db85772e4d412cb8eb265",
-      "gen_params": {
-        "requested": {
-          "upstream_repository": "QwenAudio/CosyVoice",
-          "upstream_revision": "074ca6dc9e80a2f424f1f74b48bdd7d3fea531cc",
-          "matcha_repository": "shivammehta25/Matcha-TTS",
-          "matcha_revision": "dd9105b34bf2be2230f4aa1e4769fb586a3c824e",
-          "weights_repository": "FunAudioLLM/Fun-CosyVoice3-0.5B-2512",
-          "weights_revision": "29e01c4e8d000f4bcd70751be16fa94bf3d85a18",
-          "code_root_environment": "GAYA_COSYVOICE_CODE_ROOT",
-          "model_root_environment": "GAYA_COSYVOICE3_MODEL_ROOT",
-          "model_files": {
-            "CosyVoice-BlankEN/config.json": {
-              "size": 659,
-              "sha256": "168aa1bd401abc3bc262ba15ba4e499627a8b4e006e9d050b47c22de20660185"
-            },
-            "CosyVoice-BlankEN/generation_config.json": {
-              "size": 242,
-              "sha256": "e558847a8b4402616f1273797b015104dc266fe4b520056fca88823ba8f8ebe6"
-            },
-            "CosyVoice-BlankEN/merges.txt": {
-              "size": 1402109,
-              "sha256": "ac8ff86a72bee70828fbc1119bc4398c6f3a9a6e490d7b0dbe917be025478bd0"
-            },
-            "CosyVoice-BlankEN/model.safetensors": {
-              "size": 988097824,
-              "sha256": "130282af0dfa9fe5840737cc49a0d339d06075f83c5a315c3372c9a0740d0b96"
-            },
-            "CosyVoice-BlankEN/tokenizer_config.json": {
-              "size": 1287,
-              "sha256": "482bd979881423375ca5414e4e0d94cd7c5349dbb17fffd46b4d36d71e62a1bc"
-            },
-            "CosyVoice-BlankEN/vocab.json": {
-              "size": 2776833,
-              "sha256": "ca10d7e9fb3ed18575dd1e277a2579c16d108e32f27439684afa0e10b1440910"
-            },
-            "campplus.onnx": {
-              "size": 28303423,
-              "sha256": "a6ac6a63997761ae2997373e2ee1c47040854b4b759ea41ec48e4e42df0f4d73"
-            },
-            "cosyvoice3.yaml": {
-              "size": 6934,
-              "sha256": "f5a6b2c6f05139d0f18861a1fe506f751e787026b77c05f7e8fef9f8a4405965"
-            },
-            "flow.pt": {
-              "size": 1329116148,
-              "sha256": "a6fab32a7825e5b0bc855ddd948f8db9370b0a786fbc249caa4595e95b608e4b"
-            },
-            "hift.pt": {
-              "size": 83202622,
-              "sha256": "b279d7641eb97ae55b3b540cfba4f953c26492a2df758328a89a4d007ab87a65"
-            },
-            "llm.pt": {
-              "size": 2024669519,
-              "sha256": "69f43bd545131c30e98947fb360ea8b4dc9916d8e83dded7757c7ea4f5a24970"
-            },
-            "speech_tokenizer_v3.onnx": {
-              "size": 969451503,
-              "sha256": "23236a74175dbdda47afc66dbadd5bcb41303c467a57c261cb8539ad9db9208d"
-            }
-          },
-          "architecture": "CosyVoice3",
-          "model_architecture": "CosyVoice3Model",
-          "device": "cuda:0",
-          "sample_rate_hz": 24000,
-          "torch_version": "2.3.1+cu121",
-          "torchaudio_version": "2.3.1+cu121",
-          "cuda_version": "12.1",
-          "onnxruntime_gpu_version": "1.18.0",
-          "transformers_version": "4.51.3",
-          "numpy_version": "1.26.4",
-          "soundfile_version": "0.12.1",
-          "modelscope_version": "1.20.0",
-          "seed": 1986,
-          "fp16": true,
-          "load_trt": false,
-          "load_vllm": false,
-          "stream": false,
-          "speed": 1.0,
-          "text_frontend": false,
-          "zero_shot_speaker_id": "",
-          "offline_environment": {
-            "HF_HUB_OFFLINE": "1",
-            "TRANSFORMERS_OFFLINE": "1",
-            "MODELSCOPE_OFFLINE": "1"
-          },
-          "emotion_instructions": {
-            "neutral": "a neutral emotion",
-            "cheerful": "a cheerful emotion",
-            "angry": "an angry emotion",
-            "sad": "a sad emotion",
-            "fearful": "a fearful emotion",
-            "surprised": "a surprised emotion",
-            "tired": "a tired emotion",
-            "drunk": "a drunken emotion",
-            "whisper": "a whispering delivery",
-            "shout": "a shouting delivery",
-            "laughing": "a laughing delivery",
-            "pain": "an emotion of pain"
-          },
-          "intensity_instructions": {
-            "1": "slightly",
-            "2": "clearly",
-            "3": "strongly"
-          },
-          "instruction_prefix": "You are a helpful assistant. Speak in Japanese",
-          "instruction_delivery_prefix": "Follow this delivery direction exactly:",
-          "instruction_end": "<|endofprompt|>",
-          "reference_assignments": {
-            "tavern-night/drunkard": "hadou-emotion-11",
-            "tavern-night/old-regular": "hadou-emotion-11",
-            "market-day/fruit-vendor": "hadou-emotion-11",
-            "market-day/shopper": "lux-emotion-76",
-            "market-day/street-kid": "tsukuyomi-corpus-94"
-          },
-          "watermark_disclosed_by_official_source": false
-        },
-        "realized": {
-          "phase_peak_vram_mib": {
-            "runtime_load": {
-              "allocated_mib": 3370.4365234375,
-              "reserved_mib": 3482.0
-            },
-            "generation": {
-              "allocated_mib": 4296.28857421875,
-              "reserved_mib": 5272.0
-            }
-          },
-          "providers": {
-            "speech_tokenizer": [
-              "CUDAExecutionProvider",
-              "CPUExecutionProvider"
-            ],
-            "campplus": [
-              "CPUExecutionProvider"
-            ]
-          },
-          "seed": 1986,
-          "fp16": true,
-          "stream": false,
-          "speed": 1.0,
-          "text_frontend": false,
-          "sample_rate_hz": 24000,
-          "samples": 177600,
-          "duration_sec": 7.4,
-          "source_text": "だからよぉ……俺は悪くねぇんだって……",
-          "tts_text": "ダカラヨォ……オレワワルクネーンダッテ……",
-          "reading_source": "pyopenjtalk.g2p(kana=True)",
-          "instruction": "You are a helpful assistant. Speak in Japanese clearly with a drunken emotion. Follow this delivery direction exactly: 呂律が回らず、語尾が伸びて沈む。愚痴っぽい。<|endofprompt|>",
-          "emotion": "drunk",
-          "intensity": 2,
-          "delivery": "呂律が回らず、語尾が伸びて沈む。愚痴っぽい。",
-          "reference_selection_source": "adapter.assignment:tavern-night/drunkard",
-          "reference_voice": "hadou-emotion-11",
-          "reference_sha256": "e98033d63f847c4113d8b47e264bca82f38212519da8d62661133847b3d221bc",
-          "reference_samples": 480192,
-          "reference_duration_sec": 10.004,
-          "watermark_disclosed_by_official_source": false
-        }
-      },
-      "rtf": 2.184332,
-      "loudness": {
-        "i_lufs": -18.06,
-        "tp_dbtp": -1.0,
+        "source": "encoded_opus",
+        "i_lufs": -18.01,
+        "tp_dbtp": -1.34,
         "shortfall": false
       }
     },
@@ -3078,182 +2434,9 @@
       },
       "rtf": 1.724484,
       "loudness": {
-        "i_lufs": -18.01,
-        "tp_dbtp": -1.62,
-        "shortfall": false
-      }
-    },
-    {
-      "model": "cosyvoice3-0.5b-2512",
-      "scenario": "tavern-night",
-      "line": "old-regular-001",
-      "variant": "dry",
-      "path": "audio/cosyvoice3-0.5b-2512/tavern-night/old-regular-001-dry.opus",
-      "duration_sec": 8.8865,
-      "sha256": "39c1fdcd19b0201c27ed7a60e05204468d90fbdab0053a8e8a57ab00a990cb8d",
-      "gen_params": {
-        "requested": {
-          "upstream_repository": "QwenAudio/CosyVoice",
-          "upstream_revision": "074ca6dc9e80a2f424f1f74b48bdd7d3fea531cc",
-          "matcha_repository": "shivammehta25/Matcha-TTS",
-          "matcha_revision": "dd9105b34bf2be2230f4aa1e4769fb586a3c824e",
-          "weights_repository": "FunAudioLLM/Fun-CosyVoice3-0.5B-2512",
-          "weights_revision": "29e01c4e8d000f4bcd70751be16fa94bf3d85a18",
-          "code_root_environment": "GAYA_COSYVOICE_CODE_ROOT",
-          "model_root_environment": "GAYA_COSYVOICE3_MODEL_ROOT",
-          "model_files": {
-            "CosyVoice-BlankEN/config.json": {
-              "size": 659,
-              "sha256": "168aa1bd401abc3bc262ba15ba4e499627a8b4e006e9d050b47c22de20660185"
-            },
-            "CosyVoice-BlankEN/generation_config.json": {
-              "size": 242,
-              "sha256": "e558847a8b4402616f1273797b015104dc266fe4b520056fca88823ba8f8ebe6"
-            },
-            "CosyVoice-BlankEN/merges.txt": {
-              "size": 1402109,
-              "sha256": "ac8ff86a72bee70828fbc1119bc4398c6f3a9a6e490d7b0dbe917be025478bd0"
-            },
-            "CosyVoice-BlankEN/model.safetensors": {
-              "size": 988097824,
-              "sha256": "130282af0dfa9fe5840737cc49a0d339d06075f83c5a315c3372c9a0740d0b96"
-            },
-            "CosyVoice-BlankEN/tokenizer_config.json": {
-              "size": 1287,
-              "sha256": "482bd979881423375ca5414e4e0d94cd7c5349dbb17fffd46b4d36d71e62a1bc"
-            },
-            "CosyVoice-BlankEN/vocab.json": {
-              "size": 2776833,
-              "sha256": "ca10d7e9fb3ed18575dd1e277a2579c16d108e32f27439684afa0e10b1440910"
-            },
-            "campplus.onnx": {
-              "size": 28303423,
-              "sha256": "a6ac6a63997761ae2997373e2ee1c47040854b4b759ea41ec48e4e42df0f4d73"
-            },
-            "cosyvoice3.yaml": {
-              "size": 6934,
-              "sha256": "f5a6b2c6f05139d0f18861a1fe506f751e787026b77c05f7e8fef9f8a4405965"
-            },
-            "flow.pt": {
-              "size": 1329116148,
-              "sha256": "a6fab32a7825e5b0bc855ddd948f8db9370b0a786fbc249caa4595e95b608e4b"
-            },
-            "hift.pt": {
-              "size": 83202622,
-              "sha256": "b279d7641eb97ae55b3b540cfba4f953c26492a2df758328a89a4d007ab87a65"
-            },
-            "llm.pt": {
-              "size": 2024669519,
-              "sha256": "69f43bd545131c30e98947fb360ea8b4dc9916d8e83dded7757c7ea4f5a24970"
-            },
-            "speech_tokenizer_v3.onnx": {
-              "size": 969451503,
-              "sha256": "23236a74175dbdda47afc66dbadd5bcb41303c467a57c261cb8539ad9db9208d"
-            }
-          },
-          "architecture": "CosyVoice3",
-          "model_architecture": "CosyVoice3Model",
-          "device": "cuda:0",
-          "sample_rate_hz": 24000,
-          "torch_version": "2.3.1+cu121",
-          "torchaudio_version": "2.3.1+cu121",
-          "cuda_version": "12.1",
-          "onnxruntime_gpu_version": "1.18.0",
-          "transformers_version": "4.51.3",
-          "numpy_version": "1.26.4",
-          "soundfile_version": "0.12.1",
-          "modelscope_version": "1.20.0",
-          "seed": 1986,
-          "fp16": true,
-          "load_trt": false,
-          "load_vllm": false,
-          "stream": false,
-          "speed": 1.0,
-          "text_frontend": false,
-          "zero_shot_speaker_id": "",
-          "offline_environment": {
-            "HF_HUB_OFFLINE": "1",
-            "TRANSFORMERS_OFFLINE": "1",
-            "MODELSCOPE_OFFLINE": "1"
-          },
-          "emotion_instructions": {
-            "neutral": "a neutral emotion",
-            "cheerful": "a cheerful emotion",
-            "angry": "an angry emotion",
-            "sad": "a sad emotion",
-            "fearful": "a fearful emotion",
-            "surprised": "a surprised emotion",
-            "tired": "a tired emotion",
-            "drunk": "a drunken emotion",
-            "whisper": "a whispering delivery",
-            "shout": "a shouting delivery",
-            "laughing": "a laughing delivery",
-            "pain": "an emotion of pain"
-          },
-          "intensity_instructions": {
-            "1": "slightly",
-            "2": "clearly",
-            "3": "strongly"
-          },
-          "instruction_prefix": "You are a helpful assistant. Speak in Japanese",
-          "instruction_delivery_prefix": "Follow this delivery direction exactly:",
-          "instruction_end": "<|endofprompt|>",
-          "reference_assignments": {
-            "tavern-night/drunkard": "hadou-emotion-11",
-            "tavern-night/old-regular": "hadou-emotion-11",
-            "market-day/fruit-vendor": "hadou-emotion-11",
-            "market-day/shopper": "lux-emotion-76",
-            "market-day/street-kid": "tsukuyomi-corpus-94"
-          },
-          "watermark_disclosed_by_official_source": false
-        },
-        "realized": {
-          "phase_peak_vram_mib": {
-            "runtime_load": {
-              "allocated_mib": 3370.4365234375,
-              "reserved_mib": 3482.0
-            },
-            "generation": {
-              "allocated_mib": 4295.9697265625,
-              "reserved_mib": 5282.0
-            }
-          },
-          "providers": {
-            "speech_tokenizer": [
-              "CUDAExecutionProvider",
-              "CPUExecutionProvider"
-            ],
-            "campplus": [
-              "CPUExecutionProvider"
-            ]
-          },
-          "seed": 1986,
-          "fp16": true,
-          "stream": false,
-          "speed": 1.0,
-          "text_frontend": false,
-          "sample_rate_hz": 24000,
-          "samples": 213120,
-          "duration_sec": 8.88,
-          "source_text": "近頃は物騒でいかんなぁ。",
-          "tts_text": "チカゴロワブッソーデイカンナー。",
-          "reading_source": "pyopenjtalk.g2p(kana=True)",
-          "instruction": "You are a helpful assistant. Speak in Japanese slightly with a tired emotion. Follow this delivery direction exactly: ため息まじり。独り言と話しかけの中間くらいの声量。<|endofprompt|>",
-          "emotion": "tired",
-          "intensity": 1,
-          "delivery": "ため息まじり。独り言と話しかけの中間くらいの声量。",
-          "reference_selection_source": "adapter.assignment:tavern-night/old-regular",
-          "reference_voice": "hadou-emotion-11",
-          "reference_sha256": "e98033d63f847c4113d8b47e264bca82f38212519da8d62661133847b3d221bc",
-          "reference_samples": 480192,
-          "reference_duration_sec": 10.004,
-          "watermark_disclosed_by_official_source": false
-        }
-      },
-      "rtf": 1.386571,
-      "loudness": {
-        "i_lufs": -18.07,
-        "tp_dbtp": -1.0,
+        "source": "encoded_opus",
+        "i_lufs": -18.02,
+        "tp_dbtp": -1.32,
         "shortfall": false
       }
     },
@@ -3426,8 +2609,9 @@
       },
       "rtf": 1.738016,
       "loudness": {
-        "i_lufs": -17.98,
-        "tp_dbtp": -2.6,
+        "source": "encoded_opus",
+        "i_lufs": -18.02,
+        "tp_dbtp": -2.68,
         "shortfall": false
       }
     },
@@ -3452,8 +2636,9 @@
       },
       "rtf": 0.029403,
       "loudness": {
+        "source": "encoded_opus",
         "i_lufs": -18.0,
-        "tp_dbtp": -12.57,
+        "tp_dbtp": -12.18,
         "shortfall": false
       }
     },
@@ -3478,8 +2663,9 @@
       },
       "rtf": 0.035876,
       "loudness": {
+        "source": "encoded_opus",
         "i_lufs": -18.0,
-        "tp_dbtp": -11.68,
+        "tp_dbtp": -11.83,
         "shortfall": false
       }
     },
@@ -3504,8 +2690,9 @@
       },
       "rtf": 0.03411,
       "loudness": {
+        "source": "encoded_opus",
         "i_lufs": -18.01,
-        "tp_dbtp": -12.36,
+        "tp_dbtp": -12.52,
         "shortfall": false
       }
     },
@@ -3530,8 +2717,9 @@
       },
       "rtf": 0.031653,
       "loudness": {
-        "i_lufs": -18.0,
-        "tp_dbtp": -12.22,
+        "source": "encoded_opus",
+        "i_lufs": -18.01,
+        "tp_dbtp": -12.34,
         "shortfall": false
       }
     },
@@ -3556,8 +2744,9 @@
       },
       "rtf": 0.031425,
       "loudness": {
+        "source": "encoded_opus",
         "i_lufs": -18.01,
-        "tp_dbtp": -12.26,
+        "tp_dbtp": -12.45,
         "shortfall": false
       }
     },
@@ -3582,8 +2771,9 @@
       },
       "rtf": 0.033406,
       "loudness": {
+        "source": "encoded_opus",
         "i_lufs": -18.0,
-        "tp_dbtp": -12.48,
+        "tp_dbtp": -12.28,
         "shortfall": false
       }
     },
@@ -3608,8 +2798,9 @@
       },
       "rtf": 0.029165,
       "loudness": {
-        "i_lufs": -18.0,
-        "tp_dbtp": -11.75,
+        "source": "encoded_opus",
+        "i_lufs": -18.02,
+        "tp_dbtp": -11.88,
         "shortfall": false
       }
     },
@@ -3634,8 +2825,9 @@
       },
       "rtf": 0.032933,
       "loudness": {
-        "i_lufs": -18.02,
-        "tp_dbtp": -12.71,
+        "source": "encoded_opus",
+        "i_lufs": -18.01,
+        "tp_dbtp": -12.57,
         "shortfall": false
       }
     },
@@ -3660,8 +2852,9 @@
       },
       "rtf": 0.031865,
       "loudness": {
+        "source": "encoded_opus",
         "i_lufs": -18.0,
-        "tp_dbtp": -11.71,
+        "tp_dbtp": -11.88,
         "shortfall": false
       }
     },
@@ -3686,8 +2879,9 @@
       },
       "rtf": 0.039818,
       "loudness": {
+        "source": "encoded_opus",
         "i_lufs": -18.0,
-        "tp_dbtp": -12.68,
+        "tp_dbtp": -12.28,
         "shortfall": false
       }
     },
@@ -3712,8 +2906,9 @@
       },
       "rtf": 0.037036,
       "loudness": {
+        "source": "encoded_opus",
         "i_lufs": -18.0,
-        "tp_dbtp": -11.78,
+        "tp_dbtp": -11.88,
         "shortfall": false
       }
     },
@@ -3738,8 +2933,9 @@
       },
       "rtf": 0.033448,
       "loudness": {
+        "source": "encoded_opus",
         "i_lufs": -18.0,
-        "tp_dbtp": -11.78,
+        "tp_dbtp": -11.89,
         "shortfall": false
       }
     },
@@ -3764,8 +2960,9 @@
       },
       "rtf": 0.033745,
       "loudness": {
+        "source": "encoded_opus",
         "i_lufs": -18.0,
-        "tp_dbtp": -12.66,
+        "tp_dbtp": -12.38,
         "shortfall": false
       }
     },
@@ -3790,8 +2987,9 @@
       },
       "rtf": 0.031639,
       "loudness": {
+        "source": "encoded_opus",
         "i_lufs": -18.01,
-        "tp_dbtp": -12.54,
+        "tp_dbtp": -12.45,
         "shortfall": false
       }
     },
@@ -3816,8 +3014,9 @@
       },
       "rtf": 0.032839,
       "loudness": {
-        "i_lufs": -18.01,
-        "tp_dbtp": -12.58,
+        "source": "encoded_opus",
+        "i_lufs": -18.0,
+        "tp_dbtp": -12.42,
         "shortfall": false
       }
     },
@@ -3842,8 +3041,9 @@
       },
       "rtf": 0.033456,
       "loudness": {
+        "source": "encoded_opus",
         "i_lufs": -18.0,
-        "tp_dbtp": -12.48,
+        "tp_dbtp": -12.36,
         "shortfall": false
       }
     },
@@ -3868,8 +3068,9 @@
       },
       "rtf": 0.035014,
       "loudness": {
-        "i_lufs": -18.0,
-        "tp_dbtp": -11.78,
+        "source": "encoded_opus",
+        "i_lufs": -18.01,
+        "tp_dbtp": -11.85,
         "shortfall": false
       }
     },
@@ -3894,8 +3095,9 @@
       },
       "rtf": 0.032143,
       "loudness": {
+        "source": "encoded_opus",
         "i_lufs": -18.0,
-        "tp_dbtp": -12.1,
+        "tp_dbtp": -12.16,
         "shortfall": false
       }
     },
@@ -3920,8 +3122,9 @@
       },
       "rtf": 0.026373,
       "loudness": {
+        "source": "encoded_opus",
         "i_lufs": -18.0,
-        "tp_dbtp": -12.48,
+        "tp_dbtp": -12.47,
         "shortfall": false
       }
     },
@@ -3946,8 +3149,9 @@
       },
       "rtf": 0.036963,
       "loudness": {
-        "i_lufs": -18.0,
-        "tp_dbtp": -12.46,
+        "source": "encoded_opus",
+        "i_lufs": -18.01,
+        "tp_dbtp": -12.41,
         "shortfall": false
       }
     },
@@ -3972,8 +3176,9 @@
       },
       "rtf": 0.030658,
       "loudness": {
+        "source": "encoded_opus",
         "i_lufs": -18.0,
-        "tp_dbtp": -11.7,
+        "tp_dbtp": -11.88,
         "shortfall": false
       }
     },
@@ -3998,8 +3203,9 @@
       },
       "rtf": 0.032509,
       "loudness": {
+        "source": "encoded_opus",
         "i_lufs": -18.02,
-        "tp_dbtp": -12.72,
+        "tp_dbtp": -12.66,
         "shortfall": false
       }
     },
@@ -4024,8 +3230,9 @@
       },
       "rtf": 0.033337,
       "loudness": {
+        "source": "encoded_opus",
         "i_lufs": -18.02,
-        "tp_dbtp": -12.65,
+        "tp_dbtp": -12.24,
         "shortfall": false
       }
     },
@@ -4050,8 +3257,9 @@
       },
       "rtf": 0.028648,
       "loudness": {
-        "i_lufs": -18.01,
-        "tp_dbtp": -12.53,
+        "source": "encoded_opus",
+        "i_lufs": -18.02,
+        "tp_dbtp": -12.37,
         "shortfall": false
       }
     },
@@ -4076,8 +3284,9 @@
       },
       "rtf": 0.037819,
       "loudness": {
+        "source": "encoded_opus",
         "i_lufs": -18.0,
-        "tp_dbtp": -12.56,
+        "tp_dbtp": -12.42,
         "shortfall": false
       }
     },
@@ -4102,8 +3311,9 @@
       },
       "rtf": 0.0296,
       "loudness": {
+        "source": "encoded_opus",
         "i_lufs": -18.02,
-        "tp_dbtp": -12.55,
+        "tp_dbtp": -12.32,
         "shortfall": false
       }
     },
@@ -4128,8 +3338,9 @@
       },
       "rtf": 0.031696,
       "loudness": {
+        "source": "encoded_opus",
         "i_lufs": -18.0,
-        "tp_dbtp": -12.49,
+        "tp_dbtp": -12.35,
         "shortfall": false
       }
     },
@@ -4154,8 +3365,9 @@
       },
       "rtf": 0.028745,
       "loudness": {
+        "source": "encoded_opus",
         "i_lufs": -18.0,
-        "tp_dbtp": -12.48,
+        "tp_dbtp": -12.34,
         "shortfall": false
       }
     },
@@ -4180,7 +3392,8 @@
       },
       "rtf": 0.033227,
       "loudness": {
-        "i_lufs": -18.02,
+        "source": "encoded_opus",
+        "i_lufs": -18.01,
         "tp_dbtp": -12.41,
         "shortfall": false
       }
@@ -4206,8 +3419,9 @@
       },
       "rtf": 0.054252,
       "loudness": {
+        "source": "encoded_opus",
         "i_lufs": -18.02,
-        "tp_dbtp": -11.71,
+        "tp_dbtp": -11.86,
         "shortfall": false
       }
     },
@@ -4232,8 +3446,9 @@
       },
       "rtf": 0.035537,
       "loudness": {
+        "source": "encoded_opus",
         "i_lufs": -18.0,
-        "tp_dbtp": -12.57,
+        "tp_dbtp": -12.52,
         "shortfall": false
       }
     },
@@ -4258,8 +3473,9 @@
       },
       "rtf": 0.035559,
       "loudness": {
+        "source": "encoded_opus",
         "i_lufs": -18.0,
-        "tp_dbtp": -12.65,
+        "tp_dbtp": -12.26,
         "shortfall": false
       }
     },
@@ -4284,8 +3500,9 @@
       },
       "rtf": 0.032037,
       "loudness": {
+        "source": "encoded_opus",
         "i_lufs": -18.02,
-        "tp_dbtp": -12.65,
+        "tp_dbtp": -12.48,
         "shortfall": false
       }
     },
@@ -4310,8 +3527,9 @@
       },
       "rtf": 0.029112,
       "loudness": {
+        "source": "encoded_opus",
         "i_lufs": -18.0,
-        "tp_dbtp": -12.56,
+        "tp_dbtp": -12.3,
         "shortfall": false
       }
     },
@@ -4336,8 +3554,9 @@
       },
       "rtf": 0.025522,
       "loudness": {
+        "source": "encoded_opus",
         "i_lufs": -18.0,
-        "tp_dbtp": -12.48,
+        "tp_dbtp": -12.38,
         "shortfall": false
       }
     },
@@ -4362,8 +3581,9 @@
       },
       "rtf": 0.023874,
       "loudness": {
+        "source": "encoded_opus",
         "i_lufs": -18.01,
-        "tp_dbtp": -12.64,
+        "tp_dbtp": -12.46,
         "shortfall": false
       }
     },
@@ -4388,8 +3608,9 @@
       },
       "rtf": 0.02919,
       "loudness": {
+        "source": "encoded_opus",
         "i_lufs": -18.0,
-        "tp_dbtp": -12.57,
+        "tp_dbtp": -12.52,
         "shortfall": false
       }
     },
@@ -4414,8 +3635,9 @@
       },
       "rtf": 0.027449,
       "loudness": {
+        "source": "encoded_opus",
         "i_lufs": -18.0,
-        "tp_dbtp": -12.57,
+        "tp_dbtp": -12.37,
         "shortfall": false
       }
     },
@@ -4440,8 +3662,9 @@
       },
       "rtf": 0.031239,
       "loudness": {
+        "source": "encoded_opus",
         "i_lufs": -18.0,
-        "tp_dbtp": -11.7,
+        "tp_dbtp": -11.85,
         "shortfall": false
       }
     },
@@ -4466,8 +3689,9 @@
       },
       "rtf": 0.029295,
       "loudness": {
+        "source": "encoded_opus",
         "i_lufs": -18.0,
-        "tp_dbtp": -12.23,
+        "tp_dbtp": -12.43,
         "shortfall": false
       }
     },
@@ -4492,8 +3716,9 @@
       },
       "rtf": 0.02966,
       "loudness": {
+        "source": "encoded_opus",
         "i_lufs": -18.0,
-        "tp_dbtp": -12.65,
+        "tp_dbtp": -12.44,
         "shortfall": false
       }
     },
@@ -4518,8 +3743,9 @@
       },
       "rtf": 0.035322,
       "loudness": {
+        "source": "encoded_opus",
         "i_lufs": -18.0,
-        "tp_dbtp": -12.56,
+        "tp_dbtp": -12.46,
         "shortfall": false
       }
     },
@@ -4544,8 +3770,9 @@
       },
       "rtf": 0.033127,
       "loudness": {
+        "source": "encoded_opus",
         "i_lufs": -18.0,
-        "tp_dbtp": -12.66,
+        "tp_dbtp": -12.57,
         "shortfall": false
       }
     },
@@ -4570,8 +3797,9 @@
       },
       "rtf": 0.030328,
       "loudness": {
+        "source": "encoded_opus",
         "i_lufs": -18.0,
-        "tp_dbtp": -12.65,
+        "tp_dbtp": -12.17,
         "shortfall": false
       }
     },
@@ -4596,8 +3824,9 @@
       },
       "rtf": 0.025776,
       "loudness": {
+        "source": "encoded_opus",
         "i_lufs": -18.0,
-        "tp_dbtp": -12.58,
+        "tp_dbtp": -12.43,
         "shortfall": false
       }
     },
@@ -4622,8 +3851,9 @@
       },
       "rtf": 0.030405,
       "loudness": {
+        "source": "encoded_opus",
         "i_lufs": -18.0,
-        "tp_dbtp": -12.55,
+        "tp_dbtp": -12.29,
         "shortfall": false
       }
     },
@@ -4648,8 +3878,9 @@
       },
       "rtf": 0.024478,
       "loudness": {
+        "source": "encoded_opus",
         "i_lufs": -18.0,
-        "tp_dbtp": -12.48,
+        "tp_dbtp": -12.47,
         "shortfall": false
       }
     },
@@ -4674,8 +3905,9 @@
       },
       "rtf": 0.023995,
       "loudness": {
+        "source": "encoded_opus",
         "i_lufs": -18.0,
-        "tp_dbtp": -12.08,
+        "tp_dbtp": -12.22,
         "shortfall": false
       }
     },
@@ -4700,8 +3932,9 @@
       },
       "rtf": 0.029257,
       "loudness": {
+        "source": "encoded_opus",
         "i_lufs": -18.0,
-        "tp_dbtp": -12.07,
+        "tp_dbtp": -12.32,
         "shortfall": false
       }
     },
@@ -4726,8 +3959,9 @@
       },
       "rtf": 0.027877,
       "loudness": {
+        "source": "encoded_opus",
         "i_lufs": -18.0,
-        "tp_dbtp": -11.71,
+        "tp_dbtp": -11.8,
         "shortfall": false
       }
     },
@@ -4752,8 +3986,9 @@
       },
       "rtf": 0.032924,
       "loudness": {
+        "source": "encoded_opus",
         "i_lufs": -18.02,
-        "tp_dbtp": -11.72,
+        "tp_dbtp": -11.94,
         "shortfall": false
       }
     },
@@ -4778,8 +4013,9 @@
       },
       "rtf": 0.032257,
       "loudness": {
+        "source": "encoded_opus",
         "i_lufs": -18.0,
-        "tp_dbtp": -12.25,
+        "tp_dbtp": -12.27,
         "shortfall": false
       }
     },
@@ -4804,8 +4040,9 @@
       },
       "rtf": 0.031089,
       "loudness": {
+        "source": "encoded_opus",
         "i_lufs": -18.0,
-        "tp_dbtp": -12.08,
+        "tp_dbtp": -12.22,
         "shortfall": false
       }
     },
@@ -4830,8 +4067,9 @@
       },
       "rtf": 0.033351,
       "loudness": {
+        "source": "encoded_opus",
         "i_lufs": -18.0,
-        "tp_dbtp": -12.48,
+        "tp_dbtp": -12.34,
         "shortfall": false
       }
     },
@@ -4856,8 +4094,9 @@
       },
       "rtf": 0.029913,
       "loudness": {
+        "source": "encoded_opus",
         "i_lufs": -18.0,
-        "tp_dbtp": -12.1,
+        "tp_dbtp": -12.32,
         "shortfall": false
       }
     },
@@ -4882,8 +4121,9 @@
       },
       "rtf": 0.025599,
       "loudness": {
+        "source": "encoded_opus",
         "i_lufs": -18.0,
-        "tp_dbtp": -11.71,
+        "tp_dbtp": -11.8,
         "shortfall": false
       }
     },
@@ -4908,8 +4148,9 @@
       },
       "rtf": 0.026646,
       "loudness": {
+        "source": "encoded_opus",
         "i_lufs": -18.0,
-        "tp_dbtp": -12.56,
+        "tp_dbtp": -12.5,
         "shortfall": false
       }
     },
@@ -4934,8 +4175,9 @@
       },
       "rtf": 0.026213,
       "loudness": {
+        "source": "encoded_opus",
         "i_lufs": -18.0,
-        "tp_dbtp": -11.66,
+        "tp_dbtp": -11.81,
         "shortfall": false
       }
     },
@@ -4960,8 +4202,9 @@
       },
       "rtf": 0.026874,
       "loudness": {
+        "source": "encoded_opus",
         "i_lufs": -18.02,
-        "tp_dbtp": -12.65,
+        "tp_dbtp": -12.24,
         "shortfall": false
       }
     },
@@ -4986,8 +4229,9 @@
       },
       "rtf": 0.028667,
       "loudness": {
+        "source": "encoded_opus",
         "i_lufs": -18.0,
-        "tp_dbtp": -12.56,
+        "tp_dbtp": -12.3,
         "shortfall": false
       }
     },
@@ -5012,8 +4256,9 @@
       },
       "rtf": 0.031521,
       "loudness": {
+        "source": "encoded_opus",
         "i_lufs": -18.0,
-        "tp_dbtp": -12.47,
+        "tp_dbtp": -12.33,
         "shortfall": false
       }
     },
@@ -5038,8 +4283,9 @@
       },
       "rtf": 0.027156,
       "loudness": {
-        "i_lufs": -18.02,
-        "tp_dbtp": -12.63,
+        "source": "encoded_opus",
+        "i_lufs": -18.0,
+        "tp_dbtp": -12.43,
         "shortfall": false
       }
     },
@@ -5064,8 +4310,9 @@
       },
       "rtf": 0.033148,
       "loudness": {
-        "i_lufs": -18.02,
-        "tp_dbtp": -11.72,
+        "source": "encoded_opus",
+        "i_lufs": -18.03,
+        "tp_dbtp": -11.84,
         "shortfall": false
       }
     },
@@ -5090,8 +4337,9 @@
       },
       "rtf": 0.029852,
       "loudness": {
+        "source": "encoded_opus",
         "i_lufs": -18.0,
-        "tp_dbtp": -12.48,
+        "tp_dbtp": -12.35,
         "shortfall": false
       }
     },
@@ -5116,8 +4364,9 @@
       },
       "rtf": 0.026555,
       "loudness": {
+        "source": "encoded_opus",
         "i_lufs": -18.0,
-        "tp_dbtp": -12.12,
+        "tp_dbtp": -12.27,
         "shortfall": false
       }
     },
@@ -5142,8 +4391,9 @@
       },
       "rtf": 0.027118,
       "loudness": {
+        "source": "encoded_opus",
         "i_lufs": -18.0,
-        "tp_dbtp": -11.7,
+        "tp_dbtp": -11.87,
         "shortfall": false
       }
     },
@@ -5168,8 +4418,9 @@
       },
       "rtf": 0.025205,
       "loudness": {
+        "source": "encoded_opus",
         "i_lufs": -18.0,
-        "tp_dbtp": -12.48,
+        "tp_dbtp": -12.29,
         "shortfall": false
       }
     },
@@ -5194,8 +4445,9 @@
       },
       "rtf": 0.034419,
       "loudness": {
+        "source": "encoded_opus",
         "i_lufs": -18.0,
-        "tp_dbtp": -11.78,
+        "tp_dbtp": -11.93,
         "shortfall": false
       }
     },
@@ -5220,8 +4472,9 @@
       },
       "rtf": 0.031902,
       "loudness": {
-        "i_lufs": -18.02,
-        "tp_dbtp": -12.58,
+        "source": "encoded_opus",
+        "i_lufs": -18.01,
+        "tp_dbtp": -12.31,
         "shortfall": false
       }
     },
@@ -5246,8 +4499,9 @@
       },
       "rtf": 0.029272,
       "loudness": {
+        "source": "encoded_opus",
         "i_lufs": -18.0,
-        "tp_dbtp": -12.48,
+        "tp_dbtp": -12.35,
         "shortfall": false
       }
     },
@@ -5272,8 +4526,9 @@
       },
       "rtf": 0.023748,
       "loudness": {
+        "source": "encoded_opus",
         "i_lufs": -18.0,
-        "tp_dbtp": -11.76,
+        "tp_dbtp": -11.88,
         "shortfall": false
       }
     },
@@ -5298,8 +4553,9 @@
       },
       "rtf": 0.032708,
       "loudness": {
+        "source": "encoded_opus",
         "i_lufs": -18.0,
-        "tp_dbtp": -11.77,
+        "tp_dbtp": -11.88,
         "shortfall": false
       }
     },
@@ -5324,8 +4580,9 @@
       },
       "rtf": 0.026694,
       "loudness": {
+        "source": "encoded_opus",
         "i_lufs": -18.02,
-        "tp_dbtp": -12.55,
+        "tp_dbtp": -12.29,
         "shortfall": false
       }
     },
@@ -5350,8 +4607,9 @@
       },
       "rtf": 0.026852,
       "loudness": {
+        "source": "encoded_opus",
         "i_lufs": -18.01,
-        "tp_dbtp": -12.54,
+        "tp_dbtp": -12.39,
         "shortfall": false
       }
     },
@@ -5376,8 +4634,9 @@
       },
       "rtf": 0.030041,
       "loudness": {
+        "source": "encoded_opus",
         "i_lufs": -18.0,
-        "tp_dbtp": -12.04,
+        "tp_dbtp": -12.06,
         "shortfall": false
       }
     },
@@ -5402,8 +4661,9 @@
       },
       "rtf": 0.036639,
       "loudness": {
+        "source": "encoded_opus",
         "i_lufs": -18.0,
-        "tp_dbtp": -11.71,
+        "tp_dbtp": -11.89,
         "shortfall": false
       }
     },
@@ -5428,8 +4688,9 @@
       },
       "rtf": 0.029321,
       "loudness": {
+        "source": "encoded_opus",
         "i_lufs": -18.0,
-        "tp_dbtp": -11.77,
+        "tp_dbtp": -11.97,
         "shortfall": false
       }
     },
@@ -5454,8 +4715,9 @@
       },
       "rtf": 0.031732,
       "loudness": {
+        "source": "encoded_opus",
         "i_lufs": -18.0,
-        "tp_dbtp": -12.56,
+        "tp_dbtp": -12.46,
         "shortfall": false
       }
     },
@@ -5480,8 +4742,9 @@
       },
       "rtf": 0.029623,
       "loudness": {
-        "i_lufs": -18.0,
-        "tp_dbtp": -11.82,
+        "source": "encoded_opus",
+        "i_lufs": -18.01,
+        "tp_dbtp": -11.96,
         "shortfall": false
       }
     },
@@ -5506,8 +4769,9 @@
       },
       "rtf": 0.0327,
       "loudness": {
+        "source": "encoded_opus",
         "i_lufs": -18.0,
-        "tp_dbtp": -12.55,
+        "tp_dbtp": -12.42,
         "shortfall": false
       }
     },
@@ -5532,8 +4796,9 @@
       },
       "rtf": 0.025461,
       "loudness": {
+        "source": "encoded_opus",
         "i_lufs": -18.0,
-        "tp_dbtp": -12.66,
+        "tp_dbtp": -12.47,
         "shortfall": false
       }
     },
@@ -5558,8 +4823,9 @@
       },
       "rtf": 0.031777,
       "loudness": {
+        "source": "encoded_opus",
         "i_lufs": -18.0,
-        "tp_dbtp": -12.47,
+        "tp_dbtp": -12.46,
         "shortfall": false
       }
     },
@@ -5584,8 +4850,9 @@
       },
       "rtf": 0.033944,
       "loudness": {
+        "source": "encoded_opus",
         "i_lufs": -18.0,
-        "tp_dbtp": -12.56,
+        "tp_dbtp": -12.41,
         "shortfall": false
       }
     },
@@ -5610,8 +4877,9 @@
       },
       "rtf": 0.02959,
       "loudness": {
+        "source": "encoded_opus",
         "i_lufs": -18.0,
-        "tp_dbtp": -12.58,
+        "tp_dbtp": -12.37,
         "shortfall": false
       }
     },
@@ -5636,8 +4904,9 @@
       },
       "rtf": 0.028235,
       "loudness": {
+        "source": "encoded_opus",
         "i_lufs": -18.0,
-        "tp_dbtp": -11.71,
+        "tp_dbtp": -11.89,
         "shortfall": false
       }
     },
@@ -5662,7 +4931,8 @@
       },
       "rtf": 0.027253,
       "loudness": {
-        "i_lufs": -18.02,
+        "source": "encoded_opus",
+        "i_lufs": -18.01,
         "tp_dbtp": -12.41,
         "shortfall": false
       }
@@ -5688,8 +4958,9 @@
       },
       "rtf": 0.033866,
       "loudness": {
+        "source": "encoded_opus",
         "i_lufs": -18.01,
-        "tp_dbtp": -12.48,
+        "tp_dbtp": -12.29,
         "shortfall": false
       }
     },
@@ -5714,8 +4985,9 @@
       },
       "rtf": 0.030574,
       "loudness": {
+        "source": "encoded_opus",
         "i_lufs": -18.0,
-        "tp_dbtp": -12.48,
+        "tp_dbtp": -12.33,
         "shortfall": false
       }
     },
@@ -5740,8 +5012,9 @@
       },
       "rtf": 0.025633,
       "loudness": {
+        "source": "encoded_opus",
         "i_lufs": -18.0,
-        "tp_dbtp": -12.65,
+        "tp_dbtp": -12.27,
         "shortfall": false
       }
     },
@@ -5766,8 +5039,9 @@
       },
       "rtf": 0.03557,
       "loudness": {
+        "source": "encoded_opus",
         "i_lufs": -18.0,
-        "tp_dbtp": -12.56,
+        "tp_dbtp": -12.37,
         "shortfall": false
       }
     },
@@ -5792,8 +5066,9 @@
       },
       "rtf": 0.035128,
       "loudness": {
+        "source": "encoded_opus",
         "i_lufs": -18.0,
-        "tp_dbtp": -12.57,
+        "tp_dbtp": -12.37,
         "shortfall": false
       }
     },
@@ -5818,8 +5093,9 @@
       },
       "rtf": 0.04802,
       "loudness": {
-        "i_lufs": -18.01,
-        "tp_dbtp": -12.16,
+        "source": "encoded_opus",
+        "i_lufs": -18.0,
+        "tp_dbtp": -12.42,
         "shortfall": false
       }
     },
@@ -5844,8 +5120,9 @@
       },
       "rtf": 0.032917,
       "loudness": {
+        "source": "encoded_opus",
         "i_lufs": -18.0,
-        "tp_dbtp": -12.42,
+        "tp_dbtp": -12.43,
         "shortfall": false
       }
     },
@@ -5870,8 +5147,9 @@
       },
       "rtf": 0.024215,
       "loudness": {
+        "source": "encoded_opus",
         "i_lufs": -18.01,
-        "tp_dbtp": -12.63,
+        "tp_dbtp": -12.52,
         "shortfall": false
       }
     },
@@ -5896,8 +5174,9 @@
       },
       "rtf": 0.031303,
       "loudness": {
+        "source": "encoded_opus",
         "i_lufs": -18.01,
-        "tp_dbtp": -12.63,
+        "tp_dbtp": -12.52,
         "shortfall": false
       }
     },
@@ -5922,8 +5201,9 @@
       },
       "rtf": 0.024073,
       "loudness": {
+        "source": "encoded_opus",
         "i_lufs": -18.0,
-        "tp_dbtp": -12.68,
+        "tp_dbtp": -12.43,
         "shortfall": false
       }
     },
@@ -5948,8 +5228,9 @@
       },
       "rtf": 0.028015,
       "loudness": {
+        "source": "encoded_opus",
         "i_lufs": -18.0,
-        "tp_dbtp": -12.3,
+        "tp_dbtp": -12.43,
         "shortfall": false
       }
     },
@@ -5974,8 +5255,9 @@
       },
       "rtf": 0.028265,
       "loudness": {
+        "source": "encoded_opus",
         "i_lufs": -18.0,
-        "tp_dbtp": -12.46,
+        "tp_dbtp": -12.28,
         "shortfall": false
       }
     },
@@ -6000,8 +5282,9 @@
       },
       "rtf": 0.026871,
       "loudness": {
+        "source": "encoded_opus",
         "i_lufs": -18.01,
-        "tp_dbtp": -12.55,
+        "tp_dbtp": -12.27,
         "shortfall": false
       }
     },
@@ -6026,8 +5309,9 @@
       },
       "rtf": 0.026988,
       "loudness": {
+        "source": "encoded_opus",
         "i_lufs": -18.01,
-        "tp_dbtp": -12.63,
+        "tp_dbtp": -12.52,
         "shortfall": false
       }
     },
@@ -6052,8 +5336,9 @@
       },
       "rtf": 0.024536,
       "loudness": {
+        "source": "encoded_opus",
         "i_lufs": -18.0,
-        "tp_dbtp": -11.76,
+        "tp_dbtp": -11.9,
         "shortfall": false
       }
     },
@@ -6078,8 +5363,9 @@
       },
       "rtf": 0.029347,
       "loudness": {
+        "source": "encoded_opus",
         "i_lufs": -18.0,
-        "tp_dbtp": -12.56,
+        "tp_dbtp": -12.46,
         "shortfall": false
       }
     },
@@ -6104,8 +5390,9 @@
       },
       "rtf": 0.024689,
       "loudness": {
+        "source": "encoded_opus",
         "i_lufs": -18.0,
-        "tp_dbtp": -12.66,
+        "tp_dbtp": -12.38,
         "shortfall": false
       }
     },
@@ -6130,8 +5417,9 @@
       },
       "rtf": 0.045497,
       "loudness": {
+        "source": "encoded_opus",
         "i_lufs": -18.0,
-        "tp_dbtp": -12.48,
+        "tp_dbtp": -12.3,
         "shortfall": false
       }
     },
@@ -6156,8 +5444,9 @@
       },
       "rtf": 0.026835,
       "loudness": {
+        "source": "encoded_opus",
         "i_lufs": -18.02,
-        "tp_dbtp": -11.77,
+        "tp_dbtp": -11.88,
         "shortfall": false
       }
     },
@@ -6182,8 +5471,9 @@
       },
       "rtf": 0.028357,
       "loudness": {
+        "source": "encoded_opus",
         "i_lufs": -18.0,
-        "tp_dbtp": -12.68,
+        "tp_dbtp": -12.49,
         "shortfall": false
       }
     },
@@ -6208,8 +5498,9 @@
       },
       "rtf": 0.029311,
       "loudness": {
+        "source": "encoded_opus",
         "i_lufs": -18.0,
-        "tp_dbtp": -12.58,
+        "tp_dbtp": -12.48,
         "shortfall": false
       }
     },
@@ -6234,8 +5525,9 @@
       },
       "rtf": 0.026667,
       "loudness": {
+        "source": "encoded_opus",
         "i_lufs": -18.0,
-        "tp_dbtp": -12.31,
+        "tp_dbtp": -12.39,
         "shortfall": false
       }
     },
@@ -6260,8 +5552,9 @@
       },
       "rtf": 0.0326,
       "loudness": {
+        "source": "encoded_opus",
         "i_lufs": -18.0,
-        "tp_dbtp": -12.42,
+        "tp_dbtp": -12.43,
         "shortfall": false
       }
     },
@@ -6286,8 +5579,9 @@
       },
       "rtf": 0.025995,
       "loudness": {
-        "i_lufs": -18.0,
-        "tp_dbtp": -12.65,
+        "source": "encoded_opus",
+        "i_lufs": -18.01,
+        "tp_dbtp": -12.5,
         "shortfall": false
       }
     },
@@ -6312,8 +5606,9 @@
       },
       "rtf": 0.027298,
       "loudness": {
+        "source": "encoded_opus",
         "i_lufs": -18.0,
-        "tp_dbtp": -12.52,
+        "tp_dbtp": -12.38,
         "shortfall": false
       }
     },
@@ -6338,8 +5633,9 @@
       },
       "rtf": 0.029039,
       "loudness": {
+        "source": "encoded_opus",
         "i_lufs": -18.0,
-        "tp_dbtp": -12.52,
+        "tp_dbtp": -12.38,
         "shortfall": false
       }
     },
@@ -6364,8 +5660,9 @@
       },
       "rtf": 0.034487,
       "loudness": {
+        "source": "encoded_opus",
         "i_lufs": -18.02,
-        "tp_dbtp": -12.64,
+        "tp_dbtp": -12.58,
         "shortfall": false
       }
     },
@@ -6390,8 +5687,9 @@
       },
       "rtf": 0.031152,
       "loudness": {
+        "source": "encoded_opus",
         "i_lufs": -18.02,
-        "tp_dbtp": -12.65,
+        "tp_dbtp": -12.33,
         "shortfall": false
       }
     },
@@ -6416,8 +5714,9 @@
       },
       "rtf": 0.028069,
       "loudness": {
-        "i_lufs": -18.0,
-        "tp_dbtp": -11.7,
+        "source": "encoded_opus",
+        "i_lufs": -18.01,
+        "tp_dbtp": -11.79,
         "shortfall": false
       }
     },
@@ -6442,8 +5741,9 @@
       },
       "rtf": 0.030815,
       "loudness": {
+        "source": "encoded_opus",
         "i_lufs": -18.0,
-        "tp_dbtp": -12.65,
+        "tp_dbtp": -12.17,
         "shortfall": false
       }
     },
@@ -6468,8 +5768,9 @@
       },
       "rtf": 0.037377,
       "loudness": {
+        "source": "encoded_opus",
         "i_lufs": -18.0,
-        "tp_dbtp": -12.48,
+        "tp_dbtp": -12.38,
         "shortfall": false
       }
     },
@@ -6494,8 +5795,9 @@
       },
       "rtf": 0.026735,
       "loudness": {
-        "i_lufs": -18.0,
-        "tp_dbtp": -12.53,
+        "source": "encoded_opus",
+        "i_lufs": -18.01,
+        "tp_dbtp": -12.27,
         "shortfall": false
       }
     },
@@ -6520,8 +5822,9 @@
       },
       "rtf": 0.028337,
       "loudness": {
+        "source": "encoded_opus",
         "i_lufs": -18.0,
-        "tp_dbtp": -11.7,
+        "tp_dbtp": -11.85,
         "shortfall": false
       }
     },
@@ -6546,8 +5849,9 @@
       },
       "rtf": 0.025615,
       "loudness": {
+        "source": "encoded_opus",
         "i_lufs": -18.0,
-        "tp_dbtp": -12.48,
+        "tp_dbtp": -12.32,
         "shortfall": false
       }
     },
@@ -6572,8 +5876,9 @@
       },
       "rtf": 0.026714,
       "loudness": {
+        "source": "encoded_opus",
         "i_lufs": -18.0,
-        "tp_dbtp": -12.56,
+        "tp_dbtp": -12.47,
         "shortfall": false
       }
     },
@@ -6598,8 +5903,9 @@
       },
       "rtf": 0.026693,
       "loudness": {
+        "source": "encoded_opus",
         "i_lufs": -18.02,
-        "tp_dbtp": -12.55,
+        "tp_dbtp": -12.26,
         "shortfall": false
       }
     },
@@ -6624,8 +5930,9 @@
       },
       "rtf": 0.035468,
       "loudness": {
+        "source": "encoded_opus",
         "i_lufs": -18.0,
-        "tp_dbtp": -12.07,
+        "tp_dbtp": -12.34,
         "shortfall": false
       }
     },
@@ -6650,8 +5957,9 @@
       },
       "rtf": 0.03417,
       "loudness": {
+        "source": "encoded_opus",
         "i_lufs": -18.02,
-        "tp_dbtp": -12.64,
+        "tp_dbtp": -12.59,
         "shortfall": false
       }
     },
@@ -6676,8 +5984,9 @@
       },
       "rtf": 0.03406,
       "loudness": {
+        "source": "encoded_opus",
         "i_lufs": -18.0,
-        "tp_dbtp": -11.7,
+        "tp_dbtp": -11.87,
         "shortfall": false
       }
     },
@@ -6702,8 +6011,9 @@
       },
       "rtf": 0.035307,
       "loudness": {
+        "source": "encoded_opus",
         "i_lufs": -18.0,
-        "tp_dbtp": -12.46,
+        "tp_dbtp": -12.39,
         "shortfall": false
       }
     },
@@ -6728,8 +6038,9 @@
       },
       "rtf": 0.030902,
       "loudness": {
+        "source": "encoded_opus",
         "i_lufs": -18.0,
-        "tp_dbtp": -12.55,
+        "tp_dbtp": -12.33,
         "shortfall": false
       }
     },
@@ -6754,8 +6065,9 @@
       },
       "rtf": 0.029337,
       "loudness": {
+        "source": "encoded_opus",
         "i_lufs": -18.0,
-        "tp_dbtp": -12.48,
+        "tp_dbtp": -12.23,
         "shortfall": false
       }
     },
@@ -6780,8 +6092,9 @@
       },
       "rtf": 0.031731,
       "loudness": {
+        "source": "encoded_opus",
         "i_lufs": -18.0,
-        "tp_dbtp": -12.58,
+        "tp_dbtp": -12.45,
         "shortfall": false
       }
     },
@@ -6806,8 +6119,9 @@
       },
       "rtf": 0.030402,
       "loudness": {
+        "source": "encoded_opus",
         "i_lufs": -18.0,
-        "tp_dbtp": -12.56,
+        "tp_dbtp": -12.41,
         "shortfall": false
       }
     },
@@ -6832,8 +6146,9 @@
       },
       "rtf": 0.028392,
       "loudness": {
+        "source": "encoded_opus",
         "i_lufs": -18.0,
-        "tp_dbtp": -12.58,
+        "tp_dbtp": -12.44,
         "shortfall": false
       }
     },
@@ -6858,8 +6173,9 @@
       },
       "rtf": 0.029775,
       "loudness": {
-        "i_lufs": -18.0,
-        "tp_dbtp": -12.22,
+        "source": "encoded_opus",
+        "i_lufs": -18.01,
+        "tp_dbtp": -12.34,
         "shortfall": false
       }
     },
@@ -6884,8 +6200,9 @@
       },
       "rtf": 0.030255,
       "loudness": {
+        "source": "encoded_opus",
         "i_lufs": -18.0,
-        "tp_dbtp": -11.67,
+        "tp_dbtp": -11.76,
         "shortfall": false
       }
     },
@@ -6910,8 +6227,9 @@
       },
       "rtf": 0.030606,
       "loudness": {
+        "source": "encoded_opus",
         "i_lufs": -18.0,
-        "tp_dbtp": -11.7,
+        "tp_dbtp": -11.83,
         "shortfall": false
       }
     },
@@ -6936,8 +6254,9 @@
       },
       "rtf": 0.030675,
       "loudness": {
+        "source": "encoded_opus",
         "i_lufs": -18.0,
-        "tp_dbtp": -11.72,
+        "tp_dbtp": -11.95,
         "shortfall": false
       }
     },
@@ -6962,8 +6281,9 @@
       },
       "rtf": 0.02971,
       "loudness": {
+        "source": "encoded_opus",
         "i_lufs": -18.0,
-        "tp_dbtp": -11.77,
+        "tp_dbtp": -11.88,
         "shortfall": false
       }
     },
@@ -6988,8 +6308,9 @@
       },
       "rtf": 0.027378,
       "loudness": {
-        "i_lufs": -18.02,
-        "tp_dbtp": -12.71,
+        "source": "encoded_opus",
+        "i_lufs": -18.01,
+        "tp_dbtp": -12.57,
         "shortfall": false
       }
     },
@@ -7014,8 +6335,9 @@
       },
       "rtf": 0.033531,
       "loudness": {
-        "i_lufs": -18.01,
-        "tp_dbtp": -12.68,
+        "source": "encoded_opus",
+        "i_lufs": -18.0,
+        "tp_dbtp": -12.33,
         "shortfall": false
       }
     },
@@ -7040,8 +6362,9 @@
       },
       "rtf": 0.028729,
       "loudness": {
+        "source": "encoded_opus",
         "i_lufs": -18.0,
-        "tp_dbtp": -12.65,
+        "tp_dbtp": -12.38,
         "shortfall": false
       }
     },
@@ -7066,8 +6389,9 @@
       },
       "rtf": 0.032487,
       "loudness": {
-        "i_lufs": -18.02,
-        "tp_dbtp": -12.66,
+        "source": "encoded_opus",
+        "i_lufs": -18.0,
+        "tp_dbtp": -12.37,
         "shortfall": false
       }
     },
@@ -7092,8 +6416,9 @@
       },
       "rtf": 0.026129,
       "loudness": {
+        "source": "encoded_opus",
         "i_lufs": -18.01,
-        "tp_dbtp": -12.53,
+        "tp_dbtp": -12.24,
         "shortfall": false
       }
     },
@@ -7118,8 +6443,9 @@
       },
       "rtf": 0.028211,
       "loudness": {
-        "i_lufs": -18.0,
-        "tp_dbtp": -12.68,
+        "source": "encoded_opus",
+        "i_lufs": -17.95,
+        "tp_dbtp": -12.57,
         "shortfall": false
       }
     },
@@ -7144,8 +6470,9 @@
       },
       "rtf": 0.030471,
       "loudness": {
+        "source": "encoded_opus",
         "i_lufs": -18.0,
-        "tp_dbtp": -12.08,
+        "tp_dbtp": -12.23,
         "shortfall": false
       }
     },
@@ -7170,8 +6497,9 @@
       },
       "rtf": 0.029968,
       "loudness": {
-        "i_lufs": -18.0,
-        "tp_dbtp": -11.75,
+        "source": "encoded_opus",
+        "i_lufs": -18.02,
+        "tp_dbtp": -11.88,
         "shortfall": false
       }
     },
@@ -7196,8 +6524,9 @@
       },
       "rtf": 0.032394,
       "loudness": {
+        "source": "encoded_opus",
         "i_lufs": -18.0,
-        "tp_dbtp": -12.66,
+        "tp_dbtp": -12.48,
         "shortfall": false
       }
     },
@@ -7222,8 +6551,9 @@
       },
       "rtf": 0.030222,
       "loudness": {
+        "source": "encoded_opus",
         "i_lufs": -18.0,
-        "tp_dbtp": -12.33,
+        "tp_dbtp": -12.41,
         "shortfall": false
       }
     },
@@ -7248,8 +6578,9 @@
       },
       "rtf": 0.032312,
       "loudness": {
+        "source": "encoded_opus",
         "i_lufs": -18.0,
-        "tp_dbtp": -12.48,
+        "tp_dbtp": -12.29,
         "shortfall": false
       }
     },
@@ -7274,8 +6605,9 @@
       },
       "rtf": 0.030816,
       "loudness": {
-        "i_lufs": -18.02,
-        "tp_dbtp": -12.65,
+        "source": "encoded_opus",
+        "i_lufs": -18.0,
+        "tp_dbtp": -12.47,
         "shortfall": false
       }
     },
@@ -7300,8 +6632,9 @@
       },
       "rtf": 0.038022,
       "loudness": {
+        "source": "encoded_opus",
         "i_lufs": -18.0,
-        "tp_dbtp": -11.7,
+        "tp_dbtp": -11.83,
         "shortfall": false
       }
     },
@@ -7326,8 +6659,9 @@
       },
       "rtf": 0.028596,
       "loudness": {
+        "source": "encoded_opus",
         "i_lufs": -18.0,
-        "tp_dbtp": -12.48,
+        "tp_dbtp": -12.16,
         "shortfall": false
       }
     },
@@ -7352,8 +6686,9 @@
       },
       "rtf": 0.028808,
       "loudness": {
-        "i_lufs": -18.0,
-        "tp_dbtp": -12.22,
+        "source": "encoded_opus",
+        "i_lufs": -18.01,
+        "tp_dbtp": -12.34,
         "shortfall": false
       }
     },
@@ -7378,8 +6713,9 @@
       },
       "rtf": 0.029991,
       "loudness": {
+        "source": "encoded_opus",
         "i_lufs": -18.0,
-        "tp_dbtp": -12.48,
+        "tp_dbtp": -12.47,
         "shortfall": false
       }
     },
@@ -7404,8 +6740,9 @@
       },
       "rtf": 0.030445,
       "loudness": {
+        "source": "encoded_opus",
         "i_lufs": -18.02,
-        "tp_dbtp": -11.77,
+        "tp_dbtp": -11.88,
         "shortfall": false
       }
     },
@@ -7430,8 +6767,9 @@
       },
       "rtf": 0.02714,
       "loudness": {
+        "source": "encoded_opus",
         "i_lufs": -18.0,
-        "tp_dbtp": -12.65,
+        "tp_dbtp": -12.26,
         "shortfall": false
       }
     },
@@ -7456,8 +6794,9 @@
       },
       "rtf": 0.028328,
       "loudness": {
+        "source": "encoded_opus",
         "i_lufs": -18.0,
-        "tp_dbtp": -12.07,
+        "tp_dbtp": -12.23,
         "shortfall": false
       }
     },
@@ -7482,8 +6821,9 @@
       },
       "rtf": 0.028014,
       "loudness": {
+        "source": "encoded_opus",
         "i_lufs": -18.01,
-        "tp_dbtp": -12.21,
+        "tp_dbtp": -12.36,
         "shortfall": false
       }
     },
@@ -7508,8 +6848,9 @@
       },
       "rtf": 0.029394,
       "loudness": {
+        "source": "encoded_opus",
         "i_lufs": -18.02,
-        "tp_dbtp": -11.77,
+        "tp_dbtp": -11.88,
         "shortfall": false
       }
     },
@@ -7534,8 +6875,9 @@
       },
       "rtf": 0.029524,
       "loudness": {
-        "i_lufs": -18.02,
-        "tp_dbtp": -11.76,
+        "source": "encoded_opus",
+        "i_lufs": -18.01,
+        "tp_dbtp": -12.04,
         "shortfall": false
       }
     },
@@ -7560,8 +6902,9 @@
       },
       "rtf": 0.025247,
       "loudness": {
+        "source": "encoded_opus",
         "i_lufs": -18.0,
-        "tp_dbtp": -12.48,
+        "tp_dbtp": -12.28,
         "shortfall": false
       }
     },
@@ -7586,8 +6929,9 @@
       },
       "rtf": 0.030659,
       "loudness": {
+        "source": "encoded_opus",
         "i_lufs": -18.0,
-        "tp_dbtp": -12.23,
+        "tp_dbtp": -12.43,
         "shortfall": false
       }
     },
@@ -7612,8 +6956,9 @@
       },
       "rtf": 0.034458,
       "loudness": {
+        "source": "encoded_opus",
         "i_lufs": -18.0,
-        "tp_dbtp": -12.49,
+        "tp_dbtp": -12.35,
         "shortfall": false
       }
     },
@@ -7701,8 +7046,9 @@
       },
       "rtf": 1.661764,
       "loudness": {
+        "source": "encoded_opus",
         "i_lufs": -18.0,
-        "tp_dbtp": -3.45,
+        "tp_dbtp": -3.54,
         "shortfall": false
       }
     },
@@ -7790,97 +7136,9 @@
       },
       "rtf": 1.026377,
       "loudness": {
-        "i_lufs": -18.02,
-        "tp_dbtp": -4.63,
-        "shortfall": false
-      }
-    },
-    {
-      "model": "gpt-sovits-v2-pro-plus",
-      "scenario": "market-day",
-      "line": "shopper-001",
-      "variant": "dry",
-      "path": "audio/gpt-sovits-v2-pro-plus/market-day/shopper-001-dry.opus",
-      "duration_sec": 3.1465,
-      "sha256": "943d7736193d4cdde7b9311015b714f31e21da825979cf33b3fa451cc9c9825f",
-      "gen_params": {
-        "requested": {
-          "upstream_repository": "RVC-Boss/GPT-SoVITS",
-          "upstream_revision": "d523079fc05d9a8028d6085bffe4a2757c32abb6",
-          "weights_repository": "lj1995/GPT-SoVITS",
-          "weights_revision": "336b2ec4e8d4ac74740798dd40af44e74659ecaf",
-          "weight_sha256": {
-            "s1v3.ckpt": "87133414860ea14ff6620c483a3db5ed07b44be42e2c3fcdad65523a729a745a",
-            "v2Pro/s2Gv2ProPlus.pth": "d42a22bbbf65fb2bbdd45ad6a66841156977db45c7aabe0a6992ff378d9c7d3b",
-            "sv/pretrained_eres2netv2w24s4ep4.ckpt": "4f5a0bf73c61eb41b174e1bb54e7ee3c83233892be8e0af1f187024e8e581a35",
-            "chinese-hubert-base/config.json": "c3e5060a1277e0f078cc6be9da4528a605dba6ece93018981fe2c820e5c7b103",
-            "chinese-hubert-base/preprocessor_config.json": "dcd684124d06722947939d41ea6ae58dbf10968c60a11a29f23ddc602c64a29b",
-            "chinese-hubert-base/pytorch_model.bin": "24164f129c66499d1346e2aa55f183250c223161ec2770c0da3d3b08cf432d3c",
-            "chinese-roberta-wwm-ext-large/config.json": "3d57de2fd7e80d0e5c8ff194f0bbb6baa10df7e43fc262a0cc71298a78b0a3e5",
-            "chinese-roberta-wwm-ext-large/pytorch_model.bin": "e53a693acc59ace251d143d068096ae0d7b79e4b1b503fa84c9dcf576448c1d8",
-            "chinese-roberta-wwm-ext-large/tokenizer.json": "173796956820ea27bd14f76bf28162607ff4254807e2948253eb5b46f5bb643b",
-            "fast_langdetect/lid.176.bin": "7e69ec5451bc261cc7844e49e4792a85d7f09c06789ec800fc4a44aec362764e"
-          },
-          "torch_version": "2.7.0",
-          "torchaudio_version": "2.7.0",
-          "cuda_wheel_version": "12.8",
-          "device": "cuda:0",
-          "precision": "fp16",
-          "native_sample_rate_hz": 32000,
-          "language": "all_ja",
-          "seed": 42,
-          "top_k": 5,
-          "top_p": 1.0,
-          "temperature": 1.0,
-          "repetition_penalty": 1.35,
-          "text_split_method": "cut0",
-          "batch_size": 1,
-          "split_bucket": false,
-          "parallel_infer": false,
-          "reference_seconds": 5,
-          "reference_start_frames": {
-            "amitaro-countdown": 0,
-            "hadou-emotion-11": 0,
-            "lux-emotion-76": 0,
-            "sayoko-emotion-75": 0,
-            "tsukuyomi-corpus-94": 0
-          },
-          "reference_assignments": {
-            "tavern-night/drunkard": "hadou-emotion-11",
-            "tavern-night/old-regular": "hadou-emotion-11",
-            "market-day/fruit-vendor": "hadou-emotion-11",
-            "market-day/shopper": "lux-emotion-76",
-            "market-day/street-kid": "tsukuyomi-corpus-94"
-          },
-          "prompt_text_mode": "reference-free"
-        },
-        "realized": {
-          "seed": 42,
-          "sample_rate_hz": 32000,
-          "prompt_text_mode": "reference-free",
-          "phase_peak_vram_mib": {
-            "runtime_load": {
-              "allocated_mib": 1745.761,
-              "reserved_mib": 1766.0
-            },
-            "generation": {
-              "allocated_mib": 1469.137,
-              "reserved_mib": 1618.0
-            }
-          },
-          "reading_source": "line.text",
-          "reference_selection_source": "adapter.assignment:market-day/shopper",
-          "reference_voice": "lux-emotion-76",
-          "reference_source_sha256": "432de3f3fb40c5838a80e5fb509977176352a8db03a10e8fb37cca1e83bcc4b5",
-          "reference_clip_sha256": "18fe617d6ad7b876be9fe4b53f710a399925441c9d6c079039fe52f1745ee1b8",
-          "reference_clip_start_frame": 0,
-          "reference_clip_frame_count": 240000
-        }
-      },
-      "rtf": 1.006883,
-      "loudness": {
-        "i_lufs": -18.14,
-        "tp_dbtp": -0.93,
+        "source": "encoded_opus",
+        "i_lufs": -18.0,
+        "tp_dbtp": -4.65,
         "shortfall": false
       }
     },
@@ -7968,8 +7226,9 @@
       },
       "rtf": 0.809297,
       "loudness": {
-        "i_lufs": -18.0,
-        "tp_dbtp": -1.56,
+        "source": "encoded_opus",
+        "i_lufs": -18.02,
+        "tp_dbtp": -1.78,
         "shortfall": false
       }
     },
@@ -8057,8 +7316,9 @@
       },
       "rtf": 0.671195,
       "loudness": {
+        "source": "encoded_opus",
         "i_lufs": -18.18,
-        "tp_dbtp": -2.09,
+        "tp_dbtp": -2.14,
         "shortfall": false
       }
     },
@@ -8146,8 +7406,9 @@
       },
       "rtf": 0.593387,
       "loudness": {
-        "i_lufs": -18.01,
-        "tp_dbtp": -1.43,
+        "source": "encoded_opus",
+        "i_lufs": -18.02,
+        "tp_dbtp": -1.39,
         "shortfall": false
       }
     },
@@ -8235,8 +7496,9 @@
       },
       "rtf": 2.191237,
       "loudness": {
+        "source": "encoded_opus",
         "i_lufs": -17.99,
-        "tp_dbtp": -4.2,
+        "tp_dbtp": -4.22,
         "shortfall": false
       }
     },
@@ -8324,8 +7586,9 @@
       },
       "rtf": 0.727707,
       "loudness": {
-        "i_lufs": -18.01,
-        "tp_dbtp": -1.78,
+        "source": "encoded_opus",
+        "i_lufs": -18.02,
+        "tp_dbtp": -1.7,
         "shortfall": false
       }
     },
@@ -8413,8 +7676,9 @@
       },
       "rtf": 0.829279,
       "loudness": {
-        "i_lufs": -18.0,
-        "tp_dbtp": -4.0,
+        "source": "encoded_opus",
+        "i_lufs": -17.99,
+        "tp_dbtp": -4.36,
         "shortfall": false
       }
     },
@@ -8502,8 +7766,9 @@
       },
       "rtf": 0.750294,
       "loudness": {
-        "i_lufs": -18.19,
-        "tp_dbtp": -3.9,
+        "source": "encoded_opus",
+        "i_lufs": -18.2,
+        "tp_dbtp": -3.85,
         "shortfall": false
       }
     },
@@ -8591,8 +7856,9 @@
       },
       "rtf": 0.718993,
       "loudness": {
-        "i_lufs": -18.0,
-        "tp_dbtp": -2.52,
+        "source": "encoded_opus",
+        "i_lufs": -18.05,
+        "tp_dbtp": -2.45,
         "shortfall": false
       }
     },
@@ -8680,70 +7946,9 @@
       },
       "rtf": 0.91759,
       "loudness": {
-        "i_lufs": -18.1,
-        "tp_dbtp": -1.8,
-        "shortfall": false
-      }
-    },
-    {
-      "model": "qwen3-tts-12hz-1.7b",
-      "scenario": "battlefield-camp",
-      "line": "medic-001",
-      "variant": "dry",
-      "path": "audio/qwen3-tts-12hz-1.7b/battlefield-camp/medic-001-dry.opus",
-      "duration_sec": 2.8065,
-      "sha256": "0fca40cb9fe83fb9285c61944e588cbf3280e760a935a850abcfb76480be2bff",
-      "gen_params": {
-        "requested": {
-          "qwen_tts_version": "0.1.1",
-          "base_model": "Qwen/Qwen3-TTS-12Hz-1.7B-Base",
-          "base_revision": "fd4b254389122332181a7c3db7f27e918eec64e3",
-          "voice_design_model": "Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign",
-          "voice_design_revision": "5ecdb67327fd37bb2e042aab12ff7391903235d3",
-          "device": "cuda:0",
-          "dtype": "bfloat16",
-          "attention_backend": "sdpa",
-          "sampling": {
-            "do_sample": true,
-            "repetition_penalty": 1.05,
-            "temperature": 0.9,
-            "top_p": 1.0,
-            "top_k": 50,
-            "subtalker_dosample": true,
-            "subtalker_temperature": 0.9,
-            "subtalker_top_p": 1.0,
-            "subtalker_top_k": 50,
-            "max_new_tokens": 2048
-          },
-          "reference_text": "こんにちは。今日はとても良い天気ですね。"
-        },
-        "realized": {
-          "phase_peak_vram_mib": {
-            "voice_design_load": {
-              "allocated_mib": 3986.726,
-              "reserved_mib": 4112.0
-            },
-            "voice_design_generate": {
-              "allocated_mib": 4085.044,
-              "reserved_mib": 4172.0
-            },
-            "base_load": {
-              "allocated_mib": 4008.5,
-              "reserved_mib": 4134.0
-            },
-            "voice_clone_generate": {
-              "allocated_mib": 4196.515,
-              "reserved_mib": 4310.0
-            }
-          },
-          "seed": 0,
-          "sample_rate_hz": 24000
-        }
-      },
-      "rtf": 5.241094,
-      "loudness": {
-        "i_lufs": -18.09,
-        "tp_dbtp": -0.96,
+        "source": "encoded_opus",
+        "i_lufs": -18.14,
+        "tp_dbtp": -1.75,
         "shortfall": false
       }
     },
@@ -8804,8 +8009,9 @@
       },
       "rtf": 4.976158,
       "loudness": {
-        "i_lufs": -18.0,
-        "tp_dbtp": -3.45,
+        "source": "encoded_opus",
+        "i_lufs": -17.99,
+        "tp_dbtp": -3.27,
         "shortfall": false
       }
     },
@@ -8866,70 +8072,9 @@
       },
       "rtf": 5.215462,
       "loudness": {
-        "i_lufs": -18.01,
-        "tp_dbtp": -1.0,
-        "shortfall": false
-      }
-    },
-    {
-      "model": "qwen3-tts-12hz-1.7b",
-      "scenario": "battlefield-camp",
-      "line": "medic-004",
-      "variant": "dry",
-      "path": "audio/qwen3-tts-12hz-1.7b/battlefield-camp/medic-004-dry.opus",
-      "duration_sec": 2.5665,
-      "sha256": "db635a7e464db0a5901ab9db067af0691b1f0b72c1b73b349b65f178e1ff3460",
-      "gen_params": {
-        "requested": {
-          "qwen_tts_version": "0.1.1",
-          "base_model": "Qwen/Qwen3-TTS-12Hz-1.7B-Base",
-          "base_revision": "fd4b254389122332181a7c3db7f27e918eec64e3",
-          "voice_design_model": "Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign",
-          "voice_design_revision": "5ecdb67327fd37bb2e042aab12ff7391903235d3",
-          "device": "cuda:0",
-          "dtype": "bfloat16",
-          "attention_backend": "sdpa",
-          "sampling": {
-            "do_sample": true,
-            "repetition_penalty": 1.05,
-            "temperature": 0.9,
-            "top_p": 1.0,
-            "top_k": 50,
-            "subtalker_dosample": true,
-            "subtalker_temperature": 0.9,
-            "subtalker_top_p": 1.0,
-            "subtalker_top_k": 50,
-            "max_new_tokens": 2048
-          },
-          "reference_text": "こんにちは。今日はとても良い天気ですね。"
-        },
-        "realized": {
-          "phase_peak_vram_mib": {
-            "voice_design_load": {
-              "allocated_mib": 3986.726,
-              "reserved_mib": 4112.0
-            },
-            "voice_design_generate": {
-              "allocated_mib": 4085.044,
-              "reserved_mib": 4172.0
-            },
-            "base_load": {
-              "allocated_mib": 4008.5,
-              "reserved_mib": 4134.0
-            },
-            "voice_clone_generate": {
-              "allocated_mib": 4191.556,
-              "reserved_mib": 4310.0
-            }
-          },
-          "seed": 0,
-          "sample_rate_hz": 24000
-        }
-      },
-      "rtf": 5.300506,
-      "loudness": {
-        "i_lufs": -18.07,
-        "tp_dbtp": -0.97,
+        "source": "encoded_opus",
+        "i_lufs": -18.03,
+        "tp_dbtp": -0.96,
         "shortfall": false
       }
     },
@@ -8990,8 +8135,9 @@
       },
       "rtf": 5.186812,
       "loudness": {
-        "i_lufs": -18.0,
-        "tp_dbtp": -2.98,
+        "source": "encoded_opus",
+        "i_lufs": -17.99,
+        "tp_dbtp": -2.94,
         "shortfall": false
       }
     },
@@ -9052,8 +8198,9 @@
       },
       "rtf": 4.980591,
       "loudness": {
-        "i_lufs": -18.01,
-        "tp_dbtp": -1.13,
+        "source": "encoded_opus",
+        "i_lufs": -17.99,
+        "tp_dbtp": -1.18,
         "shortfall": false
       }
     },
@@ -9114,8 +8261,9 @@
       },
       "rtf": 4.871753,
       "loudness": {
-        "i_lufs": -18.0,
-        "tp_dbtp": -1.21,
+        "source": "encoded_opus",
+        "i_lufs": -18.02,
+        "tp_dbtp": -1.44,
         "shortfall": false
       }
     },
@@ -9176,8 +8324,9 @@
       },
       "rtf": 5.100158,
       "loudness": {
-        "i_lufs": -17.99,
-        "tp_dbtp": -2.52,
+        "source": "encoded_opus",
+        "i_lufs": -17.98,
+        "tp_dbtp": -2.42,
         "shortfall": false
       }
     },
@@ -9238,70 +8387,9 @@
       },
       "rtf": 5.138452,
       "loudness": {
+        "source": "encoded_opus",
         "i_lufs": -18.01,
-        "tp_dbtp": -2.38,
-        "shortfall": false
-      }
-    },
-    {
-      "model": "qwen3-tts-12hz-1.7b",
-      "scenario": "battlefield-camp",
-      "line": "wounded-001",
-      "variant": "dry",
-      "path": "audio/qwen3-tts-12hz-1.7b/battlefield-camp/wounded-001-dry.opus",
-      "duration_sec": 2.9665,
-      "sha256": "64cde3bf233df8fd3aefe06821538ae472eb0a25044c21548835e7303e71dfac",
-      "gen_params": {
-        "requested": {
-          "qwen_tts_version": "0.1.1",
-          "base_model": "Qwen/Qwen3-TTS-12Hz-1.7B-Base",
-          "base_revision": "fd4b254389122332181a7c3db7f27e918eec64e3",
-          "voice_design_model": "Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign",
-          "voice_design_revision": "5ecdb67327fd37bb2e042aab12ff7391903235d3",
-          "device": "cuda:0",
-          "dtype": "bfloat16",
-          "attention_backend": "sdpa",
-          "sampling": {
-            "do_sample": true,
-            "repetition_penalty": 1.05,
-            "temperature": 0.9,
-            "top_p": 1.0,
-            "top_k": 50,
-            "subtalker_dosample": true,
-            "subtalker_temperature": 0.9,
-            "subtalker_top_p": 1.0,
-            "subtalker_top_k": 50,
-            "max_new_tokens": 2048
-          },
-          "reference_text": "こんにちは。今日はとても良い天気ですね。"
-        },
-        "realized": {
-          "phase_peak_vram_mib": {
-            "voice_design_load": {
-              "allocated_mib": 3986.726,
-              "reserved_mib": 4112.0
-            },
-            "voice_design_generate": {
-              "allocated_mib": 4061.911,
-              "reserved_mib": 4168.0
-            },
-            "base_load": {
-              "allocated_mib": 4008.5,
-              "reserved_mib": 4134.0
-            },
-            "voice_clone_generate": {
-              "allocated_mib": 4177.267,
-              "reserved_mib": 4272.0
-            }
-          },
-          "seed": 0,
-          "sample_rate_hz": 24000
-        }
-      },
-      "rtf": 9.3207,
-      "loudness": {
-        "i_lufs": -18.0,
-        "tp_dbtp": -1.16,
+        "tp_dbtp": -2.11,
         "shortfall": false
       }
     },
@@ -9362,8 +8450,9 @@
       },
       "rtf": 4.90658,
       "loudness": {
-        "i_lufs": -17.98,
-        "tp_dbtp": -4.73,
+        "source": "encoded_opus",
+        "i_lufs": -18.01,
+        "tp_dbtp": -4.43,
         "shortfall": false
       }
     },
@@ -9424,8 +8513,9 @@
       },
       "rtf": 5.209742,
       "loudness": {
-        "i_lufs": -18.01,
-        "tp_dbtp": -2.1,
+        "source": "encoded_opus",
+        "i_lufs": -18.02,
+        "tp_dbtp": -2.12,
         "shortfall": false
       }
     },
@@ -9486,8 +8576,9 @@
       },
       "rtf": 5.975833,
       "loudness": {
-        "i_lufs": -18.02,
-        "tp_dbtp": -3.3,
+        "source": "encoded_opus",
+        "i_lufs": -18.03,
+        "tp_dbtp": -3.04,
         "shortfall": false
       }
     },
@@ -9548,8 +8639,9 @@
       },
       "rtf": 5.275438,
       "loudness": {
-        "i_lufs": -17.99,
-        "tp_dbtp": -1.36,
+        "source": "encoded_opus",
+        "i_lufs": -18.01,
+        "tp_dbtp": -0.92,
         "shortfall": false
       }
     },
@@ -9610,8 +8702,9 @@
       },
       "rtf": 5.669847,
       "loudness": {
-        "i_lufs": -17.99,
-        "tp_dbtp": -1.33,
+        "source": "encoded_opus",
+        "i_lufs": -17.97,
+        "tp_dbtp": -1.39,
         "shortfall": false
       }
     },
@@ -9672,71 +8765,10 @@
       },
       "rtf": 5.212422,
       "loudness": {
-        "i_lufs": -18.04,
-        "tp_dbtp": -1.0,
+        "source": "encoded_opus",
+        "i_lufs": -18.08,
+        "tp_dbtp": -1.08,
         "shortfall": false
-      }
-    },
-    {
-      "model": "qwen3-tts-12hz-1.7b",
-      "scenario": "castle-gate",
-      "line": "guard-onna-003",
-      "variant": "dry",
-      "path": "audio/qwen3-tts-12hz-1.7b/castle-gate/guard-onna-003-dry.opus",
-      "duration_sec": 2.9665,
-      "sha256": "01727182ea75fdabd688e16be81cb375b018d23357d2473b62b909c364e82ae9",
-      "gen_params": {
-        "requested": {
-          "qwen_tts_version": "0.1.1",
-          "base_model": "Qwen/Qwen3-TTS-12Hz-1.7B-Base",
-          "base_revision": "fd4b254389122332181a7c3db7f27e918eec64e3",
-          "voice_design_model": "Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign",
-          "voice_design_revision": "5ecdb67327fd37bb2e042aab12ff7391903235d3",
-          "device": "cuda:0",
-          "dtype": "bfloat16",
-          "attention_backend": "sdpa",
-          "sampling": {
-            "do_sample": true,
-            "repetition_penalty": 1.05,
-            "temperature": 0.9,
-            "top_p": 1.0,
-            "top_k": 50,
-            "subtalker_dosample": true,
-            "subtalker_temperature": 0.9,
-            "subtalker_top_p": 1.0,
-            "subtalker_top_k": 50,
-            "max_new_tokens": 2048
-          },
-          "reference_text": "こんにちは。今日はとても良い天気ですね。"
-        },
-        "realized": {
-          "phase_peak_vram_mib": {
-            "voice_design_load": {
-              "allocated_mib": 3986.726,
-              "reserved_mib": 4112.0
-            },
-            "voice_design_generate": {
-              "allocated_mib": 4061.911,
-              "reserved_mib": 4172.0
-            },
-            "base_load": {
-              "allocated_mib": 4008.5,
-              "reserved_mib": 4134.0
-            },
-            "voice_clone_generate": {
-              "allocated_mib": 4177.346,
-              "reserved_mib": 4310.0
-            }
-          },
-          "seed": 0,
-          "sample_rate_hz": 24000
-        }
-      },
-      "rtf": 5.177864,
-      "loudness": {
-        "i_lufs": -18.57,
-        "tp_dbtp": -0.94,
-        "shortfall": true
       }
     },
     {
@@ -9796,8 +8828,9 @@
       },
       "rtf": 5.362271,
       "loudness": {
-        "i_lufs": -18.0,
-        "tp_dbtp": -2.78,
+        "source": "encoded_opus",
+        "i_lufs": -18.01,
+        "tp_dbtp": -2.92,
         "shortfall": false
       }
     },
@@ -9858,8 +8891,9 @@
       },
       "rtf": 5.002828,
       "loudness": {
-        "i_lufs": -18.01,
-        "tp_dbtp": -5.09,
+        "source": "encoded_opus",
+        "i_lufs": -17.99,
+        "tp_dbtp": -5.33,
         "shortfall": false
       }
     },
@@ -9920,8 +8954,9 @@
       },
       "rtf": 5.280307,
       "loudness": {
+        "source": "encoded_opus",
         "i_lufs": -18.0,
-        "tp_dbtp": -2.96,
+        "tp_dbtp": -2.73,
         "shortfall": false
       }
     },
@@ -9982,8 +9017,9 @@
       },
       "rtf": 5.527139,
       "loudness": {
-        "i_lufs": -17.99,
-        "tp_dbtp": -2.21,
+        "source": "encoded_opus",
+        "i_lufs": -17.98,
+        "tp_dbtp": -2.0,
         "shortfall": false
       }
     },
@@ -10044,8 +9080,9 @@
       },
       "rtf": 5.599928,
       "loudness": {
-        "i_lufs": -17.82,
-        "tp_dbtp": -1.0,
+        "source": "encoded_opus",
+        "i_lufs": -17.85,
+        "tp_dbtp": -0.97,
         "shortfall": false
       }
     },
@@ -10106,8 +9143,9 @@
       },
       "rtf": 5.216681,
       "loudness": {
-        "i_lufs": -18.02,
-        "tp_dbtp": -2.09,
+        "source": "encoded_opus",
+        "i_lufs": -17.99,
+        "tp_dbtp": -2.0,
         "shortfall": false
       }
     },
@@ -10168,8 +9206,9 @@
       },
       "rtf": 5.302176,
       "loudness": {
-        "i_lufs": -18.01,
-        "tp_dbtp": -1.62,
+        "source": "encoded_opus",
+        "i_lufs": -18.04,
+        "tp_dbtp": -1.98,
         "shortfall": false
       }
     },
@@ -10230,8 +9269,9 @@
       },
       "rtf": 5.622181,
       "loudness": {
-        "i_lufs": -17.98,
-        "tp_dbtp": -5.77,
+        "source": "encoded_opus",
+        "i_lufs": -18.0,
+        "tp_dbtp": -5.61,
         "shortfall": false
       }
     },
@@ -10292,8 +9332,9 @@
       },
       "rtf": 4.992759,
       "loudness": {
-        "i_lufs": -18.0,
-        "tp_dbtp": -2.45,
+        "source": "encoded_opus",
+        "i_lufs": -18.01,
+        "tp_dbtp": -2.61,
         "shortfall": false
       }
     },
@@ -10354,8 +9395,9 @@
       },
       "rtf": 5.20052,
       "loudness": {
-        "i_lufs": -18.15,
-        "tp_dbtp": -4.02,
+        "source": "encoded_opus",
+        "i_lufs": -18.16,
+        "tp_dbtp": -4.03,
         "shortfall": false
       }
     },
@@ -10416,70 +9458,9 @@
       },
       "rtf": 5.564229,
       "loudness": {
+        "source": "encoded_opus",
         "i_lufs": -18.0,
-        "tp_dbtp": -2.47,
-        "shortfall": false
-      }
-    },
-    {
-      "model": "qwen3-tts-12hz-1.7b",
-      "scenario": "chinatown-chat",
-      "line": "kanpo-shujin-002",
-      "variant": "dry",
-      "path": "audio/qwen3-tts-12hz-1.7b/chinatown-chat/kanpo-shujin-002-dry.opus",
-      "duration_sec": 3.3665,
-      "sha256": "73562b3372f940dbf674a674dcfe6e8770e6e21ffef1c7769300b37788485774",
-      "gen_params": {
-        "requested": {
-          "qwen_tts_version": "0.1.1",
-          "base_model": "Qwen/Qwen3-TTS-12Hz-1.7B-Base",
-          "base_revision": "fd4b254389122332181a7c3db7f27e918eec64e3",
-          "voice_design_model": "Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign",
-          "voice_design_revision": "5ecdb67327fd37bb2e042aab12ff7391903235d3",
-          "device": "cuda:0",
-          "dtype": "bfloat16",
-          "attention_backend": "sdpa",
-          "sampling": {
-            "do_sample": true,
-            "repetition_penalty": 1.05,
-            "temperature": 0.9,
-            "top_p": 1.0,
-            "top_k": 50,
-            "subtalker_dosample": true,
-            "subtalker_temperature": 0.9,
-            "subtalker_top_p": 1.0,
-            "subtalker_top_k": 50,
-            "max_new_tokens": 2048
-          },
-          "reference_text": "こんにちは。今日はとても良い天気ですね。"
-        },
-        "realized": {
-          "phase_peak_vram_mib": {
-            "voice_design_load": {
-              "allocated_mib": 3986.726,
-              "reserved_mib": 4112.0
-            },
-            "voice_design_generate": {
-              "allocated_mib": 4096.618,
-              "reserved_mib": 4264.0
-            },
-            "base_load": {
-              "allocated_mib": 4008.5,
-              "reserved_mib": 4134.0
-            },
-            "voice_clone_generate": {
-              "allocated_mib": 4219.771,
-              "reserved_mib": 4444.0
-            }
-          },
-          "seed": 0,
-          "sample_rate_hz": 24000
-        }
-      },
-      "rtf": 5.269539,
-      "loudness": {
-        "i_lufs": -18.18,
-        "tp_dbtp": -0.99,
+        "tp_dbtp": -2.82,
         "shortfall": false
       }
     },
@@ -10540,8 +9521,9 @@
       },
       "rtf": 5.570493,
       "loudness": {
-        "i_lufs": -18.01,
-        "tp_dbtp": -3.13,
+        "source": "encoded_opus",
+        "i_lufs": -18.02,
+        "tp_dbtp": -3.14,
         "shortfall": false
       }
     },
@@ -10602,8 +9584,9 @@
       },
       "rtf": 5.030099,
       "loudness": {
-        "i_lufs": -18.03,
-        "tp_dbtp": -0.99,
+        "source": "encoded_opus",
+        "i_lufs": -18.01,
+        "tp_dbtp": -1.08,
         "shortfall": false
       }
     },
@@ -10664,8 +9647,9 @@
       },
       "rtf": 5.096842,
       "loudness": {
-        "i_lufs": -18.01,
-        "tp_dbtp": -2.68,
+        "source": "encoded_opus",
+        "i_lufs": -18.02,
+        "tp_dbtp": -2.52,
         "shortfall": false
       }
     },
@@ -10726,8 +9710,9 @@
       },
       "rtf": 5.284802,
       "loudness": {
-        "i_lufs": -18.0,
-        "tp_dbtp": -3.35,
+        "source": "encoded_opus",
+        "i_lufs": -17.99,
+        "tp_dbtp": -3.36,
         "shortfall": false
       }
     },
@@ -10788,8 +9773,9 @@
       },
       "rtf": 5.320984,
       "loudness": {
-        "i_lufs": -17.99,
-        "tp_dbtp": -1.2,
+        "source": "encoded_opus",
+        "i_lufs": -17.98,
+        "tp_dbtp": -1.11,
         "shortfall": false
       }
     },
@@ -10850,8 +9836,9 @@
       },
       "rtf": 5.843662,
       "loudness": {
+        "source": "encoded_opus",
         "i_lufs": -18.0,
-        "tp_dbtp": -4.38,
+        "tp_dbtp": -4.52,
         "shortfall": false
       }
     },
@@ -10912,8 +9899,9 @@
       },
       "rtf": 6.117528,
       "loudness": {
-        "i_lufs": -17.99,
-        "tp_dbtp": -4.28,
+        "source": "encoded_opus",
+        "i_lufs": -17.98,
+        "tp_dbtp": -3.9,
         "shortfall": false
       }
     },
@@ -10974,8 +9962,9 @@
       },
       "rtf": 6.537859,
       "loudness": {
-        "i_lufs": -17.99,
-        "tp_dbtp": -2.0,
+        "source": "encoded_opus",
+        "i_lufs": -18.0,
+        "tp_dbtp": -1.97,
         "shortfall": false
       }
     },
@@ -11036,8 +10025,9 @@
       },
       "rtf": 5.697182,
       "loudness": {
-        "i_lufs": -18.0,
-        "tp_dbtp": -0.99,
+        "source": "encoded_opus",
+        "i_lufs": -18.03,
+        "tp_dbtp": -1.01,
         "shortfall": false
       }
     },
@@ -11098,8 +10088,9 @@
       },
       "rtf": 5.558633,
       "loudness": {
-        "i_lufs": -18.0,
-        "tp_dbtp": -4.74,
+        "source": "encoded_opus",
+        "i_lufs": -18.01,
+        "tp_dbtp": -4.63,
         "shortfall": false
       }
     },
@@ -11160,8 +10151,9 @@
       },
       "rtf": 4.974967,
       "loudness": {
-        "i_lufs": -18.0,
-        "tp_dbtp": -3.01,
+        "source": "encoded_opus",
+        "i_lufs": -17.99,
+        "tp_dbtp": -3.1,
         "shortfall": false
       }
     },
@@ -11222,7 +10214,8 @@
       },
       "rtf": 5.51541,
       "loudness": {
-        "i_lufs": -18.0,
+        "source": "encoded_opus",
+        "i_lufs": -17.99,
         "tp_dbtp": -2.81,
         "shortfall": false
       }
@@ -11284,8 +10277,9 @@
       },
       "rtf": 5.259931,
       "loudness": {
+        "source": "encoded_opus",
         "i_lufs": -18.01,
-        "tp_dbtp": -5.49,
+        "tp_dbtp": -5.53,
         "shortfall": false
       }
     },
@@ -11346,8 +10340,9 @@
       },
       "rtf": 4.650569,
       "loudness": {
+        "source": "encoded_opus",
         "i_lufs": -18.0,
-        "tp_dbtp": -5.35,
+        "tp_dbtp": -5.32,
         "shortfall": false
       }
     },
@@ -11408,8 +10403,9 @@
       },
       "rtf": 4.940838,
       "loudness": {
-        "i_lufs": -17.99,
-        "tp_dbtp": -2.71,
+        "source": "encoded_opus",
+        "i_lufs": -18.02,
+        "tp_dbtp": -2.68,
         "shortfall": false
       }
     },
@@ -11470,70 +10466,9 @@
       },
       "rtf": 5.000199,
       "loudness": {
-        "i_lufs": -18.0,
-        "tp_dbtp": -2.78,
-        "shortfall": false
-      }
-    },
-    {
-      "model": "qwen3-tts-12hz-1.7b",
-      "scenario": "clockwork-plaza",
-      "line": "fortune-doll-002",
-      "variant": "dry",
-      "path": "audio/qwen3-tts-12hz-1.7b/clockwork-plaza/fortune-doll-002-dry.opus",
-      "duration_sec": 4.5665,
-      "sha256": "16201e5e9a58e353008516d3bc584291cb0adcb57bac05a06b93f8de414eeb59",
-      "gen_params": {
-        "requested": {
-          "qwen_tts_version": "0.1.1",
-          "base_model": "Qwen/Qwen3-TTS-12Hz-1.7B-Base",
-          "base_revision": "fd4b254389122332181a7c3db7f27e918eec64e3",
-          "voice_design_model": "Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign",
-          "voice_design_revision": "5ecdb67327fd37bb2e042aab12ff7391903235d3",
-          "device": "cuda:0",
-          "dtype": "bfloat16",
-          "attention_backend": "sdpa",
-          "sampling": {
-            "do_sample": true,
-            "repetition_penalty": 1.05,
-            "temperature": 0.9,
-            "top_p": 1.0,
-            "top_k": 50,
-            "subtalker_dosample": true,
-            "subtalker_temperature": 0.9,
-            "subtalker_top_p": 1.0,
-            "subtalker_top_k": 50,
-            "max_new_tokens": 2048
-          },
-          "reference_text": "こんにちは。今日はとても良い天気ですね。"
-        },
-        "realized": {
-          "phase_peak_vram_mib": {
-            "voice_design_load": {
-              "allocated_mib": 3986.726,
-              "reserved_mib": 4112.0
-            },
-            "voice_design_generate": {
-              "allocated_mib": 4071.824,
-              "reserved_mib": 4282.0
-            },
-            "base_load": {
-              "allocated_mib": 4008.5,
-              "reserved_mib": 4134.0
-            },
-            "voice_clone_generate": {
-              "allocated_mib": 4219.962,
-              "reserved_mib": 4444.0
-            }
-          },
-          "seed": 0,
-          "sample_rate_hz": 24000
-        }
-      },
-      "rtf": 4.665681,
-      "loudness": {
-        "i_lufs": -18.1,
-        "tp_dbtp": -0.98,
+        "source": "encoded_opus",
+        "i_lufs": -18.02,
+        "tp_dbtp": -2.66,
         "shortfall": false
       }
     },
@@ -11594,8 +10529,9 @@
       },
       "rtf": 4.654534,
       "loudness": {
-        "i_lufs": -18.0,
-        "tp_dbtp": -2.57,
+        "source": "encoded_opus",
+        "i_lufs": -17.98,
+        "tp_dbtp": -2.72,
         "shortfall": false
       }
     },
@@ -11656,8 +10592,9 @@
       },
       "rtf": 5.93266,
       "loudness": {
-        "i_lufs": -18.03,
-        "tp_dbtp": -0.99,
+        "source": "encoded_opus",
+        "i_lufs": -18.04,
+        "tp_dbtp": -1.12,
         "shortfall": false
       }
     },
@@ -11718,8 +10655,9 @@
       },
       "rtf": 6.181191,
       "loudness": {
-        "i_lufs": -18.09,
-        "tp_dbtp": -0.9,
+        "source": "encoded_opus",
+        "i_lufs": -18.11,
+        "tp_dbtp": -1.22,
         "shortfall": false
       }
     },
@@ -11780,8 +10718,9 @@
       },
       "rtf": 5.190273,
       "loudness": {
-        "i_lufs": -18.0,
-        "tp_dbtp": -3.39,
+        "source": "encoded_opus",
+        "i_lufs": -17.98,
+        "tp_dbtp": -3.31,
         "shortfall": false
       }
     },
@@ -11842,8 +10781,9 @@
       },
       "rtf": 5.750083,
       "loudness": {
-        "i_lufs": -18.0,
-        "tp_dbtp": -1.17,
+        "source": "encoded_opus",
+        "i_lufs": -17.97,
+        "tp_dbtp": -1.05,
         "shortfall": false
       }
     },
@@ -11904,8 +10844,9 @@
       },
       "rtf": 5.28127,
       "loudness": {
-        "i_lufs": -18.0,
-        "tp_dbtp": -2.13,
+        "source": "encoded_opus",
+        "i_lufs": -18.02,
+        "tp_dbtp": -1.96,
         "shortfall": false
       }
     },
@@ -11966,8 +10907,9 @@
       },
       "rtf": 5.331815,
       "loudness": {
+        "source": "encoded_opus",
         "i_lufs": -18.0,
-        "tp_dbtp": -3.22,
+        "tp_dbtp": -3.0,
         "shortfall": false
       }
     },
@@ -12028,70 +10970,9 @@
       },
       "rtf": 5.341342,
       "loudness": {
-        "i_lufs": -18.01,
-        "tp_dbtp": -3.57,
-        "shortfall": false
-      }
-    },
-    {
-      "model": "qwen3-tts-12hz-1.7b",
-      "scenario": "clockwork-plaza",
-      "line": "vendor-doll-002",
-      "variant": "dry",
-      "path": "audio/qwen3-tts-12hz-1.7b/clockwork-plaza/vendor-doll-002-dry.opus",
-      "duration_sec": 3.0465,
-      "sha256": "4c20ca40736b21789f995cbf6fe2f2c0f7b06339a72f4bf172c7c0f8b6e1bd3e",
-      "gen_params": {
-        "requested": {
-          "qwen_tts_version": "0.1.1",
-          "base_model": "Qwen/Qwen3-TTS-12Hz-1.7B-Base",
-          "base_revision": "fd4b254389122332181a7c3db7f27e918eec64e3",
-          "voice_design_model": "Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign",
-          "voice_design_revision": "5ecdb67327fd37bb2e042aab12ff7391903235d3",
-          "device": "cuda:0",
-          "dtype": "bfloat16",
-          "attention_backend": "sdpa",
-          "sampling": {
-            "do_sample": true,
-            "repetition_penalty": 1.05,
-            "temperature": 0.9,
-            "top_p": 1.0,
-            "top_k": 50,
-            "subtalker_dosample": true,
-            "subtalker_temperature": 0.9,
-            "subtalker_top_p": 1.0,
-            "subtalker_top_k": 50,
-            "max_new_tokens": 2048
-          },
-          "reference_text": "こんにちは。今日はとても良い天気ですね。"
-        },
-        "realized": {
-          "phase_peak_vram_mib": {
-            "voice_design_load": {
-              "allocated_mib": 3986.726,
-              "reserved_mib": 4112.0
-            },
-            "voice_design_generate": {
-              "allocated_mib": 4073.476,
-              "reserved_mib": 4282.0
-            },
-            "base_load": {
-              "allocated_mib": 4008.5,
-              "reserved_mib": 4134.0
-            },
-            "voice_clone_generate": {
-              "allocated_mib": 4190.192,
-              "reserved_mib": 4444.0
-            }
-          },
-          "seed": 0,
-          "sample_rate_hz": 24000
-        }
-      },
-      "rtf": 5.528673,
-      "loudness": {
-        "i_lufs": -18.04,
-        "tp_dbtp": -1.0,
+        "source": "encoded_opus",
+        "i_lufs": -18.02,
+        "tp_dbtp": -3.66,
         "shortfall": false
       }
     },
@@ -12152,8 +11033,9 @@
       },
       "rtf": 5.049818,
       "loudness": {
-        "i_lufs": -18.05,
-        "tp_dbtp": -0.97,
+        "source": "encoded_opus",
+        "i_lufs": -18.06,
+        "tp_dbtp": -0.99,
         "shortfall": false
       }
     },
@@ -12214,8 +11096,9 @@
       },
       "rtf": 7.064604,
       "loudness": {
-        "i_lufs": -18.0,
-        "tp_dbtp": -1.88,
+        "source": "encoded_opus",
+        "i_lufs": -18.04,
+        "tp_dbtp": -1.89,
         "shortfall": false
       }
     },
@@ -12276,8 +11159,9 @@
       },
       "rtf": 6.891559,
       "loudness": {
-        "i_lufs": -18.0,
-        "tp_dbtp": -2.69,
+        "source": "encoded_opus",
+        "i_lufs": -18.02,
+        "tp_dbtp": -2.64,
         "shortfall": false
       }
     },
@@ -12338,8 +11222,9 @@
       },
       "rtf": 8.052657,
       "loudness": {
-        "i_lufs": -17.99,
-        "tp_dbtp": -3.93,
+        "source": "encoded_opus",
+        "i_lufs": -18.0,
+        "tp_dbtp": -3.76,
         "shortfall": false
       }
     },
@@ -12400,8 +11285,9 @@
       },
       "rtf": 5.388022,
       "loudness": {
-        "i_lufs": -18.0,
-        "tp_dbtp": -2.77,
+        "source": "encoded_opus",
+        "i_lufs": -18.02,
+        "tp_dbtp": -2.81,
         "shortfall": false
       }
     },
@@ -12462,8 +11348,9 @@
       },
       "rtf": 5.984864,
       "loudness": {
-        "i_lufs": -18.0,
-        "tp_dbtp": -3.51,
+        "source": "encoded_opus",
+        "i_lufs": -18.01,
+        "tp_dbtp": -3.42,
         "shortfall": false
       }
     },
@@ -12524,8 +11411,9 @@
       },
       "rtf": 5.220886,
       "loudness": {
-        "i_lufs": -18.0,
-        "tp_dbtp": -3.21,
+        "source": "encoded_opus",
+        "i_lufs": -17.99,
+        "tp_dbtp": -2.98,
         "shortfall": false
       }
     },
@@ -12586,8 +11474,9 @@
       },
       "rtf": 5.49941,
       "loudness": {
-        "i_lufs": -17.99,
-        "tp_dbtp": -2.14,
+        "source": "encoded_opus",
+        "i_lufs": -17.87,
+        "tp_dbtp": -3.17,
         "shortfall": false
       }
     },
@@ -12648,8 +11537,9 @@
       },
       "rtf": 5.892531,
       "loudness": {
-        "i_lufs": -18.01,
-        "tp_dbtp": -2.84,
+        "source": "encoded_opus",
+        "i_lufs": -18.02,
+        "tp_dbtp": -3.58,
         "shortfall": false
       }
     },
@@ -12710,8 +11600,9 @@
       },
       "rtf": 7.537344,
       "loudness": {
-        "i_lufs": -18.01,
-        "tp_dbtp": -1.01,
+        "source": "encoded_opus",
+        "i_lufs": -18.03,
+        "tp_dbtp": -1.54,
         "shortfall": false
       }
     },
@@ -12772,8 +11663,9 @@
       },
       "rtf": 4.758479,
       "loudness": {
-        "i_lufs": -18.0,
-        "tp_dbtp": -4.89,
+        "source": "encoded_opus",
+        "i_lufs": -17.99,
+        "tp_dbtp": -4.64,
         "shortfall": false
       }
     },
@@ -12834,8 +11726,9 @@
       },
       "rtf": 4.744362,
       "loudness": {
-        "i_lufs": -18.0,
-        "tp_dbtp": -6.68,
+        "source": "encoded_opus",
+        "i_lufs": -17.99,
+        "tp_dbtp": -6.84,
         "shortfall": false
       }
     },
@@ -12896,8 +11789,9 @@
       },
       "rtf": 4.57677,
       "loudness": {
+        "source": "encoded_opus",
         "i_lufs": -18.0,
-        "tp_dbtp": -4.39,
+        "tp_dbtp": -4.47,
         "shortfall": false
       }
     },
@@ -12958,8 +11852,9 @@
       },
       "rtf": 6.399999,
       "loudness": {
-        "i_lufs": -18.0,
-        "tp_dbtp": -1.87,
+        "source": "encoded_opus",
+        "i_lufs": -17.99,
+        "tp_dbtp": -1.81,
         "shortfall": false
       }
     },
@@ -13020,8 +11915,9 @@
       },
       "rtf": 5.383059,
       "loudness": {
-        "i_lufs": -18.0,
-        "tp_dbtp": -3.8,
+        "source": "encoded_opus",
+        "i_lufs": -18.01,
+        "tp_dbtp": -3.61,
         "shortfall": false
       }
     },
@@ -13082,8 +11978,9 @@
       },
       "rtf": 5.223519,
       "loudness": {
-        "i_lufs": -17.98,
-        "tp_dbtp": -4.43,
+        "source": "encoded_opus",
+        "i_lufs": -17.99,
+        "tp_dbtp": -4.09,
         "shortfall": false
       }
     },
@@ -13144,8 +12041,9 @@
       },
       "rtf": 7.126339,
       "loudness": {
+        "source": "encoded_opus",
         "i_lufs": -18.0,
-        "tp_dbtp": -3.13,
+        "tp_dbtp": -2.68,
         "shortfall": false
       }
     },
@@ -13206,70 +12104,9 @@
       },
       "rtf": 6.309106,
       "loudness": {
-        "i_lufs": -17.98,
-        "tp_dbtp": -1.67,
-        "shortfall": false
-      }
-    },
-    {
-      "model": "qwen3-tts-12hz-1.7b",
-      "scenario": "festival-night",
-      "line": "matsuri-wakamono-003",
-      "variant": "dry",
-      "path": "audio/qwen3-tts-12hz-1.7b/festival-night/matsuri-wakamono-003-dry.opus",
-      "duration_sec": 3.2065,
-      "sha256": "7d8305cc29090c6a88a7445768d45945eb7c56c2e0d2edd3233f7f7a2e62f9f9",
-      "gen_params": {
-        "requested": {
-          "qwen_tts_version": "0.1.1",
-          "base_model": "Qwen/Qwen3-TTS-12Hz-1.7B-Base",
-          "base_revision": "fd4b254389122332181a7c3db7f27e918eec64e3",
-          "voice_design_model": "Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign",
-          "voice_design_revision": "5ecdb67327fd37bb2e042aab12ff7391903235d3",
-          "device": "cuda:0",
-          "dtype": "bfloat16",
-          "attention_backend": "sdpa",
-          "sampling": {
-            "do_sample": true,
-            "repetition_penalty": 1.05,
-            "temperature": 0.9,
-            "top_p": 1.0,
-            "top_k": 50,
-            "subtalker_dosample": true,
-            "subtalker_temperature": 0.9,
-            "subtalker_top_p": 1.0,
-            "subtalker_top_k": 50,
-            "max_new_tokens": 2048
-          },
-          "reference_text": "こんにちは。今日はとても良い天気ですね。"
-        },
-        "realized": {
-          "phase_peak_vram_mib": {
-            "voice_design_load": {
-              "allocated_mib": 3986.726,
-              "reserved_mib": 4112.0
-            },
-            "voice_design_generate": {
-              "allocated_mib": 4078.621,
-              "reserved_mib": 4282.0
-            },
-            "base_load": {
-              "allocated_mib": 4008.5,
-              "reserved_mib": 4134.0
-            },
-            "voice_clone_generate": {
-              "allocated_mib": 4198.576,
-              "reserved_mib": 4494.0
-            }
-          },
-          "seed": 0,
-          "sample_rate_hz": 24000
-        }
-      },
-      "rtf": 6.867389,
-      "loudness": {
-        "i_lufs": -17.98,
-        "tp_dbtp": -1.0,
+        "source": "encoded_opus",
+        "i_lufs": -17.97,
+        "tp_dbtp": -1.6,
         "shortfall": false
       }
     },
@@ -13330,8 +12167,9 @@
       },
       "rtf": 6.220811,
       "loudness": {
+        "source": "encoded_opus",
         "i_lufs": -18.02,
-        "tp_dbtp": -3.82,
+        "tp_dbtp": -3.69,
         "shortfall": false
       }
     },
@@ -13392,8 +12230,9 @@
       },
       "rtf": 5.782615,
       "loudness": {
-        "i_lufs": -18.01,
-        "tp_dbtp": -2.82,
+        "source": "encoded_opus",
+        "i_lufs": -18.02,
+        "tp_dbtp": -2.89,
         "shortfall": false
       }
     },
@@ -13454,8 +12293,9 @@
       },
       "rtf": 5.725974,
       "loudness": {
+        "source": "encoded_opus",
         "i_lufs": -17.99,
-        "tp_dbtp": -2.57,
+        "tp_dbtp": -2.37,
         "shortfall": false
       }
     },
@@ -13516,8 +12356,9 @@
       },
       "rtf": 6.678719,
       "loudness": {
-        "i_lufs": -18.02,
-        "tp_dbtp": -3.05,
+        "source": "encoded_opus",
+        "i_lufs": -18.01,
+        "tp_dbtp": -3.09,
         "shortfall": false
       }
     },
@@ -13578,7 +12419,8 @@
       },
       "rtf": 6.674808,
       "loudness": {
-        "i_lufs": -18.01,
+        "source": "encoded_opus",
+        "i_lufs": -18.02,
         "tp_dbtp": -4.62,
         "shortfall": false
       }
@@ -13640,8 +12482,9 @@
       },
       "rtf": 6.791642,
       "loudness": {
-        "i_lufs": -18.0,
-        "tp_dbtp": -6.64,
+        "source": "encoded_opus",
+        "i_lufs": -17.99,
+        "tp_dbtp": -6.75,
         "shortfall": false
       }
     },
@@ -13702,8 +12545,9 @@
       },
       "rtf": 6.87762,
       "loudness": {
-        "i_lufs": -18.0,
-        "tp_dbtp": -5.51,
+        "source": "encoded_opus",
+        "i_lufs": -17.99,
+        "tp_dbtp": -5.57,
         "shortfall": false
       }
     },
@@ -13764,8 +12608,9 @@
       },
       "rtf": 6.859844,
       "loudness": {
-        "i_lufs": -18.02,
-        "tp_dbtp": -2.91,
+        "source": "encoded_opus",
+        "i_lufs": -17.99,
+        "tp_dbtp": -2.85,
         "shortfall": false
       }
     },
@@ -13826,8 +12671,9 @@
       },
       "rtf": 6.274769,
       "loudness": {
-        "i_lufs": -17.99,
-        "tp_dbtp": -6.63,
+        "source": "encoded_opus",
+        "i_lufs": -17.98,
+        "tp_dbtp": -6.58,
         "shortfall": false
       }
     },
@@ -13888,70 +12734,9 @@
       },
       "rtf": 5.500269,
       "loudness": {
-        "i_lufs": -17.99,
-        "tp_dbtp": -3.7,
-        "shortfall": false
-      }
-    },
-    {
-      "model": "qwen3-tts-12hz-1.7b",
-      "scenario": "goblin-camp",
-      "line": "goblin-lookout-002",
-      "variant": "dry",
-      "path": "audio/qwen3-tts-12hz-1.7b/goblin-camp/goblin-lookout-002-dry.opus",
-      "duration_sec": 3.2065,
-      "sha256": "d25ffa8376329056af2dec4c06976c93e003b8b7b490f297929872b108c241f2",
-      "gen_params": {
-        "requested": {
-          "qwen_tts_version": "0.1.1",
-          "base_model": "Qwen/Qwen3-TTS-12Hz-1.7B-Base",
-          "base_revision": "fd4b254389122332181a7c3db7f27e918eec64e3",
-          "voice_design_model": "Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign",
-          "voice_design_revision": "5ecdb67327fd37bb2e042aab12ff7391903235d3",
-          "device": "cuda:0",
-          "dtype": "bfloat16",
-          "attention_backend": "sdpa",
-          "sampling": {
-            "do_sample": true,
-            "repetition_penalty": 1.05,
-            "temperature": 0.9,
-            "top_p": 1.0,
-            "top_k": 50,
-            "subtalker_dosample": true,
-            "subtalker_temperature": 0.9,
-            "subtalker_top_p": 1.0,
-            "subtalker_top_k": 50,
-            "max_new_tokens": 2048
-          },
-          "reference_text": "こんにちは。今日はとても良い天気ですね。"
-        },
-        "realized": {
-          "phase_peak_vram_mib": {
-            "voice_design_load": {
-              "allocated_mib": 3986.726,
-              "reserved_mib": 4112.0
-            },
-            "voice_design_generate": {
-              "allocated_mib": 4078.621,
-              "reserved_mib": 4282.0
-            },
-            "base_load": {
-              "allocated_mib": 4008.5,
-              "reserved_mib": 4134.0
-            },
-            "voice_clone_generate": {
-              "allocated_mib": 4198.625,
-              "reserved_mib": 4494.0
-            }
-          },
-          "seed": 0,
-          "sample_rate_hz": 24000
-        }
-      },
-      "rtf": 5.396383,
-      "loudness": {
-        "i_lufs": -17.99,
-        "tp_dbtp": -1.0,
+        "source": "encoded_opus",
+        "i_lufs": -18.0,
+        "tp_dbtp": -3.54,
         "shortfall": false
       }
     },
@@ -14012,8 +12797,9 @@
       },
       "rtf": 6.251152,
       "loudness": {
-        "i_lufs": -18.12,
-        "tp_dbtp": -1.0,
+        "source": "encoded_opus",
+        "i_lufs": -18.13,
+        "tp_dbtp": -0.94,
         "shortfall": false
       }
     },
@@ -14074,8 +12860,9 @@
       },
       "rtf": 5.554842,
       "loudness": {
-        "i_lufs": -18.02,
-        "tp_dbtp": -4.94,
+        "source": "encoded_opus",
+        "i_lufs": -18.03,
+        "tp_dbtp": -4.9,
         "shortfall": false
       }
     },
@@ -14136,7 +12923,8 @@
       },
       "rtf": 5.864789,
       "loudness": {
-        "i_lufs": -18.0,
+        "source": "encoded_opus",
+        "i_lufs": -17.96,
         "tp_dbtp": -3.57,
         "shortfall": false
       }
@@ -14198,8 +12986,9 @@
       },
       "rtf": 6.283244,
       "loudness": {
-        "i_lufs": -18.01,
-        "tp_dbtp": -1.57,
+        "source": "encoded_opus",
+        "i_lufs": -18.02,
+        "tp_dbtp": -1.55,
         "shortfall": false
       }
     },
@@ -14260,8 +13049,9 @@
       },
       "rtf": 6.612963,
       "loudness": {
-        "i_lufs": -18.0,
-        "tp_dbtp": -1.37,
+        "source": "encoded_opus",
+        "i_lufs": -18.03,
+        "tp_dbtp": -1.5,
         "shortfall": false
       }
     },
@@ -14322,8 +13112,9 @@
       },
       "rtf": 6.25977,
       "loudness": {
-        "i_lufs": -17.98,
-        "tp_dbtp": -6.25,
+        "source": "encoded_opus",
+        "i_lufs": -18.0,
+        "tp_dbtp": -6.24,
         "shortfall": false
       }
     },
@@ -14384,70 +13175,9 @@
       },
       "rtf": 6.971269,
       "loudness": {
+        "source": "encoded_opus",
         "i_lufs": -18.02,
-        "tp_dbtp": -1.54,
-        "shortfall": false
-      }
-    },
-    {
-      "model": "qwen3-tts-12hz-1.7b",
-      "scenario": "guild-hall",
-      "line": "receptionist-001",
-      "variant": "dry",
-      "path": "audio/qwen3-tts-12hz-1.7b/guild-hall/receptionist-001-dry.opus",
-      "duration_sec": 3.1265,
-      "sha256": "2be4e41fe54642eebb7c4010cb8df58eceff405dada416167ef719bb90c6686c",
-      "gen_params": {
-        "requested": {
-          "qwen_tts_version": "0.1.1",
-          "base_model": "Qwen/Qwen3-TTS-12Hz-1.7B-Base",
-          "base_revision": "fd4b254389122332181a7c3db7f27e918eec64e3",
-          "voice_design_model": "Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign",
-          "voice_design_revision": "5ecdb67327fd37bb2e042aab12ff7391903235d3",
-          "device": "cuda:0",
-          "dtype": "bfloat16",
-          "attention_backend": "sdpa",
-          "sampling": {
-            "do_sample": true,
-            "repetition_penalty": 1.05,
-            "temperature": 0.9,
-            "top_p": 1.0,
-            "top_k": 50,
-            "subtalker_dosample": true,
-            "subtalker_temperature": 0.9,
-            "subtalker_top_p": 1.0,
-            "subtalker_top_k": 50,
-            "max_new_tokens": 2048
-          },
-          "reference_text": "こんにちは。今日はとても良い天気ですね。"
-        },
-        "realized": {
-          "phase_peak_vram_mib": {
-            "voice_design_load": {
-              "allocated_mib": 3986.726,
-              "reserved_mib": 4112.0
-            },
-            "voice_design_generate": {
-              "allocated_mib": 4085.048,
-              "reserved_mib": 4282.0
-            },
-            "base_load": {
-              "allocated_mib": 4008.5,
-              "reserved_mib": 4134.0
-            },
-            "voice_clone_generate": {
-              "allocated_mib": 4204.589,
-              "reserved_mib": 4494.0
-            }
-          },
-          "seed": 0,
-          "sample_rate_hz": 24000
-        }
-      },
-      "rtf": 5.96606,
-      "loudness": {
-        "i_lufs": -18.0,
-        "tp_dbtp": -1.0,
+        "tp_dbtp": -1.55,
         "shortfall": false
       }
     },
@@ -14508,8 +13238,9 @@
       },
       "rtf": 5.674067,
       "loudness": {
+        "source": "encoded_opus",
         "i_lufs": -18.02,
-        "tp_dbtp": -1.0,
+        "tp_dbtp": -0.97,
         "shortfall": false
       }
     },
@@ -14570,8 +13301,9 @@
       },
       "rtf": 6.230968,
       "loudness": {
+        "source": "encoded_opus",
         "i_lufs": -17.97,
-        "tp_dbtp": -1.0,
+        "tp_dbtp": -0.99,
         "shortfall": false
       }
     },
@@ -14632,8 +13364,9 @@
       },
       "rtf": 6.212187,
       "loudness": {
-        "i_lufs": -17.99,
-        "tp_dbtp": -3.4,
+        "source": "encoded_opus",
+        "i_lufs": -18.02,
+        "tp_dbtp": -3.2,
         "shortfall": false
       }
     },
@@ -14694,8 +13427,9 @@
       },
       "rtf": 6.288495,
       "loudness": {
+        "source": "encoded_opus",
         "i_lufs": -18.0,
-        "tp_dbtp": -1.42,
+        "tp_dbtp": -1.76,
         "shortfall": false
       }
     },
@@ -14756,132 +13490,9 @@
       },
       "rtf": 6.13778,
       "loudness": {
-        "i_lufs": -18.0,
-        "tp_dbtp": -3.8,
-        "shortfall": false
-      }
-    },
-    {
-      "model": "qwen3-tts-12hz-1.7b",
-      "scenario": "guild-hall",
-      "line": "veteran-001",
-      "variant": "dry",
-      "path": "audio/qwen3-tts-12hz-1.7b/guild-hall/veteran-001-dry.opus",
-      "duration_sec": 3.2865,
-      "sha256": "9dd03af59a74e22fc0fee75dacf8843ae59544c4d1d9388365dea3e7876b26f1",
-      "gen_params": {
-        "requested": {
-          "qwen_tts_version": "0.1.1",
-          "base_model": "Qwen/Qwen3-TTS-12Hz-1.7B-Base",
-          "base_revision": "fd4b254389122332181a7c3db7f27e918eec64e3",
-          "voice_design_model": "Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign",
-          "voice_design_revision": "5ecdb67327fd37bb2e042aab12ff7391903235d3",
-          "device": "cuda:0",
-          "dtype": "bfloat16",
-          "attention_backend": "sdpa",
-          "sampling": {
-            "do_sample": true,
-            "repetition_penalty": 1.05,
-            "temperature": 0.9,
-            "top_p": 1.0,
-            "top_k": 50,
-            "subtalker_dosample": true,
-            "subtalker_temperature": 0.9,
-            "subtalker_top_p": 1.0,
-            "subtalker_top_k": 50,
-            "max_new_tokens": 2048
-          },
-          "reference_text": "こんにちは。今日はとても良い天気ですね。"
-        },
-        "realized": {
-          "phase_peak_vram_mib": {
-            "voice_design_load": {
-              "allocated_mib": 3986.726,
-              "reserved_mib": 4112.0
-            },
-            "voice_design_generate": {
-              "allocated_mib": 4091.659,
-              "reserved_mib": 4282.0
-            },
-            "base_load": {
-              "allocated_mib": 4008.5,
-              "reserved_mib": 4134.0
-            },
-            "voice_clone_generate": {
-              "allocated_mib": 4213.555,
-              "reserved_mib": 4494.0
-            }
-          },
-          "seed": 0,
-          "sample_rate_hz": 24000
-        }
-      },
-      "rtf": 6.103803,
-      "loudness": {
-        "i_lufs": -18.13,
-        "tp_dbtp": -1.0,
-        "shortfall": false
-      }
-    },
-    {
-      "model": "qwen3-tts-12hz-1.7b",
-      "scenario": "guild-hall",
-      "line": "veteran-002",
-      "variant": "dry",
-      "path": "audio/qwen3-tts-12hz-1.7b/guild-hall/veteran-002-dry.opus",
-      "duration_sec": 3.2865,
-      "sha256": "16065b58a6112597993d808c0e77c5edf2af2b19236067aa70bdcbb163612c60",
-      "gen_params": {
-        "requested": {
-          "qwen_tts_version": "0.1.1",
-          "base_model": "Qwen/Qwen3-TTS-12Hz-1.7B-Base",
-          "base_revision": "fd4b254389122332181a7c3db7f27e918eec64e3",
-          "voice_design_model": "Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign",
-          "voice_design_revision": "5ecdb67327fd37bb2e042aab12ff7391903235d3",
-          "device": "cuda:0",
-          "dtype": "bfloat16",
-          "attention_backend": "sdpa",
-          "sampling": {
-            "do_sample": true,
-            "repetition_penalty": 1.05,
-            "temperature": 0.9,
-            "top_p": 1.0,
-            "top_k": 50,
-            "subtalker_dosample": true,
-            "subtalker_temperature": 0.9,
-            "subtalker_top_p": 1.0,
-            "subtalker_top_k": 50,
-            "max_new_tokens": 2048
-          },
-          "reference_text": "こんにちは。今日はとても良い天気ですね。"
-        },
-        "realized": {
-          "phase_peak_vram_mib": {
-            "voice_design_load": {
-              "allocated_mib": 3986.726,
-              "reserved_mib": 4112.0
-            },
-            "voice_design_generate": {
-              "allocated_mib": 4091.659,
-              "reserved_mib": 4282.0
-            },
-            "base_load": {
-              "allocated_mib": 4008.5,
-              "reserved_mib": 4134.0
-            },
-            "voice_clone_generate": {
-              "allocated_mib": 4213.555,
-              "reserved_mib": 4494.0
-            }
-          },
-          "seed": 0,
-          "sample_rate_hz": 24000
-        }
-      },
-      "rtf": 6.405311,
-      "loudness": {
-        "i_lufs": -17.89,
-        "tp_dbtp": -1.0,
+        "source": "encoded_opus",
+        "i_lufs": -18.06,
+        "tp_dbtp": -3.51,
         "shortfall": false
       }
     },
@@ -14942,8 +13553,9 @@
       },
       "rtf": 6.323045,
       "loudness": {
-        "i_lufs": -18.13,
-        "tp_dbtp": -1.0,
+        "source": "encoded_opus",
+        "i_lufs": -18.15,
+        "tp_dbtp": -0.94,
         "shortfall": false
       }
     },
@@ -15004,8 +13616,9 @@
       },
       "rtf": 5.911689,
       "loudness": {
-        "i_lufs": -18.01,
-        "tp_dbtp": -1.19,
+        "source": "encoded_opus",
+        "i_lufs": -18.08,
+        "tp_dbtp": -1.27,
         "shortfall": false
       }
     },
@@ -15066,8 +13679,9 @@
       },
       "rtf": 6.207792,
       "loudness": {
-        "i_lufs": -18.0,
-        "tp_dbtp": -1.79,
+        "source": "encoded_opus",
+        "i_lufs": -17.99,
+        "tp_dbtp": -1.92,
         "shortfall": false
       }
     },
@@ -15128,8 +13742,9 @@
       },
       "rtf": 6.61167,
       "loudness": {
+        "source": "encoded_opus",
         "i_lufs": -18.03,
-        "tp_dbtp": -1.7,
+        "tp_dbtp": -1.79,
         "shortfall": false
       }
     },
@@ -15190,8 +13805,9 @@
       },
       "rtf": 6.008519,
       "loudness": {
-        "i_lufs": -18.02,
-        "tp_dbtp": -2.82,
+        "source": "encoded_opus",
+        "i_lufs": -18.03,
+        "tp_dbtp": -2.85,
         "shortfall": false
       }
     },
@@ -15252,8 +13868,9 @@
       },
       "rtf": 6.047986,
       "loudness": {
-        "i_lufs": -18.0,
-        "tp_dbtp": -3.4,
+        "source": "encoded_opus",
+        "i_lufs": -18.01,
+        "tp_dbtp": -3.31,
         "shortfall": false
       }
     },
@@ -15314,8 +13931,9 @@
       },
       "rtf": 6.193664,
       "loudness": {
-        "i_lufs": -18.0,
-        "tp_dbtp": -2.04,
+        "source": "encoded_opus",
+        "i_lufs": -17.97,
+        "tp_dbtp": -1.77,
         "shortfall": false
       }
     },
@@ -15376,8 +13994,9 @@
       },
       "rtf": 5.501973,
       "loudness": {
-        "i_lufs": -18.0,
-        "tp_dbtp": -3.58,
+        "source": "encoded_opus",
+        "i_lufs": -18.01,
+        "tp_dbtp": -3.75,
         "shortfall": false
       }
     },
@@ -15438,8 +14057,9 @@
       },
       "rtf": 6.301443,
       "loudness": {
+        "source": "encoded_opus",
         "i_lufs": -18.01,
-        "tp_dbtp": -3.91,
+        "tp_dbtp": -3.94,
         "shortfall": false
       }
     },
@@ -15500,8 +14120,9 @@
       },
       "rtf": 6.293536,
       "loudness": {
-        "i_lufs": -18.02,
-        "tp_dbtp": -3.45,
+        "source": "encoded_opus",
+        "i_lufs": -18.03,
+        "tp_dbtp": -3.37,
         "shortfall": false
       }
     },
@@ -15562,70 +14183,9 @@
       },
       "rtf": 6.395701,
       "loudness": {
-        "i_lufs": -18.0,
-        "tp_dbtp": -1.87,
-        "shortfall": false
-      }
-    },
-    {
-      "model": "qwen3-tts-12hz-1.7b",
-      "scenario": "spirit-forest",
-      "line": "elder-tree-002",
-      "variant": "dry",
-      "path": "audio/qwen3-tts-12hz-1.7b/spirit-forest/elder-tree-002-dry.opus",
-      "duration_sec": 2.2465,
-      "sha256": "9639f8ad40a6b4c7208d7da9d7aab57a34bcf7cc87028ef7384a4f78522452b0",
-      "gen_params": {
-        "requested": {
-          "qwen_tts_version": "0.1.1",
-          "base_model": "Qwen/Qwen3-TTS-12Hz-1.7B-Base",
-          "base_revision": "fd4b254389122332181a7c3db7f27e918eec64e3",
-          "voice_design_model": "Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign",
-          "voice_design_revision": "5ecdb67327fd37bb2e042aab12ff7391903235d3",
-          "device": "cuda:0",
-          "dtype": "bfloat16",
-          "attention_backend": "sdpa",
-          "sampling": {
-            "do_sample": true,
-            "repetition_penalty": 1.05,
-            "temperature": 0.9,
-            "top_p": 1.0,
-            "top_k": 50,
-            "subtalker_dosample": true,
-            "subtalker_temperature": 0.9,
-            "subtalker_top_p": 1.0,
-            "subtalker_top_k": 50,
-            "max_new_tokens": 2048
-          },
-          "reference_text": "こんにちは。今日はとても良い天気ですね。"
-        },
-        "realized": {
-          "phase_peak_vram_mib": {
-            "voice_design_load": {
-              "allocated_mib": 3986.726,
-              "reserved_mib": 4112.0
-            },
-            "voice_design_generate": {
-              "allocated_mib": 4083.396,
-              "reserved_mib": 4284.0
-            },
-            "base_load": {
-              "allocated_mib": 4008.5,
-              "reserved_mib": 4134.0
-            },
-            "voice_clone_generate": {
-              "allocated_mib": 4183.936,
-              "reserved_mib": 4494.0
-            }
-          },
-          "seed": 0,
-          "sample_rate_hz": 24000
-        }
-      },
-      "rtf": 6.026924,
-      "loudness": {
-        "i_lufs": -18.19,
-        "tp_dbtp": -0.98,
+        "source": "encoded_opus",
+        "i_lufs": -18.01,
+        "tp_dbtp": -1.98,
         "shortfall": false
       }
     },
@@ -15686,8 +14246,9 @@
       },
       "rtf": 6.029982,
       "loudness": {
+        "source": "encoded_opus",
         "i_lufs": -18.0,
-        "tp_dbtp": -2.84,
+        "tp_dbtp": -2.82,
         "shortfall": false
       }
     },
@@ -15748,8 +14309,9 @@
       },
       "rtf": 6.092276,
       "loudness": {
+        "source": "encoded_opus",
         "i_lufs": -18.01,
-        "tp_dbtp": -4.93,
+        "tp_dbtp": -5.1,
         "shortfall": false
       }
     },
@@ -15810,6 +14372,7 @@
       },
       "rtf": 6.245996,
       "loudness": {
+        "source": "encoded_opus",
         "i_lufs": -17.99,
         "tp_dbtp": -5.28,
         "shortfall": false
@@ -15872,8 +14435,9 @@
       },
       "rtf": 5.931248,
       "loudness": {
-        "i_lufs": -18.01,
-        "tp_dbtp": -2.6,
+        "source": "encoded_opus",
+        "i_lufs": -18.03,
+        "tp_dbtp": -2.62,
         "shortfall": false
       }
     },
@@ -15934,8 +14498,9 @@
       },
       "rtf": 6.362655,
       "loudness": {
-        "i_lufs": -17.99,
-        "tp_dbtp": -2.29,
+        "source": "encoded_opus",
+        "i_lufs": -17.97,
+        "tp_dbtp": -2.2,
         "shortfall": false
       }
     },
@@ -15996,8 +14561,9 @@
       },
       "rtf": 6.023407,
       "loudness": {
-        "i_lufs": -18.01,
-        "tp_dbtp": -1.44,
+        "source": "encoded_opus",
+        "i_lufs": -17.98,
+        "tp_dbtp": -1.47,
         "shortfall": false
       }
     },
@@ -16058,8 +14624,9 @@
       },
       "rtf": 5.79848,
       "loudness": {
-        "i_lufs": -18.02,
-        "tp_dbtp": -3.85,
+        "source": "encoded_opus",
+        "i_lufs": -18.03,
+        "tp_dbtp": -3.82,
         "shortfall": false
       }
     },
@@ -16120,8 +14687,9 @@
       },
       "rtf": 6.176121,
       "loudness": {
-        "i_lufs": -18.02,
-        "tp_dbtp": -2.98,
+        "source": "encoded_opus",
+        "i_lufs": -18.01,
+        "tp_dbtp": -3.0,
         "shortfall": false
       }
     },
@@ -16182,8 +14750,9 @@
       },
       "rtf": 6.159252,
       "loudness": {
+        "source": "encoded_opus",
         "i_lufs": -18.01,
-        "tp_dbtp": -6.27,
+        "tp_dbtp": -6.23,
         "shortfall": false
       }
     },
@@ -16244,8 +14813,9 @@
       },
       "rtf": 6.122103,
       "loudness": {
+        "source": "encoded_opus",
         "i_lufs": -18.0,
-        "tp_dbtp": -5.0,
+        "tp_dbtp": -4.54,
         "shortfall": false
       }
     },
@@ -16306,8 +14876,9 @@
       },
       "rtf": 5.684752,
       "loudness": {
-        "i_lufs": -17.99,
-        "tp_dbtp": -2.4,
+        "source": "encoded_opus",
+        "i_lufs": -17.98,
+        "tp_dbtp": -2.52,
         "shortfall": false
       }
     },
@@ -16368,8 +14939,9 @@
       },
       "rtf": 6.011668,
       "loudness": {
-        "i_lufs": -18.0,
-        "tp_dbtp": -5.09,
+        "source": "encoded_opus",
+        "i_lufs": -18.01,
+        "tp_dbtp": -5.12,
         "shortfall": false
       }
     },
@@ -16430,8 +15002,9 @@
       },
       "rtf": 6.35812,
       "loudness": {
-        "i_lufs": -18.0,
-        "tp_dbtp": -3.01,
+        "source": "encoded_opus",
+        "i_lufs": -18.01,
+        "tp_dbtp": -3.18,
         "shortfall": false
       }
     },
@@ -16492,9 +15065,10 @@
       },
       "rtf": 6.219125,
       "loudness": {
-        "i_lufs": -17.99,
-        "tp_dbtp": -1.22,
-        "shortfall": false
+        "source": "encoded_opus",
+        "i_lufs": -18.22,
+        "tp_dbtp": -1.06,
+        "shortfall": true
       }
     },
     {
@@ -16554,8 +15128,9 @@
       },
       "rtf": 5.936834,
       "loudness": {
+        "source": "encoded_opus",
         "i_lufs": -18.14,
-        "tp_dbtp": -0.99,
+        "tp_dbtp": -0.95,
         "shortfall": false
       }
     },
@@ -16616,70 +15191,9 @@
       },
       "rtf": 6.660688,
       "loudness": {
-        "i_lufs": -17.99,
-        "tp_dbtp": -3.09,
-        "shortfall": false
-      }
-    },
-    {
-      "model": "qwen3-tts-12hz-1.7b",
-      "scenario": "village-morning",
-      "line": "farm-wife-002",
-      "variant": "dry",
-      "path": "audio/qwen3-tts-12hz-1.7b/village-morning/farm-wife-002-dry.opus",
-      "duration_sec": 2.4865,
-      "sha256": "c91903f8c9529976e338637f9d5849e8f0fc1003e3b7e620c1cebf3c446de065",
-      "gen_params": {
-        "requested": {
-          "qwen_tts_version": "0.1.1",
-          "base_model": "Qwen/Qwen3-TTS-12Hz-1.7B-Base",
-          "base_revision": "fd4b254389122332181a7c3db7f27e918eec64e3",
-          "voice_design_model": "Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign",
-          "voice_design_revision": "5ecdb67327fd37bb2e042aab12ff7391903235d3",
-          "device": "cuda:0",
-          "dtype": "bfloat16",
-          "attention_backend": "sdpa",
-          "sampling": {
-            "do_sample": true,
-            "repetition_penalty": 1.05,
-            "temperature": 0.9,
-            "top_p": 1.0,
-            "top_k": 50,
-            "subtalker_dosample": true,
-            "subtalker_temperature": 0.9,
-            "subtalker_top_p": 1.0,
-            "subtalker_top_k": 50,
-            "max_new_tokens": 2048
-          },
-          "reference_text": "こんにちは。今日はとても良い天気ですね。"
-        },
-        "realized": {
-          "phase_peak_vram_mib": {
-            "voice_design_load": {
-              "allocated_mib": 3986.726,
-              "reserved_mib": 4112.0
-            },
-            "voice_design_generate": {
-              "allocated_mib": 4086.701,
-              "reserved_mib": 4284.0
-            },
-            "base_load": {
-              "allocated_mib": 4008.5,
-              "reserved_mib": 4134.0
-            },
-            "voice_clone_generate": {
-              "allocated_mib": 4192.32,
-              "reserved_mib": 4494.0
-            }
-          },
-          "seed": 0,
-          "sample_rate_hz": 24000
-        }
-      },
-      "rtf": 6.581027,
-      "loudness": {
-        "i_lufs": -18.16,
-        "tp_dbtp": -1.0,
+        "source": "encoded_opus",
+        "i_lufs": -17.98,
+        "tp_dbtp": -3.15,
         "shortfall": false
       }
     },
@@ -16740,70 +15254,9 @@
       },
       "rtf": 6.439846,
       "loudness": {
-        "i_lufs": -18.0,
-        "tp_dbtp": -3.71,
-        "shortfall": false
-      }
-    },
-    {
-      "model": "qwen3-tts-12hz-1.7b",
-      "scenario": "village-morning",
-      "line": "farmer-man-002",
-      "variant": "dry",
-      "path": "audio/qwen3-tts-12hz-1.7b/village-morning/farmer-man-002-dry.opus",
-      "duration_sec": 2.6465,
-      "sha256": "feceafe48de7ad6c9f6b292f67aa03164a770395ec81a7bf85dae57b23aa9caa",
-      "gen_params": {
-        "requested": {
-          "qwen_tts_version": "0.1.1",
-          "base_model": "Qwen/Qwen3-TTS-12Hz-1.7B-Base",
-          "base_revision": "fd4b254389122332181a7c3db7f27e918eec64e3",
-          "voice_design_model": "Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign",
-          "voice_design_revision": "5ecdb67327fd37bb2e042aab12ff7391903235d3",
-          "device": "cuda:0",
-          "dtype": "bfloat16",
-          "attention_backend": "sdpa",
-          "sampling": {
-            "do_sample": true,
-            "repetition_penalty": 1.05,
-            "temperature": 0.9,
-            "top_p": 1.0,
-            "top_k": 50,
-            "subtalker_dosample": true,
-            "subtalker_temperature": 0.9,
-            "subtalker_top_p": 1.0,
-            "subtalker_top_k": 50,
-            "max_new_tokens": 2048
-          },
-          "reference_text": "こんにちは。今日はとても良い天気ですね。"
-        },
-        "realized": {
-          "phase_peak_vram_mib": {
-            "voice_design_load": {
-              "allocated_mib": 3986.726,
-              "reserved_mib": 4112.0
-            },
-            "voice_design_generate": {
-              "allocated_mib": 4106.571,
-              "reserved_mib": 4284.0
-            },
-            "base_load": {
-              "allocated_mib": 4008.5,
-              "reserved_mib": 4134.0
-            },
-            "voice_clone_generate": {
-              "allocated_mib": 4215.433,
-              "reserved_mib": 4494.0
-            }
-          },
-          "seed": 0,
-          "sample_rate_hz": 24000
-        }
-      },
-      "rtf": 6.407334,
-      "loudness": {
-        "i_lufs": -18.12,
-        "tp_dbtp": -1.0,
+        "source": "encoded_opus",
+        "i_lufs": -17.99,
+        "tp_dbtp": -3.41,
         "shortfall": false
       }
     },
@@ -16864,8 +15317,9 @@
       },
       "rtf": 6.228751,
       "loudness": {
-        "i_lufs": -18.01,
-        "tp_dbtp": -1.49,
+        "source": "encoded_opus",
+        "i_lufs": -18.0,
+        "tp_dbtp": -1.29,
         "shortfall": false
       }
     },
@@ -16926,8 +15380,9 @@
       },
       "rtf": 6.664062,
       "loudness": {
-        "i_lufs": -18.0,
-        "tp_dbtp": -1.55,
+        "source": "encoded_opus",
+        "i_lufs": -18.06,
+        "tp_dbtp": -1.56,
         "shortfall": false
       }
     },
@@ -16988,70 +15443,9 @@
       },
       "rtf": 6.389823,
       "loudness": {
-        "i_lufs": -18.07,
-        "tp_dbtp": -1.0,
-        "shortfall": false
-      }
-    },
-    {
-      "model": "qwen3-tts-12hz-1.7b",
-      "scenario": "village-morning",
-      "line": "granny-004",
-      "variant": "dry",
-      "path": "audio/qwen3-tts-12hz-1.7b/village-morning/granny-004-dry.opus",
-      "duration_sec": 2.4865,
-      "sha256": "120b9ccad92b3c88397af45601126c52c32b89be526817e847b7efd6073ee188",
-      "gen_params": {
-        "requested": {
-          "qwen_tts_version": "0.1.1",
-          "base_model": "Qwen/Qwen3-TTS-12Hz-1.7B-Base",
-          "base_revision": "fd4b254389122332181a7c3db7f27e918eec64e3",
-          "voice_design_model": "Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign",
-          "voice_design_revision": "5ecdb67327fd37bb2e042aab12ff7391903235d3",
-          "device": "cuda:0",
-          "dtype": "bfloat16",
-          "attention_backend": "sdpa",
-          "sampling": {
-            "do_sample": true,
-            "repetition_penalty": 1.05,
-            "temperature": 0.9,
-            "top_p": 1.0,
-            "top_k": 50,
-            "subtalker_dosample": true,
-            "subtalker_temperature": 0.9,
-            "subtalker_top_p": 1.0,
-            "subtalker_top_k": 50,
-            "max_new_tokens": 2048
-          },
-          "reference_text": "こんにちは。今日はとても良い天気ですね。"
-        },
-        "realized": {
-          "phase_peak_vram_mib": {
-            "voice_design_load": {
-              "allocated_mib": 3986.726,
-              "reserved_mib": 4112.0
-            },
-            "voice_design_generate": {
-              "allocated_mib": 4061.926,
-              "reserved_mib": 4284.0
-            },
-            "base_load": {
-              "allocated_mib": 4008.5,
-              "reserved_mib": 4134.0
-            },
-            "voice_clone_generate": {
-              "allocated_mib": 4167.556,
-              "reserved_mib": 4494.0
-            }
-          },
-          "seed": 0,
-          "sample_rate_hz": 24000
-        }
-      },
-      "rtf": 7.423703,
-      "loudness": {
+        "source": "encoded_opus",
         "i_lufs": -18.03,
-        "tp_dbtp": -0.97,
+        "tp_dbtp": -1.03,
         "shortfall": false
       }
     },
@@ -17112,70 +15506,9 @@
       },
       "rtf": 7.14307,
       "loudness": {
+        "source": "encoded_opus",
         "i_lufs": -18.0,
-        "tp_dbtp": -2.54,
-        "shortfall": false
-      }
-    },
-    {
-      "model": "qwen3-tts-12hz-1.7b",
-      "scenario": "village-morning",
-      "line": "teen-boy-002",
-      "variant": "dry",
-      "path": "audio/qwen3-tts-12hz-1.7b/village-morning/teen-boy-002-dry.opus",
-      "duration_sec": 2.5665,
-      "sha256": "fd0c23395760c9379a11cfdaf69444c8361fe812b5d467023dca74b0dea73c77",
-      "gen_params": {
-        "requested": {
-          "qwen_tts_version": "0.1.1",
-          "base_model": "Qwen/Qwen3-TTS-12Hz-1.7B-Base",
-          "base_revision": "fd4b254389122332181a7c3db7f27e918eec64e3",
-          "voice_design_model": "Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign",
-          "voice_design_revision": "5ecdb67327fd37bb2e042aab12ff7391903235d3",
-          "device": "cuda:0",
-          "dtype": "bfloat16",
-          "attention_backend": "sdpa",
-          "sampling": {
-            "do_sample": true,
-            "repetition_penalty": 1.05,
-            "temperature": 0.9,
-            "top_p": 1.0,
-            "top_k": 50,
-            "subtalker_dosample": true,
-            "subtalker_temperature": 0.9,
-            "subtalker_top_p": 1.0,
-            "subtalker_top_k": 50,
-            "max_new_tokens": 2048
-          },
-          "reference_text": "こんにちは。今日はとても良い天気ですね。"
-        },
-        "realized": {
-          "phase_peak_vram_mib": {
-            "voice_design_load": {
-              "allocated_mib": 3986.726,
-              "reserved_mib": 4112.0
-            },
-            "voice_design_generate": {
-              "allocated_mib": 4061.926,
-              "reserved_mib": 4284.0
-            },
-            "base_load": {
-              "allocated_mib": 4008.5,
-              "reserved_mib": 4134.0
-            },
-            "voice_clone_generate": {
-              "allocated_mib": 4169.224,
-              "reserved_mib": 4494.0
-            }
-          },
-          "seed": 0,
-          "sample_rate_hz": 24000
-        }
-      },
-      "rtf": 6.11326,
-      "loudness": {
-        "i_lufs": -18.0,
-        "tp_dbtp": -1.06,
+        "tp_dbtp": -2.42,
         "shortfall": false
       }
     },
@@ -17236,70 +15569,9 @@
       },
       "rtf": 6.480411,
       "loudness": {
+        "source": "encoded_opus",
         "i_lufs": -18.0,
-        "tp_dbtp": -2.04,
-        "shortfall": false
-      }
-    },
-    {
-      "model": "qwen3-tts-12hz-1.7b",
-      "scenario": "village-morning",
-      "line": "teen-boy-004",
-      "variant": "dry",
-      "path": "audio/qwen3-tts-12hz-1.7b/village-morning/teen-boy-004-dry.opus",
-      "duration_sec": 1.6865,
-      "sha256": "e726c312160c3a398d86e80ce0139b313b9215c575d00b358534c308778aa8a1",
-      "gen_params": {
-        "requested": {
-          "qwen_tts_version": "0.1.1",
-          "base_model": "Qwen/Qwen3-TTS-12Hz-1.7B-Base",
-          "base_revision": "fd4b254389122332181a7c3db7f27e918eec64e3",
-          "voice_design_model": "Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign",
-          "voice_design_revision": "5ecdb67327fd37bb2e042aab12ff7391903235d3",
-          "device": "cuda:0",
-          "dtype": "bfloat16",
-          "attention_backend": "sdpa",
-          "sampling": {
-            "do_sample": true,
-            "repetition_penalty": 1.05,
-            "temperature": 0.9,
-            "top_p": 1.0,
-            "top_k": 50,
-            "subtalker_dosample": true,
-            "subtalker_temperature": 0.9,
-            "subtalker_top_p": 1.0,
-            "subtalker_top_k": 50,
-            "max_new_tokens": 2048
-          },
-          "reference_text": "こんにちは。今日はとても良い天気ですね。"
-        },
-        "realized": {
-          "phase_peak_vram_mib": {
-            "voice_design_load": {
-              "allocated_mib": 3986.726,
-              "reserved_mib": 4112.0
-            },
-            "voice_design_generate": {
-              "allocated_mib": 4061.926,
-              "reserved_mib": 4284.0
-            },
-            "base_load": {
-              "allocated_mib": 4008.5,
-              "reserved_mib": 4134.0
-            },
-            "voice_clone_generate": {
-              "allocated_mib": 4151.44,
-              "reserved_mib": 4494.0
-            }
-          },
-          "seed": 0,
-          "sample_rate_hz": 24000
-        }
-      },
-      "rtf": 6.350902,
-      "loudness": {
-        "i_lufs": -18.05,
-        "tp_dbtp": -0.94,
+        "tp_dbtp": -2.23,
         "shortfall": false
       }
     },
@@ -17360,8 +15632,9 @@
       },
       "rtf": 6.571723,
       "loudness": {
-        "i_lufs": -18.01,
-        "tp_dbtp": -5.53,
+        "source": "encoded_opus",
+        "i_lufs": -17.99,
+        "tp_dbtp": -5.41,
         "shortfall": false
       }
     },
@@ -17422,8 +15695,9 @@
       },
       "rtf": 6.358073,
       "loudness": {
-        "i_lufs": -18.02,
-        "tp_dbtp": -1.04,
+        "source": "encoded_opus",
+        "i_lufs": -18.03,
+        "tp_dbtp": -1.11,
         "shortfall": false
       }
     },
@@ -17484,8 +15758,9 @@
       },
       "rtf": 6.385456,
       "loudness": {
-        "i_lufs": -18.0,
-        "tp_dbtp": -4.61,
+        "source": "encoded_opus",
+        "i_lufs": -17.97,
+        "tp_dbtp": -4.55,
         "shortfall": false
       }
     },
@@ -17546,8 +15821,9 @@
       },
       "rtf": 6.361046,
       "loudness": {
-        "i_lufs": -17.99,
-        "tp_dbtp": -6.02,
+        "source": "encoded_opus",
+        "i_lufs": -18.0,
+        "tp_dbtp": -5.89,
         "shortfall": false
       }
     },
@@ -17608,8 +15884,9 @@
       },
       "rtf": 5.867977,
       "loudness": {
+        "source": "encoded_opus",
         "i_lufs": -18.01,
-        "tp_dbtp": -3.2,
+        "tp_dbtp": -3.17,
         "shortfall": false
       }
     },
@@ -17670,8 +15947,9 @@
       },
       "rtf": 6.53987,
       "loudness": {
+        "source": "encoded_opus",
         "i_lufs": -18.0,
-        "tp_dbtp": -1.61,
+        "tp_dbtp": -1.67,
         "shortfall": false
       }
     },
@@ -17732,8 +16010,9 @@
       },
       "rtf": 6.171427,
       "loudness": {
-        "i_lufs": -18.01,
-        "tp_dbtp": -2.26,
+        "source": "encoded_opus",
+        "i_lufs": -18.02,
+        "tp_dbtp": -2.2,
         "shortfall": false
       }
     },
@@ -17794,8 +16073,9 @@
       },
       "rtf": 6.281754,
       "loudness": {
+        "source": "encoded_opus",
         "i_lufs": -18.01,
-        "tp_dbtp": -2.53,
+        "tp_dbtp": -2.39,
         "shortfall": false
       }
     },
@@ -17856,8 +16136,9 @@
       },
       "rtf": 7.228193,
       "loudness": {
-        "i_lufs": -18.01,
-        "tp_dbtp": -3.44,
+        "source": "encoded_opus",
+        "i_lufs": -18.0,
+        "tp_dbtp": -3.39,
         "shortfall": false
       }
     },
@@ -17918,7 +16199,8 @@
       },
       "rtf": 6.213762,
       "loudness": {
-        "i_lufs": -17.97,
+        "source": "encoded_opus",
+        "i_lufs": -17.99,
         "tp_dbtp": -3.26,
         "shortfall": false
       }
@@ -17980,8 +16262,9 @@
       },
       "rtf": 6.21201,
       "loudness": {
-        "i_lufs": -17.98,
-        "tp_dbtp": -4.68,
+        "source": "encoded_opus",
+        "i_lufs": -17.99,
+        "tp_dbtp": -4.54,
         "shortfall": false
       }
     },
@@ -18042,8 +16325,9 @@
       },
       "rtf": 6.501251,
       "loudness": {
+        "source": "encoded_opus",
         "i_lufs": -17.99,
-        "tp_dbtp": -6.9,
+        "tp_dbtp": -6.91,
         "shortfall": false
       }
     },
@@ -18104,8 +16388,9 @@
       },
       "rtf": 5.913363,
       "loudness": {
-        "i_lufs": -18.01,
-        "tp_dbtp": -4.75,
+        "source": "encoded_opus",
+        "i_lufs": -18.0,
+        "tp_dbtp": -4.8,
         "shortfall": false
       }
     },
@@ -18166,8 +16451,9 @@
       },
       "rtf": 5.972738,
       "loudness": {
-        "i_lufs": -17.99,
-        "tp_dbtp": -1.81,
+        "source": "encoded_opus",
+        "i_lufs": -18.02,
+        "tp_dbtp": -1.83,
         "shortfall": false
       }
     },
@@ -18228,8 +16514,9 @@
       },
       "rtf": 6.948783,
       "loudness": {
+        "source": "encoded_opus",
         "i_lufs": -18.0,
-        "tp_dbtp": -3.1,
+        "tp_dbtp": -3.12,
         "shortfall": false
       }
     },
@@ -18290,132 +16577,9 @@
       },
       "rtf": 6.34761,
       "loudness": {
-        "i_lufs": -18.0,
-        "tp_dbtp": -3.69,
-        "shortfall": false
-      }
-    },
-    {
-      "model": "qwen3-tts-12hz-1.7b",
-      "scenario": "west-market",
-      "line": "kankou-fujin-001",
-      "variant": "dry",
-      "path": "audio/qwen3-tts-12hz-1.7b/west-market/kankou-fujin-001-dry.opus",
-      "duration_sec": 2.4065,
-      "sha256": "90464dd137f858aeff99d1bbec9fe71b9e2c1f13fcdf4a762a597aa4b8505dcf",
-      "gen_params": {
-        "requested": {
-          "qwen_tts_version": "0.1.1",
-          "base_model": "Qwen/Qwen3-TTS-12Hz-1.7B-Base",
-          "base_revision": "fd4b254389122332181a7c3db7f27e918eec64e3",
-          "voice_design_model": "Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign",
-          "voice_design_revision": "5ecdb67327fd37bb2e042aab12ff7391903235d3",
-          "device": "cuda:0",
-          "dtype": "bfloat16",
-          "attention_backend": "sdpa",
-          "sampling": {
-            "do_sample": true,
-            "repetition_penalty": 1.05,
-            "temperature": 0.9,
-            "top_p": 1.0,
-            "top_k": 50,
-            "subtalker_dosample": true,
-            "subtalker_temperature": 0.9,
-            "subtalker_top_p": 1.0,
-            "subtalker_top_k": 50,
-            "max_new_tokens": 2048
-          },
-          "reference_text": "こんにちは。今日はとても良い天気ですね。"
-        },
-        "realized": {
-          "phase_peak_vram_mib": {
-            "voice_design_load": {
-              "allocated_mib": 3986.726,
-              "reserved_mib": 4112.0
-            },
-            "voice_design_generate": {
-              "allocated_mib": 4078.621,
-              "reserved_mib": 4284.0
-            },
-            "base_load": {
-              "allocated_mib": 4008.5,
-              "reserved_mib": 4134.0
-            },
-            "voice_clone_generate": {
-              "allocated_mib": 4182.626,
-              "reserved_mib": 4674.0
-            }
-          },
-          "seed": 0,
-          "sample_rate_hz": 24000
-        }
-      },
-      "rtf": 7.163507,
-      "loudness": {
-        "i_lufs": -18.15,
-        "tp_dbtp": -0.94,
-        "shortfall": false
-      }
-    },
-    {
-      "model": "qwen3-tts-12hz-1.7b",
-      "scenario": "west-market",
-      "line": "kankou-fujin-002",
-      "variant": "dry",
-      "path": "audio/qwen3-tts-12hz-1.7b/west-market/kankou-fujin-002-dry.opus",
-      "duration_sec": 2.646542,
-      "sha256": "2f6f0c2c5660bc78d0127d5f4c73a71023a1ae9d26f6b7c6f82e47cfff7e904b",
-      "gen_params": {
-        "requested": {
-          "qwen_tts_version": "0.1.1",
-          "base_model": "Qwen/Qwen3-TTS-12Hz-1.7B-Base",
-          "base_revision": "fd4b254389122332181a7c3db7f27e918eec64e3",
-          "voice_design_model": "Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign",
-          "voice_design_revision": "5ecdb67327fd37bb2e042aab12ff7391903235d3",
-          "device": "cuda:0",
-          "dtype": "bfloat16",
-          "attention_backend": "sdpa",
-          "sampling": {
-            "do_sample": true,
-            "repetition_penalty": 1.05,
-            "temperature": 0.9,
-            "top_p": 1.0,
-            "top_k": 50,
-            "subtalker_dosample": true,
-            "subtalker_temperature": 0.9,
-            "subtalker_top_p": 1.0,
-            "subtalker_top_k": 50,
-            "max_new_tokens": 2048
-          },
-          "reference_text": "こんにちは。今日はとても良い天気ですね。"
-        },
-        "realized": {
-          "phase_peak_vram_mib": {
-            "voice_design_load": {
-              "allocated_mib": 3986.726,
-              "reserved_mib": 4112.0
-            },
-            "voice_design_generate": {
-              "allocated_mib": 4078.621,
-              "reserved_mib": 4284.0
-            },
-            "base_load": {
-              "allocated_mib": 4008.5,
-              "reserved_mib": 4134.0
-            },
-            "voice_clone_generate": {
-              "allocated_mib": 4187.553,
-              "reserved_mib": 4674.0
-            }
-          },
-          "seed": 0,
-          "sample_rate_hz": 24000
-        }
-      },
-      "rtf": 6.848843,
-      "loudness": {
-        "i_lufs": -18.02,
-        "tp_dbtp": -0.97,
+        "source": "encoded_opus",
+        "i_lufs": -17.99,
+        "tp_dbtp": -3.71,
         "shortfall": false
       }
     },
@@ -18476,280 +16640,9 @@
       },
       "rtf": 6.663472,
       "loudness": {
+        "source": "encoded_opus",
         "i_lufs": -18.01,
-        "tp_dbtp": -1.89,
-        "shortfall": false
-      }
-    },
-    {
-      "model": "qwen3-tts-12hz-1.7b",
-      "scenario": "west-market",
-      "line": "kyuuji-001",
-      "variant": "dry",
-      "path": "audio/qwen3-tts-12hz-1.7b/west-market/kyuuji-001-dry.opus",
-      "duration_sec": 2.0065,
-      "sha256": "b77a4cf6d7deb618868ed134bc8668b53650b649994dfcefbddc67cd33222e44",
-      "gen_params": {
-        "requested": {
-          "qwen_tts_version": "0.1.1",
-          "base_model": "Qwen/Qwen3-TTS-12Hz-1.7B-Base",
-          "base_revision": "fd4b254389122332181a7c3db7f27e918eec64e3",
-          "voice_design_model": "Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign",
-          "voice_design_revision": "5ecdb67327fd37bb2e042aab12ff7391903235d3",
-          "device": "cuda:0",
-          "dtype": "bfloat16",
-          "attention_backend": "sdpa",
-          "sampling": {
-            "do_sample": true,
-            "repetition_penalty": 1.05,
-            "temperature": 0.9,
-            "top_p": 1.0,
-            "top_k": 50,
-            "subtalker_dosample": true,
-            "subtalker_temperature": 0.9,
-            "subtalker_top_p": 1.0,
-            "subtalker_top_k": 50,
-            "max_new_tokens": 2048
-          },
-          "reference_text": "こんにちは。今日はとても良い天気ですね。"
-        },
-        "realized": {
-          "phase_peak_vram_mib": {
-            "voice_design_load": {
-              "allocated_mib": 3986.726,
-              "reserved_mib": 4112.0
-            },
-            "voice_design_generate": {
-              "allocated_mib": 4078.621,
-              "reserved_mib": 4284.0
-            },
-            "base_load": {
-              "allocated_mib": 4008.5,
-              "reserved_mib": 4134.0
-            },
-            "voice_clone_generate": {
-              "allocated_mib": 4174.313,
-              "reserved_mib": 4674.0
-            }
-          },
-          "seed": 0,
-          "sample_rate_hz": 24000
-        }
-      },
-      "rtf": 6.457294,
-      "loudness": {
-        "i_lufs": -18.13,
-        "tp_dbtp": -1.0,
-        "shortfall": false
-      }
-    },
-    {
-      "model": "qwen3-tts-12hz-1.7b",
-      "scenario": "west-market",
-      "line": "kyuuji-002",
-      "variant": "dry",
-      "path": "audio/qwen3-tts-12hz-1.7b/west-market/kyuuji-002-dry.opus",
-      "duration_sec": 2.0065,
-      "sha256": "420d18f3d44fd70c79d9a336e8b9c88e0cc8bef5a303e4bebdf6ca3ba1cbc283",
-      "gen_params": {
-        "requested": {
-          "qwen_tts_version": "0.1.1",
-          "base_model": "Qwen/Qwen3-TTS-12Hz-1.7B-Base",
-          "base_revision": "fd4b254389122332181a7c3db7f27e918eec64e3",
-          "voice_design_model": "Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign",
-          "voice_design_revision": "5ecdb67327fd37bb2e042aab12ff7391903235d3",
-          "device": "cuda:0",
-          "dtype": "bfloat16",
-          "attention_backend": "sdpa",
-          "sampling": {
-            "do_sample": true,
-            "repetition_penalty": 1.05,
-            "temperature": 0.9,
-            "top_p": 1.0,
-            "top_k": 50,
-            "subtalker_dosample": true,
-            "subtalker_temperature": 0.9,
-            "subtalker_top_p": 1.0,
-            "subtalker_top_k": 50,
-            "max_new_tokens": 2048
-          },
-          "reference_text": "こんにちは。今日はとても良い天気ですね。"
-        },
-        "realized": {
-          "phase_peak_vram_mib": {
-            "voice_design_load": {
-              "allocated_mib": 3986.726,
-              "reserved_mib": 4112.0
-            },
-            "voice_design_generate": {
-              "allocated_mib": 4078.621,
-              "reserved_mib": 4284.0
-            },
-            "base_load": {
-              "allocated_mib": 4008.5,
-              "reserved_mib": 4134.0
-            },
-            "voice_clone_generate": {
-              "allocated_mib": 4174.313,
-              "reserved_mib": 4674.0
-            }
-          },
-          "seed": 0,
-          "sample_rate_hz": 24000
-        }
-      },
-      "rtf": 6.093733,
-      "loudness": {
-        "i_lufs": -18.03,
-        "tp_dbtp": -0.93,
-        "shortfall": false
-      }
-    },
-    {
-      "model": "supertonic-3",
-      "scenario": "market-day",
-      "line": "fruit-vendor-001",
-      "variant": "dry",
-      "path": "audio/supertonic-3/market-day/fruit-vendor-001-dry.opus",
-      "duration_sec": 3.698479,
-      "sha256": "afee965877b3037946d8822436cc2670cdd6993123de9c686e1683e47c460973",
-      "gen_params": {
-        "requested": {
-          "upstream_repository": "supertone-inc/supertonic",
-          "upstream_revision": "7e2804f96016a7028cb1ed627353c61c1e9dd281",
-          "sdk_repository": "supertone-inc/supertonic-py",
-          "sdk_revision": "908a56486e821e833a80530ff0cae3ad0b046fce",
-          "sdk_version": "1.3.1",
-          "weights_repository": "Supertone/supertonic-3",
-          "weights_revision": "724fb5abbf5502583fb520898d45929e62f02c0b",
-          "tts_asset_version": "v1.7.3",
-          "model_root_environment": "GAYA_SUPERTONIC3_ROOT",
-          "model_files": {
-            "LICENSE": {
-              "size": 15007,
-              "sha256": "0d944a9110fed9a9602d60e0423a272903e7bd21ab060490774efc77c2275e9f"
-            },
-            "README.md": {
-              "size": 5390,
-              "sha256": "168fda97edbd2a80167b105ff4a3b62a169bc93fe2611b3a5d04ecf983f62438"
-            },
-            "config.json": {
-              "size": 174,
-              "sha256": "4099082b107a9d4029849ac76b89eca65e03732660969c2babe5bf308c7357f2"
-            },
-            "onnx/duration_predictor.onnx": {
-              "size": 3700147,
-              "sha256": "c3eb91414d5ff8a7a239b7fe9e34e7e2bf8a8140d8375ffb14718b1c639325db"
-            },
-            "onnx/text_encoder.onnx": {
-              "size": 36416150,
-              "sha256": "c7befd5ea8c3119769e8a6c1486c4edc6a3bc8365c67621c881bbb774b9902ff"
-            },
-            "onnx/tts.json": {
-              "size": 8253,
-              "sha256": "42078d3aef1cd43ab43021f3c54f47d2d75ceb4e75f627f118890128b06a0d09"
-            },
-            "onnx/unicode_indexer.json": {
-              "size": 277676,
-              "sha256": "9bf7346e43883a81f8645c81224f786d43c5b57f3641f6e7671a7d6c493cb24f"
-            },
-            "onnx/vector_estimator.onnx": {
-              "size": 256534781,
-              "sha256": "883ac868ea0275ef0e991524dc64f16b3c0376efd7c320af6b53f5b780d7c61c"
-            },
-            "onnx/vocoder.onnx": {
-              "size": 101424195,
-              "sha256": "085de76dd8e8d5836d6ca66826601f615939218f90e519f70ee8a36ed2a4c4ba"
-            },
-            "voice_styles/F1.json": {
-              "size": 292046,
-              "sha256": "bbdec6ee00231c2c742ad05483df5334cab3b52fda3ba38e6a07059c4563dbc2"
-            },
-            "voice_styles/F2.json": {
-              "size": 292423,
-              "sha256": "7c722c6a72707b1a77f035d67f0d1351ba187738e06f7683e8c72b1df3477fc6"
-            },
-            "voice_styles/F3.json": {
-              "size": 290794,
-              "sha256": "12f6ef2573baa2defa1128069cb59f203e3ab67c92af77b42df8a0e3a2f7c6ab"
-            },
-            "voice_styles/F4.json": {
-              "size": 291808,
-              "sha256": "c2fa764c1225a76dfc3e2c73e8aa4f70d9ee48793860eb34c295fff01c2e032b"
-            },
-            "voice_styles/F5.json": {
-              "size": 291479,
-              "sha256": "45966e73316415626cf41a7d1c6f3b4c70dbc1ba2bee5c1978ef0ce33244fc8d"
-            },
-            "voice_styles/M1.json": {
-              "size": 291748,
-              "sha256": "e35604687f5d23694b8e91593a93eec0e4eca6c0b02bb8ed69139ab2ea6b0a5b"
-            },
-            "voice_styles/M2.json": {
-              "size": 292055,
-              "sha256": "b76cbf62bac707c710cf0ae5aba5e31eea1a6339a9734bfae33ab98499534a50"
-            },
-            "voice_styles/M3.json": {
-              "size": 290198,
-              "sha256": "ea1ac35ccb91b0d7ecad533a2fbd0eec10c91513d8951e3b25fbba99954e159b"
-            },
-            "voice_styles/M4.json": {
-              "size": 291522,
-              "sha256": "ca8eefad4fcd989c9379032ff3e50738adc547eeb5e221b82593a6d7b3bac303"
-            },
-            "voice_styles/M5.json": {
-              "size": 291469,
-              "sha256": "dd22b92740314321f8ae11c5e87f8dd60d060f15dd3a632b5adf77f471f77af2"
-            }
-          },
-          "architecture": "supertonic-3",
-          "language_id": "ja",
-          "sample_rate_hz": 44100,
-          "provider": "CPUExecutionProvider",
-          "supertonic_version": "1.3.1",
-          "onnxruntime_version": "1.23.1",
-          "numpy_version": "2.3.3",
-          "soundfile_version": "0.13.1",
-          "seed": 42,
-          "total_steps": 8,
-          "speed": 1.05,
-          "max_chunk_length": 300,
-          "silence_duration_sec": 0.3,
-          "intra_op_num_threads": 10,
-          "inter_op_num_threads": 1,
-          "voice_assignments": {
-            "tavern-night/barmaid": "F2",
-            "tavern-night/drunkard": "M1",
-            "tavern-night/old-regular": "M5",
-            "market-day/fruit-vendor": "M1",
-            "market-day/shopper": "F1",
-            "market-day/street-kid": "F2"
-          },
-          "expression_tags": false,
-          "voice_builder": false,
-          "auto_download": false
-        },
-        "realized": {
-          "seed": 42,
-          "language_id": "ja",
-          "voice_style": "M1",
-          "sample_rate_hz": 44100,
-          "channels": 1,
-          "sample_width_bytes": 2,
-          "returned_duration_sec": 3.643183946609497,
-          "waveform_peak": 0.416607528924942,
-          "onnx_providers": [
-            "CPUExecutionProvider"
-          ],
-          "reading_source": "line.text",
-          "voice_selection_source": "adapter.assignment:market-day/fruit-vendor",
-          "voice_style_sha256": "e35604687f5d23694b8e91593a93eec0e4eca6c0b02bb8ed69139ab2ea6b0a5b"
-        }
-      },
-      "rtf": 0.317108,
-      "loudness": {
-        "i_lufs": -17.97,
-        "tp_dbtp": -1.0,
+        "tp_dbtp": -1.41,
         "shortfall": false
       }
     },
@@ -18896,8 +16789,9 @@
       },
       "rtf": 0.356099,
       "loudness": {
+        "source": "encoded_opus",
         "i_lufs": -17.99,
-        "tp_dbtp": -1.31,
+        "tp_dbtp": -1.15,
         "shortfall": false
       }
     },
@@ -19044,8 +16938,9 @@
       },
       "rtf": 0.28445,
       "loudness": {
-        "i_lufs": -18.01,
-        "tp_dbtp": -1.28,
+        "source": "encoded_opus",
+        "i_lufs": -18.0,
+        "tp_dbtp": -1.22,
         "shortfall": false
       }
     },
@@ -19192,8 +17087,9 @@
       },
       "rtf": 0.335225,
       "loudness": {
-        "i_lufs": -18.0,
-        "tp_dbtp": -1.31,
+        "source": "encoded_opus",
+        "i_lufs": -17.99,
+        "tp_dbtp": -1.38,
         "shortfall": false
       }
     },
@@ -19340,8 +17236,9 @@
       },
       "rtf": 0.437841,
       "loudness": {
-        "i_lufs": -18.01,
-        "tp_dbtp": -4.3,
+        "source": "encoded_opus",
+        "i_lufs": -17.99,
+        "tp_dbtp": -4.49,
         "shortfall": false
       }
     },
@@ -19488,8 +17385,9 @@
       },
       "rtf": 0.454578,
       "loudness": {
-        "i_lufs": -18.01,
-        "tp_dbtp": -4.62,
+        "source": "encoded_opus",
+        "i_lufs": -18.03,
+        "tp_dbtp": -4.65,
         "shortfall": false
       }
     },
@@ -19636,8 +17534,9 @@
       },
       "rtf": 0.361118,
       "loudness": {
-        "i_lufs": -17.99,
-        "tp_dbtp": -1.68,
+        "source": "encoded_opus",
+        "i_lufs": -17.97,
+        "tp_dbtp": -1.79,
         "shortfall": false
       }
     },
@@ -19784,8 +17683,9 @@
       },
       "rtf": 0.309178,
       "loudness": {
-        "i_lufs": -17.99,
-        "tp_dbtp": -1.9,
+        "source": "encoded_opus",
+        "i_lufs": -18.0,
+        "tp_dbtp": -1.83,
         "shortfall": false
       }
     },
@@ -19932,156 +17832,9 @@
       },
       "rtf": 0.305103,
       "loudness": {
-        "i_lufs": -17.99,
-        "tp_dbtp": -1.37,
-        "shortfall": false
-      }
-    },
-    {
-      "model": "supertonic-3",
-      "scenario": "tavern-night",
-      "line": "drunkard-002",
-      "variant": "dry",
-      "path": "audio/supertonic-3/tavern-night/drunkard-002-dry.opus",
-      "duration_sec": 2.444604,
-      "sha256": "312b4eb409617e5e054cbbc48f08f16500faa8809b074ad04cc691d706cddf05",
-      "gen_params": {
-        "requested": {
-          "upstream_repository": "supertone-inc/supertonic",
-          "upstream_revision": "7e2804f96016a7028cb1ed627353c61c1e9dd281",
-          "sdk_repository": "supertone-inc/supertonic-py",
-          "sdk_revision": "908a56486e821e833a80530ff0cae3ad0b046fce",
-          "sdk_version": "1.3.1",
-          "weights_repository": "Supertone/supertonic-3",
-          "weights_revision": "724fb5abbf5502583fb520898d45929e62f02c0b",
-          "tts_asset_version": "v1.7.3",
-          "model_root_environment": "GAYA_SUPERTONIC3_ROOT",
-          "model_files": {
-            "LICENSE": {
-              "size": 15007,
-              "sha256": "0d944a9110fed9a9602d60e0423a272903e7bd21ab060490774efc77c2275e9f"
-            },
-            "README.md": {
-              "size": 5390,
-              "sha256": "168fda97edbd2a80167b105ff4a3b62a169bc93fe2611b3a5d04ecf983f62438"
-            },
-            "config.json": {
-              "size": 174,
-              "sha256": "4099082b107a9d4029849ac76b89eca65e03732660969c2babe5bf308c7357f2"
-            },
-            "onnx/duration_predictor.onnx": {
-              "size": 3700147,
-              "sha256": "c3eb91414d5ff8a7a239b7fe9e34e7e2bf8a8140d8375ffb14718b1c639325db"
-            },
-            "onnx/text_encoder.onnx": {
-              "size": 36416150,
-              "sha256": "c7befd5ea8c3119769e8a6c1486c4edc6a3bc8365c67621c881bbb774b9902ff"
-            },
-            "onnx/tts.json": {
-              "size": 8253,
-              "sha256": "42078d3aef1cd43ab43021f3c54f47d2d75ceb4e75f627f118890128b06a0d09"
-            },
-            "onnx/unicode_indexer.json": {
-              "size": 277676,
-              "sha256": "9bf7346e43883a81f8645c81224f786d43c5b57f3641f6e7671a7d6c493cb24f"
-            },
-            "onnx/vector_estimator.onnx": {
-              "size": 256534781,
-              "sha256": "883ac868ea0275ef0e991524dc64f16b3c0376efd7c320af6b53f5b780d7c61c"
-            },
-            "onnx/vocoder.onnx": {
-              "size": 101424195,
-              "sha256": "085de76dd8e8d5836d6ca66826601f615939218f90e519f70ee8a36ed2a4c4ba"
-            },
-            "voice_styles/F1.json": {
-              "size": 292046,
-              "sha256": "bbdec6ee00231c2c742ad05483df5334cab3b52fda3ba38e6a07059c4563dbc2"
-            },
-            "voice_styles/F2.json": {
-              "size": 292423,
-              "sha256": "7c722c6a72707b1a77f035d67f0d1351ba187738e06f7683e8c72b1df3477fc6"
-            },
-            "voice_styles/F3.json": {
-              "size": 290794,
-              "sha256": "12f6ef2573baa2defa1128069cb59f203e3ab67c92af77b42df8a0e3a2f7c6ab"
-            },
-            "voice_styles/F4.json": {
-              "size": 291808,
-              "sha256": "c2fa764c1225a76dfc3e2c73e8aa4f70d9ee48793860eb34c295fff01c2e032b"
-            },
-            "voice_styles/F5.json": {
-              "size": 291479,
-              "sha256": "45966e73316415626cf41a7d1c6f3b4c70dbc1ba2bee5c1978ef0ce33244fc8d"
-            },
-            "voice_styles/M1.json": {
-              "size": 291748,
-              "sha256": "e35604687f5d23694b8e91593a93eec0e4eca6c0b02bb8ed69139ab2ea6b0a5b"
-            },
-            "voice_styles/M2.json": {
-              "size": 292055,
-              "sha256": "b76cbf62bac707c710cf0ae5aba5e31eea1a6339a9734bfae33ab98499534a50"
-            },
-            "voice_styles/M3.json": {
-              "size": 290198,
-              "sha256": "ea1ac35ccb91b0d7ecad533a2fbd0eec10c91513d8951e3b25fbba99954e159b"
-            },
-            "voice_styles/M4.json": {
-              "size": 291522,
-              "sha256": "ca8eefad4fcd989c9379032ff3e50738adc547eeb5e221b82593a6d7b3bac303"
-            },
-            "voice_styles/M5.json": {
-              "size": 291469,
-              "sha256": "dd22b92740314321f8ae11c5e87f8dd60d060f15dd3a632b5adf77f471f77af2"
-            }
-          },
-          "architecture": "supertonic-3",
-          "language_id": "ja",
-          "sample_rate_hz": 44100,
-          "provider": "CPUExecutionProvider",
-          "supertonic_version": "1.3.1",
-          "onnxruntime_version": "1.23.1",
-          "numpy_version": "2.3.3",
-          "soundfile_version": "0.13.1",
-          "seed": 42,
-          "total_steps": 8,
-          "speed": 1.05,
-          "max_chunk_length": 300,
-          "silence_duration_sec": 0.3,
-          "intra_op_num_threads": 10,
-          "inter_op_num_threads": 1,
-          "voice_assignments": {
-            "tavern-night/barmaid": "F2",
-            "tavern-night/drunkard": "M1",
-            "tavern-night/old-regular": "M5",
-            "market-day/fruit-vendor": "M1",
-            "market-day/shopper": "F1",
-            "market-day/street-kid": "F2"
-          },
-          "expression_tags": false,
-          "voice_builder": false,
-          "auto_download": false
-        },
-        "realized": {
-          "seed": 42,
-          "language_id": "ja",
-          "voice_style": "M1",
-          "sample_rate_hz": 44100,
-          "channels": 1,
-          "sample_width_bytes": 2,
-          "returned_duration_sec": 2.3839540481567383,
-          "waveform_peak": 0.42515408992767334,
-          "onnx_providers": [
-            "CPUExecutionProvider"
-          ],
-          "reading_source": "line.text",
-          "voice_selection_source": "adapter.assignment:tavern-night/drunkard",
-          "voice_style_sha256": "e35604687f5d23694b8e91593a93eec0e4eca6c0b02bb8ed69139ab2ea6b0a5b"
-        }
-      },
-      "rtf": 0.359083,
-      "loudness": {
-        "i_lufs": -18.02,
-        "tp_dbtp": -1.0,
+        "source": "encoded_opus",
+        "i_lufs": -17.97,
+        "tp_dbtp": -1.16,
         "shortfall": false
       }
     },
@@ -20228,8 +17981,9 @@
       },
       "rtf": 0.362351,
       "loudness": {
-        "i_lufs": -18.0,
-        "tp_dbtp": -3.65,
+        "source": "encoded_opus",
+        "i_lufs": -17.99,
+        "tp_dbtp": -3.6,
         "shortfall": false
       }
     },
@@ -20376,8 +18130,9 @@
       },
       "rtf": 0.36098,
       "loudness": {
-        "i_lufs": -18.04,
-        "tp_dbtp": -1.0,
+        "source": "encoded_opus",
+        "i_lufs": -18.03,
+        "tp_dbtp": -0.99,
         "shortfall": false
       }
     },
@@ -20499,8 +18254,9 @@
       },
       "rtf": 3.328868,
       "loudness": {
-        "i_lufs": -17.99,
-        "tp_dbtp": -5.63,
+        "source": "encoded_opus",
+        "i_lufs": -18.03,
+        "tp_dbtp": -5.38,
         "shortfall": false
       }
     },
@@ -20622,8 +18378,9 @@
       },
       "rtf": 2.733468,
       "loudness": {
-        "i_lufs": -18.02,
-        "tp_dbtp": -0.98,
+        "source": "encoded_opus",
+        "i_lufs": -18.04,
+        "tp_dbtp": -0.94,
         "shortfall": false
       }
     },
@@ -20745,8 +18502,9 @@
       },
       "rtf": 2.481976,
       "loudness": {
-        "i_lufs": -18.0,
-        "tp_dbtp": -2.7,
+        "source": "encoded_opus",
+        "i_lufs": -18.02,
+        "tp_dbtp": -3.02,
         "shortfall": false
       }
     },
@@ -20868,9 +18626,10 @@
       },
       "rtf": 2.408495,
       "loudness": {
-        "i_lufs": -17.99,
-        "tp_dbtp": -2.18,
-        "shortfall": false
+        "source": "encoded_opus",
+        "i_lufs": -18.22,
+        "tp_dbtp": -2.32,
+        "shortfall": true
       }
     },
     {
@@ -20991,8 +18750,9 @@
       },
       "rtf": 2.382255,
       "loudness": {
-        "i_lufs": -18.0,
-        "tp_dbtp": -4.21,
+        "source": "encoded_opus",
+        "i_lufs": -17.99,
+        "tp_dbtp": -4.04,
         "shortfall": false
       }
     },
@@ -21114,8 +18874,9 @@
       },
       "rtf": 2.456161,
       "loudness": {
-        "i_lufs": -18.0,
-        "tp_dbtp": -3.13,
+        "source": "encoded_opus",
+        "i_lufs": -18.01,
+        "tp_dbtp": -3.07,
         "shortfall": false
       }
     },
@@ -21233,8 +18994,9 @@
       },
       "rtf": 11.828529,
       "loudness": {
-        "i_lufs": -17.99,
-        "tp_dbtp": -5.02,
+        "source": "encoded_opus",
+        "i_lufs": -17.98,
+        "tp_dbtp": -4.82,
         "shortfall": false
       }
     },
@@ -21352,8 +19114,9 @@
       },
       "rtf": 2.965945,
       "loudness": {
-        "i_lufs": -17.99,
-        "tp_dbtp": -1.94,
+        "source": "encoded_opus",
+        "i_lufs": -18.01,
+        "tp_dbtp": -1.99,
         "shortfall": false
       }
     },
@@ -21475,8 +19238,9 @@
       },
       "rtf": 2.547183,
       "loudness": {
-        "i_lufs": -18.0,
-        "tp_dbtp": -1.81,
+        "source": "encoded_opus",
+        "i_lufs": -18.01,
+        "tp_dbtp": -1.6,
         "shortfall": false
       }
     },
@@ -21598,8 +19362,9 @@
       },
       "rtf": 2.721138,
       "loudness": {
+        "source": "encoded_opus",
         "i_lufs": -18.01,
-        "tp_dbtp": -1.75,
+        "tp_dbtp": -1.9,
         "shortfall": false
       }
     },
@@ -21721,8 +19486,9 @@
       },
       "rtf": 2.558819,
       "loudness": {
+        "source": "encoded_opus",
         "i_lufs": -18.01,
-        "tp_dbtp": -2.84,
+        "tp_dbtp": -2.74,
         "shortfall": false
       }
     },
@@ -21844,17 +19610,235 @@
       },
       "rtf": 2.49484,
       "loudness": {
+        "source": "encoded_opus",
         "i_lufs": -18.0,
-        "tp_dbtp": -1.89,
+        "tp_dbtp": -1.78,
         "shortfall": false
       }
     }
   ],
   "failures": [
     {
+      "model": "chatterbox-multilingual-v3",
+      "scenario": "market-day",
+      "line": "shopper-001",
+      "variant": "dry",
+      "reason": "generation_failed"
+    },
+    {
+      "model": "chatterbox-multilingual-v3",
+      "scenario": "tavern-night",
+      "line": "barmaid-002",
+      "variant": "dry",
+      "reason": "generation_failed"
+    },
+    {
+      "model": "chatterbox-multilingual-v3",
+      "scenario": "tavern-night",
+      "line": "old-regular-002",
+      "variant": "dry",
+      "reason": "generation_failed"
+    },
+    {
+      "model": "cosyvoice3-0.5b-2512",
+      "scenario": "market-day",
+      "line": "shopper-001",
+      "variant": "dry",
+      "reason": "generation_failed"
+    },
+    {
+      "model": "cosyvoice3-0.5b-2512",
+      "scenario": "tavern-night",
+      "line": "drunkard-001",
+      "variant": "dry",
+      "reason": "generation_failed"
+    },
+    {
+      "model": "cosyvoice3-0.5b-2512",
+      "scenario": "tavern-night",
+      "line": "old-regular-001",
+      "variant": "dry",
+      "reason": "generation_failed"
+    },
+    {
+      "model": "gpt-sovits-v2-pro-plus",
+      "scenario": "market-day",
+      "line": "shopper-001",
+      "variant": "dry",
+      "reason": "generation_failed"
+    },
+    {
+      "model": "qwen3-tts-12hz-1.7b",
+      "scenario": "battlefield-camp",
+      "line": "medic-001",
+      "variant": "dry",
+      "reason": "generation_failed"
+    },
+    {
+      "model": "qwen3-tts-12hz-1.7b",
+      "scenario": "battlefield-camp",
+      "line": "medic-004",
+      "variant": "dry",
+      "reason": "generation_failed"
+    },
+    {
+      "model": "qwen3-tts-12hz-1.7b",
+      "scenario": "battlefield-camp",
+      "line": "wounded-001",
+      "variant": "dry",
+      "reason": "generation_failed"
+    },
+    {
+      "model": "qwen3-tts-12hz-1.7b",
+      "scenario": "castle-gate",
+      "line": "guard-onna-003",
+      "variant": "dry",
+      "reason": "generation_failed"
+    },
+    {
+      "model": "qwen3-tts-12hz-1.7b",
+      "scenario": "chinatown-chat",
+      "line": "kanpo-shujin-002",
+      "variant": "dry",
+      "reason": "generation_failed"
+    },
+    {
+      "model": "qwen3-tts-12hz-1.7b",
+      "scenario": "clockwork-plaza",
+      "line": "fortune-doll-002",
+      "variant": "dry",
+      "reason": "generation_failed"
+    },
+    {
+      "model": "qwen3-tts-12hz-1.7b",
+      "scenario": "clockwork-plaza",
+      "line": "vendor-doll-002",
+      "variant": "dry",
+      "reason": "generation_failed"
+    },
+    {
+      "model": "qwen3-tts-12hz-1.7b",
+      "scenario": "festival-night",
+      "line": "matsuri-wakamono-003",
+      "variant": "dry",
+      "reason": "generation_failed"
+    },
+    {
+      "model": "qwen3-tts-12hz-1.7b",
+      "scenario": "goblin-camp",
+      "line": "goblin-lookout-002",
+      "variant": "dry",
+      "reason": "generation_failed"
+    },
+    {
+      "model": "qwen3-tts-12hz-1.7b",
+      "scenario": "guild-hall",
+      "line": "receptionist-001",
+      "variant": "dry",
+      "reason": "generation_failed"
+    },
+    {
+      "model": "qwen3-tts-12hz-1.7b",
+      "scenario": "guild-hall",
+      "line": "veteran-001",
+      "variant": "dry",
+      "reason": "generation_failed"
+    },
+    {
+      "model": "qwen3-tts-12hz-1.7b",
+      "scenario": "guild-hall",
+      "line": "veteran-002",
+      "variant": "dry",
+      "reason": "generation_failed"
+    },
+    {
+      "model": "qwen3-tts-12hz-1.7b",
+      "scenario": "spirit-forest",
+      "line": "elder-tree-002",
+      "variant": "dry",
+      "reason": "generation_failed"
+    },
+    {
       "model": "qwen3-tts-12hz-1.7b",
       "scenario": "spirit-forest",
       "line": "spring-sprite-002",
+      "variant": "dry",
+      "reason": "generation_failed"
+    },
+    {
+      "model": "qwen3-tts-12hz-1.7b",
+      "scenario": "village-morning",
+      "line": "farm-wife-002",
+      "variant": "dry",
+      "reason": "generation_failed"
+    },
+    {
+      "model": "qwen3-tts-12hz-1.7b",
+      "scenario": "village-morning",
+      "line": "farmer-man-002",
+      "variant": "dry",
+      "reason": "generation_failed"
+    },
+    {
+      "model": "qwen3-tts-12hz-1.7b",
+      "scenario": "village-morning",
+      "line": "granny-004",
+      "variant": "dry",
+      "reason": "generation_failed"
+    },
+    {
+      "model": "qwen3-tts-12hz-1.7b",
+      "scenario": "village-morning",
+      "line": "teen-boy-002",
+      "variant": "dry",
+      "reason": "generation_failed"
+    },
+    {
+      "model": "qwen3-tts-12hz-1.7b",
+      "scenario": "village-morning",
+      "line": "teen-boy-004",
+      "variant": "dry",
+      "reason": "generation_failed"
+    },
+    {
+      "model": "qwen3-tts-12hz-1.7b",
+      "scenario": "west-market",
+      "line": "kankou-fujin-001",
+      "variant": "dry",
+      "reason": "generation_failed"
+    },
+    {
+      "model": "qwen3-tts-12hz-1.7b",
+      "scenario": "west-market",
+      "line": "kankou-fujin-002",
+      "variant": "dry",
+      "reason": "generation_failed"
+    },
+    {
+      "model": "qwen3-tts-12hz-1.7b",
+      "scenario": "west-market",
+      "line": "kyuuji-001",
+      "variant": "dry",
+      "reason": "generation_failed"
+    },
+    {
+      "model": "qwen3-tts-12hz-1.7b",
+      "scenario": "west-market",
+      "line": "kyuuji-002",
+      "variant": "dry",
+      "reason": "generation_failed"
+    },
+    {
+      "model": "supertonic-3",
+      "scenario": "market-day",
+      "line": "fruit-vendor-001",
+      "variant": "dry",
+      "reason": "generation_failed"
+    },
+    {
+      "model": "supertonic-3",
+      "scenario": "tavern-night",
+      "line": "drunkard-002",
       "variant": "dry",
       "reason": "generation_failed"
     }

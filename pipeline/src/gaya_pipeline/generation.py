@@ -15,10 +15,11 @@ from gaya_pipeline.adapters.base import Adapter, LineJob
 from gaya_pipeline.audio import (
     AudioProcessingError,
     AudioTools,
-    LoudnessReport,
+    EncodedLoudnessReport,
     PostprocessProfile,
     encode_opus,
     find_audio_tools,
+    measure_encoded_opus,
     normalize_wav,
     probe_audio,
 )
@@ -371,7 +372,7 @@ def _process_job(
                 "adapter 出力は PCM WAV である必要があります。",
             )
         rtf = generation_seconds / source_probe.duration_sec
-        loudness = normalize_wav(
+        normalized_loudness = normalize_wav(
             tools,
             source_wav,
             pending_wav,
@@ -393,13 +394,18 @@ def _process_job(
             or opus_probe.channels != profile.channels
         ):
             raise GenerationError("Opus の形式が profile と一致しません。")
+        encoded_loudness = measure_encoded_opus(
+            tools,
+            pending_opus,
+            profile,
+        )
 
         gen_params = {
             "requested": requested_params,
             "realized": realized_params,
         }
         metadata = {
-            "format_version": 1,
+            "format_version": 2,
             "model": adapter.profile.id,
             "scenario": job.scenario_id,
             "line": job.line_id,
@@ -412,7 +418,10 @@ def _process_job(
             "rtf": round(rtf, 6),
             "gen_params": gen_params,
             "postprocess": profile.as_dict(),
-            "loudness": loudness.as_dict(),
+            "loudness": {
+                "normalized_wav": normalized_loudness.as_dict(),
+                "encoded_opus": encoded_loudness.as_dict(),
+            },
         }
         pending_metadata.write_text(
             json.dumps(metadata, ensure_ascii=False, indent=2) + "\n",
@@ -544,8 +553,8 @@ def _metadata_matches(
 
 def _validate_metadata(metadata: Any, path: Path) -> None:
     if not isinstance(metadata, dict) or set(metadata) != METADATA_KEYS:
-        raise GenerationError(f"生成メタの項目が v1 と一致しません: {path}")
-    if metadata["format_version"] != 1:
+        raise GenerationError(f"生成メタの項目が v2 と一致しません: {path}")
+    if metadata["format_version"] != 2:
         raise GenerationError(f"生成メタの format_version が不正です: {path}")
     for key in (
         "model",
@@ -584,24 +593,47 @@ def _validate_metadata(metadata: Any, path: Path) -> None:
     loudness = metadata["loudness"]
     if (
         not isinstance(loudness, dict)
-        or set(loudness)
+        or set(loudness) != {"normalized_wav", "encoded_opus"}
+    ):
+        raise GenerationError(f"生成メタの loudness が不正です: {path}")
+    normalized_loudness = loudness["normalized_wav"]
+    if (
+        not isinstance(normalized_loudness, dict)
+        or set(normalized_loudness)
         != {
             "integrated_lufs",
             "true_peak_dbtp",
             "loudness_range_lu",
             "normalization_type",
         }
-        or loudness["normalization_type"] not in {"linear", "dynamic"}
+        or normalized_loudness["normalization_type"] not in {"linear", "dynamic"}
     ):
-        raise GenerationError(f"生成メタの loudness が不正です: {path}")
-    for key in ("integrated_lufs", "true_peak_dbtp", "loudness_range_lu"):
-        value = loudness[key]
-        if (
-            isinstance(value, bool)
-            or not isinstance(value, (int, float))
-            or not math.isfinite(value)
-        ):
-            raise GenerationError(f"生成メタの loudness が不正です: {path}")
+        raise GenerationError(f"生成メタの loudness.normalized_wav が不正です: {path}")
+    encoded_loudness = loudness["encoded_opus"]
+    if (
+        not isinstance(encoded_loudness, dict)
+        or set(encoded_loudness)
+        != {
+            "integrated_lufs",
+            "true_peak_dbtp",
+            "loudness_range_lu",
+        }
+    ):
+        raise GenerationError(f"生成メタの loudness.encoded_opus が不正です: {path}")
+    for stage, report in (
+        ("normalized_wav", normalized_loudness),
+        ("encoded_opus", encoded_loudness),
+    ):
+        for key in ("integrated_lufs", "true_peak_dbtp", "loudness_range_lu"):
+            value = report[key]
+            if (
+                isinstance(value, bool)
+                or not isinstance(value, (int, float))
+                or not math.isfinite(value)
+            ):
+                raise GenerationError(
+                    f"生成メタの loudness.{stage}.{key} が不正です: {path}"
+                )
 
 
 def _record_and_clip_from_metadata(
@@ -618,11 +650,11 @@ def _record_and_clip_from_metadata(
         duration_sec = float(metadata["duration_sec"])
         opus_sha256 = str(metadata["opus_sha256"])
         gen_params = metadata["gen_params"]
-        loudness = LoudnessReport(
-            integrated_lufs=float(metadata["loudness"]["integrated_lufs"]),
-            true_peak_dbtp=float(metadata["loudness"]["true_peak_dbtp"]),
-            loudness_range_lu=float(metadata["loudness"]["loudness_range_lu"]),
-            normalization_type=str(metadata["loudness"]["normalization_type"]),
+        encoded_loudness = metadata["loudness"]["encoded_opus"]
+        loudness = EncodedLoudnessReport(
+            integrated_lufs=float(encoded_loudness["integrated_lufs"]),
+            true_peak_dbtp=float(encoded_loudness["true_peak_dbtp"]),
+            loudness_range_lu=float(encoded_loudness["loudness_range_lu"]),
         )
     except (KeyError, TypeError, ValueError) as error:
         raise GenerationError("生成メタに必要な項目がありません。") from error
