@@ -147,12 +147,19 @@ def test_dummy_two_scenario_e2e_and_idempotency(
     for metadata_path in metadata_files:
         metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
         assert metadata["format_version"] == 2
+        profile = PostprocessProfile()
+        assert metadata["postprocess"] == profile.as_dict()
+        assert "true_peak_dbtp" not in metadata["postprocess"]
         loudness = metadata["loudness"]
         assert set(loudness) == {"normalized_wav", "encoded_opus"}
         assert loudness["normalized_wav"]["normalization_type"] in {
             "linear",
             "dynamic",
         }
+        assert (
+            loudness["normalized_wav"]["true_peak_dbtp"]
+            <= profile.pre_encode_true_peak_target_dbtp + 0.1
+        )
         assert set(loudness["encoded_opus"]) == {
             "integrated_lufs",
             "true_peak_dbtp",
@@ -162,7 +169,10 @@ def test_dummy_two_scenario_e2e_and_idempotency(
             -18.0,
             abs=0.2,
         )
-        assert loudness["encoded_opus"]["true_peak_dbtp"] <= -0.9
+        assert (
+            loudness["encoded_opus"]["true_peak_dbtp"]
+            <= profile.distribution_true_peak_max_dbtp
+        )
 
     tracked_outputs = [manifest_path, *wav_files, *opus_files, *metadata_files]
     mtimes = {path: path.stat().st_mtime_ns for path in tracked_outputs}
@@ -460,7 +470,8 @@ def test_postprocess_algorithm_version_invalidates_cached_audio(
         artifacts_dir / "audio" / "dummy" / "tavern-night" / "barmaid-001-dry.json"
     )
     metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
-    assert metadata["postprocess"]["algorithm_version"] == 6
+    assert metadata["postprocess"] == PostprocessProfile().as_dict()
+    assert metadata["postprocess"]["algorithm_version"] == 7
 
 
 def test_force_regeneration_preserves_opus_hash(tmp_path: Path) -> None:

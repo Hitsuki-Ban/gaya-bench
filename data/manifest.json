@@ -1,6 +1,6 @@
 {
   "format_version": 3,
-  "generated_at": "2026-07-28T17:21:05.075175+00:00",
+  "generated_at": "2026-07-28T18:00:38.016334+00:00",
   "models": [
     {
       "id": "chatterbox-multilingual-v3",
@@ -302,6 +302,116 @@
         "source": "encoded_opus",
         "i_lufs": -17.98,
         "tp_dbtp": -1.39,
+        "shortfall": false
+      }
+    },
+    {
+      "model": "chatterbox-multilingual-v3",
+      "scenario": "market-day",
+      "line": "shopper-001",
+      "variant": "dry",
+      "path": "audio/chatterbox-multilingual-v3/market-day/shopper-001-dry.opus",
+      "duration_sec": 2.4065,
+      "sha256": "5101200207634cca43d0e10dead9d24d6d379755a7cc91251eb4fc7c99776b69",
+      "gen_params": {
+        "requested": {
+          "upstream_repository": "resemble-ai/chatterbox",
+          "upstream_revision": "65b18437192794391a0308a8f705b1e33e633948",
+          "weights_repository": "ResembleAI/chatterbox",
+          "weights_revision": "5bb1f6ee58e50c3b8d408bc82a6d3740c2db6e18",
+          "perth_repository": "resemble-ai/Perth",
+          "perth_revision": "ce86c49d029f42272c1902eccb675556b9ed2330",
+          "model_root_environment": "GAYA_CHATTERBOX_ROOT",
+          "model_files": {
+            "Cangjie5_TC.json": {
+              "size": 1920163,
+              "sha256": "7073fd9de919443ae88e0bd2449917a65fe54898a4413ed1edcc4b67f28bce8c"
+            },
+            "grapheme_mtl_merged_expanded_v1.json": {
+              "size": 69989,
+              "sha256": "69632f47220a788a52ce2661d096453c5655e9bf25289d89a8d832c46ee07dbf"
+            },
+            "s3gen.pt": {
+              "size": 1057165844,
+              "sha256": "9b9ff07e60b20c136e2b1b3d7563a24604e8d2c4c267888d1ee929dd0151d2a3"
+            },
+            "t3_mtl23ls_v3.safetensors": {
+              "size": 2143989928,
+              "sha256": "5abca8321ede76f8e61f1cc0d19aea6c946b28871017ce8726f8a69203f05953"
+            },
+            "ve.pt": {
+              "size": 5698626,
+              "sha256": "4b16d836bc598509860f6fa068165a8bb5e9ac84f05582dfcf278a5a372879f1"
+            }
+          },
+          "perth_checkpoint": {
+            "path": "perth_net/pretrained/implicit/perth_net_250000.pth.tar",
+            "size": 37429684,
+            "sha256": "a15bce457ebc53ce5e6c9c3f11df78cf7ee2bf9cdab0a798902135b4c4027670"
+          },
+          "architecture": "chatterbox-multilingual-v3",
+          "t3_model": "v3",
+          "language_id": "ja",
+          "device": "cuda:0",
+          "dtype": "float32",
+          "sample_rate_hz": 24000,
+          "chatterbox_version": "0.1.7",
+          "perth_version": "1.0.1",
+          "torch_version": "2.6.0+cu126",
+          "torchaudio_version": "2.6.0+cu126",
+          "cuda_version": "12.6",
+          "transformers_version": "5.2.0",
+          "diffusers_version": "0.29.0",
+          "pykakasi_version": "2.3.0",
+          "safetensors_version": "0.5.3",
+          "s3tokenizer_version": "0.3.0",
+          "seed": 42,
+          "cfg_weight": 0.5,
+          "temperature": 0.8,
+          "repetition_penalty": 1.2,
+          "min_p": 0.05,
+          "top_p": 1.0,
+          "exaggeration_by_intensity": {
+            "1": 0.3,
+            "2": 0.5,
+            "3": 0.8
+          },
+          "emotion_control": "exaggeration_only",
+          "perth_watermark": true
+        },
+        "realized": {
+          "phase_peak_vram_mib": {
+            "runtime_load": {
+              "allocated_mib": 3074.6845703125,
+              "reserved_mib": 3094.0
+            },
+            "generation": {
+              "allocated_mib": 3700.57080078125,
+              "reserved_mib": 3776.0
+            }
+          },
+          "seed": 42,
+          "sample_rate_hz": 24000,
+          "language_id": "ja",
+          "line_emotion_audit": "neutral",
+          "intensity": 2,
+          "exaggeration": 0.5,
+          "reference_selection_source": "adapter.assignment:market-day/shopper",
+          "reference_voice": "lux-emotion-76",
+          "reference_sha256": "432de3f3fb40c5838a80e5fb509977176352a8db03a10e8fb37cca1e83bcc4b5",
+          "perth_watermark_stage_executed": true,
+          "postprocess_recovery": {
+            "mode": "stored_normalized_wav-reprocess-v1",
+            "source_input_hash": "0e26546ad90cee985910aa17f631c63e6420e51f7fd0d20b370e5fa3e20d803c",
+            "source_wav_sha256": "adad7250ac831a1510ccb0c213f4a93f1b8d07609470915da94ecd6334d38042"
+          }
+        }
+      },
+      "rtf": 2.021525,
+      "loudness": {
+        "source": "encoded_opus",
+        "i_lufs": -18.18,
+        "tp_dbtp": -1.37,
         "shortfall": false
       }
     },
@@ -728,6 +838,116 @@
     {
       "model": "chatterbox-multilingual-v3",
       "scenario": "tavern-night",
+      "line": "barmaid-002",
+      "variant": "dry",
+      "path": "audio/chatterbox-multilingual-v3/tavern-night/barmaid-002-dry.opus",
+      "duration_sec": 3.4865,
+      "sha256": "6484581539160553536ee583a2161673d45d1529a1a1bdad22a4efe66bc6ac5c",
+      "gen_params": {
+        "requested": {
+          "upstream_repository": "resemble-ai/chatterbox",
+          "upstream_revision": "65b18437192794391a0308a8f705b1e33e633948",
+          "weights_repository": "ResembleAI/chatterbox",
+          "weights_revision": "5bb1f6ee58e50c3b8d408bc82a6d3740c2db6e18",
+          "perth_repository": "resemble-ai/Perth",
+          "perth_revision": "ce86c49d029f42272c1902eccb675556b9ed2330",
+          "model_root_environment": "GAYA_CHATTERBOX_ROOT",
+          "model_files": {
+            "Cangjie5_TC.json": {
+              "size": 1920163,
+              "sha256": "7073fd9de919443ae88e0bd2449917a65fe54898a4413ed1edcc4b67f28bce8c"
+            },
+            "grapheme_mtl_merged_expanded_v1.json": {
+              "size": 69989,
+              "sha256": "69632f47220a788a52ce2661d096453c5655e9bf25289d89a8d832c46ee07dbf"
+            },
+            "s3gen.pt": {
+              "size": 1057165844,
+              "sha256": "9b9ff07e60b20c136e2b1b3d7563a24604e8d2c4c267888d1ee929dd0151d2a3"
+            },
+            "t3_mtl23ls_v3.safetensors": {
+              "size": 2143989928,
+              "sha256": "5abca8321ede76f8e61f1cc0d19aea6c946b28871017ce8726f8a69203f05953"
+            },
+            "ve.pt": {
+              "size": 5698626,
+              "sha256": "4b16d836bc598509860f6fa068165a8bb5e9ac84f05582dfcf278a5a372879f1"
+            }
+          },
+          "perth_checkpoint": {
+            "path": "perth_net/pretrained/implicit/perth_net_250000.pth.tar",
+            "size": 37429684,
+            "sha256": "a15bce457ebc53ce5e6c9c3f11df78cf7ee2bf9cdab0a798902135b4c4027670"
+          },
+          "architecture": "chatterbox-multilingual-v3",
+          "t3_model": "v3",
+          "language_id": "ja",
+          "device": "cuda:0",
+          "dtype": "float32",
+          "sample_rate_hz": 24000,
+          "chatterbox_version": "0.1.7",
+          "perth_version": "1.0.1",
+          "torch_version": "2.6.0+cu126",
+          "torchaudio_version": "2.6.0+cu126",
+          "cuda_version": "12.6",
+          "transformers_version": "5.2.0",
+          "diffusers_version": "0.29.0",
+          "pykakasi_version": "2.3.0",
+          "safetensors_version": "0.5.3",
+          "s3tokenizer_version": "0.3.0",
+          "seed": 42,
+          "cfg_weight": 0.5,
+          "temperature": 0.8,
+          "repetition_penalty": 1.2,
+          "min_p": 0.05,
+          "top_p": 1.0,
+          "exaggeration_by_intensity": {
+            "1": 0.3,
+            "2": 0.5,
+            "3": 0.8
+          },
+          "emotion_control": "exaggeration_only",
+          "perth_watermark": true
+        },
+        "realized": {
+          "phase_peak_vram_mib": {
+            "runtime_load": {
+              "allocated_mib": 3074.6845703125,
+              "reserved_mib": 3094.0
+            },
+            "generation": {
+              "allocated_mib": 3512.88330078125,
+              "reserved_mib": 3622.0
+            }
+          },
+          "seed": 42,
+          "sample_rate_hz": 24000,
+          "language_id": "ja",
+          "line_emotion_audit": "angry",
+          "intensity": 2,
+          "exaggeration": 0.5,
+          "reference_selection_source": "character.reference_voice",
+          "reference_voice": "amitaro-countdown",
+          "reference_sha256": "fdc3ffc571a329250168b9b228e9ebfa660d885677e19bc5547b9a6dbe7509eb",
+          "perth_watermark_stage_executed": true,
+          "postprocess_recovery": {
+            "mode": "stored_normalized_wav-reprocess-v1",
+            "source_input_hash": "cdbd8e9c1f1ee7752a22c59988ccd5ba0fe6984560a2c9b9327d6b0d5faf6e37",
+            "source_wav_sha256": "a2cf793c9f7c2e71aac36ca3ecbc482de41e5ff0b4056f156df7bfb80c0492ff"
+          }
+        }
+      },
+      "rtf": 12.895689,
+      "loudness": {
+        "source": "encoded_opus",
+        "i_lufs": -17.99,
+        "tp_dbtp": -1.63,
+        "shortfall": false
+      }
+    },
+    {
+      "model": "chatterbox-multilingual-v3",
+      "scenario": "tavern-night",
       "line": "drunkard-001",
       "variant": "dry",
       "path": "audio/chatterbox-multilingual-v3/tavern-night/drunkard-001-dry.opus",
@@ -1037,6 +1257,116 @@
         "source": "encoded_opus",
         "i_lufs": -18.01,
         "tp_dbtp": -3.34,
+        "shortfall": false
+      }
+    },
+    {
+      "model": "chatterbox-multilingual-v3",
+      "scenario": "tavern-night",
+      "line": "old-regular-002",
+      "variant": "dry",
+      "path": "audio/chatterbox-multilingual-v3/tavern-night/old-regular-002-dry.opus",
+      "duration_sec": 3.0865,
+      "sha256": "d7028375c7e4d0fd2c73367e546eaff2392718396e05bd244553b0c88f0f8ec4",
+      "gen_params": {
+        "requested": {
+          "upstream_repository": "resemble-ai/chatterbox",
+          "upstream_revision": "65b18437192794391a0308a8f705b1e33e633948",
+          "weights_repository": "ResembleAI/chatterbox",
+          "weights_revision": "5bb1f6ee58e50c3b8d408bc82a6d3740c2db6e18",
+          "perth_repository": "resemble-ai/Perth",
+          "perth_revision": "ce86c49d029f42272c1902eccb675556b9ed2330",
+          "model_root_environment": "GAYA_CHATTERBOX_ROOT",
+          "model_files": {
+            "Cangjie5_TC.json": {
+              "size": 1920163,
+              "sha256": "7073fd9de919443ae88e0bd2449917a65fe54898a4413ed1edcc4b67f28bce8c"
+            },
+            "grapheme_mtl_merged_expanded_v1.json": {
+              "size": 69989,
+              "sha256": "69632f47220a788a52ce2661d096453c5655e9bf25289d89a8d832c46ee07dbf"
+            },
+            "s3gen.pt": {
+              "size": 1057165844,
+              "sha256": "9b9ff07e60b20c136e2b1b3d7563a24604e8d2c4c267888d1ee929dd0151d2a3"
+            },
+            "t3_mtl23ls_v3.safetensors": {
+              "size": 2143989928,
+              "sha256": "5abca8321ede76f8e61f1cc0d19aea6c946b28871017ce8726f8a69203f05953"
+            },
+            "ve.pt": {
+              "size": 5698626,
+              "sha256": "4b16d836bc598509860f6fa068165a8bb5e9ac84f05582dfcf278a5a372879f1"
+            }
+          },
+          "perth_checkpoint": {
+            "path": "perth_net/pretrained/implicit/perth_net_250000.pth.tar",
+            "size": 37429684,
+            "sha256": "a15bce457ebc53ce5e6c9c3f11df78cf7ee2bf9cdab0a798902135b4c4027670"
+          },
+          "architecture": "chatterbox-multilingual-v3",
+          "t3_model": "v3",
+          "language_id": "ja",
+          "device": "cuda:0",
+          "dtype": "float32",
+          "sample_rate_hz": 24000,
+          "chatterbox_version": "0.1.7",
+          "perth_version": "1.0.1",
+          "torch_version": "2.6.0+cu126",
+          "torchaudio_version": "2.6.0+cu126",
+          "cuda_version": "12.6",
+          "transformers_version": "5.2.0",
+          "diffusers_version": "0.29.0",
+          "pykakasi_version": "2.3.0",
+          "safetensors_version": "0.5.3",
+          "s3tokenizer_version": "0.3.0",
+          "seed": 42,
+          "cfg_weight": 0.5,
+          "temperature": 0.8,
+          "repetition_penalty": 1.2,
+          "min_p": 0.05,
+          "top_p": 1.0,
+          "exaggeration_by_intensity": {
+            "1": 0.3,
+            "2": 0.5,
+            "3": 0.8
+          },
+          "emotion_control": "exaggeration_only",
+          "perth_watermark": true
+        },
+        "realized": {
+          "phase_peak_vram_mib": {
+            "runtime_load": {
+              "allocated_mib": 3074.6845703125,
+              "reserved_mib": 3094.0
+            },
+            "generation": {
+              "allocated_mib": 3701.77197265625,
+              "reserved_mib": 3794.0
+            }
+          },
+          "seed": 42,
+          "sample_rate_hz": 24000,
+          "language_id": "ja",
+          "line_emotion_audit": "laughing",
+          "intensity": 1,
+          "exaggeration": 0.3,
+          "reference_selection_source": "adapter.assignment:tavern-night/old-regular",
+          "reference_voice": "hadou-emotion-11",
+          "reference_sha256": "e98033d63f847c4113d8b47e264bca82f38212519da8d62661133847b3d221bc",
+          "perth_watermark_stage_executed": true,
+          "postprocess_recovery": {
+            "mode": "stored_normalized_wav-reprocess-v1",
+            "source_input_hash": "afc19aeaf11e4a477a2a60e63ce10757075ca6b0fd93b4668eda5453405208a5",
+            "source_wav_sha256": "1dac8579551c4e486ed622d004e728029ebafdd0a93345b6fc2a2e37a3d06b70"
+          }
+        }
+      },
+      "rtf": 1.945701,
+      "loudness": {
+        "source": "encoded_opus",
+        "i_lufs": -17.95,
+        "tp_dbtp": -1.66,
         "shortfall": false
       }
     },
@@ -1387,6 +1717,186 @@
         "source": "encoded_opus",
         "i_lufs": -18.0,
         "tp_dbtp": -3.18,
+        "shortfall": false
+      }
+    },
+    {
+      "model": "cosyvoice3-0.5b-2512",
+      "scenario": "market-day",
+      "line": "shopper-001",
+      "variant": "dry",
+      "path": "audio/cosyvoice3-0.5b-2512/market-day/shopper-001-dry.opus",
+      "duration_sec": 9.4865,
+      "sha256": "718a4796f094079dff1c9fec710a0e81c06381fc6a2220dc392e75b954bd3270",
+      "gen_params": {
+        "requested": {
+          "upstream_repository": "QwenAudio/CosyVoice",
+          "upstream_revision": "074ca6dc9e80a2f424f1f74b48bdd7d3fea531cc",
+          "matcha_repository": "shivammehta25/Matcha-TTS",
+          "matcha_revision": "dd9105b34bf2be2230f4aa1e4769fb586a3c824e",
+          "weights_repository": "FunAudioLLM/Fun-CosyVoice3-0.5B-2512",
+          "weights_revision": "29e01c4e8d000f4bcd70751be16fa94bf3d85a18",
+          "code_root_environment": "GAYA_COSYVOICE_CODE_ROOT",
+          "model_root_environment": "GAYA_COSYVOICE3_MODEL_ROOT",
+          "model_files": {
+            "CosyVoice-BlankEN/config.json": {
+              "size": 659,
+              "sha256": "168aa1bd401abc3bc262ba15ba4e499627a8b4e006e9d050b47c22de20660185"
+            },
+            "CosyVoice-BlankEN/generation_config.json": {
+              "size": 242,
+              "sha256": "e558847a8b4402616f1273797b015104dc266fe4b520056fca88823ba8f8ebe6"
+            },
+            "CosyVoice-BlankEN/merges.txt": {
+              "size": 1402109,
+              "sha256": "ac8ff86a72bee70828fbc1119bc4398c6f3a9a6e490d7b0dbe917be025478bd0"
+            },
+            "CosyVoice-BlankEN/model.safetensors": {
+              "size": 988097824,
+              "sha256": "130282af0dfa9fe5840737cc49a0d339d06075f83c5a315c3372c9a0740d0b96"
+            },
+            "CosyVoice-BlankEN/tokenizer_config.json": {
+              "size": 1287,
+              "sha256": "482bd979881423375ca5414e4e0d94cd7c5349dbb17fffd46b4d36d71e62a1bc"
+            },
+            "CosyVoice-BlankEN/vocab.json": {
+              "size": 2776833,
+              "sha256": "ca10d7e9fb3ed18575dd1e277a2579c16d108e32f27439684afa0e10b1440910"
+            },
+            "campplus.onnx": {
+              "size": 28303423,
+              "sha256": "a6ac6a63997761ae2997373e2ee1c47040854b4b759ea41ec48e4e42df0f4d73"
+            },
+            "cosyvoice3.yaml": {
+              "size": 6934,
+              "sha256": "f5a6b2c6f05139d0f18861a1fe506f751e787026b77c05f7e8fef9f8a4405965"
+            },
+            "flow.pt": {
+              "size": 1329116148,
+              "sha256": "a6fab32a7825e5b0bc855ddd948f8db9370b0a786fbc249caa4595e95b608e4b"
+            },
+            "hift.pt": {
+              "size": 83202622,
+              "sha256": "b279d7641eb97ae55b3b540cfba4f953c26492a2df758328a89a4d007ab87a65"
+            },
+            "llm.pt": {
+              "size": 2024669519,
+              "sha256": "69f43bd545131c30e98947fb360ea8b4dc9916d8e83dded7757c7ea4f5a24970"
+            },
+            "speech_tokenizer_v3.onnx": {
+              "size": 969451503,
+              "sha256": "23236a74175dbdda47afc66dbadd5bcb41303c467a57c261cb8539ad9db9208d"
+            }
+          },
+          "architecture": "CosyVoice3",
+          "model_architecture": "CosyVoice3Model",
+          "device": "cuda:0",
+          "sample_rate_hz": 24000,
+          "torch_version": "2.3.1+cu121",
+          "torchaudio_version": "2.3.1+cu121",
+          "cuda_version": "12.1",
+          "onnxruntime_gpu_version": "1.18.0",
+          "transformers_version": "4.51.3",
+          "numpy_version": "1.26.4",
+          "soundfile_version": "0.12.1",
+          "modelscope_version": "1.20.0",
+          "seed": 1986,
+          "fp16": true,
+          "load_trt": false,
+          "load_vllm": false,
+          "stream": false,
+          "speed": 1.0,
+          "text_frontend": false,
+          "zero_shot_speaker_id": "",
+          "offline_environment": {
+            "HF_HUB_OFFLINE": "1",
+            "TRANSFORMERS_OFFLINE": "1",
+            "MODELSCOPE_OFFLINE": "1"
+          },
+          "emotion_instructions": {
+            "neutral": "a neutral emotion",
+            "cheerful": "a cheerful emotion",
+            "angry": "an angry emotion",
+            "sad": "a sad emotion",
+            "fearful": "a fearful emotion",
+            "surprised": "a surprised emotion",
+            "tired": "a tired emotion",
+            "drunk": "a drunken emotion",
+            "whisper": "a whispering delivery",
+            "shout": "a shouting delivery",
+            "laughing": "a laughing delivery",
+            "pain": "an emotion of pain"
+          },
+          "intensity_instructions": {
+            "1": "slightly",
+            "2": "clearly",
+            "3": "strongly"
+          },
+          "instruction_prefix": "You are a helpful assistant. Speak in Japanese",
+          "instruction_delivery_prefix": "Follow this delivery direction exactly:",
+          "instruction_end": "<|endofprompt|>",
+          "reference_assignments": {
+            "tavern-night/drunkard": "hadou-emotion-11",
+            "tavern-night/old-regular": "hadou-emotion-11",
+            "market-day/fruit-vendor": "hadou-emotion-11",
+            "market-day/shopper": "lux-emotion-76",
+            "market-day/street-kid": "tsukuyomi-corpus-94"
+          },
+          "watermark_disclosed_by_official_source": false
+        },
+        "realized": {
+          "phase_peak_vram_mib": {
+            "runtime_load": {
+              "allocated_mib": 3370.4365234375,
+              "reserved_mib": 3482.0
+            },
+            "generation": {
+              "allocated_mib": 4296.30712890625,
+              "reserved_mib": 5260.0
+            }
+          },
+          "providers": {
+            "speech_tokenizer": [
+              "CUDAExecutionProvider",
+              "CPUExecutionProvider"
+            ],
+            "campplus": [
+              "CPUExecutionProvider"
+            ]
+          },
+          "seed": 1986,
+          "fp16": true,
+          "stream": false,
+          "speed": 1.0,
+          "text_frontend": false,
+          "sample_rate_hz": 24000,
+          "samples": 227520,
+          "duration_sec": 9.48,
+          "source_text": "あら、こっちのほうが新鮮じゃないの。",
+          "tts_text": "アラ、コッチノホーガシンセンジャナイノ。",
+          "reading_source": "pyopenjtalk.g2p(kana=True)",
+          "instruction": "You are a helpful assistant. Speak in Japanese clearly with a neutral emotion. Follow this delivery direction exactly: 独り言まじりの品定め。語尾に少し得意げな色。<|endofprompt|>",
+          "emotion": "neutral",
+          "intensity": 2,
+          "delivery": "独り言まじりの品定め。語尾に少し得意げな色。",
+          "reference_selection_source": "adapter.assignment:market-day/shopper",
+          "reference_voice": "lux-emotion-76",
+          "reference_sha256": "432de3f3fb40c5838a80e5fb509977176352a8db03a10e8fb37cca1e83bcc4b5",
+          "reference_samples": 537000,
+          "reference_duration_sec": 11.1875,
+          "watermark_disclosed_by_official_source": false,
+          "postprocess_recovery": {
+            "mode": "stored_normalized_wav-reprocess-v1",
+            "source_input_hash": "b1c1f56b6d7963d84730846f6b56a3105578a1930fde6fd0fe4143f75d3d739a",
+            "source_wav_sha256": "9bde10c035dcf596fa87bbf9a974b575a1d8e59ba5cd44670472588c419a271f"
+          }
+        }
+      },
+      "rtf": 1.902106,
+      "loudness": {
+        "source": "encoded_opus",
+        "i_lufs": -17.99,
+        "tp_dbtp": -1.26,
         "shortfall": false
       }
     },
@@ -2268,6 +2778,186 @@
     {
       "model": "cosyvoice3-0.5b-2512",
       "scenario": "tavern-night",
+      "line": "drunkard-001",
+      "variant": "dry",
+      "path": "audio/cosyvoice3-0.5b-2512/tavern-night/drunkard-001-dry.opus",
+      "duration_sec": 7.4065,
+      "sha256": "9d038dd01f55558791348a1a7cff524692d43d6705f0f122697aa1fddbddb2fd",
+      "gen_params": {
+        "requested": {
+          "upstream_repository": "QwenAudio/CosyVoice",
+          "upstream_revision": "074ca6dc9e80a2f424f1f74b48bdd7d3fea531cc",
+          "matcha_repository": "shivammehta25/Matcha-TTS",
+          "matcha_revision": "dd9105b34bf2be2230f4aa1e4769fb586a3c824e",
+          "weights_repository": "FunAudioLLM/Fun-CosyVoice3-0.5B-2512",
+          "weights_revision": "29e01c4e8d000f4bcd70751be16fa94bf3d85a18",
+          "code_root_environment": "GAYA_COSYVOICE_CODE_ROOT",
+          "model_root_environment": "GAYA_COSYVOICE3_MODEL_ROOT",
+          "model_files": {
+            "CosyVoice-BlankEN/config.json": {
+              "size": 659,
+              "sha256": "168aa1bd401abc3bc262ba15ba4e499627a8b4e006e9d050b47c22de20660185"
+            },
+            "CosyVoice-BlankEN/generation_config.json": {
+              "size": 242,
+              "sha256": "e558847a8b4402616f1273797b015104dc266fe4b520056fca88823ba8f8ebe6"
+            },
+            "CosyVoice-BlankEN/merges.txt": {
+              "size": 1402109,
+              "sha256": "ac8ff86a72bee70828fbc1119bc4398c6f3a9a6e490d7b0dbe917be025478bd0"
+            },
+            "CosyVoice-BlankEN/model.safetensors": {
+              "size": 988097824,
+              "sha256": "130282af0dfa9fe5840737cc49a0d339d06075f83c5a315c3372c9a0740d0b96"
+            },
+            "CosyVoice-BlankEN/tokenizer_config.json": {
+              "size": 1287,
+              "sha256": "482bd979881423375ca5414e4e0d94cd7c5349dbb17fffd46b4d36d71e62a1bc"
+            },
+            "CosyVoice-BlankEN/vocab.json": {
+              "size": 2776833,
+              "sha256": "ca10d7e9fb3ed18575dd1e277a2579c16d108e32f27439684afa0e10b1440910"
+            },
+            "campplus.onnx": {
+              "size": 28303423,
+              "sha256": "a6ac6a63997761ae2997373e2ee1c47040854b4b759ea41ec48e4e42df0f4d73"
+            },
+            "cosyvoice3.yaml": {
+              "size": 6934,
+              "sha256": "f5a6b2c6f05139d0f18861a1fe506f751e787026b77c05f7e8fef9f8a4405965"
+            },
+            "flow.pt": {
+              "size": 1329116148,
+              "sha256": "a6fab32a7825e5b0bc855ddd948f8db9370b0a786fbc249caa4595e95b608e4b"
+            },
+            "hift.pt": {
+              "size": 83202622,
+              "sha256": "b279d7641eb97ae55b3b540cfba4f953c26492a2df758328a89a4d007ab87a65"
+            },
+            "llm.pt": {
+              "size": 2024669519,
+              "sha256": "69f43bd545131c30e98947fb360ea8b4dc9916d8e83dded7757c7ea4f5a24970"
+            },
+            "speech_tokenizer_v3.onnx": {
+              "size": 969451503,
+              "sha256": "23236a74175dbdda47afc66dbadd5bcb41303c467a57c261cb8539ad9db9208d"
+            }
+          },
+          "architecture": "CosyVoice3",
+          "model_architecture": "CosyVoice3Model",
+          "device": "cuda:0",
+          "sample_rate_hz": 24000,
+          "torch_version": "2.3.1+cu121",
+          "torchaudio_version": "2.3.1+cu121",
+          "cuda_version": "12.1",
+          "onnxruntime_gpu_version": "1.18.0",
+          "transformers_version": "4.51.3",
+          "numpy_version": "1.26.4",
+          "soundfile_version": "0.12.1",
+          "modelscope_version": "1.20.0",
+          "seed": 1986,
+          "fp16": true,
+          "load_trt": false,
+          "load_vllm": false,
+          "stream": false,
+          "speed": 1.0,
+          "text_frontend": false,
+          "zero_shot_speaker_id": "",
+          "offline_environment": {
+            "HF_HUB_OFFLINE": "1",
+            "TRANSFORMERS_OFFLINE": "1",
+            "MODELSCOPE_OFFLINE": "1"
+          },
+          "emotion_instructions": {
+            "neutral": "a neutral emotion",
+            "cheerful": "a cheerful emotion",
+            "angry": "an angry emotion",
+            "sad": "a sad emotion",
+            "fearful": "a fearful emotion",
+            "surprised": "a surprised emotion",
+            "tired": "a tired emotion",
+            "drunk": "a drunken emotion",
+            "whisper": "a whispering delivery",
+            "shout": "a shouting delivery",
+            "laughing": "a laughing delivery",
+            "pain": "an emotion of pain"
+          },
+          "intensity_instructions": {
+            "1": "slightly",
+            "2": "clearly",
+            "3": "strongly"
+          },
+          "instruction_prefix": "You are a helpful assistant. Speak in Japanese",
+          "instruction_delivery_prefix": "Follow this delivery direction exactly:",
+          "instruction_end": "<|endofprompt|>",
+          "reference_assignments": {
+            "tavern-night/drunkard": "hadou-emotion-11",
+            "tavern-night/old-regular": "hadou-emotion-11",
+            "market-day/fruit-vendor": "hadou-emotion-11",
+            "market-day/shopper": "lux-emotion-76",
+            "market-day/street-kid": "tsukuyomi-corpus-94"
+          },
+          "watermark_disclosed_by_official_source": false
+        },
+        "realized": {
+          "phase_peak_vram_mib": {
+            "runtime_load": {
+              "allocated_mib": 3370.4365234375,
+              "reserved_mib": 3482.0
+            },
+            "generation": {
+              "allocated_mib": 4296.28857421875,
+              "reserved_mib": 5272.0
+            }
+          },
+          "providers": {
+            "speech_tokenizer": [
+              "CUDAExecutionProvider",
+              "CPUExecutionProvider"
+            ],
+            "campplus": [
+              "CPUExecutionProvider"
+            ]
+          },
+          "seed": 1986,
+          "fp16": true,
+          "stream": false,
+          "speed": 1.0,
+          "text_frontend": false,
+          "sample_rate_hz": 24000,
+          "samples": 177600,
+          "duration_sec": 7.4,
+          "source_text": "だからよぉ……俺は悪くねぇんだって……",
+          "tts_text": "ダカラヨォ……オレワワルクネーンダッテ……",
+          "reading_source": "pyopenjtalk.g2p(kana=True)",
+          "instruction": "You are a helpful assistant. Speak in Japanese clearly with a drunken emotion. Follow this delivery direction exactly: 呂律が回らず、語尾が伸びて沈む。愚痴っぽい。<|endofprompt|>",
+          "emotion": "drunk",
+          "intensity": 2,
+          "delivery": "呂律が回らず、語尾が伸びて沈む。愚痴っぽい。",
+          "reference_selection_source": "adapter.assignment:tavern-night/drunkard",
+          "reference_voice": "hadou-emotion-11",
+          "reference_sha256": "e98033d63f847c4113d8b47e264bca82f38212519da8d62661133847b3d221bc",
+          "reference_samples": 480192,
+          "reference_duration_sec": 10.004,
+          "watermark_disclosed_by_official_source": false,
+          "postprocess_recovery": {
+            "mode": "stored_normalized_wav-reprocess-v1",
+            "source_input_hash": "f1611fcd292b94e28ec084a3ab6b3c97ed508f8e901984d902f0c7f9567f5479",
+            "source_wav_sha256": "d126155207be125852fa9e7e0d44c0b7bb2bbfabadc31fb0ef4134cbc54551b9"
+          }
+        }
+      },
+      "rtf": 2.184332,
+      "loudness": {
+        "source": "encoded_opus",
+        "i_lufs": -18.11,
+        "tp_dbtp": -1.27,
+        "shortfall": false
+      }
+    },
+    {
+      "model": "cosyvoice3-0.5b-2512",
+      "scenario": "tavern-night",
       "line": "drunkard-002",
       "variant": "dry",
       "path": "audio/cosyvoice3-0.5b-2512/tavern-night/drunkard-002-dry.opus",
@@ -2437,6 +3127,186 @@
         "source": "encoded_opus",
         "i_lufs": -18.02,
         "tp_dbtp": -1.32,
+        "shortfall": false
+      }
+    },
+    {
+      "model": "cosyvoice3-0.5b-2512",
+      "scenario": "tavern-night",
+      "line": "old-regular-001",
+      "variant": "dry",
+      "path": "audio/cosyvoice3-0.5b-2512/tavern-night/old-regular-001-dry.opus",
+      "duration_sec": 8.8865,
+      "sha256": "69fbc33d1dd332184438ec8d084dee8673049f2240033a081ac9eb3ec0d466ab",
+      "gen_params": {
+        "requested": {
+          "upstream_repository": "QwenAudio/CosyVoice",
+          "upstream_revision": "074ca6dc9e80a2f424f1f74b48bdd7d3fea531cc",
+          "matcha_repository": "shivammehta25/Matcha-TTS",
+          "matcha_revision": "dd9105b34bf2be2230f4aa1e4769fb586a3c824e",
+          "weights_repository": "FunAudioLLM/Fun-CosyVoice3-0.5B-2512",
+          "weights_revision": "29e01c4e8d000f4bcd70751be16fa94bf3d85a18",
+          "code_root_environment": "GAYA_COSYVOICE_CODE_ROOT",
+          "model_root_environment": "GAYA_COSYVOICE3_MODEL_ROOT",
+          "model_files": {
+            "CosyVoice-BlankEN/config.json": {
+              "size": 659,
+              "sha256": "168aa1bd401abc3bc262ba15ba4e499627a8b4e006e9d050b47c22de20660185"
+            },
+            "CosyVoice-BlankEN/generation_config.json": {
+              "size": 242,
+              "sha256": "e558847a8b4402616f1273797b015104dc266fe4b520056fca88823ba8f8ebe6"
+            },
+            "CosyVoice-BlankEN/merges.txt": {
+              "size": 1402109,
+              "sha256": "ac8ff86a72bee70828fbc1119bc4398c6f3a9a6e490d7b0dbe917be025478bd0"
+            },
+            "CosyVoice-BlankEN/model.safetensors": {
+              "size": 988097824,
+              "sha256": "130282af0dfa9fe5840737cc49a0d339d06075f83c5a315c3372c9a0740d0b96"
+            },
+            "CosyVoice-BlankEN/tokenizer_config.json": {
+              "size": 1287,
+              "sha256": "482bd979881423375ca5414e4e0d94cd7c5349dbb17fffd46b4d36d71e62a1bc"
+            },
+            "CosyVoice-BlankEN/vocab.json": {
+              "size": 2776833,
+              "sha256": "ca10d7e9fb3ed18575dd1e277a2579c16d108e32f27439684afa0e10b1440910"
+            },
+            "campplus.onnx": {
+              "size": 28303423,
+              "sha256": "a6ac6a63997761ae2997373e2ee1c47040854b4b759ea41ec48e4e42df0f4d73"
+            },
+            "cosyvoice3.yaml": {
+              "size": 6934,
+              "sha256": "f5a6b2c6f05139d0f18861a1fe506f751e787026b77c05f7e8fef9f8a4405965"
+            },
+            "flow.pt": {
+              "size": 1329116148,
+              "sha256": "a6fab32a7825e5b0bc855ddd948f8db9370b0a786fbc249caa4595e95b608e4b"
+            },
+            "hift.pt": {
+              "size": 83202622,
+              "sha256": "b279d7641eb97ae55b3b540cfba4f953c26492a2df758328a89a4d007ab87a65"
+            },
+            "llm.pt": {
+              "size": 2024669519,
+              "sha256": "69f43bd545131c30e98947fb360ea8b4dc9916d8e83dded7757c7ea4f5a24970"
+            },
+            "speech_tokenizer_v3.onnx": {
+              "size": 969451503,
+              "sha256": "23236a74175dbdda47afc66dbadd5bcb41303c467a57c261cb8539ad9db9208d"
+            }
+          },
+          "architecture": "CosyVoice3",
+          "model_architecture": "CosyVoice3Model",
+          "device": "cuda:0",
+          "sample_rate_hz": 24000,
+          "torch_version": "2.3.1+cu121",
+          "torchaudio_version": "2.3.1+cu121",
+          "cuda_version": "12.1",
+          "onnxruntime_gpu_version": "1.18.0",
+          "transformers_version": "4.51.3",
+          "numpy_version": "1.26.4",
+          "soundfile_version": "0.12.1",
+          "modelscope_version": "1.20.0",
+          "seed": 1986,
+          "fp16": true,
+          "load_trt": false,
+          "load_vllm": false,
+          "stream": false,
+          "speed": 1.0,
+          "text_frontend": false,
+          "zero_shot_speaker_id": "",
+          "offline_environment": {
+            "HF_HUB_OFFLINE": "1",
+            "TRANSFORMERS_OFFLINE": "1",
+            "MODELSCOPE_OFFLINE": "1"
+          },
+          "emotion_instructions": {
+            "neutral": "a neutral emotion",
+            "cheerful": "a cheerful emotion",
+            "angry": "an angry emotion",
+            "sad": "a sad emotion",
+            "fearful": "a fearful emotion",
+            "surprised": "a surprised emotion",
+            "tired": "a tired emotion",
+            "drunk": "a drunken emotion",
+            "whisper": "a whispering delivery",
+            "shout": "a shouting delivery",
+            "laughing": "a laughing delivery",
+            "pain": "an emotion of pain"
+          },
+          "intensity_instructions": {
+            "1": "slightly",
+            "2": "clearly",
+            "3": "strongly"
+          },
+          "instruction_prefix": "You are a helpful assistant. Speak in Japanese",
+          "instruction_delivery_prefix": "Follow this delivery direction exactly:",
+          "instruction_end": "<|endofprompt|>",
+          "reference_assignments": {
+            "tavern-night/drunkard": "hadou-emotion-11",
+            "tavern-night/old-regular": "hadou-emotion-11",
+            "market-day/fruit-vendor": "hadou-emotion-11",
+            "market-day/shopper": "lux-emotion-76",
+            "market-day/street-kid": "tsukuyomi-corpus-94"
+          },
+          "watermark_disclosed_by_official_source": false
+        },
+        "realized": {
+          "phase_peak_vram_mib": {
+            "runtime_load": {
+              "allocated_mib": 3370.4365234375,
+              "reserved_mib": 3482.0
+            },
+            "generation": {
+              "allocated_mib": 4295.9697265625,
+              "reserved_mib": 5282.0
+            }
+          },
+          "providers": {
+            "speech_tokenizer": [
+              "CUDAExecutionProvider",
+              "CPUExecutionProvider"
+            ],
+            "campplus": [
+              "CPUExecutionProvider"
+            ]
+          },
+          "seed": 1986,
+          "fp16": true,
+          "stream": false,
+          "speed": 1.0,
+          "text_frontend": false,
+          "sample_rate_hz": 24000,
+          "samples": 213120,
+          "duration_sec": 8.88,
+          "source_text": "近頃は物騒でいかんなぁ。",
+          "tts_text": "チカゴロワブッソーデイカンナー。",
+          "reading_source": "pyopenjtalk.g2p(kana=True)",
+          "instruction": "You are a helpful assistant. Speak in Japanese slightly with a tired emotion. Follow this delivery direction exactly: ため息まじり。独り言と話しかけの中間くらいの声量。<|endofprompt|>",
+          "emotion": "tired",
+          "intensity": 1,
+          "delivery": "ため息まじり。独り言と話しかけの中間くらいの声量。",
+          "reference_selection_source": "adapter.assignment:tavern-night/old-regular",
+          "reference_voice": "hadou-emotion-11",
+          "reference_sha256": "e98033d63f847c4113d8b47e264bca82f38212519da8d62661133847b3d221bc",
+          "reference_samples": 480192,
+          "reference_duration_sec": 10.004,
+          "watermark_disclosed_by_official_source": false,
+          "postprocess_recovery": {
+            "mode": "stored_normalized_wav-reprocess-v1",
+            "source_input_hash": "7e901f861566b04ff867d1240e9f0214a1cf24c01210a72edb91db36793b1001",
+            "source_wav_sha256": "e48af58213605c95855d7a2d51630a7fb10ce352d37919d5fda8ba7ead0e571a"
+          }
+        }
+      },
+      "rtf": 1.386571,
+      "loudness": {
+        "source": "encoded_opus",
+        "i_lufs": -18.14,
+        "tp_dbtp": -1.07,
         "shortfall": false
       }
     },
@@ -7145,6 +8015,101 @@
     {
       "model": "gpt-sovits-v2-pro-plus",
       "scenario": "market-day",
+      "line": "shopper-001",
+      "variant": "dry",
+      "path": "audio/gpt-sovits-v2-pro-plus/market-day/shopper-001-dry.opus",
+      "duration_sec": 3.1465,
+      "sha256": "fcb62dff7cd13475ec5abd83f3a1973b66ce9f7ee1edcdd4e4618ccebb4c44b3",
+      "gen_params": {
+        "requested": {
+          "upstream_repository": "RVC-Boss/GPT-SoVITS",
+          "upstream_revision": "d523079fc05d9a8028d6085bffe4a2757c32abb6",
+          "weights_repository": "lj1995/GPT-SoVITS",
+          "weights_revision": "336b2ec4e8d4ac74740798dd40af44e74659ecaf",
+          "weight_sha256": {
+            "s1v3.ckpt": "87133414860ea14ff6620c483a3db5ed07b44be42e2c3fcdad65523a729a745a",
+            "v2Pro/s2Gv2ProPlus.pth": "d42a22bbbf65fb2bbdd45ad6a66841156977db45c7aabe0a6992ff378d9c7d3b",
+            "sv/pretrained_eres2netv2w24s4ep4.ckpt": "4f5a0bf73c61eb41b174e1bb54e7ee3c83233892be8e0af1f187024e8e581a35",
+            "chinese-hubert-base/config.json": "c3e5060a1277e0f078cc6be9da4528a605dba6ece93018981fe2c820e5c7b103",
+            "chinese-hubert-base/preprocessor_config.json": "dcd684124d06722947939d41ea6ae58dbf10968c60a11a29f23ddc602c64a29b",
+            "chinese-hubert-base/pytorch_model.bin": "24164f129c66499d1346e2aa55f183250c223161ec2770c0da3d3b08cf432d3c",
+            "chinese-roberta-wwm-ext-large/config.json": "3d57de2fd7e80d0e5c8ff194f0bbb6baa10df7e43fc262a0cc71298a78b0a3e5",
+            "chinese-roberta-wwm-ext-large/pytorch_model.bin": "e53a693acc59ace251d143d068096ae0d7b79e4b1b503fa84c9dcf576448c1d8",
+            "chinese-roberta-wwm-ext-large/tokenizer.json": "173796956820ea27bd14f76bf28162607ff4254807e2948253eb5b46f5bb643b",
+            "fast_langdetect/lid.176.bin": "7e69ec5451bc261cc7844e49e4792a85d7f09c06789ec800fc4a44aec362764e"
+          },
+          "torch_version": "2.7.0",
+          "torchaudio_version": "2.7.0",
+          "cuda_wheel_version": "12.8",
+          "device": "cuda:0",
+          "precision": "fp16",
+          "native_sample_rate_hz": 32000,
+          "language": "all_ja",
+          "seed": 42,
+          "top_k": 5,
+          "top_p": 1.0,
+          "temperature": 1.0,
+          "repetition_penalty": 1.35,
+          "text_split_method": "cut0",
+          "batch_size": 1,
+          "split_bucket": false,
+          "parallel_infer": false,
+          "reference_seconds": 5,
+          "reference_start_frames": {
+            "amitaro-countdown": 0,
+            "hadou-emotion-11": 0,
+            "lux-emotion-76": 0,
+            "sayoko-emotion-75": 0,
+            "tsukuyomi-corpus-94": 0
+          },
+          "reference_assignments": {
+            "tavern-night/drunkard": "hadou-emotion-11",
+            "tavern-night/old-regular": "hadou-emotion-11",
+            "market-day/fruit-vendor": "hadou-emotion-11",
+            "market-day/shopper": "lux-emotion-76",
+            "market-day/street-kid": "tsukuyomi-corpus-94"
+          },
+          "prompt_text_mode": "reference-free"
+        },
+        "realized": {
+          "seed": 42,
+          "sample_rate_hz": 32000,
+          "prompt_text_mode": "reference-free",
+          "phase_peak_vram_mib": {
+            "runtime_load": {
+              "allocated_mib": 1745.761,
+              "reserved_mib": 1766.0
+            },
+            "generation": {
+              "allocated_mib": 1469.137,
+              "reserved_mib": 1618.0
+            }
+          },
+          "reading_source": "line.text",
+          "reference_selection_source": "adapter.assignment:market-day/shopper",
+          "reference_voice": "lux-emotion-76",
+          "reference_source_sha256": "432de3f3fb40c5838a80e5fb509977176352a8db03a10e8fb37cca1e83bcc4b5",
+          "reference_clip_sha256": "18fe617d6ad7b876be9fe4b53f710a399925441c9d6c079039fe52f1745ee1b8",
+          "reference_clip_start_frame": 0,
+          "reference_clip_frame_count": 240000,
+          "postprocess_recovery": {
+            "mode": "stored_normalized_wav-reprocess-v1",
+            "source_input_hash": "51f7bd47e5d14301ea338808d2cfcde3380a58fe6c3f396612db61998f7ece8f",
+            "source_wav_sha256": "a938acef91a9d8b9a48b56c55c4f253c11ac05238b17f923d513746e982ccab3"
+          }
+        }
+      },
+      "rtf": 1.006883,
+      "loudness": {
+        "source": "encoded_opus",
+        "i_lufs": -18.07,
+        "tp_dbtp": -1.17,
+        "shortfall": false
+      }
+    },
+    {
+      "model": "gpt-sovits-v2-pro-plus",
+      "scenario": "market-day",
       "line": "shopper-002",
       "variant": "dry",
       "path": "audio/gpt-sovits-v2-pro-plus/market-day/shopper-002-dry.opus",
@@ -7955,6 +8920,74 @@
     {
       "model": "qwen3-tts-12hz-1.7b",
       "scenario": "battlefield-camp",
+      "line": "medic-001",
+      "variant": "dry",
+      "path": "audio/qwen3-tts-12hz-1.7b/battlefield-camp/medic-001-dry.opus",
+      "duration_sec": 2.8065,
+      "sha256": "dbee49bcf81807f20333090d57292910822aa15a1e3978dfdf0f6421a6ebc428",
+      "gen_params": {
+        "requested": {
+          "qwen_tts_version": "0.1.1",
+          "base_model": "Qwen/Qwen3-TTS-12Hz-1.7B-Base",
+          "base_revision": "fd4b254389122332181a7c3db7f27e918eec64e3",
+          "voice_design_model": "Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign",
+          "voice_design_revision": "5ecdb67327fd37bb2e042aab12ff7391903235d3",
+          "device": "cuda:0",
+          "dtype": "bfloat16",
+          "attention_backend": "sdpa",
+          "sampling": {
+            "do_sample": true,
+            "repetition_penalty": 1.05,
+            "temperature": 0.9,
+            "top_p": 1.0,
+            "top_k": 50,
+            "subtalker_dosample": true,
+            "subtalker_temperature": 0.9,
+            "subtalker_top_p": 1.0,
+            "subtalker_top_k": 50,
+            "max_new_tokens": 2048
+          },
+          "reference_text": "こんにちは。今日はとても良い天気ですね。"
+        },
+        "realized": {
+          "phase_peak_vram_mib": {
+            "voice_design_load": {
+              "allocated_mib": 3986.726,
+              "reserved_mib": 4112.0
+            },
+            "voice_design_generate": {
+              "allocated_mib": 4085.044,
+              "reserved_mib": 4172.0
+            },
+            "base_load": {
+              "allocated_mib": 4008.5,
+              "reserved_mib": 4134.0
+            },
+            "voice_clone_generate": {
+              "allocated_mib": 4196.515,
+              "reserved_mib": 4310.0
+            }
+          },
+          "seed": 0,
+          "sample_rate_hz": 24000,
+          "postprocess_recovery": {
+            "mode": "stored_normalized_wav-reprocess-v1",
+            "source_input_hash": "3c344e9414ec811770919f42fb64db7125664de438366cd5c92c3f4095b2dcac",
+            "source_wav_sha256": "54f2bd3851894c8beeee1026c45e2ac284f83363b02b7d519d271d9fe9a7bdfb"
+          }
+        }
+      },
+      "rtf": 5.241094,
+      "loudness": {
+        "source": "encoded_opus",
+        "i_lufs": -18.06,
+        "tp_dbtp": -1.57,
+        "shortfall": false
+      }
+    },
+    {
+      "model": "qwen3-tts-12hz-1.7b",
+      "scenario": "battlefield-camp",
       "line": "medic-002",
       "variant": "dry",
       "path": "audio/qwen3-tts-12hz-1.7b/battlefield-camp/medic-002-dry.opus",
@@ -8075,6 +9108,74 @@
         "source": "encoded_opus",
         "i_lufs": -18.03,
         "tp_dbtp": -0.96,
+        "shortfall": false
+      }
+    },
+    {
+      "model": "qwen3-tts-12hz-1.7b",
+      "scenario": "battlefield-camp",
+      "line": "medic-004",
+      "variant": "dry",
+      "path": "audio/qwen3-tts-12hz-1.7b/battlefield-camp/medic-004-dry.opus",
+      "duration_sec": 2.5665,
+      "sha256": "86b5cecec8e677abdad79d4a7f5c8852817ef123403b9017cb09aefb38d5db2a",
+      "gen_params": {
+        "requested": {
+          "qwen_tts_version": "0.1.1",
+          "base_model": "Qwen/Qwen3-TTS-12Hz-1.7B-Base",
+          "base_revision": "fd4b254389122332181a7c3db7f27e918eec64e3",
+          "voice_design_model": "Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign",
+          "voice_design_revision": "5ecdb67327fd37bb2e042aab12ff7391903235d3",
+          "device": "cuda:0",
+          "dtype": "bfloat16",
+          "attention_backend": "sdpa",
+          "sampling": {
+            "do_sample": true,
+            "repetition_penalty": 1.05,
+            "temperature": 0.9,
+            "top_p": 1.0,
+            "top_k": 50,
+            "subtalker_dosample": true,
+            "subtalker_temperature": 0.9,
+            "subtalker_top_p": 1.0,
+            "subtalker_top_k": 50,
+            "max_new_tokens": 2048
+          },
+          "reference_text": "こんにちは。今日はとても良い天気ですね。"
+        },
+        "realized": {
+          "phase_peak_vram_mib": {
+            "voice_design_load": {
+              "allocated_mib": 3986.726,
+              "reserved_mib": 4112.0
+            },
+            "voice_design_generate": {
+              "allocated_mib": 4085.044,
+              "reserved_mib": 4172.0
+            },
+            "base_load": {
+              "allocated_mib": 4008.5,
+              "reserved_mib": 4134.0
+            },
+            "voice_clone_generate": {
+              "allocated_mib": 4191.556,
+              "reserved_mib": 4310.0
+            }
+          },
+          "seed": 0,
+          "sample_rate_hz": 24000,
+          "postprocess_recovery": {
+            "mode": "stored_normalized_wav-reprocess-v1",
+            "source_input_hash": "02ed63bd710cac081dcfd596bf9f49e9f5d3d6eb774b4d7e52f84951f62f9260",
+            "source_wav_sha256": "e895b3f8dc439e4f9b3397c3e2ed3dfeee67fa4dc9f22c88fdc733726e593e74"
+          }
+        }
+      },
+      "rtf": 5.300506,
+      "loudness": {
+        "source": "encoded_opus",
+        "i_lufs": -18.12,
+        "tp_dbtp": -1.44,
         "shortfall": false
       }
     },
@@ -8390,6 +9491,74 @@
         "source": "encoded_opus",
         "i_lufs": -18.01,
         "tp_dbtp": -2.11,
+        "shortfall": false
+      }
+    },
+    {
+      "model": "qwen3-tts-12hz-1.7b",
+      "scenario": "battlefield-camp",
+      "line": "wounded-001",
+      "variant": "dry",
+      "path": "audio/qwen3-tts-12hz-1.7b/battlefield-camp/wounded-001-dry.opus",
+      "duration_sec": 2.9665,
+      "sha256": "5c4406bab0a88822cc876693a9c3a65e629e280b05d3ab9d0d23f0272328264e",
+      "gen_params": {
+        "requested": {
+          "qwen_tts_version": "0.1.1",
+          "base_model": "Qwen/Qwen3-TTS-12Hz-1.7B-Base",
+          "base_revision": "fd4b254389122332181a7c3db7f27e918eec64e3",
+          "voice_design_model": "Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign",
+          "voice_design_revision": "5ecdb67327fd37bb2e042aab12ff7391903235d3",
+          "device": "cuda:0",
+          "dtype": "bfloat16",
+          "attention_backend": "sdpa",
+          "sampling": {
+            "do_sample": true,
+            "repetition_penalty": 1.05,
+            "temperature": 0.9,
+            "top_p": 1.0,
+            "top_k": 50,
+            "subtalker_dosample": true,
+            "subtalker_temperature": 0.9,
+            "subtalker_top_p": 1.0,
+            "subtalker_top_k": 50,
+            "max_new_tokens": 2048
+          },
+          "reference_text": "こんにちは。今日はとても良い天気ですね。"
+        },
+        "realized": {
+          "phase_peak_vram_mib": {
+            "voice_design_load": {
+              "allocated_mib": 3986.726,
+              "reserved_mib": 4112.0
+            },
+            "voice_design_generate": {
+              "allocated_mib": 4061.911,
+              "reserved_mib": 4168.0
+            },
+            "base_load": {
+              "allocated_mib": 4008.5,
+              "reserved_mib": 4134.0
+            },
+            "voice_clone_generate": {
+              "allocated_mib": 4177.267,
+              "reserved_mib": 4272.0
+            }
+          },
+          "seed": 0,
+          "sample_rate_hz": 24000,
+          "postprocess_recovery": {
+            "mode": "stored_normalized_wav-reprocess-v1",
+            "source_input_hash": "3dccd8c259eec91a9ee94bf7aa9b15028170c1e8b3670097c0bb7114d78fcc56",
+            "source_wav_sha256": "5eb77122b7a759089860d7cd2f11c3958f0cbe1403848bf713773a128eca1bc2"
+          }
+        }
+      },
+      "rtf": 9.3207,
+      "loudness": {
+        "source": "encoded_opus",
+        "i_lufs": -18.02,
+        "tp_dbtp": -1.74,
         "shortfall": false
       }
     },
@@ -8769,6 +9938,74 @@
         "i_lufs": -18.08,
         "tp_dbtp": -1.08,
         "shortfall": false
+      }
+    },
+    {
+      "model": "qwen3-tts-12hz-1.7b",
+      "scenario": "castle-gate",
+      "line": "guard-onna-003",
+      "variant": "dry",
+      "path": "audio/qwen3-tts-12hz-1.7b/castle-gate/guard-onna-003-dry.opus",
+      "duration_sec": 2.9665,
+      "sha256": "0d09d4bd6bed63a8353ac1ef752b1367788d3d6065eed9546126768e0c1b275a",
+      "gen_params": {
+        "requested": {
+          "qwen_tts_version": "0.1.1",
+          "base_model": "Qwen/Qwen3-TTS-12Hz-1.7B-Base",
+          "base_revision": "fd4b254389122332181a7c3db7f27e918eec64e3",
+          "voice_design_model": "Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign",
+          "voice_design_revision": "5ecdb67327fd37bb2e042aab12ff7391903235d3",
+          "device": "cuda:0",
+          "dtype": "bfloat16",
+          "attention_backend": "sdpa",
+          "sampling": {
+            "do_sample": true,
+            "repetition_penalty": 1.05,
+            "temperature": 0.9,
+            "top_p": 1.0,
+            "top_k": 50,
+            "subtalker_dosample": true,
+            "subtalker_temperature": 0.9,
+            "subtalker_top_p": 1.0,
+            "subtalker_top_k": 50,
+            "max_new_tokens": 2048
+          },
+          "reference_text": "こんにちは。今日はとても良い天気ですね。"
+        },
+        "realized": {
+          "phase_peak_vram_mib": {
+            "voice_design_load": {
+              "allocated_mib": 3986.726,
+              "reserved_mib": 4112.0
+            },
+            "voice_design_generate": {
+              "allocated_mib": 4061.911,
+              "reserved_mib": 4172.0
+            },
+            "base_load": {
+              "allocated_mib": 4008.5,
+              "reserved_mib": 4134.0
+            },
+            "voice_clone_generate": {
+              "allocated_mib": 4177.346,
+              "reserved_mib": 4310.0
+            }
+          },
+          "seed": 0,
+          "sample_rate_hz": 24000,
+          "postprocess_recovery": {
+            "mode": "stored_normalized_wav-reprocess-v1",
+            "source_input_hash": "4e69714826f8dc845c8ebca1a45106097cc53ca027a156e430becc6a52b797a6",
+            "source_wav_sha256": "8962afc5528edcef3de1fa0d8d47b00f81aece32979df2326a0e6858cb32f42a"
+          }
+        }
+      },
+      "rtf": 5.177864,
+      "loudness": {
+        "source": "encoded_opus",
+        "i_lufs": -18.56,
+        "tp_dbtp": -1.45,
+        "shortfall": true
       }
     },
     {
@@ -9461,6 +10698,74 @@
         "source": "encoded_opus",
         "i_lufs": -18.0,
         "tp_dbtp": -2.82,
+        "shortfall": false
+      }
+    },
+    {
+      "model": "qwen3-tts-12hz-1.7b",
+      "scenario": "chinatown-chat",
+      "line": "kanpo-shujin-002",
+      "variant": "dry",
+      "path": "audio/qwen3-tts-12hz-1.7b/chinatown-chat/kanpo-shujin-002-dry.opus",
+      "duration_sec": 3.3665,
+      "sha256": "2f721f87d19c3fca8a087c5625b3fb29a68f48c132b4613c5081f0cf725f6457",
+      "gen_params": {
+        "requested": {
+          "qwen_tts_version": "0.1.1",
+          "base_model": "Qwen/Qwen3-TTS-12Hz-1.7B-Base",
+          "base_revision": "fd4b254389122332181a7c3db7f27e918eec64e3",
+          "voice_design_model": "Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign",
+          "voice_design_revision": "5ecdb67327fd37bb2e042aab12ff7391903235d3",
+          "device": "cuda:0",
+          "dtype": "bfloat16",
+          "attention_backend": "sdpa",
+          "sampling": {
+            "do_sample": true,
+            "repetition_penalty": 1.05,
+            "temperature": 0.9,
+            "top_p": 1.0,
+            "top_k": 50,
+            "subtalker_dosample": true,
+            "subtalker_temperature": 0.9,
+            "subtalker_top_p": 1.0,
+            "subtalker_top_k": 50,
+            "max_new_tokens": 2048
+          },
+          "reference_text": "こんにちは。今日はとても良い天気ですね。"
+        },
+        "realized": {
+          "phase_peak_vram_mib": {
+            "voice_design_load": {
+              "allocated_mib": 3986.726,
+              "reserved_mib": 4112.0
+            },
+            "voice_design_generate": {
+              "allocated_mib": 4096.618,
+              "reserved_mib": 4264.0
+            },
+            "base_load": {
+              "allocated_mib": 4008.5,
+              "reserved_mib": 4134.0
+            },
+            "voice_clone_generate": {
+              "allocated_mib": 4219.771,
+              "reserved_mib": 4444.0
+            }
+          },
+          "seed": 0,
+          "sample_rate_hz": 24000,
+          "postprocess_recovery": {
+            "mode": "stored_normalized_wav-reprocess-v1",
+            "source_input_hash": "ca6e368df309cc44c635e6ced0188f0a6188c8b0f11787111464d175a4208957",
+            "source_wav_sha256": "cae440e14b634f0b3d66dc4249d419fee32139e1e9a91fde9a43cdf058437260"
+          }
+        }
+      },
+      "rtf": 5.269539,
+      "loudness": {
+        "source": "encoded_opus",
+        "i_lufs": -18.19,
+        "tp_dbtp": -1.43,
         "shortfall": false
       }
     },
@@ -10475,6 +11780,74 @@
     {
       "model": "qwen3-tts-12hz-1.7b",
       "scenario": "clockwork-plaza",
+      "line": "fortune-doll-002",
+      "variant": "dry",
+      "path": "audio/qwen3-tts-12hz-1.7b/clockwork-plaza/fortune-doll-002-dry.opus",
+      "duration_sec": 4.5665,
+      "sha256": "461529bf9c510a43ebcfcdb42f490daa6bea71a4db241fa5f0b7b33732eef805",
+      "gen_params": {
+        "requested": {
+          "qwen_tts_version": "0.1.1",
+          "base_model": "Qwen/Qwen3-TTS-12Hz-1.7B-Base",
+          "base_revision": "fd4b254389122332181a7c3db7f27e918eec64e3",
+          "voice_design_model": "Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign",
+          "voice_design_revision": "5ecdb67327fd37bb2e042aab12ff7391903235d3",
+          "device": "cuda:0",
+          "dtype": "bfloat16",
+          "attention_backend": "sdpa",
+          "sampling": {
+            "do_sample": true,
+            "repetition_penalty": 1.05,
+            "temperature": 0.9,
+            "top_p": 1.0,
+            "top_k": 50,
+            "subtalker_dosample": true,
+            "subtalker_temperature": 0.9,
+            "subtalker_top_p": 1.0,
+            "subtalker_top_k": 50,
+            "max_new_tokens": 2048
+          },
+          "reference_text": "こんにちは。今日はとても良い天気ですね。"
+        },
+        "realized": {
+          "phase_peak_vram_mib": {
+            "voice_design_load": {
+              "allocated_mib": 3986.726,
+              "reserved_mib": 4112.0
+            },
+            "voice_design_generate": {
+              "allocated_mib": 4071.824,
+              "reserved_mib": 4282.0
+            },
+            "base_load": {
+              "allocated_mib": 4008.5,
+              "reserved_mib": 4134.0
+            },
+            "voice_clone_generate": {
+              "allocated_mib": 4219.962,
+              "reserved_mib": 4444.0
+            }
+          },
+          "seed": 0,
+          "sample_rate_hz": 24000,
+          "postprocess_recovery": {
+            "mode": "stored_normalized_wav-reprocess-v1",
+            "source_input_hash": "8d96e673c077bdd0b08c2afb2efccf31093550332483d0a48ed7b21571e454f8",
+            "source_wav_sha256": "70fe2860ece5c142d2ce00f9e847bdb8d782c4a03046fc769686bb9146cbf477"
+          }
+        }
+      },
+      "rtf": 4.665681,
+      "loudness": {
+        "source": "encoded_opus",
+        "i_lufs": -17.8,
+        "tp_dbtp": -1.42,
+        "shortfall": false
+      }
+    },
+    {
+      "model": "qwen3-tts-12hz-1.7b",
+      "scenario": "clockwork-plaza",
       "line": "fortune-doll-003",
       "variant": "dry",
       "path": "audio/qwen3-tts-12hz-1.7b/clockwork-plaza/fortune-doll-003-dry.opus",
@@ -10973,6 +12346,74 @@
         "source": "encoded_opus",
         "i_lufs": -18.02,
         "tp_dbtp": -3.66,
+        "shortfall": false
+      }
+    },
+    {
+      "model": "qwen3-tts-12hz-1.7b",
+      "scenario": "clockwork-plaza",
+      "line": "vendor-doll-002",
+      "variant": "dry",
+      "path": "audio/qwen3-tts-12hz-1.7b/clockwork-plaza/vendor-doll-002-dry.opus",
+      "duration_sec": 3.0465,
+      "sha256": "44d764177e3d400b6297cbc9cace55f290be64ea20a2c41838ba31018a1d25a0",
+      "gen_params": {
+        "requested": {
+          "qwen_tts_version": "0.1.1",
+          "base_model": "Qwen/Qwen3-TTS-12Hz-1.7B-Base",
+          "base_revision": "fd4b254389122332181a7c3db7f27e918eec64e3",
+          "voice_design_model": "Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign",
+          "voice_design_revision": "5ecdb67327fd37bb2e042aab12ff7391903235d3",
+          "device": "cuda:0",
+          "dtype": "bfloat16",
+          "attention_backend": "sdpa",
+          "sampling": {
+            "do_sample": true,
+            "repetition_penalty": 1.05,
+            "temperature": 0.9,
+            "top_p": 1.0,
+            "top_k": 50,
+            "subtalker_dosample": true,
+            "subtalker_temperature": 0.9,
+            "subtalker_top_p": 1.0,
+            "subtalker_top_k": 50,
+            "max_new_tokens": 2048
+          },
+          "reference_text": "こんにちは。今日はとても良い天気ですね。"
+        },
+        "realized": {
+          "phase_peak_vram_mib": {
+            "voice_design_load": {
+              "allocated_mib": 3986.726,
+              "reserved_mib": 4112.0
+            },
+            "voice_design_generate": {
+              "allocated_mib": 4073.476,
+              "reserved_mib": 4282.0
+            },
+            "base_load": {
+              "allocated_mib": 4008.5,
+              "reserved_mib": 4134.0
+            },
+            "voice_clone_generate": {
+              "allocated_mib": 4190.192,
+              "reserved_mib": 4444.0
+            }
+          },
+          "seed": 0,
+          "sample_rate_hz": 24000,
+          "postprocess_recovery": {
+            "mode": "stored_normalized_wav-reprocess-v1",
+            "source_input_hash": "9c31ab982806803e99e1ea239a4cbe7e3e34e7a00afd91072cf13fc515801256",
+            "source_wav_sha256": "a1767b51e95a9c4e12b3ff33f42acf4787da0a65ad986a262f468c1f3a02cc18"
+          }
+        }
+      },
+      "rtf": 5.528673,
+      "loudness": {
+        "source": "encoded_opus",
+        "i_lufs": -17.94,
+        "tp_dbtp": -1.34,
         "shortfall": false
       }
     },
@@ -12113,6 +13554,74 @@
     {
       "model": "qwen3-tts-12hz-1.7b",
       "scenario": "festival-night",
+      "line": "matsuri-wakamono-003",
+      "variant": "dry",
+      "path": "audio/qwen3-tts-12hz-1.7b/festival-night/matsuri-wakamono-003-dry.opus",
+      "duration_sec": 3.2065,
+      "sha256": "66936239f4230e1c6a418b4797f1af2410b358aa8be5f72577b32e76397baf3f",
+      "gen_params": {
+        "requested": {
+          "qwen_tts_version": "0.1.1",
+          "base_model": "Qwen/Qwen3-TTS-12Hz-1.7B-Base",
+          "base_revision": "fd4b254389122332181a7c3db7f27e918eec64e3",
+          "voice_design_model": "Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign",
+          "voice_design_revision": "5ecdb67327fd37bb2e042aab12ff7391903235d3",
+          "device": "cuda:0",
+          "dtype": "bfloat16",
+          "attention_backend": "sdpa",
+          "sampling": {
+            "do_sample": true,
+            "repetition_penalty": 1.05,
+            "temperature": 0.9,
+            "top_p": 1.0,
+            "top_k": 50,
+            "subtalker_dosample": true,
+            "subtalker_temperature": 0.9,
+            "subtalker_top_p": 1.0,
+            "subtalker_top_k": 50,
+            "max_new_tokens": 2048
+          },
+          "reference_text": "こんにちは。今日はとても良い天気ですね。"
+        },
+        "realized": {
+          "phase_peak_vram_mib": {
+            "voice_design_load": {
+              "allocated_mib": 3986.726,
+              "reserved_mib": 4112.0
+            },
+            "voice_design_generate": {
+              "allocated_mib": 4078.621,
+              "reserved_mib": 4282.0
+            },
+            "base_load": {
+              "allocated_mib": 4008.5,
+              "reserved_mib": 4134.0
+            },
+            "voice_clone_generate": {
+              "allocated_mib": 4198.576,
+              "reserved_mib": 4494.0
+            }
+          },
+          "seed": 0,
+          "sample_rate_hz": 24000,
+          "postprocess_recovery": {
+            "mode": "stored_normalized_wav-reprocess-v1",
+            "source_input_hash": "ca7c8755952253909f4a91c38731572306853ef428ff4ae3243267d3ccae3393",
+            "source_wav_sha256": "b2b5182ce670b1a01a2711bdc28896765a21bcb8546982a71098ec78a375cf15"
+          }
+        }
+      },
+      "rtf": 6.867389,
+      "loudness": {
+        "source": "encoded_opus",
+        "i_lufs": -17.99,
+        "tp_dbtp": -1.59,
+        "shortfall": false
+      }
+    },
+    {
+      "model": "qwen3-tts-12hz-1.7b",
+      "scenario": "festival-night",
       "line": "mikoshi-katsugite-001",
       "variant": "dry",
       "path": "audio/qwen3-tts-12hz-1.7b/festival-night/mikoshi-katsugite-001-dry.opus",
@@ -12743,6 +14252,74 @@
     {
       "model": "qwen3-tts-12hz-1.7b",
       "scenario": "goblin-camp",
+      "line": "goblin-lookout-002",
+      "variant": "dry",
+      "path": "audio/qwen3-tts-12hz-1.7b/goblin-camp/goblin-lookout-002-dry.opus",
+      "duration_sec": 3.2065,
+      "sha256": "6dfd9aedb2264d5ff2e0398acb61bed5226d962bfbe8a18bceb13df7e517026d",
+      "gen_params": {
+        "requested": {
+          "qwen_tts_version": "0.1.1",
+          "base_model": "Qwen/Qwen3-TTS-12Hz-1.7B-Base",
+          "base_revision": "fd4b254389122332181a7c3db7f27e918eec64e3",
+          "voice_design_model": "Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign",
+          "voice_design_revision": "5ecdb67327fd37bb2e042aab12ff7391903235d3",
+          "device": "cuda:0",
+          "dtype": "bfloat16",
+          "attention_backend": "sdpa",
+          "sampling": {
+            "do_sample": true,
+            "repetition_penalty": 1.05,
+            "temperature": 0.9,
+            "top_p": 1.0,
+            "top_k": 50,
+            "subtalker_dosample": true,
+            "subtalker_temperature": 0.9,
+            "subtalker_top_p": 1.0,
+            "subtalker_top_k": 50,
+            "max_new_tokens": 2048
+          },
+          "reference_text": "こんにちは。今日はとても良い天気ですね。"
+        },
+        "realized": {
+          "phase_peak_vram_mib": {
+            "voice_design_load": {
+              "allocated_mib": 3986.726,
+              "reserved_mib": 4112.0
+            },
+            "voice_design_generate": {
+              "allocated_mib": 4078.621,
+              "reserved_mib": 4282.0
+            },
+            "base_load": {
+              "allocated_mib": 4008.5,
+              "reserved_mib": 4134.0
+            },
+            "voice_clone_generate": {
+              "allocated_mib": 4198.625,
+              "reserved_mib": 4494.0
+            }
+          },
+          "seed": 0,
+          "sample_rate_hz": 24000,
+          "postprocess_recovery": {
+            "mode": "stored_normalized_wav-reprocess-v1",
+            "source_input_hash": "e515586e6ff290722c1bb973ca106614197119d2b24b3f90c472ed64da6a2c13",
+            "source_wav_sha256": "0f699df57027dc5fe08dd1782a318ad68e408a864424b3a0db9a74771dc9f55c"
+          }
+        }
+      },
+      "rtf": 5.396383,
+      "loudness": {
+        "source": "encoded_opus",
+        "i_lufs": -18.0,
+        "tp_dbtp": -1.38,
+        "shortfall": false
+      }
+    },
+    {
+      "model": "qwen3-tts-12hz-1.7b",
+      "scenario": "goblin-camp",
       "line": "goblin-lookout-003",
       "variant": "dry",
       "path": "audio/qwen3-tts-12hz-1.7b/goblin-camp/goblin-lookout-003-dry.opus",
@@ -13184,6 +14761,74 @@
     {
       "model": "qwen3-tts-12hz-1.7b",
       "scenario": "guild-hall",
+      "line": "receptionist-001",
+      "variant": "dry",
+      "path": "audio/qwen3-tts-12hz-1.7b/guild-hall/receptionist-001-dry.opus",
+      "duration_sec": 3.1265,
+      "sha256": "6186c47289063f80c373aa588fdcaf94be0a180dbb23a44e3e55479bd656b30e",
+      "gen_params": {
+        "requested": {
+          "qwen_tts_version": "0.1.1",
+          "base_model": "Qwen/Qwen3-TTS-12Hz-1.7B-Base",
+          "base_revision": "fd4b254389122332181a7c3db7f27e918eec64e3",
+          "voice_design_model": "Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign",
+          "voice_design_revision": "5ecdb67327fd37bb2e042aab12ff7391903235d3",
+          "device": "cuda:0",
+          "dtype": "bfloat16",
+          "attention_backend": "sdpa",
+          "sampling": {
+            "do_sample": true,
+            "repetition_penalty": 1.05,
+            "temperature": 0.9,
+            "top_p": 1.0,
+            "top_k": 50,
+            "subtalker_dosample": true,
+            "subtalker_temperature": 0.9,
+            "subtalker_top_p": 1.0,
+            "subtalker_top_k": 50,
+            "max_new_tokens": 2048
+          },
+          "reference_text": "こんにちは。今日はとても良い天気ですね。"
+        },
+        "realized": {
+          "phase_peak_vram_mib": {
+            "voice_design_load": {
+              "allocated_mib": 3986.726,
+              "reserved_mib": 4112.0
+            },
+            "voice_design_generate": {
+              "allocated_mib": 4085.048,
+              "reserved_mib": 4282.0
+            },
+            "base_load": {
+              "allocated_mib": 4008.5,
+              "reserved_mib": 4134.0
+            },
+            "voice_clone_generate": {
+              "allocated_mib": 4204.589,
+              "reserved_mib": 4494.0
+            }
+          },
+          "seed": 0,
+          "sample_rate_hz": 24000,
+          "postprocess_recovery": {
+            "mode": "stored_normalized_wav-reprocess-v1",
+            "source_input_hash": "7b714fe94a013050ece859412c3fe042ec15c4ed628e1a4956536b06c83aab75",
+            "source_wav_sha256": "4db5cff7bedb9bcdc008dc27ccac721242a6aebfba5f3866b1c099ab3d890f93"
+          }
+        }
+      },
+      "rtf": 5.96606,
+      "loudness": {
+        "source": "encoded_opus",
+        "i_lufs": -17.86,
+        "tp_dbtp": -1.54,
+        "shortfall": false
+      }
+    },
+    {
+      "model": "qwen3-tts-12hz-1.7b",
+      "scenario": "guild-hall",
       "line": "receptionist-002",
       "variant": "dry",
       "path": "audio/qwen3-tts-12hz-1.7b/guild-hall/receptionist-002-dry.opus",
@@ -13493,6 +15138,142 @@
         "source": "encoded_opus",
         "i_lufs": -18.06,
         "tp_dbtp": -3.51,
+        "shortfall": false
+      }
+    },
+    {
+      "model": "qwen3-tts-12hz-1.7b",
+      "scenario": "guild-hall",
+      "line": "veteran-001",
+      "variant": "dry",
+      "path": "audio/qwen3-tts-12hz-1.7b/guild-hall/veteran-001-dry.opus",
+      "duration_sec": 3.2865,
+      "sha256": "f0b2c9c647ebbdb37bd7eb47e15fb3dc0162549e85ff1d6947ad2ad3112fbb7a",
+      "gen_params": {
+        "requested": {
+          "qwen_tts_version": "0.1.1",
+          "base_model": "Qwen/Qwen3-TTS-12Hz-1.7B-Base",
+          "base_revision": "fd4b254389122332181a7c3db7f27e918eec64e3",
+          "voice_design_model": "Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign",
+          "voice_design_revision": "5ecdb67327fd37bb2e042aab12ff7391903235d3",
+          "device": "cuda:0",
+          "dtype": "bfloat16",
+          "attention_backend": "sdpa",
+          "sampling": {
+            "do_sample": true,
+            "repetition_penalty": 1.05,
+            "temperature": 0.9,
+            "top_p": 1.0,
+            "top_k": 50,
+            "subtalker_dosample": true,
+            "subtalker_temperature": 0.9,
+            "subtalker_top_p": 1.0,
+            "subtalker_top_k": 50,
+            "max_new_tokens": 2048
+          },
+          "reference_text": "こんにちは。今日はとても良い天気ですね。"
+        },
+        "realized": {
+          "phase_peak_vram_mib": {
+            "voice_design_load": {
+              "allocated_mib": 3986.726,
+              "reserved_mib": 4112.0
+            },
+            "voice_design_generate": {
+              "allocated_mib": 4091.659,
+              "reserved_mib": 4282.0
+            },
+            "base_load": {
+              "allocated_mib": 4008.5,
+              "reserved_mib": 4134.0
+            },
+            "voice_clone_generate": {
+              "allocated_mib": 4213.555,
+              "reserved_mib": 4494.0
+            }
+          },
+          "seed": 0,
+          "sample_rate_hz": 24000,
+          "postprocess_recovery": {
+            "mode": "stored_normalized_wav-reprocess-v1",
+            "source_input_hash": "37b9ca0cea5db38770a4e647ac7de06d9f844fb91306d43e9cf93fc8f39bff62",
+            "source_wav_sha256": "e1fa9b38889c867e10c41fcde8179fd68bdfc78d4046557509d3b7189a7c1077"
+          }
+        }
+      },
+      "rtf": 6.103803,
+      "loudness": {
+        "source": "encoded_opus",
+        "i_lufs": -18.09,
+        "tp_dbtp": -1.72,
+        "shortfall": false
+      }
+    },
+    {
+      "model": "qwen3-tts-12hz-1.7b",
+      "scenario": "guild-hall",
+      "line": "veteran-002",
+      "variant": "dry",
+      "path": "audio/qwen3-tts-12hz-1.7b/guild-hall/veteran-002-dry.opus",
+      "duration_sec": 3.2865,
+      "sha256": "e1f7762ceeb4f2b3021c4357bd0ea636f633a595c54157bd074fa404bceac0ca",
+      "gen_params": {
+        "requested": {
+          "qwen_tts_version": "0.1.1",
+          "base_model": "Qwen/Qwen3-TTS-12Hz-1.7B-Base",
+          "base_revision": "fd4b254389122332181a7c3db7f27e918eec64e3",
+          "voice_design_model": "Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign",
+          "voice_design_revision": "5ecdb67327fd37bb2e042aab12ff7391903235d3",
+          "device": "cuda:0",
+          "dtype": "bfloat16",
+          "attention_backend": "sdpa",
+          "sampling": {
+            "do_sample": true,
+            "repetition_penalty": 1.05,
+            "temperature": 0.9,
+            "top_p": 1.0,
+            "top_k": 50,
+            "subtalker_dosample": true,
+            "subtalker_temperature": 0.9,
+            "subtalker_top_p": 1.0,
+            "subtalker_top_k": 50,
+            "max_new_tokens": 2048
+          },
+          "reference_text": "こんにちは。今日はとても良い天気ですね。"
+        },
+        "realized": {
+          "phase_peak_vram_mib": {
+            "voice_design_load": {
+              "allocated_mib": 3986.726,
+              "reserved_mib": 4112.0
+            },
+            "voice_design_generate": {
+              "allocated_mib": 4091.659,
+              "reserved_mib": 4282.0
+            },
+            "base_load": {
+              "allocated_mib": 4008.5,
+              "reserved_mib": 4134.0
+            },
+            "voice_clone_generate": {
+              "allocated_mib": 4213.555,
+              "reserved_mib": 4494.0
+            }
+          },
+          "seed": 0,
+          "sample_rate_hz": 24000,
+          "postprocess_recovery": {
+            "mode": "stored_normalized_wav-reprocess-v1",
+            "source_input_hash": "6eda26d58ec5986a68794022828737987cabf6b30a77855ac73cebb2461330c9",
+            "source_wav_sha256": "af29ab3bbd75497406e8a36c2dcda28721086cad46f29ab377fa6fc8db07e19f"
+          }
+        }
+      },
+      "rtf": 6.405311,
+      "loudness": {
+        "source": "encoded_opus",
+        "i_lufs": -17.8,
+        "tp_dbtp": -1.71,
         "shortfall": false
       }
     },
@@ -14186,6 +15967,74 @@
         "source": "encoded_opus",
         "i_lufs": -18.01,
         "tp_dbtp": -1.98,
+        "shortfall": false
+      }
+    },
+    {
+      "model": "qwen3-tts-12hz-1.7b",
+      "scenario": "spirit-forest",
+      "line": "elder-tree-002",
+      "variant": "dry",
+      "path": "audio/qwen3-tts-12hz-1.7b/spirit-forest/elder-tree-002-dry.opus",
+      "duration_sec": 2.2465,
+      "sha256": "e9638ac0489448e15185a003a43e932de6bc6a9741b9d7bdd28e011e909e71fb",
+      "gen_params": {
+        "requested": {
+          "qwen_tts_version": "0.1.1",
+          "base_model": "Qwen/Qwen3-TTS-12Hz-1.7B-Base",
+          "base_revision": "fd4b254389122332181a7c3db7f27e918eec64e3",
+          "voice_design_model": "Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign",
+          "voice_design_revision": "5ecdb67327fd37bb2e042aab12ff7391903235d3",
+          "device": "cuda:0",
+          "dtype": "bfloat16",
+          "attention_backend": "sdpa",
+          "sampling": {
+            "do_sample": true,
+            "repetition_penalty": 1.05,
+            "temperature": 0.9,
+            "top_p": 1.0,
+            "top_k": 50,
+            "subtalker_dosample": true,
+            "subtalker_temperature": 0.9,
+            "subtalker_top_p": 1.0,
+            "subtalker_top_k": 50,
+            "max_new_tokens": 2048
+          },
+          "reference_text": "こんにちは。今日はとても良い天気ですね。"
+        },
+        "realized": {
+          "phase_peak_vram_mib": {
+            "voice_design_load": {
+              "allocated_mib": 3986.726,
+              "reserved_mib": 4112.0
+            },
+            "voice_design_generate": {
+              "allocated_mib": 4083.396,
+              "reserved_mib": 4284.0
+            },
+            "base_load": {
+              "allocated_mib": 4008.5,
+              "reserved_mib": 4134.0
+            },
+            "voice_clone_generate": {
+              "allocated_mib": 4183.936,
+              "reserved_mib": 4494.0
+            }
+          },
+          "seed": 0,
+          "sample_rate_hz": 24000,
+          "postprocess_recovery": {
+            "mode": "stored_normalized_wav-reprocess-v1",
+            "source_input_hash": "ddf5d2e2847925a279eec66f4283fc3af844f33fc093f72c1f8ad985e5fc5284",
+            "source_wav_sha256": "50e38adf919cb61773160410d45d3b494992f265bc557981fc8040baf7de52bb"
+          }
+        }
+      },
+      "rtf": 6.026924,
+      "loudness": {
+        "source": "encoded_opus",
+        "i_lufs": -18.09,
+        "tp_dbtp": -1.42,
         "shortfall": false
       }
     },
@@ -15200,6 +17049,74 @@
     {
       "model": "qwen3-tts-12hz-1.7b",
       "scenario": "village-morning",
+      "line": "farm-wife-002",
+      "variant": "dry",
+      "path": "audio/qwen3-tts-12hz-1.7b/village-morning/farm-wife-002-dry.opus",
+      "duration_sec": 2.4865,
+      "sha256": "cec933de39629e8074e035e5aca1af3074350a2d7d09887bf953a0a09608379d",
+      "gen_params": {
+        "requested": {
+          "qwen_tts_version": "0.1.1",
+          "base_model": "Qwen/Qwen3-TTS-12Hz-1.7B-Base",
+          "base_revision": "fd4b254389122332181a7c3db7f27e918eec64e3",
+          "voice_design_model": "Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign",
+          "voice_design_revision": "5ecdb67327fd37bb2e042aab12ff7391903235d3",
+          "device": "cuda:0",
+          "dtype": "bfloat16",
+          "attention_backend": "sdpa",
+          "sampling": {
+            "do_sample": true,
+            "repetition_penalty": 1.05,
+            "temperature": 0.9,
+            "top_p": 1.0,
+            "top_k": 50,
+            "subtalker_dosample": true,
+            "subtalker_temperature": 0.9,
+            "subtalker_top_p": 1.0,
+            "subtalker_top_k": 50,
+            "max_new_tokens": 2048
+          },
+          "reference_text": "こんにちは。今日はとても良い天気ですね。"
+        },
+        "realized": {
+          "phase_peak_vram_mib": {
+            "voice_design_load": {
+              "allocated_mib": 3986.726,
+              "reserved_mib": 4112.0
+            },
+            "voice_design_generate": {
+              "allocated_mib": 4086.701,
+              "reserved_mib": 4284.0
+            },
+            "base_load": {
+              "allocated_mib": 4008.5,
+              "reserved_mib": 4134.0
+            },
+            "voice_clone_generate": {
+              "allocated_mib": 4192.32,
+              "reserved_mib": 4494.0
+            }
+          },
+          "seed": 0,
+          "sample_rate_hz": 24000,
+          "postprocess_recovery": {
+            "mode": "stored_normalized_wav-reprocess-v1",
+            "source_input_hash": "6a174c79f0b4e2df8cd0acbb90e83d964a88e8bd08ea1a8a8891ded8a04022f8",
+            "source_wav_sha256": "54efcfe4d78c8632d81e2f04c914ed852afbbbf022de1f65bb95b1152be8c2ba"
+          }
+        }
+      },
+      "rtf": 6.581027,
+      "loudness": {
+        "source": "encoded_opus",
+        "i_lufs": -17.98,
+        "tp_dbtp": -1.73,
+        "shortfall": false
+      }
+    },
+    {
+      "model": "qwen3-tts-12hz-1.7b",
+      "scenario": "village-morning",
       "line": "farmer-man-001",
       "variant": "dry",
       "path": "audio/qwen3-tts-12hz-1.7b/village-morning/farmer-man-001-dry.opus",
@@ -15257,6 +17174,74 @@
         "source": "encoded_opus",
         "i_lufs": -17.99,
         "tp_dbtp": -3.41,
+        "shortfall": false
+      }
+    },
+    {
+      "model": "qwen3-tts-12hz-1.7b",
+      "scenario": "village-morning",
+      "line": "farmer-man-002",
+      "variant": "dry",
+      "path": "audio/qwen3-tts-12hz-1.7b/village-morning/farmer-man-002-dry.opus",
+      "duration_sec": 2.6465,
+      "sha256": "1c2e9174d6dbff55ce1289aa3514576472d68668215e003a4fc84dc437d02793",
+      "gen_params": {
+        "requested": {
+          "qwen_tts_version": "0.1.1",
+          "base_model": "Qwen/Qwen3-TTS-12Hz-1.7B-Base",
+          "base_revision": "fd4b254389122332181a7c3db7f27e918eec64e3",
+          "voice_design_model": "Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign",
+          "voice_design_revision": "5ecdb67327fd37bb2e042aab12ff7391903235d3",
+          "device": "cuda:0",
+          "dtype": "bfloat16",
+          "attention_backend": "sdpa",
+          "sampling": {
+            "do_sample": true,
+            "repetition_penalty": 1.05,
+            "temperature": 0.9,
+            "top_p": 1.0,
+            "top_k": 50,
+            "subtalker_dosample": true,
+            "subtalker_temperature": 0.9,
+            "subtalker_top_p": 1.0,
+            "subtalker_top_k": 50,
+            "max_new_tokens": 2048
+          },
+          "reference_text": "こんにちは。今日はとても良い天気ですね。"
+        },
+        "realized": {
+          "phase_peak_vram_mib": {
+            "voice_design_load": {
+              "allocated_mib": 3986.726,
+              "reserved_mib": 4112.0
+            },
+            "voice_design_generate": {
+              "allocated_mib": 4106.571,
+              "reserved_mib": 4284.0
+            },
+            "base_load": {
+              "allocated_mib": 4008.5,
+              "reserved_mib": 4134.0
+            },
+            "voice_clone_generate": {
+              "allocated_mib": 4215.433,
+              "reserved_mib": 4494.0
+            }
+          },
+          "seed": 0,
+          "sample_rate_hz": 24000,
+          "postprocess_recovery": {
+            "mode": "stored_normalized_wav-reprocess-v1",
+            "source_input_hash": "c40a227b0577b814609091e9cd0dd35a171463dc51f7202ad2cfa65025a8a639",
+            "source_wav_sha256": "abbc2413dd55abb130da029d8554a5a5d00d96bb588bedc947796b1c2db474c4"
+          }
+        }
+      },
+      "rtf": 6.407334,
+      "loudness": {
+        "source": "encoded_opus",
+        "i_lufs": -18.05,
+        "tp_dbtp": -1.32,
         "shortfall": false
       }
     },
@@ -15452,6 +17437,74 @@
     {
       "model": "qwen3-tts-12hz-1.7b",
       "scenario": "village-morning",
+      "line": "granny-004",
+      "variant": "dry",
+      "path": "audio/qwen3-tts-12hz-1.7b/village-morning/granny-004-dry.opus",
+      "duration_sec": 2.4865,
+      "sha256": "249fc20fbb7695d02c778d1c3c229d5449bf5a173e9f8409f42c41fe734992fb",
+      "gen_params": {
+        "requested": {
+          "qwen_tts_version": "0.1.1",
+          "base_model": "Qwen/Qwen3-TTS-12Hz-1.7B-Base",
+          "base_revision": "fd4b254389122332181a7c3db7f27e918eec64e3",
+          "voice_design_model": "Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign",
+          "voice_design_revision": "5ecdb67327fd37bb2e042aab12ff7391903235d3",
+          "device": "cuda:0",
+          "dtype": "bfloat16",
+          "attention_backend": "sdpa",
+          "sampling": {
+            "do_sample": true,
+            "repetition_penalty": 1.05,
+            "temperature": 0.9,
+            "top_p": 1.0,
+            "top_k": 50,
+            "subtalker_dosample": true,
+            "subtalker_temperature": 0.9,
+            "subtalker_top_p": 1.0,
+            "subtalker_top_k": 50,
+            "max_new_tokens": 2048
+          },
+          "reference_text": "こんにちは。今日はとても良い天気ですね。"
+        },
+        "realized": {
+          "phase_peak_vram_mib": {
+            "voice_design_load": {
+              "allocated_mib": 3986.726,
+              "reserved_mib": 4112.0
+            },
+            "voice_design_generate": {
+              "allocated_mib": 4061.926,
+              "reserved_mib": 4284.0
+            },
+            "base_load": {
+              "allocated_mib": 4008.5,
+              "reserved_mib": 4134.0
+            },
+            "voice_clone_generate": {
+              "allocated_mib": 4167.556,
+              "reserved_mib": 4494.0
+            }
+          },
+          "seed": 0,
+          "sample_rate_hz": 24000,
+          "postprocess_recovery": {
+            "mode": "stored_normalized_wav-reprocess-v1",
+            "source_input_hash": "940826ceeefb882fa04ac333af6a082de9511000f9ab89d859b6499de79e032f",
+            "source_wav_sha256": "a6275fe60d431bed45bd33fd769a3fd1d43e658cfbbd13f5cb6cc2bd62333708"
+          }
+        }
+      },
+      "rtf": 7.423703,
+      "loudness": {
+        "source": "encoded_opus",
+        "i_lufs": -18.13,
+        "tp_dbtp": -1.49,
+        "shortfall": false
+      }
+    },
+    {
+      "model": "qwen3-tts-12hz-1.7b",
+      "scenario": "village-morning",
       "line": "teen-boy-001",
       "variant": "dry",
       "path": "audio/qwen3-tts-12hz-1.7b/village-morning/teen-boy-001-dry.opus",
@@ -15515,6 +17568,74 @@
     {
       "model": "qwen3-tts-12hz-1.7b",
       "scenario": "village-morning",
+      "line": "teen-boy-002",
+      "variant": "dry",
+      "path": "audio/qwen3-tts-12hz-1.7b/village-morning/teen-boy-002-dry.opus",
+      "duration_sec": 2.5665,
+      "sha256": "21127527c92fa45867a8a797af9f08fc2a14de32f0ea0edfc8959af408389c5e",
+      "gen_params": {
+        "requested": {
+          "qwen_tts_version": "0.1.1",
+          "base_model": "Qwen/Qwen3-TTS-12Hz-1.7B-Base",
+          "base_revision": "fd4b254389122332181a7c3db7f27e918eec64e3",
+          "voice_design_model": "Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign",
+          "voice_design_revision": "5ecdb67327fd37bb2e042aab12ff7391903235d3",
+          "device": "cuda:0",
+          "dtype": "bfloat16",
+          "attention_backend": "sdpa",
+          "sampling": {
+            "do_sample": true,
+            "repetition_penalty": 1.05,
+            "temperature": 0.9,
+            "top_p": 1.0,
+            "top_k": 50,
+            "subtalker_dosample": true,
+            "subtalker_temperature": 0.9,
+            "subtalker_top_p": 1.0,
+            "subtalker_top_k": 50,
+            "max_new_tokens": 2048
+          },
+          "reference_text": "こんにちは。今日はとても良い天気ですね。"
+        },
+        "realized": {
+          "phase_peak_vram_mib": {
+            "voice_design_load": {
+              "allocated_mib": 3986.726,
+              "reserved_mib": 4112.0
+            },
+            "voice_design_generate": {
+              "allocated_mib": 4061.926,
+              "reserved_mib": 4284.0
+            },
+            "base_load": {
+              "allocated_mib": 4008.5,
+              "reserved_mib": 4134.0
+            },
+            "voice_clone_generate": {
+              "allocated_mib": 4169.224,
+              "reserved_mib": 4494.0
+            }
+          },
+          "seed": 0,
+          "sample_rate_hz": 24000,
+          "postprocess_recovery": {
+            "mode": "stored_normalized_wav-reprocess-v1",
+            "source_input_hash": "a90543acb4bc8732cf8781e84ff6af8e633ff884c77e1d74ff6a766c083a8f10",
+            "source_wav_sha256": "71f720f1d72e2f26d06933b562d2226ac8d9efe73cf9f60e67b3fd4437ab7863"
+          }
+        }
+      },
+      "rtf": 6.11326,
+      "loudness": {
+        "source": "encoded_opus",
+        "i_lufs": -18.12,
+        "tp_dbtp": -1.44,
+        "shortfall": false
+      }
+    },
+    {
+      "model": "qwen3-tts-12hz-1.7b",
+      "scenario": "village-morning",
       "line": "teen-boy-003",
       "variant": "dry",
       "path": "audio/qwen3-tts-12hz-1.7b/village-morning/teen-boy-003-dry.opus",
@@ -15572,6 +17693,74 @@
         "source": "encoded_opus",
         "i_lufs": -18.0,
         "tp_dbtp": -2.23,
+        "shortfall": false
+      }
+    },
+    {
+      "model": "qwen3-tts-12hz-1.7b",
+      "scenario": "village-morning",
+      "line": "teen-boy-004",
+      "variant": "dry",
+      "path": "audio/qwen3-tts-12hz-1.7b/village-morning/teen-boy-004-dry.opus",
+      "duration_sec": 1.6865,
+      "sha256": "52084185b46a418e1757ae8ca6c06993cb12ff7f2a5fdbf017ab7468f1f037b5",
+      "gen_params": {
+        "requested": {
+          "qwen_tts_version": "0.1.1",
+          "base_model": "Qwen/Qwen3-TTS-12Hz-1.7B-Base",
+          "base_revision": "fd4b254389122332181a7c3db7f27e918eec64e3",
+          "voice_design_model": "Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign",
+          "voice_design_revision": "5ecdb67327fd37bb2e042aab12ff7391903235d3",
+          "device": "cuda:0",
+          "dtype": "bfloat16",
+          "attention_backend": "sdpa",
+          "sampling": {
+            "do_sample": true,
+            "repetition_penalty": 1.05,
+            "temperature": 0.9,
+            "top_p": 1.0,
+            "top_k": 50,
+            "subtalker_dosample": true,
+            "subtalker_temperature": 0.9,
+            "subtalker_top_p": 1.0,
+            "subtalker_top_k": 50,
+            "max_new_tokens": 2048
+          },
+          "reference_text": "こんにちは。今日はとても良い天気ですね。"
+        },
+        "realized": {
+          "phase_peak_vram_mib": {
+            "voice_design_load": {
+              "allocated_mib": 3986.726,
+              "reserved_mib": 4112.0
+            },
+            "voice_design_generate": {
+              "allocated_mib": 4061.926,
+              "reserved_mib": 4284.0
+            },
+            "base_load": {
+              "allocated_mib": 4008.5,
+              "reserved_mib": 4134.0
+            },
+            "voice_clone_generate": {
+              "allocated_mib": 4151.44,
+              "reserved_mib": 4494.0
+            }
+          },
+          "seed": 0,
+          "sample_rate_hz": 24000,
+          "postprocess_recovery": {
+            "mode": "stored_normalized_wav-reprocess-v1",
+            "source_input_hash": "a8f1134bbbb90bec16f88726559c6648e83a5e36e047c17dc97db10b16ca79e3",
+            "source_wav_sha256": "d8e78d8187058c13e12b9049bd1c9b15797ba0165925bc5300be1833576f5a2b"
+          }
+        }
+      },
+      "rtf": 6.350902,
+      "loudness": {
+        "source": "encoded_opus",
+        "i_lufs": -18.04,
+        "tp_dbtp": -1.73,
         "shortfall": false
       }
     },
@@ -16586,6 +18775,142 @@
     {
       "model": "qwen3-tts-12hz-1.7b",
       "scenario": "west-market",
+      "line": "kankou-fujin-001",
+      "variant": "dry",
+      "path": "audio/qwen3-tts-12hz-1.7b/west-market/kankou-fujin-001-dry.opus",
+      "duration_sec": 2.4065,
+      "sha256": "4fb7e98cd64a4fa2faf1aace450bb6625e7fd10369aa9daf05ca80aa0af6ade4",
+      "gen_params": {
+        "requested": {
+          "qwen_tts_version": "0.1.1",
+          "base_model": "Qwen/Qwen3-TTS-12Hz-1.7B-Base",
+          "base_revision": "fd4b254389122332181a7c3db7f27e918eec64e3",
+          "voice_design_model": "Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign",
+          "voice_design_revision": "5ecdb67327fd37bb2e042aab12ff7391903235d3",
+          "device": "cuda:0",
+          "dtype": "bfloat16",
+          "attention_backend": "sdpa",
+          "sampling": {
+            "do_sample": true,
+            "repetition_penalty": 1.05,
+            "temperature": 0.9,
+            "top_p": 1.0,
+            "top_k": 50,
+            "subtalker_dosample": true,
+            "subtalker_temperature": 0.9,
+            "subtalker_top_p": 1.0,
+            "subtalker_top_k": 50,
+            "max_new_tokens": 2048
+          },
+          "reference_text": "こんにちは。今日はとても良い天気ですね。"
+        },
+        "realized": {
+          "phase_peak_vram_mib": {
+            "voice_design_load": {
+              "allocated_mib": 3986.726,
+              "reserved_mib": 4112.0
+            },
+            "voice_design_generate": {
+              "allocated_mib": 4078.621,
+              "reserved_mib": 4284.0
+            },
+            "base_load": {
+              "allocated_mib": 4008.5,
+              "reserved_mib": 4134.0
+            },
+            "voice_clone_generate": {
+              "allocated_mib": 4182.626,
+              "reserved_mib": 4674.0
+            }
+          },
+          "seed": 0,
+          "sample_rate_hz": 24000,
+          "postprocess_recovery": {
+            "mode": "stored_normalized_wav-reprocess-v1",
+            "source_input_hash": "becdf702d217cdf72a45aae18e6136c938c0bfb93a43c7249deddc836411d821",
+            "source_wav_sha256": "f068f7528d19439a0fccc0308d3f7b9885c93f7fb9e28d94cd9b2be2ad1c16d4"
+          }
+        }
+      },
+      "rtf": 7.163507,
+      "loudness": {
+        "source": "encoded_opus",
+        "i_lufs": -18.09,
+        "tp_dbtp": -1.61,
+        "shortfall": false
+      }
+    },
+    {
+      "model": "qwen3-tts-12hz-1.7b",
+      "scenario": "west-market",
+      "line": "kankou-fujin-002",
+      "variant": "dry",
+      "path": "audio/qwen3-tts-12hz-1.7b/west-market/kankou-fujin-002-dry.opus",
+      "duration_sec": 2.646542,
+      "sha256": "6579a97c00d7fbf309ce8be4af1bececd8c6150134a020f0361b3dc3e307b7c0",
+      "gen_params": {
+        "requested": {
+          "qwen_tts_version": "0.1.1",
+          "base_model": "Qwen/Qwen3-TTS-12Hz-1.7B-Base",
+          "base_revision": "fd4b254389122332181a7c3db7f27e918eec64e3",
+          "voice_design_model": "Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign",
+          "voice_design_revision": "5ecdb67327fd37bb2e042aab12ff7391903235d3",
+          "device": "cuda:0",
+          "dtype": "bfloat16",
+          "attention_backend": "sdpa",
+          "sampling": {
+            "do_sample": true,
+            "repetition_penalty": 1.05,
+            "temperature": 0.9,
+            "top_p": 1.0,
+            "top_k": 50,
+            "subtalker_dosample": true,
+            "subtalker_temperature": 0.9,
+            "subtalker_top_p": 1.0,
+            "subtalker_top_k": 50,
+            "max_new_tokens": 2048
+          },
+          "reference_text": "こんにちは。今日はとても良い天気ですね。"
+        },
+        "realized": {
+          "phase_peak_vram_mib": {
+            "voice_design_load": {
+              "allocated_mib": 3986.726,
+              "reserved_mib": 4112.0
+            },
+            "voice_design_generate": {
+              "allocated_mib": 4078.621,
+              "reserved_mib": 4284.0
+            },
+            "base_load": {
+              "allocated_mib": 4008.5,
+              "reserved_mib": 4134.0
+            },
+            "voice_clone_generate": {
+              "allocated_mib": 4187.553,
+              "reserved_mib": 4674.0
+            }
+          },
+          "seed": 0,
+          "sample_rate_hz": 24000,
+          "postprocess_recovery": {
+            "mode": "stored_normalized_wav-reprocess-v1",
+            "source_input_hash": "c4dec58ee23257ccdf4f5e316d2b1be927ba83ff5f6da48154ce7e5d2cc5d2b9",
+            "source_wav_sha256": "1d1e27542702e65e9cf72fe57e6d93154ebad724d6cc8f2d317d2a46da967944"
+          }
+        }
+      },
+      "rtf": 6.848843,
+      "loudness": {
+        "source": "encoded_opus",
+        "i_lufs": -18.0,
+        "tp_dbtp": -1.35,
+        "shortfall": false
+      }
+    },
+    {
+      "model": "qwen3-tts-12hz-1.7b",
+      "scenario": "west-market",
       "line": "kankou-fujin-003",
       "variant": "dry",
       "path": "audio/qwen3-tts-12hz-1.7b/west-market/kankou-fujin-003-dry.opus",
@@ -16643,6 +18968,296 @@
         "source": "encoded_opus",
         "i_lufs": -18.01,
         "tp_dbtp": -1.41,
+        "shortfall": false
+      }
+    },
+    {
+      "model": "qwen3-tts-12hz-1.7b",
+      "scenario": "west-market",
+      "line": "kyuuji-001",
+      "variant": "dry",
+      "path": "audio/qwen3-tts-12hz-1.7b/west-market/kyuuji-001-dry.opus",
+      "duration_sec": 2.0065,
+      "sha256": "fe259111c3a50caced6bd5f62e35831a4ede1fd1a62e9964e72b913193927eb1",
+      "gen_params": {
+        "requested": {
+          "qwen_tts_version": "0.1.1",
+          "base_model": "Qwen/Qwen3-TTS-12Hz-1.7B-Base",
+          "base_revision": "fd4b254389122332181a7c3db7f27e918eec64e3",
+          "voice_design_model": "Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign",
+          "voice_design_revision": "5ecdb67327fd37bb2e042aab12ff7391903235d3",
+          "device": "cuda:0",
+          "dtype": "bfloat16",
+          "attention_backend": "sdpa",
+          "sampling": {
+            "do_sample": true,
+            "repetition_penalty": 1.05,
+            "temperature": 0.9,
+            "top_p": 1.0,
+            "top_k": 50,
+            "subtalker_dosample": true,
+            "subtalker_temperature": 0.9,
+            "subtalker_top_p": 1.0,
+            "subtalker_top_k": 50,
+            "max_new_tokens": 2048
+          },
+          "reference_text": "こんにちは。今日はとても良い天気ですね。"
+        },
+        "realized": {
+          "phase_peak_vram_mib": {
+            "voice_design_load": {
+              "allocated_mib": 3986.726,
+              "reserved_mib": 4112.0
+            },
+            "voice_design_generate": {
+              "allocated_mib": 4078.621,
+              "reserved_mib": 4284.0
+            },
+            "base_load": {
+              "allocated_mib": 4008.5,
+              "reserved_mib": 4134.0
+            },
+            "voice_clone_generate": {
+              "allocated_mib": 4174.313,
+              "reserved_mib": 4674.0
+            }
+          },
+          "seed": 0,
+          "sample_rate_hz": 24000,
+          "postprocess_recovery": {
+            "mode": "stored_normalized_wav-reprocess-v1",
+            "source_input_hash": "a1ed3cc4ea8972f77ae64d24ec017ee279ea3df9b6a74fbc1901391d244195b7",
+            "source_wav_sha256": "be529c36b70b574634e58af310f3fbf649b1071268bead7963bebccee4b050e7"
+          }
+        }
+      },
+      "rtf": 6.457294,
+      "loudness": {
+        "source": "encoded_opus",
+        "i_lufs": -18.1,
+        "tp_dbtp": -1.54,
+        "shortfall": false
+      }
+    },
+    {
+      "model": "qwen3-tts-12hz-1.7b",
+      "scenario": "west-market",
+      "line": "kyuuji-002",
+      "variant": "dry",
+      "path": "audio/qwen3-tts-12hz-1.7b/west-market/kyuuji-002-dry.opus",
+      "duration_sec": 2.0065,
+      "sha256": "fb752b11dfe8e115b4c2e6512e09ad04e59155814bfbd10f3d0603fa4d917435",
+      "gen_params": {
+        "requested": {
+          "qwen_tts_version": "0.1.1",
+          "base_model": "Qwen/Qwen3-TTS-12Hz-1.7B-Base",
+          "base_revision": "fd4b254389122332181a7c3db7f27e918eec64e3",
+          "voice_design_model": "Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign",
+          "voice_design_revision": "5ecdb67327fd37bb2e042aab12ff7391903235d3",
+          "device": "cuda:0",
+          "dtype": "bfloat16",
+          "attention_backend": "sdpa",
+          "sampling": {
+            "do_sample": true,
+            "repetition_penalty": 1.05,
+            "temperature": 0.9,
+            "top_p": 1.0,
+            "top_k": 50,
+            "subtalker_dosample": true,
+            "subtalker_temperature": 0.9,
+            "subtalker_top_p": 1.0,
+            "subtalker_top_k": 50,
+            "max_new_tokens": 2048
+          },
+          "reference_text": "こんにちは。今日はとても良い天気ですね。"
+        },
+        "realized": {
+          "phase_peak_vram_mib": {
+            "voice_design_load": {
+              "allocated_mib": 3986.726,
+              "reserved_mib": 4112.0
+            },
+            "voice_design_generate": {
+              "allocated_mib": 4078.621,
+              "reserved_mib": 4284.0
+            },
+            "base_load": {
+              "allocated_mib": 4008.5,
+              "reserved_mib": 4134.0
+            },
+            "voice_clone_generate": {
+              "allocated_mib": 4174.313,
+              "reserved_mib": 4674.0
+            }
+          },
+          "seed": 0,
+          "sample_rate_hz": 24000,
+          "postprocess_recovery": {
+            "mode": "stored_normalized_wav-reprocess-v1",
+            "source_input_hash": "8e0e5c2bc59018a96e5814002f3b58b6aec4d493ca21ff5e820107e985b698e5",
+            "source_wav_sha256": "5c1b456a0b7b83ac60de7251c2fad785a4a600eea46a2152517c2dec83d8b3a7"
+          }
+        }
+      },
+      "rtf": 6.093733,
+      "loudness": {
+        "source": "encoded_opus",
+        "i_lufs": -18.18,
+        "tp_dbtp": -1.65,
+        "shortfall": false
+      }
+    },
+    {
+      "model": "supertonic-3",
+      "scenario": "market-day",
+      "line": "fruit-vendor-001",
+      "variant": "dry",
+      "path": "audio/supertonic-3/market-day/fruit-vendor-001-dry.opus",
+      "duration_sec": 3.698479,
+      "sha256": "0f9d75099e7a4ecb181a9687fad88b6362d9119c1c64ae2e4ea25fa01026c80f",
+      "gen_params": {
+        "requested": {
+          "upstream_repository": "supertone-inc/supertonic",
+          "upstream_revision": "7e2804f96016a7028cb1ed627353c61c1e9dd281",
+          "sdk_repository": "supertone-inc/supertonic-py",
+          "sdk_revision": "908a56486e821e833a80530ff0cae3ad0b046fce",
+          "sdk_version": "1.3.1",
+          "weights_repository": "Supertone/supertonic-3",
+          "weights_revision": "724fb5abbf5502583fb520898d45929e62f02c0b",
+          "tts_asset_version": "v1.7.3",
+          "model_root_environment": "GAYA_SUPERTONIC3_ROOT",
+          "model_files": {
+            "LICENSE": {
+              "size": 15007,
+              "sha256": "0d944a9110fed9a9602d60e0423a272903e7bd21ab060490774efc77c2275e9f"
+            },
+            "README.md": {
+              "size": 5390,
+              "sha256": "168fda97edbd2a80167b105ff4a3b62a169bc93fe2611b3a5d04ecf983f62438"
+            },
+            "config.json": {
+              "size": 174,
+              "sha256": "4099082b107a9d4029849ac76b89eca65e03732660969c2babe5bf308c7357f2"
+            },
+            "onnx/duration_predictor.onnx": {
+              "size": 3700147,
+              "sha256": "c3eb91414d5ff8a7a239b7fe9e34e7e2bf8a8140d8375ffb14718b1c639325db"
+            },
+            "onnx/text_encoder.onnx": {
+              "size": 36416150,
+              "sha256": "c7befd5ea8c3119769e8a6c1486c4edc6a3bc8365c67621c881bbb774b9902ff"
+            },
+            "onnx/tts.json": {
+              "size": 8253,
+              "sha256": "42078d3aef1cd43ab43021f3c54f47d2d75ceb4e75f627f118890128b06a0d09"
+            },
+            "onnx/unicode_indexer.json": {
+              "size": 277676,
+              "sha256": "9bf7346e43883a81f8645c81224f786d43c5b57f3641f6e7671a7d6c493cb24f"
+            },
+            "onnx/vector_estimator.onnx": {
+              "size": 256534781,
+              "sha256": "883ac868ea0275ef0e991524dc64f16b3c0376efd7c320af6b53f5b780d7c61c"
+            },
+            "onnx/vocoder.onnx": {
+              "size": 101424195,
+              "sha256": "085de76dd8e8d5836d6ca66826601f615939218f90e519f70ee8a36ed2a4c4ba"
+            },
+            "voice_styles/F1.json": {
+              "size": 292046,
+              "sha256": "bbdec6ee00231c2c742ad05483df5334cab3b52fda3ba38e6a07059c4563dbc2"
+            },
+            "voice_styles/F2.json": {
+              "size": 292423,
+              "sha256": "7c722c6a72707b1a77f035d67f0d1351ba187738e06f7683e8c72b1df3477fc6"
+            },
+            "voice_styles/F3.json": {
+              "size": 290794,
+              "sha256": "12f6ef2573baa2defa1128069cb59f203e3ab67c92af77b42df8a0e3a2f7c6ab"
+            },
+            "voice_styles/F4.json": {
+              "size": 291808,
+              "sha256": "c2fa764c1225a76dfc3e2c73e8aa4f70d9ee48793860eb34c295fff01c2e032b"
+            },
+            "voice_styles/F5.json": {
+              "size": 291479,
+              "sha256": "45966e73316415626cf41a7d1c6f3b4c70dbc1ba2bee5c1978ef0ce33244fc8d"
+            },
+            "voice_styles/M1.json": {
+              "size": 291748,
+              "sha256": "e35604687f5d23694b8e91593a93eec0e4eca6c0b02bb8ed69139ab2ea6b0a5b"
+            },
+            "voice_styles/M2.json": {
+              "size": 292055,
+              "sha256": "b76cbf62bac707c710cf0ae5aba5e31eea1a6339a9734bfae33ab98499534a50"
+            },
+            "voice_styles/M3.json": {
+              "size": 290198,
+              "sha256": "ea1ac35ccb91b0d7ecad533a2fbd0eec10c91513d8951e3b25fbba99954e159b"
+            },
+            "voice_styles/M4.json": {
+              "size": 291522,
+              "sha256": "ca8eefad4fcd989c9379032ff3e50738adc547eeb5e221b82593a6d7b3bac303"
+            },
+            "voice_styles/M5.json": {
+              "size": 291469,
+              "sha256": "dd22b92740314321f8ae11c5e87f8dd60d060f15dd3a632b5adf77f471f77af2"
+            }
+          },
+          "architecture": "supertonic-3",
+          "language_id": "ja",
+          "sample_rate_hz": 44100,
+          "provider": "CPUExecutionProvider",
+          "supertonic_version": "1.3.1",
+          "onnxruntime_version": "1.23.1",
+          "numpy_version": "2.3.3",
+          "soundfile_version": "0.13.1",
+          "seed": 42,
+          "total_steps": 8,
+          "speed": 1.05,
+          "max_chunk_length": 300,
+          "silence_duration_sec": 0.3,
+          "intra_op_num_threads": 10,
+          "inter_op_num_threads": 1,
+          "voice_assignments": {
+            "tavern-night/barmaid": "F2",
+            "tavern-night/drunkard": "M1",
+            "tavern-night/old-regular": "M5",
+            "market-day/fruit-vendor": "M1",
+            "market-day/shopper": "F1",
+            "market-day/street-kid": "F2"
+          },
+          "expression_tags": false,
+          "voice_builder": false,
+          "auto_download": false
+        },
+        "realized": {
+          "seed": 42,
+          "language_id": "ja",
+          "voice_style": "M1",
+          "sample_rate_hz": 44100,
+          "channels": 1,
+          "sample_width_bytes": 2,
+          "returned_duration_sec": 3.643183946609497,
+          "waveform_peak": 0.416607528924942,
+          "onnx_providers": [
+            "CPUExecutionProvider"
+          ],
+          "reading_source": "line.text",
+          "voice_selection_source": "adapter.assignment:market-day/fruit-vendor",
+          "voice_style_sha256": "e35604687f5d23694b8e91593a93eec0e4eca6c0b02bb8ed69139ab2ea6b0a5b",
+          "postprocess_recovery": {
+            "mode": "stored_normalized_wav-reprocess-v1",
+            "source_input_hash": "0c1f3b9a355382d680063ea4ff6cdcbe674d6963aa470de2420a6bd7264a45ab",
+            "source_wav_sha256": "3be2a54bf58582be13d43762bef1bf02ff0d62b1d116028e4035b9da18ed317b"
+          }
+        }
+      },
+      "rtf": 0.317108,
+      "loudness": {
+        "source": "encoded_opus",
+        "i_lufs": -17.93,
+        "tp_dbtp": -1.62,
         "shortfall": false
       }
     },
@@ -17835,6 +20450,160 @@
         "source": "encoded_opus",
         "i_lufs": -17.97,
         "tp_dbtp": -1.16,
+        "shortfall": false
+      }
+    },
+    {
+      "model": "supertonic-3",
+      "scenario": "tavern-night",
+      "line": "drunkard-002",
+      "variant": "dry",
+      "path": "audio/supertonic-3/tavern-night/drunkard-002-dry.opus",
+      "duration_sec": 2.444604,
+      "sha256": "3d607efc89b08c5b20b153615fe4c28d337e8e6e11a8fd67bb4380a1fd6baac6",
+      "gen_params": {
+        "requested": {
+          "upstream_repository": "supertone-inc/supertonic",
+          "upstream_revision": "7e2804f96016a7028cb1ed627353c61c1e9dd281",
+          "sdk_repository": "supertone-inc/supertonic-py",
+          "sdk_revision": "908a56486e821e833a80530ff0cae3ad0b046fce",
+          "sdk_version": "1.3.1",
+          "weights_repository": "Supertone/supertonic-3",
+          "weights_revision": "724fb5abbf5502583fb520898d45929e62f02c0b",
+          "tts_asset_version": "v1.7.3",
+          "model_root_environment": "GAYA_SUPERTONIC3_ROOT",
+          "model_files": {
+            "LICENSE": {
+              "size": 15007,
+              "sha256": "0d944a9110fed9a9602d60e0423a272903e7bd21ab060490774efc77c2275e9f"
+            },
+            "README.md": {
+              "size": 5390,
+              "sha256": "168fda97edbd2a80167b105ff4a3b62a169bc93fe2611b3a5d04ecf983f62438"
+            },
+            "config.json": {
+              "size": 174,
+              "sha256": "4099082b107a9d4029849ac76b89eca65e03732660969c2babe5bf308c7357f2"
+            },
+            "onnx/duration_predictor.onnx": {
+              "size": 3700147,
+              "sha256": "c3eb91414d5ff8a7a239b7fe9e34e7e2bf8a8140d8375ffb14718b1c639325db"
+            },
+            "onnx/text_encoder.onnx": {
+              "size": 36416150,
+              "sha256": "c7befd5ea8c3119769e8a6c1486c4edc6a3bc8365c67621c881bbb774b9902ff"
+            },
+            "onnx/tts.json": {
+              "size": 8253,
+              "sha256": "42078d3aef1cd43ab43021f3c54f47d2d75ceb4e75f627f118890128b06a0d09"
+            },
+            "onnx/unicode_indexer.json": {
+              "size": 277676,
+              "sha256": "9bf7346e43883a81f8645c81224f786d43c5b57f3641f6e7671a7d6c493cb24f"
+            },
+            "onnx/vector_estimator.onnx": {
+              "size": 256534781,
+              "sha256": "883ac868ea0275ef0e991524dc64f16b3c0376efd7c320af6b53f5b780d7c61c"
+            },
+            "onnx/vocoder.onnx": {
+              "size": 101424195,
+              "sha256": "085de76dd8e8d5836d6ca66826601f615939218f90e519f70ee8a36ed2a4c4ba"
+            },
+            "voice_styles/F1.json": {
+              "size": 292046,
+              "sha256": "bbdec6ee00231c2c742ad05483df5334cab3b52fda3ba38e6a07059c4563dbc2"
+            },
+            "voice_styles/F2.json": {
+              "size": 292423,
+              "sha256": "7c722c6a72707b1a77f035d67f0d1351ba187738e06f7683e8c72b1df3477fc6"
+            },
+            "voice_styles/F3.json": {
+              "size": 290794,
+              "sha256": "12f6ef2573baa2defa1128069cb59f203e3ab67c92af77b42df8a0e3a2f7c6ab"
+            },
+            "voice_styles/F4.json": {
+              "size": 291808,
+              "sha256": "c2fa764c1225a76dfc3e2c73e8aa4f70d9ee48793860eb34c295fff01c2e032b"
+            },
+            "voice_styles/F5.json": {
+              "size": 291479,
+              "sha256": "45966e73316415626cf41a7d1c6f3b4c70dbc1ba2bee5c1978ef0ce33244fc8d"
+            },
+            "voice_styles/M1.json": {
+              "size": 291748,
+              "sha256": "e35604687f5d23694b8e91593a93eec0e4eca6c0b02bb8ed69139ab2ea6b0a5b"
+            },
+            "voice_styles/M2.json": {
+              "size": 292055,
+              "sha256": "b76cbf62bac707c710cf0ae5aba5e31eea1a6339a9734bfae33ab98499534a50"
+            },
+            "voice_styles/M3.json": {
+              "size": 290198,
+              "sha256": "ea1ac35ccb91b0d7ecad533a2fbd0eec10c91513d8951e3b25fbba99954e159b"
+            },
+            "voice_styles/M4.json": {
+              "size": 291522,
+              "sha256": "ca8eefad4fcd989c9379032ff3e50738adc547eeb5e221b82593a6d7b3bac303"
+            },
+            "voice_styles/M5.json": {
+              "size": 291469,
+              "sha256": "dd22b92740314321f8ae11c5e87f8dd60d060f15dd3a632b5adf77f471f77af2"
+            }
+          },
+          "architecture": "supertonic-3",
+          "language_id": "ja",
+          "sample_rate_hz": 44100,
+          "provider": "CPUExecutionProvider",
+          "supertonic_version": "1.3.1",
+          "onnxruntime_version": "1.23.1",
+          "numpy_version": "2.3.3",
+          "soundfile_version": "0.13.1",
+          "seed": 42,
+          "total_steps": 8,
+          "speed": 1.05,
+          "max_chunk_length": 300,
+          "silence_duration_sec": 0.3,
+          "intra_op_num_threads": 10,
+          "inter_op_num_threads": 1,
+          "voice_assignments": {
+            "tavern-night/barmaid": "F2",
+            "tavern-night/drunkard": "M1",
+            "tavern-night/old-regular": "M5",
+            "market-day/fruit-vendor": "M1",
+            "market-day/shopper": "F1",
+            "market-day/street-kid": "F2"
+          },
+          "expression_tags": false,
+          "voice_builder": false,
+          "auto_download": false
+        },
+        "realized": {
+          "seed": 42,
+          "language_id": "ja",
+          "voice_style": "M1",
+          "sample_rate_hz": 44100,
+          "channels": 1,
+          "sample_width_bytes": 2,
+          "returned_duration_sec": 2.3839540481567383,
+          "waveform_peak": 0.42515408992767334,
+          "onnx_providers": [
+            "CPUExecutionProvider"
+          ],
+          "reading_source": "line.text",
+          "voice_selection_source": "adapter.assignment:tavern-night/drunkard",
+          "voice_style_sha256": "e35604687f5d23694b8e91593a93eec0e4eca6c0b02bb8ed69139ab2ea6b0a5b",
+          "postprocess_recovery": {
+            "mode": "stored_normalized_wav-reprocess-v1",
+            "source_input_hash": "6cee4d5c841a44b6b33f2c659e9bc92bc23edd786bc087ed214f14758d4ef60f",
+            "source_wav_sha256": "942893f33b2aab5e5a896e6a76c59b8f7433bbb05263a4c38ca07a6e659d1464"
+          }
+        }
+      },
+      "rtf": 0.359083,
+      "loudness": {
+        "source": "encoded_opus",
+        "i_lufs": -18.14,
+        "tp_dbtp": -1.6,
         "shortfall": false
       }
     },
@@ -19619,226 +22388,9 @@
   ],
   "failures": [
     {
-      "model": "chatterbox-multilingual-v3",
-      "scenario": "market-day",
-      "line": "shopper-001",
-      "variant": "dry",
-      "reason": "generation_failed"
-    },
-    {
-      "model": "chatterbox-multilingual-v3",
-      "scenario": "tavern-night",
-      "line": "barmaid-002",
-      "variant": "dry",
-      "reason": "generation_failed"
-    },
-    {
-      "model": "chatterbox-multilingual-v3",
-      "scenario": "tavern-night",
-      "line": "old-regular-002",
-      "variant": "dry",
-      "reason": "generation_failed"
-    },
-    {
-      "model": "cosyvoice3-0.5b-2512",
-      "scenario": "market-day",
-      "line": "shopper-001",
-      "variant": "dry",
-      "reason": "generation_failed"
-    },
-    {
-      "model": "cosyvoice3-0.5b-2512",
-      "scenario": "tavern-night",
-      "line": "drunkard-001",
-      "variant": "dry",
-      "reason": "generation_failed"
-    },
-    {
-      "model": "cosyvoice3-0.5b-2512",
-      "scenario": "tavern-night",
-      "line": "old-regular-001",
-      "variant": "dry",
-      "reason": "generation_failed"
-    },
-    {
-      "model": "gpt-sovits-v2-pro-plus",
-      "scenario": "market-day",
-      "line": "shopper-001",
-      "variant": "dry",
-      "reason": "generation_failed"
-    },
-    {
-      "model": "qwen3-tts-12hz-1.7b",
-      "scenario": "battlefield-camp",
-      "line": "medic-001",
-      "variant": "dry",
-      "reason": "generation_failed"
-    },
-    {
-      "model": "qwen3-tts-12hz-1.7b",
-      "scenario": "battlefield-camp",
-      "line": "medic-004",
-      "variant": "dry",
-      "reason": "generation_failed"
-    },
-    {
-      "model": "qwen3-tts-12hz-1.7b",
-      "scenario": "battlefield-camp",
-      "line": "wounded-001",
-      "variant": "dry",
-      "reason": "generation_failed"
-    },
-    {
-      "model": "qwen3-tts-12hz-1.7b",
-      "scenario": "castle-gate",
-      "line": "guard-onna-003",
-      "variant": "dry",
-      "reason": "generation_failed"
-    },
-    {
-      "model": "qwen3-tts-12hz-1.7b",
-      "scenario": "chinatown-chat",
-      "line": "kanpo-shujin-002",
-      "variant": "dry",
-      "reason": "generation_failed"
-    },
-    {
-      "model": "qwen3-tts-12hz-1.7b",
-      "scenario": "clockwork-plaza",
-      "line": "fortune-doll-002",
-      "variant": "dry",
-      "reason": "generation_failed"
-    },
-    {
-      "model": "qwen3-tts-12hz-1.7b",
-      "scenario": "clockwork-plaza",
-      "line": "vendor-doll-002",
-      "variant": "dry",
-      "reason": "generation_failed"
-    },
-    {
-      "model": "qwen3-tts-12hz-1.7b",
-      "scenario": "festival-night",
-      "line": "matsuri-wakamono-003",
-      "variant": "dry",
-      "reason": "generation_failed"
-    },
-    {
-      "model": "qwen3-tts-12hz-1.7b",
-      "scenario": "goblin-camp",
-      "line": "goblin-lookout-002",
-      "variant": "dry",
-      "reason": "generation_failed"
-    },
-    {
-      "model": "qwen3-tts-12hz-1.7b",
-      "scenario": "guild-hall",
-      "line": "receptionist-001",
-      "variant": "dry",
-      "reason": "generation_failed"
-    },
-    {
-      "model": "qwen3-tts-12hz-1.7b",
-      "scenario": "guild-hall",
-      "line": "veteran-001",
-      "variant": "dry",
-      "reason": "generation_failed"
-    },
-    {
-      "model": "qwen3-tts-12hz-1.7b",
-      "scenario": "guild-hall",
-      "line": "veteran-002",
-      "variant": "dry",
-      "reason": "generation_failed"
-    },
-    {
-      "model": "qwen3-tts-12hz-1.7b",
-      "scenario": "spirit-forest",
-      "line": "elder-tree-002",
-      "variant": "dry",
-      "reason": "generation_failed"
-    },
-    {
       "model": "qwen3-tts-12hz-1.7b",
       "scenario": "spirit-forest",
       "line": "spring-sprite-002",
-      "variant": "dry",
-      "reason": "generation_failed"
-    },
-    {
-      "model": "qwen3-tts-12hz-1.7b",
-      "scenario": "village-morning",
-      "line": "farm-wife-002",
-      "variant": "dry",
-      "reason": "generation_failed"
-    },
-    {
-      "model": "qwen3-tts-12hz-1.7b",
-      "scenario": "village-morning",
-      "line": "farmer-man-002",
-      "variant": "dry",
-      "reason": "generation_failed"
-    },
-    {
-      "model": "qwen3-tts-12hz-1.7b",
-      "scenario": "village-morning",
-      "line": "granny-004",
-      "variant": "dry",
-      "reason": "generation_failed"
-    },
-    {
-      "model": "qwen3-tts-12hz-1.7b",
-      "scenario": "village-morning",
-      "line": "teen-boy-002",
-      "variant": "dry",
-      "reason": "generation_failed"
-    },
-    {
-      "model": "qwen3-tts-12hz-1.7b",
-      "scenario": "village-morning",
-      "line": "teen-boy-004",
-      "variant": "dry",
-      "reason": "generation_failed"
-    },
-    {
-      "model": "qwen3-tts-12hz-1.7b",
-      "scenario": "west-market",
-      "line": "kankou-fujin-001",
-      "variant": "dry",
-      "reason": "generation_failed"
-    },
-    {
-      "model": "qwen3-tts-12hz-1.7b",
-      "scenario": "west-market",
-      "line": "kankou-fujin-002",
-      "variant": "dry",
-      "reason": "generation_failed"
-    },
-    {
-      "model": "qwen3-tts-12hz-1.7b",
-      "scenario": "west-market",
-      "line": "kyuuji-001",
-      "variant": "dry",
-      "reason": "generation_failed"
-    },
-    {
-      "model": "qwen3-tts-12hz-1.7b",
-      "scenario": "west-market",
-      "line": "kyuuji-002",
-      "variant": "dry",
-      "reason": "generation_failed"
-    },
-    {
-      "model": "supertonic-3",
-      "scenario": "market-day",
-      "line": "fruit-vendor-001",
-      "variant": "dry",
-      "reason": "generation_failed"
-    },
-    {
-      "model": "supertonic-3",
-      "scenario": "tavern-night",
-      "line": "drunkard-002",
       "variant": "dry",
       "reason": "generation_failed"
     }

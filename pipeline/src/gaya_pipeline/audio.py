@@ -15,7 +15,7 @@ class AudioProcessingError(RuntimeError):
 
 LOUDNESS_TARGET_TOLERANCE_LU = 0.2
 LOUDNESS_GATE_TOLERANCE_LU = 1.5
-TRUE_PEAK_TOLERANCE_DB = 0.1
+NORMALIZED_WAV_TRUE_PEAK_TOLERANCE_DB = 0.1
 MAX_LIMITER_CORRECTION_PASSES = 2
 LIMITER_SAMPLE_RATE_HZ = 192_000
 
@@ -28,10 +28,11 @@ class AudioTools:
 
 @dataclass(frozen=True)
 class PostprocessProfile:
-    algorithm_version: int = 6
+    algorithm_version: int = 7
     integrated_lufs: float = -18.0
     loudness_range_lu: float = 7.0
-    true_peak_dbtp: float = -1.0
+    pre_encode_true_peak_target_dbtp: float = -1.75
+    distribution_true_peak_max_dbtp: float = -0.9
     sample_rate_hz: int = 48_000
     channels: int = 1
     codec: str = "libopus"
@@ -44,7 +45,12 @@ class PostprocessProfile:
             "algorithm_version": self.algorithm_version,
             "integrated_lufs": self.integrated_lufs,
             "loudness_range_lu": self.loudness_range_lu,
-            "true_peak_dbtp": self.true_peak_dbtp,
+            "pre_encode_true_peak_target_dbtp": (
+                self.pre_encode_true_peak_target_dbtp
+            ),
+            "distribution_true_peak_max_dbtp": (
+                self.distribution_true_peak_max_dbtp
+            ),
             "sample_rate_hz": self.sample_rate_hz,
             "channels": self.channels,
             "codec": self.codec,
@@ -134,7 +140,7 @@ def normalize_wav(
     target = (
         f"I={profile.integrated_lufs:g}:"
         f"LRA={profile.loudness_range_lu:g}:"
-        f"TP={profile.true_peak_dbtp:g}"
+        f"TP={profile.pre_encode_true_peak_target_dbtp:g}"
     )
     measurement = _measure_loudness(tools, input_wav, target)
     measured_filter = _measured_filter(measurement)
@@ -181,7 +187,16 @@ def normalize_wav(
         target,
         normalization_type,
     )
-    if _loudness_matches_profile(final_report, profile):
+    normalized_true_peak_max_dbtp = (
+        profile.pre_encode_true_peak_target_dbtp
+        + NORMALIZED_WAV_TRUE_PEAK_TOLERANCE_DB
+    )
+    if _loudness_matches_targets(
+        final_report,
+        integrated_lufs_target=profile.integrated_lufs,
+        loudness_tolerance_lu=LOUDNESS_TARGET_TOLERANCE_LU,
+        true_peak_max_dbtp=normalized_true_peak_max_dbtp,
+    ):
         return final_report
 
     correction_wav = output_wav.with_suffix(".limiter-correction.wav")
@@ -190,7 +205,7 @@ def normalize_wav(
         for _ in range(MAX_LIMITER_CORRECTION_PASSES):
             gain_db = profile.integrated_lufs - final_report.integrated_lufs
             gain = 10 ** (gain_db / 20)
-            limit = 10 ** (profile.true_peak_dbtp / 20)
+            limit = 10 ** (profile.pre_encode_true_peak_target_dbtp / 20)
             if not 0.015625 <= gain <= 64:
                 break
             _run(
@@ -234,11 +249,17 @@ def normalize_wav(
                 "dynamic",
             )
             correction_wav.replace(output_wav)
-            if _loudness_matches_profile(final_report, profile):
+            if _loudness_matches_targets(
+                final_report,
+                integrated_lufs_target=profile.integrated_lufs,
+                loudness_tolerance_lu=LOUDNESS_TARGET_TOLERANCE_LU,
+                true_peak_max_dbtp=normalized_true_peak_max_dbtp,
+            ):
                 return final_report
         _validate_loudness_report(
             final_report,
-            profile,
+            integrated_lufs_target=profile.integrated_lufs,
+            true_peak_max_dbtp=normalized_true_peak_max_dbtp,
             stage="正規化後 WAV",
         )
         return final_report
@@ -300,7 +321,7 @@ def measure_encoded_opus(
     target = (
         f"I={profile.integrated_lufs:g}:"
         f"LRA={profile.loudness_range_lu:g}:"
-        f"TP={profile.true_peak_dbtp:g}"
+        f"TP={profile.distribution_true_peak_max_dbtp:g}"
     )
     measurement = _measure_loudness(tools, input_opus, target)
     report = EncodedLoudnessReport(
@@ -310,7 +331,8 @@ def measure_encoded_opus(
     )
     _validate_loudness_report(
         report,
-        profile,
+        integrated_lufs_target=profile.integrated_lufs,
+        true_peak_max_dbtp=profile.distribution_true_peak_max_dbtp,
         stage="エンコード後 Opus",
     )
     return report
@@ -408,35 +430,40 @@ def _measured_filter(measurement: dict[str, Any]) -> str:
     return ":".join(f"{name}={value:g}" for name, value in measured_values.items())
 
 
-def _loudness_matches_profile(
+def _loudness_matches_targets(
     report: LoudnessReport,
-    profile: PostprocessProfile,
+    *,
+    integrated_lufs_target: float,
+    loudness_tolerance_lu: float,
+    true_peak_max_dbtp: float,
 ) -> bool:
     return (
-        abs(report.integrated_lufs - profile.integrated_lufs)
-        <= LOUDNESS_TARGET_TOLERANCE_LU
-        and report.true_peak_dbtp <= profile.true_peak_dbtp + TRUE_PEAK_TOLERANCE_DB
+        abs(report.integrated_lufs - integrated_lufs_target)
+        <= loudness_tolerance_lu
+        and report.true_peak_dbtp <= true_peak_max_dbtp
     )
 
 
 def _validate_loudness_report(
     report: LoudnessReport,
-    profile: PostprocessProfile,
     *,
+    integrated_lufs_target: float,
+    true_peak_max_dbtp: float,
     stage: str,
 ) -> None:
-    if (
-        abs(report.integrated_lufs - profile.integrated_lufs)
-        <= LOUDNESS_GATE_TOLERANCE_LU
-        and report.true_peak_dbtp <= profile.true_peak_dbtp + TRUE_PEAK_TOLERANCE_DB
+    if _loudness_matches_targets(
+        report,
+        integrated_lufs_target=integrated_lufs_target,
+        loudness_tolerance_lu=LOUDNESS_GATE_TOLERANCE_LU,
+        true_peak_max_dbtp=true_peak_max_dbtp,
     ):
         return
     raise AudioProcessingError(
         f"{stage} が loudness profile を満たしません: "
         f"I={report.integrated_lufs:g} LUFS "
-        f"(target={profile.integrated_lufs:g}±{LOUDNESS_GATE_TOLERANCE_LU:g}), "
+        f"(target={integrated_lufs_target:g}±{LOUDNESS_GATE_TOLERANCE_LU:g}), "
         f"TP={report.true_peak_dbtp:g} dBTP "
-        f"(max={profile.true_peak_dbtp + TRUE_PEAK_TOLERANCE_DB:g})",
+        f"(max={true_peak_max_dbtp:g})",
     )
 
 
