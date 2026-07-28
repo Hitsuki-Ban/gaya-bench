@@ -1,0 +1,70 @@
+{
+  "format_version": 4,
+  "generated_at": "2026-07-29T12:34:56Z",
+  "models": [
+    {
+      "id": "dummy",
+      "name": "Dummy Beep",
+      "version": "1",
+      "license_note": "テスト専用",
+      "capabilities": {
+        "emotion": false,
+        "voice_prompt": false,
+        "clone": false,
+        "nonverbal": false,
+        "reading": false
+      }
+    }
+  ],
+  "candidates": [
+    {
+      "model": "dummy",
+      "scenario": "tavern-night",
+      "line": "barmaid-001",
+      "variant": "dry",
+      "take_index": 1,
+      "take_id": "fc8e9b08e67dc3a0e78aadcf9be8629d9c0454f7f45433ed3d3b52307aa90273",
+      "path": "audio/takes/dummy/tavern-night/barmaid-001/dry/take-0001-bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb.opus",
+      "duration_sec": 1.25,
+      "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "generation_input_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "gen_params": {
+        "seed": null,
+        "recipe_version": "fixed-single-v1",
+        "sampling": {}
+      },
+      "rtf": 0.5,
+      "loudness": {
+        "source": "encoded_opus",
+        "i_lufs": -18.0,
+        "tp_dbtp": -1.0,
+        "shortfall": false
+      },
+      "gate": {
+        "mechanical": "pass",
+        "content": "review_required",
+        "policy_version": "take-gate-v1"
+      }
+    }
+  ],
+  "curations": [
+    {
+      "model": "dummy",
+      "scenario": "tavern-night",
+      "line": "barmaid-001",
+      "variant": "dry",
+      "decision": "selected",
+      "take_id": "fc8e9b08e67dc3a0e78aadcf9be8629d9c0454f7f45433ed3d3b52307aa90273",
+      "curation_sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+    }
+  ],
+  "failures": [
+    {
+      "model": "dummy",
+      "scenario": "tavern-night",
+      "line": "missing-line",
+      "variant": "dry",
+      "reason": "no_eligible_take"
+    }
+  ]
+}

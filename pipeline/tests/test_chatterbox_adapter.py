@@ -13,7 +13,7 @@ from typing import Any
 import pytest
 import yaml
 from gaya_pipeline.adapters import create_adapter
-from gaya_pipeline.adapters.base import LineJob
+from gaya_pipeline.adapters.base import LineJob, TakeContext
 from gaya_pipeline.adapters.chatterbox import (
     ARCHITECTURE,
     CFG_WEIGHT,
@@ -79,6 +79,7 @@ class FakeRuntime:
         text: str,
         reference_wav: Path,
         exaggeration: float,
+        seed: int,
     ) -> Any:
         assert model == {"model": "chatterbox-v3"}
         self.synthesize_calls.append(
@@ -86,6 +87,7 @@ class FakeRuntime:
                 "text": text,
                 "reference_wav": reference_wav,
                 "exaggeration": exaggeration,
+                "seed": seed,
             },
         )
         if self.oom_on == "generate":
@@ -249,6 +251,19 @@ def test_profile_registry_and_generation_params_are_canonical() -> None:
         "nonverbal": False,
         "reading": False,
     }
+    recipe = adapter.take_recipe()
+    assert recipe.version == "seed-only-v1"
+    assert recipe.seed_policy == "derived-sha256-v1"
+    assert recipe.single_take_seed == SEED
+    assert recipe.seed_range == (0, 2**32 - 1)
+    assert recipe.supports_multiple is True
+    assert dict(recipe.sampling) == {
+        "cfg_weight": CFG_WEIGHT,
+        "min_p": 0.05,
+        "repetition_penalty": 1.2,
+        "temperature": 0.8,
+        "top_p": 1.0,
+    }
     params = adapter.generation_params()
     assert params["model_root_environment"] == MODEL_ROOT_ENV
     assert params["architecture"] == ARCHITECTURE
@@ -257,7 +272,7 @@ def test_profile_registry_and_generation_params_are_canonical() -> None:
     assert params["device"] == DEVICE
     assert params["dtype"] == DTYPE
     assert params["sample_rate_hz"] == SAMPLE_RATE_HZ
-    assert params["seed"] == SEED
+    assert "seed" not in params
     assert params["cfg_weight"] == CFG_WEIGHT
     assert params["emotion_control"] == "exaggeration_only"
     assert params["perth_watermark"] is True
@@ -280,7 +295,10 @@ def test_intensity_maps_to_exaggeration_and_reading_is_ignored(
     job = _job(intensity=intensity, reading="ヨミハツカワナイ")
     adapter.prepare([job], tmp_path / "artifacts", _voices_dir(tmp_path))
 
-    generation_input = adapter.generation_input(job)
+    generation_input = adapter.generation_input(
+        job,
+        adapter.take_recipe().single_take_context(),
+    )
     assert generation_input["text"] == "乾杯しよう！"
     assert generation_input["language_id"] == "ja"
     assert generation_input["intensity"] == intensity
@@ -301,7 +319,10 @@ def test_missing_intensity_uses_schema_default(
     job = LineJob(job.scene, job.character, line, job.locale)
     adapter.prepare([job], tmp_path / "artifacts", _voices_dir(tmp_path))
 
-    assert adapter.generation_input(job)["exaggeration"] == 0.5
+    assert adapter.generation_input(
+        job,
+        adapter.take_recipe().single_take_context(),
+    )["exaggeration"] == 0.5
 
 
 @pytest.mark.parametrize("intensity", [True, 0, 4, 1.5, "2"])
@@ -344,7 +365,10 @@ def test_null_reference_uses_exact_assignment(
     )
     adapter.prepare([job], tmp_path / "artifacts", _voices_dir(tmp_path))
 
-    generation_input = adapter.generation_input(job)
+    generation_input = adapter.generation_input(
+        job,
+        adapter.take_recipe().single_take_context(),
+    )
     assert generation_input["reference_voice"] == voice_id
     assert generation_input["reference_selection_source"] == (
         f"adapter.assignment:{scenario_id}/{character_id}"
@@ -362,7 +386,10 @@ def test_explicit_reference_wins_and_unknown_null_never_falls_back(
     )
     adapter = ChatterboxAdapter(runtime=FakeRuntime())
     adapter.prepare([explicit], tmp_path / "artifacts", voices_dir)
-    assert adapter.generation_input(explicit)["reference_voice"] == (
+    assert adapter.generation_input(
+        explicit,
+        adapter.take_recipe().single_take_context(),
+    )["reference_voice"] == (
         "sayoko-emotion-75"
     )
 
@@ -444,7 +471,11 @@ def test_generate_is_lazy_clones_and_writes_native_pcm(
     assert runtime.load_calls == []
 
     output = tmp_path / "output.wav"
-    realized = adapter.generate(job, output)
+    realized = adapter.generate(
+        job,
+        adapter.take_recipe().single_take_context(),
+        output,
+    )
 
     assert runtime.load_calls == [root]
     assert runtime.synthesize_calls == [
@@ -454,6 +485,7 @@ def test_generate_is_lazy_clones_and_writes_native_pcm(
                 voices_dir.resolve() / "amitaro-countdown" / "reference.wav"
             ),
             "exaggeration": 0.8,
+            "seed": SEED,
         },
     ]
     with wave.open(str(output), "rb") as wav_file:
@@ -465,7 +497,36 @@ def test_generate_is_lazy_clones_and_writes_native_pcm(
         "generation": {"allocated_mib": 200.0, "reserved_mib": 225.0},
     }
     assert realized["line_emotion_audit"] == "cheerful"
+    assert realized["seed"] == SEED
     assert realized["perth_watermark_stage_executed"] is True
+
+
+def test_take_seed_changes_input_runtime_and_realized_metadata(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    root = _model_root(tmp_path, monkeypatch)
+    runtime = FakeRuntime()
+    adapter = ChatterboxAdapter(runtime=runtime, model_root=root)
+    job = _job()
+    adapter.prepare([job], tmp_path / "artifacts", _voices_dir(tmp_path))
+    recipe = adapter.take_recipe()
+    first_context = recipe.single_take_context()
+    second_context = TakeContext.create(
+        index=2,
+        seed=123_456,
+        recipe_version=recipe.version,
+        sampling=dict(recipe.sampling),
+    )
+
+    assert adapter.generation_input(job, first_context)["seed"] == SEED
+    assert adapter.generation_input(job, second_context)["seed"] == 123_456
+    first = adapter.generate(job, first_context, tmp_path / "first.wav")
+    second = adapter.generate(job, second_context, tmp_path / "second.wav")
+
+    assert [call["seed"] for call in runtime.synthesize_calls] == [SEED, 123_456]
+    assert first["seed"] == SEED
+    assert second["seed"] == 123_456
 
 
 @pytest.mark.parametrize(
@@ -489,7 +550,11 @@ def test_oom_is_phase_specific(
     adapter.prepare([job], tmp_path / "artifacts", _voices_dir(tmp_path))
 
     with pytest.raises(ChatterboxAdapterError, match=message):
-        adapter.generate(job, tmp_path / "output.wav")
+        adapter.generate(
+            job,
+            adapter.take_recipe().single_take_context(),
+            tmp_path / "output.wav",
+        )
 
 
 @pytest.mark.parametrize(
@@ -509,7 +574,11 @@ def test_invalid_waveform_fails(
     adapter.prepare([job], tmp_path / "artifacts", _voices_dir(tmp_path))
 
     with pytest.raises(ChatterboxAdapterError, match="waveform"):
-        adapter.generate(job, tmp_path / "output.wav")
+        adapter.generate(
+            job,
+            adapter.take_recipe().single_take_context(),
+            tmp_path / "output.wav",
+        )
 
 
 def test_prepare_gate_duplicate_locale_and_unknown_job(
@@ -519,7 +588,7 @@ def test_prepare_gate_duplicate_locale_and_unknown_job(
     adapter = ChatterboxAdapter(runtime=FakeRuntime())
     job = _job()
     with pytest.raises(ChatterboxAdapterError, match=r"prepare\(\)"):
-        adapter.generation_input(job)
+        adapter.generation_input(job, adapter.take_recipe().single_take_context())
     with pytest.raises(ChatterboxAdapterError, match="重複"):
         adapter.prepare([job, job], tmp_path / "artifacts", voices_dir)
     with pytest.raises(ChatterboxAdapterError, match="Japanese 固定"):
@@ -530,7 +599,10 @@ def test_prepare_gate_duplicate_locale_and_unknown_job(
         )
     adapter.prepare([job], tmp_path / "artifacts", voices_dir)
     with pytest.raises(ChatterboxAdapterError, match="prepare 済み"):
-        adapter.generation_input(_job(line_id="other"))
+        adapter.generation_input(
+            _job(line_id="other"),
+            adapter.take_recipe().single_take_context(),
+        )
 
 
 def test_model_inventory_requires_exact_local_snapshot(
@@ -544,7 +616,11 @@ def test_model_inventory_requires_exact_local_snapshot(
     adapter.prepare([job], tmp_path / "artifacts", _voices_dir(tmp_path))
 
     with pytest.raises(ChatterboxAdapterError, match="inventory"):
-        adapter.generate(job, tmp_path / "output.wav")
+        adapter.generate(
+            job,
+            adapter.take_recipe().single_take_context(),
+            tmp_path / "output.wav",
+        )
 
 
 def test_native_runtime_cangjie_download_is_local_and_restored(

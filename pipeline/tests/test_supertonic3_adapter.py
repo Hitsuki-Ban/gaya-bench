@@ -33,6 +33,8 @@ from gaya_pipeline.adapters.supertonic3 import (
     _validate_model_root,
 )
 
+TAKE_CONTEXT = Supertonic3Adapter().take_recipe().single_take_context()
+
 
 class _FakeRuntime:
     def __init__(self, *, write_output: bool = True) -> None:
@@ -141,6 +143,12 @@ def test_profile_params_and_registry_are_exact() -> None:
         "nonverbal": False,
         "reading": True,
     }
+    recipe = adapter.take_recipe()
+    assert recipe.version == "fixed-single-v1"
+    assert recipe.seed_policy == "fixed"
+    assert recipe.single_take_seed == SEED
+    assert recipe.seed_range == (0, 2**32 - 1)
+    assert recipe.supports_multiple is False
     assert "Open RAIL-M" in adapter.profile.license_note
     assert "機械生成" in adapter.profile.license_note
 
@@ -190,7 +198,7 @@ def test_fixed_voice_assignments(
         line_id=f"{character}-001",
     )
     adapter, _runtime = _prepare(monkeypatch, tmp_path, [job])
-    generation_input = adapter.generation_input(job)
+    generation_input = adapter.generation_input(job, TAKE_CONTEXT)
     assert generation_input["voice_style"] == voice
     assert generation_input["voice_style_sha256"] == MODEL_FILES[
         f"voice_styles/{voice}.json"
@@ -219,8 +227,8 @@ def test_reading_priority_and_unused_metadata_do_not_change_model_input(
         delivery="叫ぶ。",
     )
     adapter, _runtime = _prepare(monkeypatch, tmp_path, [first, second])
-    first_input = dict(adapter.generation_input(first))
-    second_input = dict(adapter.generation_input(second))
+    first_input = dict(adapter.generation_input(first, TAKE_CONTEXT))
+    second_input = dict(adapter.generation_input(second, TAKE_CONTEXT))
     assert first_input == second_input
     assert first_input["source_text"] == "はいよっ、エール二つお待ち！"
     assert first_input["tts_text"] == "ハイヨッ、エールフタツオマチ！"
@@ -237,7 +245,7 @@ def test_missing_reading_uses_original_japanese_text(
 ) -> None:
     job = _job()
     adapter, _runtime = _prepare(monkeypatch, tmp_path, [job])
-    generation_input = adapter.generation_input(job)
+    generation_input = adapter.generation_input(job, TAKE_CONTEXT)
     assert generation_input["source_text"] == job.line["text"]
     assert generation_input["tts_text"] == job.line["text"]
     assert generation_input["reading_source"] == "line.text"
@@ -313,7 +321,7 @@ def test_duplicate_unprepared_and_unknown_jobs_fail(
     job = _job()
     adapter = Supertonic3Adapter(runtime=_FakeRuntime())
     with pytest.raises(Supertonic3AdapterError, match=r"prepare\(\)"):
-        adapter.generation_input(job)
+        adapter.generation_input(job, TAKE_CONTEXT)
 
     model_root = tmp_path / "model"
     model_root.mkdir()
@@ -323,7 +331,7 @@ def test_duplicate_unprepared_and_unknown_jobs_fail(
 
     adapter, _runtime = _prepare(monkeypatch, tmp_path / "other", [job])
     with pytest.raises(Supertonic3AdapterError, match="prepare 済み input"):
-        adapter.generation_input(_job(line_id="barmaid-999"))
+        adapter.generation_input(_job(line_id="barmaid-999"), TAKE_CONTEXT)
 
 
 def test_generate_uses_exact_prepared_input_and_requires_output(
@@ -333,7 +341,7 @@ def test_generate_uses_exact_prepared_input_and_requires_output(
     job = _job(reading="ハイヨッ、エールフタツオマチ！")
     adapter, runtime = _prepare(monkeypatch, tmp_path, [job])
     output = tmp_path / "out" / "line.wav"
-    realized = adapter.generate(job, output)
+    realized = adapter.generate(job, TAKE_CONTEXT, output)
     assert runtime.calls == [
         {
             "text": "ハイヨッ、エールフタツオマチ！",
@@ -354,7 +362,7 @@ def test_generate_uses_exact_prepared_input_and_requires_output(
         runtime=_FakeRuntime(write_output=False),
     )
     with pytest.raises(Supertonic3AdapterError, match="adapter 出力"):
-        missing_adapter.generate(job, tmp_path / "missing.wav")
+        missing_adapter.generate(job, TAKE_CONTEXT, tmp_path / "missing.wav")
 
 
 def test_model_inventory_accepts_cache_and_rejects_drift(tmp_path: Path) -> None:

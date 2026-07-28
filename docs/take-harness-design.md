@@ -120,7 +120,7 @@ adapter の入力記録と生成へ渡す。
 @dataclass(frozen=True)
 class TakeContext:
     index: int                 # 1..N
-    seed: int
+    seed: int | None           # deterministic adapter は明示的に None
     recipe_version: str
     sampling: Mapping[str, JsonScalar]
 ```
@@ -138,6 +138,8 @@ generate(job, take_context, output_wav) -> GenerationMetadata
 - `seed` は versioned deterministic policy により
   `(seed_base, model, scenario, line, variant, index)` から導出し、adapter が受け取る
   有効範囲へ明示的に写像する。
+- RNG を使用しない deterministic adapter は `seed=None` を明示し、架空の seed を
+  identity に入れない。stochastic adapter では `seed=None` を拒否する。
 - model revision、resolved input、reference identity/SHA、実際の seed/sampling、
   postprocess profile/version を canonical JSON 化し、その SHA-256 を
   `generation_input_sha256` とする。

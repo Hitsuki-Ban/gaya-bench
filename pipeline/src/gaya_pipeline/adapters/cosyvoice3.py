@@ -17,7 +17,14 @@ from typing import Any, Protocol
 
 import yaml
 
-from gaya_pipeline.adapters.base import Capabilities, LineJob, ModelProfile
+from gaya_pipeline.adapters.base import (
+    Capabilities,
+    LineJob,
+    ModelProfile,
+    TakeContext,
+    TakeRecipe,
+    require_take_context,
+)
 from gaya_pipeline.japanese_reading import (
     JapaneseReadingError,
     resolve_japanese_reading,
@@ -464,6 +471,19 @@ class CosyVoice3Adapter:
         ),
     )
 
+    def take_recipe(self) -> TakeRecipe:
+        return TakeRecipe(
+            version="fixed-single-v1",
+            seed_policy="fixed",
+            single_take_seed=SEED,
+            seed_range=(0, 2**32 - 1),
+            sampling=(
+                ("speed", SPEED),
+                ("stream", STREAM),
+            ),
+            supports_multiple=False,
+        )
+
     def __init__(self, *, runtime: _Runtime | None = None) -> None:
         self._runtime = runtime if runtime is not None else _NativeRuntime()
         self._model: Any | None = None
@@ -572,10 +592,21 @@ class CosyVoice3Adapter:
             "watermark_disclosed_by_official_source": False,
         }
 
-    def generation_input(self, job: LineJob) -> Mapping[str, Any]:
+    def generation_input(
+        self,
+        job: LineJob,
+        take_context: TakeContext,
+    ) -> Mapping[str, Any]:
+        require_take_context(take_context, self.take_recipe())
         return self._prepared_input(job).as_generation_input()
 
-    def generate(self, job: LineJob, output_wav: Path) -> Mapping[str, Any]:
+    def generate(
+        self,
+        job: LineJob,
+        take_context: TakeContext,
+        output_wav: Path,
+    ) -> Mapping[str, Any]:
+        require_take_context(take_context, self.take_recipe())
         prepared = self._prepared_input(job)
         model = self._ensure_model()
         self._runtime.reset_peak_memory_stats()

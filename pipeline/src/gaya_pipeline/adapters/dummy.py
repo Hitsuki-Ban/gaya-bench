@@ -8,7 +8,14 @@ from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Any
 
-from gaya_pipeline.adapters.base import Capabilities, LineJob, ModelProfile
+from gaya_pipeline.adapters.base import (
+    Capabilities,
+    LineJob,
+    ModelProfile,
+    TakeContext,
+    TakeRecipe,
+    require_take_context,
+)
 
 
 class DummyAdapter:
@@ -26,6 +33,16 @@ class DummyAdapter:
         ),
     )
 
+    def take_recipe(self) -> TakeRecipe:
+        return TakeRecipe(
+            version="fixed-single-v1",
+            seed_policy="none",
+            single_take_seed=None,
+            seed_range=None,
+            sampling=(),
+            supports_multiple=False,
+        )
+
     def prepare(
         self,
         jobs: Sequence[LineJob],
@@ -42,14 +59,21 @@ class DummyAdapter:
             "amplitude": 0.2,
         }
 
-    def generation_input(self, job: LineJob) -> Mapping[str, Any]:
+    def generation_input(
+        self,
+        job: LineJob,
+        take_context: TakeContext,
+    ) -> Mapping[str, Any]:
+        require_take_context(take_context, self.take_recipe())
         return {"text": str(job.line["text"])}
 
     def generate(
         self,
         job: LineJob,
+        take_context: TakeContext,
         output_wav: Path,
     ) -> Mapping[str, Any]:
+        require_take_context(take_context, self.take_recipe())
         params = self.generation_params()
         sample_rate = int(params["sample_rate_hz"])
         duration_sec = float(params["duration_sec"])

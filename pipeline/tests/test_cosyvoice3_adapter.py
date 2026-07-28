@@ -39,6 +39,8 @@ from gaya_pipeline.adapters.cosyvoice3 import (
     _NativeRuntime,
 )
 
+TAKE_CONTEXT = CosyVoice3Adapter().take_recipe().single_take_context()
+
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 REGISTERED_VOICES = {
     "amitaro-countdown",
@@ -332,6 +334,12 @@ def test_profile_registry_and_generation_params_are_canonical() -> None:
         "nonverbal": False,
         "reading": True,
     }
+    recipe = adapter.take_recipe()
+    assert recipe.version == "fixed-single-v1"
+    assert recipe.seed_policy == "fixed"
+    assert recipe.single_take_seed == SEED
+    assert recipe.seed_range == (0, 2**32 - 1)
+    assert recipe.supports_multiple is False
 
     params = adapter.generation_params()
     assert params["code_root_environment"] == CODE_ROOT_ENV
@@ -368,7 +376,7 @@ def test_generation_input_preserves_exact_reading_instruction_and_provenance(
     adapter = CosyVoice3Adapter(runtime=FakeRuntime())
     job = _prepare_one(adapter, tmp_path)
 
-    generation_input = adapter.generation_input(job)
+    generation_input = adapter.generation_input(job, TAKE_CONTEXT)
 
     assert generation_input == {
         "source_text": "乾杯しよう！",
@@ -411,7 +419,7 @@ def test_missing_reading_uses_pyopenjtalk_result_without_text_fallback(
     job = _job(reading=None, text="乾杯")
     _prepare_one(adapter, tmp_path, job=job)
 
-    generation_input = adapter.generation_input(job)
+    generation_input = adapter.generation_input(job, TAKE_CONTEXT)
 
     assert calls == [{"text": "乾杯", "reading": None}]
     assert generation_input["tts_text"] == "カンパイ"
@@ -434,7 +442,7 @@ def test_all_schema_emotions_have_explicit_instruction_mapping(
     job = _job(emotion=emotion)
     _prepare_one(adapter, tmp_path, job=job)
 
-    instruction = adapter.generation_input(job)["instruction"]
+    instruction = adapter.generation_input(job, TAKE_CONTEXT)["instruction"]
 
     assert f"with {expected}." in instruction
     assert instruction.endswith(INSTRUCTION_END)
@@ -455,7 +463,7 @@ def test_intensity_has_exact_instruction_mapping(
 
     assert (
         f"Speak in Japanese {word} with"
-        in adapter.generation_input(job)["instruction"]
+        in adapter.generation_input(job, TAKE_CONTEXT)["instruction"]
     )
 
 
@@ -507,7 +515,7 @@ def test_null_reference_uses_only_exact_assignment(
     )
     _prepare_one(adapter, tmp_path, job=job, voice_id=voice_id)
 
-    generation_input = adapter.generation_input(job)
+    generation_input = adapter.generation_input(job, TAKE_CONTEXT)
 
     assert generation_input["reference_voice"] == voice_id
     assert generation_input["reference_selection_source"] == (
@@ -526,7 +534,10 @@ def test_explicit_reference_wins_and_unknown_null_fails_before_load(
         reference_voice="amitaro-countdown",
     )
     _prepare_one(adapter, tmp_path, job=explicit_job)
-    assert adapter.generation_input(explicit_job)["reference_voice"] == (
+    assert adapter.generation_input(
+        explicit_job,
+        TAKE_CONTEXT,
+    )["reference_voice"] == (
         "amitaro-countdown"
     )
 
@@ -605,7 +616,7 @@ def test_generate_concatenates_all_chunks_and_writes_native_pcm16(
     code_root, model_root = _configure_roots(tmp_path / "roots", monkeypatch)
     output = tmp_path / "output" / "clip.wav"
 
-    realized = adapter.generate(job, output)
+    realized = adapter.generate(job, TAKE_CONTEXT, output)
 
     assert runtime.load_calls == [(code_root.resolve(), model_root.resolve())]
     assert len(runtime.synthesize_calls) == 1
@@ -666,7 +677,7 @@ def test_generator_output_rejects_empty_bad_keys_shape_and_nonfinite(
     _configure_roots(tmp_path / "roots", monkeypatch)
 
     with pytest.raises(CosyVoice3AdapterError):
-        adapter.generate(job, tmp_path / "output.wav")
+        adapter.generate(job, TAKE_CONTEXT, tmp_path / "output.wav")
 
 
 def test_chunk_concatenation_rejects_sample_count_mismatch(
@@ -680,7 +691,7 @@ def test_chunk_concatenation_rejects_sample_count_mismatch(
     _configure_roots(tmp_path / "roots", monkeypatch)
 
     with pytest.raises(CosyVoice3AdapterError, match="sample 数"):
-        adapter.generate(job, tmp_path / "output.wav")
+        adapter.generate(job, TAKE_CONTEXT, tmp_path / "output.wav")
 
 
 @pytest.mark.parametrize(
@@ -708,7 +719,7 @@ def test_oom_is_phase_specific(
         CosyVoice3AdapterError,
         match=rf"{message}.*out of memory",
     ):
-        adapter.generate(job, tmp_path / "output.wav")
+        adapter.generate(job, TAKE_CONTEXT, tmp_path / "output.wav")
 
 
 def test_prepare_gate_duplicate_unknown_and_ordering(tmp_path: Path) -> None:
@@ -721,7 +732,7 @@ def test_prepare_gate_duplicate_unknown_and_ordering(tmp_path: Path) -> None:
     )
 
     with pytest.raises(CosyVoice3AdapterError, match=r"prepare\(\)"):
-        adapter.generation_input(job)
+        adapter.generation_input(job, TAKE_CONTEXT)
     with pytest.raises(CosyVoice3AdapterError, match="重複"):
         adapter.prepare(
             [job, job],
@@ -734,7 +745,7 @@ def test_prepare_gate_duplicate_unknown_and_ordering(tmp_path: Path) -> None:
     assert runtime.load_calls == []
     unknown = _job(line_id="barmaid-999")
     with pytest.raises(CosyVoice3AdapterError, match="input がありません"):
-        adapter.generation_input(unknown)
+        adapter.generation_input(unknown, TAKE_CONTEXT)
 
 
 @pytest.mark.parametrize("variable", [CODE_ROOT_ENV, MODEL_ROOT_ENV])
@@ -751,10 +762,10 @@ def test_both_environment_roots_are_required_and_absolute(
     monkeypatch.delenv(variable)
 
     with pytest.raises(CosyVoice3AdapterError, match=variable):
-        adapter.generate(job, tmp_path / "missing.wav")
+        adapter.generate(job, TAKE_CONTEXT, tmp_path / "missing.wav")
     monkeypatch.setenv(variable, "relative/path")
     with pytest.raises(CosyVoice3AdapterError, match="絶対パス"):
-        adapter.generate(job, tmp_path / "relative.wav")
+        adapter.generate(job, TAKE_CONTEXT, tmp_path / "relative.wav")
     assert runtime.load_calls == []
 
 
@@ -928,7 +939,7 @@ def test_model_identity_rejects_architecture_cpu_provider_and_sample_rate(
     _configure_roots(tmp_path / "roots", monkeypatch)
 
     with pytest.raises(CosyVoice3AdapterError, match="identity|provider"):
-        adapter.generate(job, tmp_path / "output.wav")
+        adapter.generate(job, TAKE_CONTEXT, tmp_path / "output.wav")
 
 
 def test_native_load_uses_only_absolute_local_model_and_offline_flags(

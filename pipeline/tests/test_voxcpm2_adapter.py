@@ -33,6 +33,8 @@ from gaya_pipeline.adapters.voxcpm2 import (
     VoxCPM2AdapterError,
 )
 
+TAKE_CONTEXT = VoxCPM2Adapter().take_recipe().single_take_context()
+
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 EMOTIONS = tuple(EMOTION_INSTRUCTIONS)
 
@@ -255,6 +257,12 @@ def test_profile_registry_and_requested_parameters_are_canonical() -> None:
         "nonverbal": False,
         "reading": True,
     }
+    recipe = adapter.take_recipe()
+    assert recipe.version == "fixed-single-v1"
+    assert recipe.seed_policy == "fixed"
+    assert recipe.single_take_seed == SEED
+    assert recipe.seed_range == (0, 2**32 - 1)
+    assert recipe.supports_multiple is False
     params = adapter.generation_params()
     assert params["model_root_environment"] == MODEL_ROOT_ENV
     assert params["architecture"] == "voxcpm2"
@@ -361,7 +369,7 @@ def test_all_emotions_reading_and_explicit_reference_provenance(
     assert runtime.load_calls == []
     assert runtime.generate_calls == []
     for index, (emotion, job) in enumerate(zip(EMOTIONS, jobs, strict=True), start=1):
-        generation_input = adapter.generation_input(job)
+        generation_input = adapter.generation_input(job, TAKE_CONTEXT)
         intensity = (index % 3) + 1
         expected_control = (
             f"Speak {INTENSITY_INSTRUCTIONS[intensity]} "
@@ -397,7 +405,7 @@ def test_clone_is_lazy_uses_reference_and_writes_pcm16(
     adapter.prepare([job], tmp_path / "artifacts", voices_dir)
 
     output = tmp_path / "result.wav"
-    realized = adapter.generate(job, output)
+    realized = adapter.generate(job, TAKE_CONTEXT, output)
 
     assert runtime.load_calls == [root]
     assert len(runtime.generate_calls) == 1
@@ -445,7 +453,7 @@ def test_voice_design_cache_reuse_identity_change_and_corruption(
     assert [call["phase"] for call in first_runtime.generate_calls] == ["design"]
     assert wav_path.is_file()
     assert metadata_path.is_file()
-    first_input = first.generation_input(job)
+    first_input = first.generation_input(job, TAKE_CONTEXT)
     assert first_input["reference_kind"] == "voice_design"
     assert first_input["reference_selection_source"] == "adapter.voice_design"
     assert first_input["reference_voice"] is None
@@ -456,14 +464,14 @@ def test_voice_design_cache_reuse_identity_change_and_corruption(
     reuse.prepare([job], artifacts, voices_dir)
     assert reuse_runtime.load_calls == []
     assert reuse_runtime.generate_calls == []
-    assert reuse.generation_input(job) == first_input
+    assert reuse.generation_input(job, TAKE_CONTEXT) == first_input
 
     changed_job = _job(reference_voice=None, voice="低く落ち着いた声。")
     changed_runtime = FakeRuntime()
     changed = VoxCPM2Adapter(runtime=changed_runtime, model_root=root)
     changed.prepare([changed_job], artifacts, voices_dir)
     assert [call["phase"] for call in changed_runtime.generate_calls] == ["design"]
-    assert changed.generation_input(changed_job) != first_input
+    assert changed.generation_input(changed_job, TAKE_CONTEXT) != first_input
 
     wav_path.write_bytes(wav_path.read_bytes() + b"corrupt")
     corrupt_runtime = FakeRuntime()
@@ -501,7 +509,7 @@ def test_schema_optional_character_fields_and_intensity_may_be_omitted(
     assert "Voice qualities: 明るく通る中高音。" in design_text
     assert "Role:" not in design_text
     assert "Personality:" not in design_text
-    generation_input = adapter.generation_input(job)
+    generation_input = adapter.generation_input(job, TAKE_CONTEXT)
     assert generation_input["intensity"] == 2
     assert generation_input["reference_kind"] == "voice_design"
     assert generation_input["reference_voice"] is None
@@ -575,22 +583,22 @@ def test_model_root_environment_snapshot_allowlist_and_identity_fail_fast(
 
     monkeypatch.delenv(MODEL_ROOT_ENV, raising=False)
     with pytest.raises(VoxCPM2AdapterError, match=MODEL_ROOT_ENV):
-        adapter.generate(job, tmp_path / "missing-env.wav")
+        adapter.generate(job, TAKE_CONTEXT, tmp_path / "missing-env.wav")
 
     monkeypatch.setenv(MODEL_ROOT_ENV, str(tmp_path / "missing"))
     with pytest.raises(VoxCPM2AdapterError, match="存在しません"):
-        adapter.generate(job, tmp_path / "missing-root.wav")
+        adapter.generate(job, TAKE_CONTEXT, tmp_path / "missing-root.wav")
 
     root = _model_root(tmp_path, monkeypatch)
     monkeypatch.setenv(MODEL_ROOT_ENV, str(root))
     (root / "unexpected.bin").write_bytes(b"unexpected")
     with pytest.raises(VoxCPM2AdapterError, match="allowlist"):
-        adapter.generate(job, tmp_path / "unexpected.wav")
+        adapter.generate(job, TAKE_CONTEXT, tmp_path / "unexpected.wav")
     (root / "unexpected.bin").unlink()
 
     runtime.identity["dtype"] = "float16"
     with pytest.raises(VoxCPM2AdapterError, match="runtime identity"):
-        adapter.generate(job, tmp_path / "identity.wav")
+        adapter.generate(job, TAKE_CONTEXT, tmp_path / "identity.wav")
 
 
 @pytest.mark.parametrize("oom_phase", ["load", "design", "clone"])
@@ -615,7 +623,11 @@ def test_runtime_oom_fails_fast(
         action = lambda: adapter.prepare([job], tmp_path / "artifacts", voices_dir)
     else:
         adapter.prepare([job], tmp_path / "artifacts", voices_dir)
-        action = lambda: adapter.generate(job, tmp_path / "output.wav")
+        action = lambda: adapter.generate(
+            job,
+            TAKE_CONTEXT,
+            tmp_path / "output.wav",
+        )
     with pytest.raises(VoxCPM2AdapterError, match="CUDA out of memory"):
         action()
 
@@ -644,7 +656,7 @@ def test_invalid_runtime_waveform_fails_before_output(
     output = tmp_path / "output.wav"
 
     with pytest.raises(VoxCPM2AdapterError, match="waveform|float"):
-        adapter.generate(job, output)
+        adapter.generate(job, TAKE_CONTEXT, output)
     assert not output.exists()
 
 
@@ -659,7 +671,7 @@ def test_reading_converter_and_invalid_job_fail_fast(tmp_path: Path) -> None:
     job = _job(reading=None)
     adapter.prepare([job], tmp_path / "artifacts", _voices_dir(tmp_path))
     assert received == ["安いよ、見てって！"]
-    assert adapter.generation_input(job)["reading_source"] == (
+    assert adapter.generation_input(job, TAKE_CONTEXT)["reading_source"] == (
         "pyopenjtalk.g2p(kana=True)"
     )
 

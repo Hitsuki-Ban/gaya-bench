@@ -11,7 +11,7 @@ from typing import Any, Literal
 import yaml
 
 from gaya_pipeline.adapters import UnknownAdapterError, create_adapter
-from gaya_pipeline.adapters.base import Adapter, LineJob
+from gaya_pipeline.adapters.base import Adapter, LineJob, TakeContext
 from gaya_pipeline.audio import (
     AudioProcessingError,
     AudioTools,
@@ -28,6 +28,12 @@ from gaya_pipeline.manifest import (
     load_manifest,
     update_manifest,
 )
+from gaya_pipeline.take_identity import (
+    canonical_json,
+    generation_input_sha256,
+    make_take_id,
+    take_context_dict,
+)
 from gaya_pipeline.validation import validate_scenarios
 
 
@@ -41,7 +47,9 @@ METADATA_KEYS = {
     "scenario",
     "line",
     "variant",
-    "input_hash",
+    "generation_input_sha256",
+    "take_id",
+    "take",
     "wav_sha256",
     "opus_sha256",
     "duration_sec",
@@ -49,6 +57,7 @@ METADATA_KEYS = {
     "rtf",
     "gen_params",
     "postprocess",
+    "toolchain",
     "loudness",
 }
 
@@ -317,11 +326,14 @@ def _process_job(
     pending_wav = output_dir / f".{base_name}.pending.wav"
     pending_opus = output_dir / f".{base_name}.pending.opus"
     pending_metadata = output_dir / f".{base_name}.pending.json"
-    input_hash = _generation_hash(
+    take_context = adapter.take_recipe().single_take_context()
+    input_sha256 = _generation_hash(
         adapter=adapter,
         job=job,
+        take_context=take_context,
         requested_params=requested_params,
         profile=profile,
+        tools=tools,
     )
 
     metadata = None if force else _read_metadata(metadata_path)
@@ -330,13 +342,15 @@ def _process_job(
         and metadata is not None
         and _metadata_matches(
             metadata,
-            input_hash=input_hash,
+            generation_input_sha256=input_sha256,
+            take_context=take_context,
             normalized_wav=normalized_wav,
             opus_path=opus_path,
             adapter=adapter,
             job=job,
             requested_params=requested_params,
             profile=profile,
+            tools=tools,
         )
     ):
         return _record_and_clip_from_metadata(
@@ -358,7 +372,7 @@ def _process_job(
     try:
         generation_started = time.perf_counter()
         try:
-            realized_params = dict(adapter.generate(job, source_wav))
+            realized_params = dict(adapter.generate(job, take_context, source_wav))
         except Exception as error:
             raise GenerationError(
                 f"adapter 生成に失敗しました: {error}",
@@ -404,20 +418,27 @@ def _process_job(
             "requested": requested_params,
             "realized": realized_params,
         }
+        opus_sha256 = _sha256_file(pending_opus)
         metadata = {
-            "format_version": 2,
+            "format_version": 3,
             "model": adapter.profile.id,
             "scenario": job.scenario_id,
             "line": job.line_id,
             "variant": "dry",
-            "input_hash": input_hash,
+            "generation_input_sha256": input_sha256,
+            "take_id": make_take_id(
+                generation_input_sha256=input_sha256,
+                final_opus_sha256=opus_sha256,
+            ),
+            "take": take_context_dict(take_context),
             "wav_sha256": _sha256_file(pending_wav),
-            "opus_sha256": _sha256_file(pending_opus),
+            "opus_sha256": opus_sha256,
             "duration_sec": round(opus_probe.duration_sec, 6),
             "generation_seconds": round(generation_seconds, 6),
             "rtf": round(rtf, 6),
             "gen_params": gen_params,
             "postprocess": profile.as_dict(),
+            "toolchain": tools.as_identity(),
             "loudness": {
                 "normalized_wav": normalized_loudness.as_dict(),
                 "encoded_opus": encoded_loudness.as_dict(),
@@ -452,25 +473,28 @@ def _generation_hash(
     *,
     adapter: Adapter,
     job: LineJob,
+    take_context: TakeContext,
     requested_params: dict[str, Any],
     profile: PostprocessProfile,
+    tools: AudioTools,
 ) -> str:
     try:
-        generation_input = adapter.generation_input(job)
+        resolved_input = adapter.generation_input(job, take_context)
     except Exception as error:
         raise GenerationError(
             f"adapter 入力構築に失敗しました: {error}",
         ) from error
-    payload = {
-        "model": {
-            "id": adapter.profile.id,
-            "version": adapter.profile.version,
+    return generation_input_sha256(
+        model_id=adapter.profile.id,
+        model_version=adapter.profile.version,
+        resolved_input=resolved_input,
+        take_context=take_context,
+        generation_params=requested_params,
+        postprocess={
+            "profile": profile.as_dict(),
+            "toolchain": tools.as_identity(),
         },
-        "input": generation_input,
-        "gen_params": requested_params,
-        "postprocess": profile.as_dict(),
-    }
-    return hashlib.sha256(_canonical_json(payload).encode("utf-8")).hexdigest()
+    )
 
 
 def _manifest_has_failure(
@@ -516,13 +540,15 @@ def _read_metadata(path: Path) -> dict[str, Any] | None:
 def _metadata_matches(
     metadata: dict[str, Any],
     *,
-    input_hash: str,
+    generation_input_sha256: str,
+    take_context: TakeContext,
     normalized_wav: Path,
     opus_path: Path,
     adapter: Adapter,
     job: LineJob,
     requested_params: dict[str, Any],
     profile: PostprocessProfile,
+    tools: AudioTools,
 ) -> bool:
     identity = (
         metadata["model"],
@@ -538,35 +564,79 @@ def _metadata_matches(
     )
     if identity != expected_identity:
         raise GenerationError("生成メタの model/scenario/line/variant が不正です。")
-    if metadata["input_hash"] != input_hash:
+    if metadata["generation_input_sha256"] != generation_input_sha256:
+        return False
+    if metadata["take"] != take_context_dict(take_context):
         return False
     if metadata["postprocess"] != profile.as_dict():
         raise GenerationError("生成メタの後処理 profile が不正です。")
+    if metadata["toolchain"] != tools.as_identity():
+        return False
     if metadata["gen_params"]["requested"] != requested_params:
         raise GenerationError("生成メタの生成パラメータが不正です。")
     if not normalized_wav.is_file() or not opus_path.is_file():
         return False
-    return metadata.get("wav_sha256") == _sha256_file(normalized_wav) and metadata.get(
-        "opus_sha256"
-    ) == _sha256_file(opus_path)
+    wav_matches = metadata.get("wav_sha256") == _sha256_file(normalized_wav)
+    opus_sha256 = _sha256_file(opus_path)
+    return (
+        wav_matches
+        and metadata.get("opus_sha256") == opus_sha256
+        and metadata.get("take_id")
+        == make_take_id(
+            generation_input_sha256=generation_input_sha256,
+            final_opus_sha256=opus_sha256,
+        )
+    )
 
 
 def _validate_metadata(metadata: Any, path: Path) -> None:
     if not isinstance(metadata, dict) or set(metadata) != METADATA_KEYS:
-        raise GenerationError(f"生成メタの項目が v2 と一致しません: {path}")
-    if metadata["format_version"] != 2:
+        raise GenerationError(f"生成メタの項目が v3 と一致しません: {path}")
+    if metadata["format_version"] != 3:
         raise GenerationError(f"生成メタの format_version が不正です: {path}")
     for key in (
         "model",
         "scenario",
         "line",
         "variant",
-        "input_hash",
+        "generation_input_sha256",
+        "take_id",
         "wav_sha256",
         "opus_sha256",
     ):
         if not isinstance(metadata[key], str):
             raise GenerationError(f"生成メタの {key} が不正です: {path}")
+    for key in (
+        "generation_input_sha256",
+        "take_id",
+        "wav_sha256",
+        "opus_sha256",
+    ):
+        value = metadata[key]
+        if len(value) != 64 or any(character not in "0123456789abcdef" for character in value):
+            raise GenerationError(f"生成メタの {key} が不正です: {path}")
+    if metadata["take_id"] != make_take_id(
+        generation_input_sha256=metadata["generation_input_sha256"],
+        final_opus_sha256=metadata["opus_sha256"],
+    ):
+        raise GenerationError(f"生成メタの take_id が provenance と一致しません: {path}")
+    take = metadata["take"]
+    if not isinstance(take, dict) or set(take) != {
+        "index",
+        "seed",
+        "recipe_version",
+        "sampling",
+    }:
+        raise GenerationError(f"生成メタの take が不正です: {path}")
+    try:
+        TakeContext.create(
+            index=take["index"],
+            seed=take["seed"],
+            recipe_version=take["recipe_version"],
+            sampling=take["sampling"],
+        )
+    except (TypeError, ValueError) as error:
+        raise GenerationError(f"生成メタの take が不正です: {path}") from error
     for key in ("duration_sec", "generation_seconds", "rtf"):
         value = metadata[key]
         if (
@@ -589,6 +659,18 @@ def _validate_metadata(metadata: Any, path: Path) -> None:
     postprocess = metadata["postprocess"]
     if not isinstance(postprocess, dict):
         raise GenerationError(f"生成メタの postprocess が不正です: {path}")
+    toolchain = metadata["toolchain"]
+    if (
+        not isinstance(toolchain, dict)
+        or set(toolchain)
+        != {"ffmpeg_version", "ffprobe_version", "libopus_encoder"}
+        or not isinstance(toolchain["ffmpeg_version"], str)
+        or not toolchain["ffmpeg_version"]
+        or not isinstance(toolchain["ffprobe_version"], str)
+        or not toolchain["ffprobe_version"]
+        or toolchain["libopus_encoder"] is not True
+    ):
+        raise GenerationError(f"生成メタの toolchain が不正です: {path}")
 
     loudness = metadata["loudness"]
     if (
@@ -692,10 +774,4 @@ def _sha256_file(path: Path) -> str:
 
 
 def _canonical_json(value: Any) -> str:
-    return json.dumps(
-        value,
-        ensure_ascii=False,
-        sort_keys=True,
-        separators=(",", ":"),
-        allow_nan=False,
-    )
+    return canonical_json(value)

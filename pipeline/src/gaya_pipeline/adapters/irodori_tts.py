@@ -12,7 +12,14 @@ from typing import Any, Protocol, TypeVar
 
 import yaml
 
-from gaya_pipeline.adapters.base import Capabilities, LineJob, ModelProfile
+from gaya_pipeline.adapters.base import (
+    Capabilities,
+    LineJob,
+    ModelProfile,
+    TakeContext,
+    TakeRecipe,
+    require_take_context,
+)
 from gaya_pipeline.japanese_reading import resolve_japanese_reading
 from gaya_pipeline.voice_assets import validate_voice_metadata
 
@@ -470,6 +477,24 @@ class IrodoriTTSAdapter:
         ),
     )
 
+    def take_recipe(self) -> TakeRecipe:
+        return TakeRecipe(
+            version="fixed-single-v1",
+            seed_policy="fixed",
+            single_take_seed=SEED,
+            seed_range=(0, 2**32 - 1),
+            sampling=(
+                ("cfg_guidance_mode", CFG_GUIDANCE_MODE),
+                ("cfg_max_t", CFG_MAX_T),
+                ("cfg_min_t", CFG_MIN_T),
+                ("cfg_scale_caption", CFG_SCALE_CAPTION),
+                ("cfg_scale_speaker", CFG_SCALE_SPEAKER),
+                ("cfg_scale_text", CFG_SCALE_TEXT),
+                ("num_steps", NUM_STEPS),
+            ),
+            supports_multiple=False,
+        )
+
     def __init__(
         self,
         *,
@@ -563,14 +588,21 @@ class IrodoriTTSAdapter:
             "silentcipher_payload": WATERMARK_PAYLOAD,
         }
 
-    def generation_input(self, job: LineJob) -> Mapping[str, Any]:
+    def generation_input(
+        self,
+        job: LineJob,
+        take_context: TakeContext,
+    ) -> Mapping[str, Any]:
+        require_take_context(take_context, self.take_recipe())
         return self._prepared_input(job).as_generation_input()
 
     def generate(
         self,
         job: LineJob,
+        take_context: TakeContext,
         output_wav: Path,
     ) -> Mapping[str, Any]:
+        require_take_context(take_context, self.take_recipe())
         prepared = self._prepared_input(job)
         if self._load_peak is None:
             peak = self._run_phase("Irodori runtime load", self._runtime.prepare)

@@ -37,6 +37,8 @@ from gaya_pipeline.adapters.aivisspeech import (
 )
 from gaya_pipeline.adapters.base import LineJob
 
+TAKE_CONTEXT = AivisSpeechAdapter().take_recipe().single_take_context()
+
 
 class FakeRuntime:
     def __init__(self) -> None:
@@ -131,6 +133,13 @@ def test_profile_registry_and_generation_params_are_pinned() -> None:
         "nonverbal": False,
         "reading": True,
     }
+    recipe = adapter.take_recipe()
+    assert recipe.version == "fixed-single-v1"
+    assert recipe.seed_policy == "none"
+    assert recipe.single_take_seed is None
+    assert recipe.seed_range is None
+    assert recipe.sampling == ()
+    assert recipe.supports_multiple is False
 
     params = adapter.generation_params()
     assert params["engine_url"] == ENGINE_URL
@@ -157,7 +166,7 @@ def test_emotion_maps_to_exact_kohaku_style(
     job = _job(emotion=emotion)
     _prepare(adapter, [job], tmp_path)
 
-    generation_input = adapter.generation_input(job)
+    generation_input = adapter.generation_input(job, TAKE_CONTEXT)
     assert generation_input["speaker_style"] == {
         "name": style_name,
         "id": STYLE_IDS[style_name],
@@ -174,7 +183,7 @@ def test_intensity_maps_to_supported_scales(
     job = _job(intensity=intensity)
     _prepare(adapter, [job], tmp_path)
 
-    generation_input = adapter.generation_input(job)
+    generation_input = adapter.generation_input(job, TAKE_CONTEXT)
     assert generation_input["intonation_scale"] == (
         INTONATION_SCALE_BY_INTENSITY[intensity]
     )
@@ -189,11 +198,11 @@ def test_explicit_reading_is_sent_verbatim(tmp_path: Path) -> None:
     job = _job(reading="ハイヨッ、エールフタツオマチ！")
     _prepare(adapter, [job], tmp_path)
 
-    generation_input = adapter.generation_input(job)
+    generation_input = adapter.generation_input(job, TAKE_CONTEXT)
     assert generation_input["text"] == "ハイヨッ、エールフタツオマチ！"
     assert generation_input["reading_source"] == "line.reading"
 
-    adapter.generate(job, tmp_path / "reading.wav")
+    adapter.generate(job, TAKE_CONTEXT, tmp_path / "reading.wav")
     assert runtime.synthesize_calls[0]["text"] == "ハイヨッ、エールフタツオマチ！"
 
 
@@ -206,7 +215,7 @@ def test_generate_writes_pcm16_without_claiming_unverified_device(
     _prepare(adapter, [job], tmp_path)
 
     output_wav = tmp_path / "output.wav"
-    realized = adapter.generate(job, output_wav)
+    realized = adapter.generate(job, TAKE_CONTEXT, output_wav)
 
     assert runtime.prepare_count == 1
     assert runtime.synthesize_calls == [
@@ -234,13 +243,13 @@ def test_unprepared_unknown_and_duplicate_jobs_fail_fast(
     job = _job()
 
     with pytest.raises(AivisSpeechAdapterError, match=r"prepare\(\)"):
-        adapter.generation_input(job)
+        adapter.generation_input(job, TAKE_CONTEXT)
     with pytest.raises(AivisSpeechAdapterError, match="重複"):
         _prepare(adapter, [job, job], tmp_path)
 
     _prepare(adapter, [job], tmp_path)
     with pytest.raises(AivisSpeechAdapterError, match="prepare 済み input"):
-        adapter.generation_input(_job(line_id="other"))
+        adapter.generation_input(_job(line_id="other"), TAKE_CONTEXT)
 
 
 @pytest.mark.parametrize(
