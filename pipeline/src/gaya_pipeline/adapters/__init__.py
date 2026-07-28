@@ -39,4 +39,8 @@ def create_adapter(model_id: str) -> Adapter:
         from gaya_pipeline.adapters.cosyvoice3 import CosyVoice3Adapter
 
         return CosyVoice3Adapter()
+    if model_id == "supertonic-3":
+        from gaya_pipeline.adapters.supertonic3 import Supertonic3Adapter
+
+        return Supertonic3Adapter()
     raise UnknownAdapterError(f"未知の model id です: {model_id}")
