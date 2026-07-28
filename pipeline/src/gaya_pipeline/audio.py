@@ -27,7 +27,7 @@ class AudioTools:
 
 @dataclass(frozen=True)
 class PostprocessProfile:
-    algorithm_version: int = 3
+    algorithm_version: int = 4
     integrated_lufs: float = -18.0
     loudness_range_lu: float = 7.0
     true_peak_dbtp: float = -1.0
@@ -263,6 +263,8 @@ def encode_opus(
             profile.application,
             "-map_metadata",
             "-1",
+            "-fflags",
+            "+bitexact",
             "-f",
             "opus",
             str(output_opus),

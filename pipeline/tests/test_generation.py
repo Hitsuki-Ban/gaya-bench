@@ -424,7 +424,30 @@ def test_postprocess_algorithm_version_invalidates_cached_audio(
         artifacts_dir / "audio" / "dummy" / "tavern-night" / "barmaid-001-dry.json"
     )
     metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
-    assert metadata["postprocess"]["algorithm_version"] == 3
+    assert metadata["postprocess"]["algorithm_version"] == 4
+
+
+def test_force_regeneration_preserves_opus_hash(tmp_path: Path) -> None:
+    scenarios_dir = _two_scenarios(tmp_path)
+    artifacts_dir = tmp_path / "artifacts"
+    manifest_path = tmp_path / "data" / "manifest.json"
+    arguments = {
+        "model_id": "dummy",
+        "scenarios_dir": scenarios_dir,
+        "artifacts_dir": artifacts_dir,
+        "manifest_path": manifest_path,
+        "scenario_id": "tavern-night",
+        "line_id": "barmaid-001",
+    }
+
+    run_generation(**arguments)
+    first_manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    first_sha256 = first_manifest["clips"][0]["sha256"]
+
+    run_generation(**arguments, force=True)
+    second_manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+
+    assert second_manifest["clips"][0]["sha256"] == first_sha256
 
 
 def test_later_batch_failure_continues_and_keeps_manifest_in_sync(
@@ -546,7 +569,7 @@ def test_first_batch_failure_continues_remaining_lines(
     assert "first job failed" in summary.failures[0].message
     assert len(output["clips"]) == 5
     assert all(
-        clip["sha256"] != baseline_sha[clip["line"]]
+        clip["sha256"] == baseline_sha[clip["line"]]
         for clip in output["clips"]
     )
     assert output["failures"][0]["line"] == "barmaid-001"

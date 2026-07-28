@@ -13,6 +13,7 @@ from gaya_pipeline.audio import (
     LoudnessReport,
     PostprocessProfile,
     _validate_loudness_report,
+    encode_opus,
     find_audio_tools,
     normalize_wav,
 )
@@ -133,3 +134,17 @@ def test_whisper_within_hard_gate_is_reported_as_shortfall() -> None:
         "tp_dbtp": -0.94,
         "shortfall": True,
     }
+
+
+def test_opus_encoding_is_bit_exact_for_identical_pcm(tmp_path: Path) -> None:
+    source_wav = tmp_path / "source.wav"
+    first_opus = tmp_path / "first.opus"
+    second_opus = tmp_path / "second.opus"
+    _write_high_crest_wav(source_wav)
+    tools = find_audio_tools()
+    profile = PostprocessProfile()
+
+    encode_opus(tools, source_wav, first_opus, profile)
+    encode_opus(tools, source_wav, second_opus, profile)
+
+    assert first_opus.read_bytes() == second_opus.read_bytes()
