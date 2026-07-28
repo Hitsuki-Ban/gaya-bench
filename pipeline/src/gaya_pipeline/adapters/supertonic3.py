@@ -12,7 +12,14 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Protocol
 
-from gaya_pipeline.adapters.base import Capabilities, LineJob, ModelProfile
+from gaya_pipeline.adapters.base import (
+    Capabilities,
+    LineJob,
+    ModelProfile,
+    TakeContext,
+    TakeRecipe,
+    require_take_context,
+)
 
 MODEL_ID = "supertonic-3"
 MODEL_NAME = "Supertonic 3"
@@ -381,6 +388,19 @@ class Supertonic3Adapter:
         ),
     )
 
+    def take_recipe(self) -> TakeRecipe:
+        return TakeRecipe(
+            version="fixed-single-v1",
+            seed_policy="fixed",
+            single_take_seed=SEED,
+            seed_range=(0, 2**32 - 1),
+            sampling=(
+                ("speed", SPEED),
+                ("total_steps", TOTAL_STEPS),
+            ),
+            supports_multiple=False,
+        )
+
     def __init__(self, *, runtime: _Runtime | None = None) -> None:
         self._runtime = runtime if runtime is not None else _LocalRuntime()
         self._prepared_inputs: dict[tuple[str, str], _PreparedInput] = {}
@@ -447,14 +467,21 @@ class Supertonic3Adapter:
             "auto_download": False,
         }
 
-    def generation_input(self, job: LineJob) -> Mapping[str, Any]:
+    def generation_input(
+        self,
+        job: LineJob,
+        take_context: TakeContext,
+    ) -> Mapping[str, Any]:
+        require_take_context(take_context, self.take_recipe())
         return self._prepared_input(job).as_generation_input()
 
     def generate(
         self,
         job: LineJob,
+        take_context: TakeContext,
         output_wav: Path,
     ) -> Mapping[str, Any]:
+        require_take_context(take_context, self.take_recipe())
         prepared = self._prepared_input(job)
         try:
             realized = self._runtime.synthesize(

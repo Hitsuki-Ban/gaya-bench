@@ -139,7 +139,13 @@ def test_file_must_match_voice_id(tmp_path: Path) -> None:
 def test_missing_local_wav_is_rejected(tmp_path: Path) -> None:
     result = validate_local_voice_assets(
         _copy_metadata(tmp_path),
-        tools=AudioTools("ffmpeg", "ffprobe"),
+        tools=AudioTools(
+            "ffmpeg",
+            "ffprobe",
+            "ffmpeg version test",
+            "ffprobe version test",
+            True,
+        ),
     )
 
     assert len(result.problems) == 5
@@ -165,7 +171,13 @@ def test_local_voice_assets_are_fully_validated(
 
     result = validate_local_voice_assets(
         voices_dir,
-        tools=AudioTools("ffmpeg", "ffprobe"),
+        tools=AudioTools(
+            "ffmpeg",
+            "ffprobe",
+            "ffmpeg version test",
+            "ffprobe version test",
+            True,
+        ),
     )
 
     assert len(result.voice_ids) == 5
@@ -194,7 +206,13 @@ def test_unregistered_local_wav_is_rejected(
 
     result = validate_local_voice_assets(
         voices_dir,
-        tools=AudioTools("ffmpeg", "ffprobe"),
+        tools=AudioTools(
+            "ffmpeg",
+            "ffprobe",
+            "ffmpeg version test",
+            "ffprobe version test",
+            True,
+        ),
     )
 
     assert len(result.problems) == 1
@@ -227,7 +245,13 @@ def test_invalid_audio_properties_are_rejected(
 
     result = validate_local_voice_assets(
         voices_dir,
-        tools=AudioTools("ffmpeg", "ffprobe"),
+        tools=AudioTools(
+            "ffmpeg",
+            "ffprobe",
+            "ffmpeg version test",
+            "ffprobe version test",
+            True,
+        ),
     )
 
     assert any(expected in problem.reason for problem in result.problems)

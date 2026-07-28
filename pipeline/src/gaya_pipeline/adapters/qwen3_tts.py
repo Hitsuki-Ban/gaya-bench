@@ -12,7 +12,14 @@ from importlib import metadata
 from pathlib import Path
 from typing import Any, Protocol, TypeVar
 
-from gaya_pipeline.adapters.base import Capabilities, LineJob, ModelProfile
+from gaya_pipeline.adapters.base import (
+    Capabilities,
+    LineJob,
+    ModelProfile,
+    TakeContext,
+    TakeRecipe,
+    require_take_context,
+)
 
 MODEL_ID = "qwen3-tts-12hz-1.7b"
 QWEN_TTS_VERSION = "0.1.1"
@@ -330,6 +337,16 @@ class Qwen3TTSAdapter:
         ),
     )
 
+    def take_recipe(self) -> TakeRecipe:
+        return TakeRecipe(
+            version="fixed-single-v1",
+            seed_policy="fixed",
+            single_take_seed=SEED,
+            seed_range=(0, 2**32 - 1),
+            sampling=tuple(sorted(_sampling().items())),
+            supports_multiple=False,
+        )
+
     def __init__(self, runtime: _Runtime | None = None) -> None:
         self._runtime = _NativeRuntime() if runtime is None else runtime
         self._references: dict[_ReferenceKey, _VoiceReference] = {}
@@ -470,7 +487,12 @@ class Qwen3TTSAdapter:
             },
         }
 
-    def generation_input(self, job: LineJob) -> Mapping[str, Any]:
+    def generation_input(
+        self,
+        job: LineJob,
+        take_context: TakeContext,
+    ) -> Mapping[str, Any]:
+        require_take_context(take_context, self.take_recipe())
         reference = self._reference_for(job)
         text = _required_string(job.line, "text", "line")
         key = _job_key(job)
@@ -488,8 +510,10 @@ class Qwen3TTSAdapter:
     def generate(
         self,
         job: LineJob,
+        take_context: TakeContext,
         output_wav: Path,
     ) -> Mapping[str, Any]:
+        require_take_context(take_context, self.take_recipe())
         reference = self._reference_for(job)
         key = _job_key(job)
         model = self._ensure_base_model()

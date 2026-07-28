@@ -24,6 +24,16 @@ LIMITER_SAMPLE_RATE_HZ = 192_000
 class AudioTools:
     ffmpeg: str
     ffprobe: str
+    ffmpeg_version: str
+    ffprobe_version: str
+    libopus_encoder: bool
+
+    def as_identity(self) -> dict[str, str | bool]:
+        return {
+            "ffmpeg_version": self.ffmpeg_version,
+            "ffprobe_version": self.ffprobe_version,
+            "libopus_encoder": self.libopus_encoder,
+        }
 
 
 @dataclass(frozen=True)
@@ -123,12 +133,29 @@ def find_audio_tools() -> AudioTools:
             f"必要な音声ツールが見つかりません: {', '.join(missing)}",
         )
 
+    ffmpeg_version = _tool_version(ffmpeg, "ffmpeg")
+    ffprobe_version = _tool_version(ffprobe, "ffprobe")
     encoder_result = _run([ffmpeg, "-hide_banner", "-encoders"])
-    if "libopus" not in encoder_result.stdout:
+    has_libopus = "libopus" in encoder_result.stdout
+    if not has_libopus:
         raise AudioProcessingError(
             "ffmpeg に libopus encoder が含まれていません。",
         )
-    return AudioTools(ffmpeg=ffmpeg, ffprobe=ffprobe)
+    return AudioTools(
+        ffmpeg=ffmpeg,
+        ffprobe=ffprobe,
+        ffmpeg_version=ffmpeg_version,
+        ffprobe_version=ffprobe_version,
+        libopus_encoder=has_libopus,
+    )
+
+
+def _tool_version(executable: str, name: str) -> str:
+    result = _run([executable, "-hide_banner", "-version"])
+    first_line = result.stdout.splitlines()[0].strip() if result.stdout else ""
+    if not first_line.startswith(f"{name} version "):
+        raise AudioProcessingError(f"{name} の version を取得できません。")
+    return first_line
 
 
 def normalize_wav(

@@ -10,10 +10,11 @@ from typing import Any
 import pytest
 import yaml
 from gaya_pipeline import cli, generation
-from gaya_pipeline.adapters.base import LineJob
+from gaya_pipeline.adapters.base import LineJob, TakeContext, TakeRecipe
 from gaya_pipeline.adapters.dummy import DummyAdapter
 from gaya_pipeline.audio import (
     AudioProcessingError,
+    AudioTools,
     PostprocessProfile,
     find_audio_tools,
     probe_audio,
@@ -146,7 +147,18 @@ def test_dummy_two_scenario_e2e_and_idempotency(
 
     for metadata_path in metadata_files:
         metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
-        assert metadata["format_version"] == 2
+        assert metadata["format_version"] == 3
+        assert metadata["take"] == {
+            "index": 1,
+            "seed": None,
+            "recipe_version": "fixed-single-v1",
+            "sampling": {},
+        }
+        assert len(metadata["generation_input_sha256"]) == 64
+        assert len(metadata["take_id"]) == 64
+        assert metadata["toolchain"]["libopus_encoder"] is True
+        assert metadata["toolchain"]["ffmpeg_version"].startswith("ffmpeg version ")
+        assert metadata["toolchain"]["ffprobe_version"].startswith("ffprobe version ")
         profile = PostprocessProfile()
         assert metadata["postprocess"] == profile.as_dict()
         assert "true_peak_dbtp" not in metadata["postprocess"]
@@ -258,6 +270,18 @@ def test_selector_hash_invalidation_force_and_failed_replacement(
     regenerated_after_old_sidecar = run_selected(force=True)
     assert regenerated_after_old_sidecar.generated_count == 1
 
+    identity_metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+    identity_metadata["take_id"] = "0" * 64
+    metadata_path.write_text(
+        json.dumps(identity_metadata, ensure_ascii=False),
+        encoding="utf-8",
+    )
+    broken_identity = run_selected()
+    assert broken_identity.failed_count == 1
+    assert "provenance" in broken_identity.failures[0].message
+    regenerated_after_broken_identity = run_selected(force=True)
+    assert regenerated_after_broken_identity.generated_count == 1
+
     broken_metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
     del broken_metadata["loudness"]
     metadata_path.write_text(
@@ -276,8 +300,10 @@ def test_selector_hash_invalidation_force_and_failed_replacement(
     def fail_generation(
         adapter: DummyAdapter,
         job: object,
+        take_context: TakeContext,
         output_wav: Path,
     ) -> dict[str, object]:
+        del adapter, job, take_context, output_wav
         raise RuntimeError("CUDA out of memory")
 
     monkeypatch.setattr(DummyAdapter, "generate", fail_generation)
@@ -368,7 +394,12 @@ def test_adapter_boundary_errors_are_controlled(
 
     monkeypatch.undo()
 
-    def fail_input(adapter: DummyAdapter, job: object) -> dict[str, object]:
+    def fail_input(
+        adapter: DummyAdapter,
+        job: object,
+        take_context: TakeContext,
+    ) -> dict[str, object]:
+        del adapter, job, take_context
         raise RuntimeError("prompt preprocessing failed")
 
     monkeypatch.setattr(DummyAdapter, "generation_input", fail_input)
@@ -384,8 +415,11 @@ def test_adapter_prepare_runs_once_before_generation_input(
 ) -> None:
     scenarios_dir = _two_scenarios(tmp_path)
     events: list[str] = []
+    input_context_ids: dict[str, int] = {}
+    generate_context_ids: dict[str, int] = {}
     original_prepare = DummyAdapter.prepare
     original_generation_input = DummyAdapter.generation_input
+    original_generate = DummyAdapter.generate
 
     def record_prepare(
         adapter: DummyAdapter,
@@ -399,9 +433,20 @@ def test_adapter_prepare_runs_once_before_generation_input(
     def record_generation_input(
         adapter: DummyAdapter,
         job: LineJob,
+        take_context: TakeContext,
     ) -> Mapping[str, Any]:
         events.append(f"input:{job.line_id}")
-        return original_generation_input(adapter, job)
+        input_context_ids[job.line_id] = id(take_context)
+        return original_generation_input(adapter, job, take_context)
+
+    def record_generate(
+        adapter: DummyAdapter,
+        job: LineJob,
+        take_context: TakeContext,
+        output_wav: Path,
+    ) -> Mapping[str, Any]:
+        generate_context_ids[job.line_id] = id(take_context)
+        return original_generate(adapter, job, take_context, output_wav)
 
     monkeypatch.setattr(DummyAdapter, "prepare", record_prepare)
     monkeypatch.setattr(
@@ -409,6 +454,7 @@ def test_adapter_prepare_runs_once_before_generation_input(
         "generation_input",
         record_generation_input,
     )
+    monkeypatch.setattr(DummyAdapter, "generate", record_generate)
 
     summary = run_generation(
         model_id="dummy",
@@ -431,6 +477,7 @@ def test_adapter_prepare_runs_once_before_generation_input(
         "input:old-regular-001",
         "input:old-regular-002",
     ]
+    assert input_context_ids == generate_context_ids
 
 
 def test_postprocess_algorithm_version_invalidates_cached_audio(
@@ -472,6 +519,93 @@ def test_postprocess_algorithm_version_invalidates_cached_audio(
     metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
     assert metadata["postprocess"] == PostprocessProfile().as_dict()
     assert metadata["postprocess"]["algorithm_version"] == 7
+
+
+def test_take_context変更でgeneration_inputとcacheが変わる(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    scenarios_dir = _two_scenarios(tmp_path)
+    artifacts_dir = tmp_path / "artifacts"
+    manifest_path = tmp_path / "data" / "manifest.json"
+    arguments = {
+        "model_id": "dummy",
+        "scenarios_dir": scenarios_dir,
+        "artifacts_dir": artifacts_dir,
+        "manifest_path": manifest_path,
+        "scenario_id": "tavern-night",
+        "line_id": "barmaid-001",
+    }
+    first = run_generation(**arguments)
+    metadata_path = (
+        artifacts_dir / "audio" / "dummy" / "tavern-night" / "barmaid-001-dry.json"
+    )
+    first_metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+
+    def changed_recipe(adapter: DummyAdapter) -> TakeRecipe:
+        del adapter
+        return TakeRecipe(
+            version="fixed-single-v2",
+            seed_policy="none",
+            single_take_seed=None,
+            seed_range=None,
+            sampling=(),
+            supports_multiple=False,
+        )
+
+    monkeypatch.setattr(DummyAdapter, "take_recipe", changed_recipe)
+    changed = run_generation(**arguments)
+    changed_metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+
+    assert first.generated_count == 1
+    assert changed.generated_count == 1
+    assert first_metadata["generation_input_sha256"] != (
+        changed_metadata["generation_input_sha256"]
+    )
+    assert first_metadata["take_id"] != changed_metadata["take_id"]
+
+
+def test_encoder_toolchain変更でgeneration_inputとcacheが変わる(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    scenarios_dir = _two_scenarios(tmp_path)
+    artifacts_dir = tmp_path / "artifacts"
+    manifest_path = tmp_path / "data" / "manifest.json"
+    arguments = {
+        "model_id": "dummy",
+        "scenarios_dir": scenarios_dir,
+        "artifacts_dir": artifacts_dir,
+        "manifest_path": manifest_path,
+        "scenario_id": "tavern-night",
+        "line_id": "barmaid-001",
+    }
+    first = run_generation(**arguments)
+    metadata_path = (
+        artifacts_dir / "audio" / "dummy" / "tavern-night" / "barmaid-001-dry.json"
+    )
+    first_metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+    actual = find_audio_tools()
+
+    monkeypatch.setattr(
+        generation,
+        "find_audio_tools",
+        lambda: AudioTools(
+            ffmpeg=actual.ffmpeg,
+            ffprobe=actual.ffprobe,
+            ffmpeg_version=f"{actual.ffmpeg_version} test-other-build",
+            ffprobe_version=actual.ffprobe_version,
+            libopus_encoder=True,
+        ),
+    )
+    changed = run_generation(**arguments)
+    changed_metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+
+    assert first.generated_count == 1
+    assert changed.generated_count == 1
+    assert first_metadata["generation_input_sha256"] != (
+        changed_metadata["generation_input_sha256"]
+    )
 
 
 def test_force_regeneration_preserves_opus_hash(tmp_path: Path) -> None:
@@ -582,13 +716,14 @@ def test_later_batch_failure_continues_and_keeps_manifest_in_sync(
     def fail_second_generation(
         adapter: DummyAdapter,
         job: LineJob,
+        take_context: TakeContext,
         output_wav: Path,
     ) -> Mapping[str, Any]:
         nonlocal generation_count
         generation_count += 1
         if generation_count == 2:
             raise RuntimeError("CUDA out of memory later")
-        return original_generate(adapter, job, output_wav)
+        return original_generate(adapter, job, take_context, output_wav)
 
     monkeypatch.setattr(DummyAdapter, "generate", fail_second_generation)
     summary = run_scenario(force=True)
@@ -638,13 +773,14 @@ def test_first_batch_failure_continues_remaining_lines(
     def fail_first_generation(
         adapter: DummyAdapter,
         job: LineJob,
+        take_context: TakeContext,
         output_wav: Path,
     ) -> Mapping[str, Any]:
         nonlocal generation_count
         generation_count += 1
         if generation_count == 1:
             raise RuntimeError("first job failed")
-        return original_generate(adapter, job, output_wav)
+        return original_generate(adapter, job, take_context, output_wav)
 
     monkeypatch.setattr(DummyAdapter, "generate", fail_first_generation)
     summary = run_generation(
@@ -682,8 +818,10 @@ def test_manifest_write_failure_preserves_original_generation_error(
     def fail_generation(
         adapter: DummyAdapter,
         job: LineJob,
+        take_context: TakeContext,
         output_wav: Path,
     ) -> Mapping[str, Any]:
+        del adapter, job, take_context, output_wav
         raise RuntimeError("CUDA original failure")
 
     def fail_failure_write(

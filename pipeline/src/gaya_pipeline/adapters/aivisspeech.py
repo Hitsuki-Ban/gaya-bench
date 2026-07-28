@@ -13,7 +13,14 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Protocol
 
-from gaya_pipeline.adapters.base import Capabilities, LineJob, ModelProfile
+from gaya_pipeline.adapters.base import (
+    Capabilities,
+    LineJob,
+    ModelProfile,
+    TakeContext,
+    TakeRecipe,
+    require_take_context,
+)
 
 MODEL_ID = "aivisspeech-kohaku"
 ENGINE_URL = "http://127.0.0.1:10101"
@@ -318,6 +325,16 @@ class AivisSpeechAdapter:
         ),
     )
 
+    def take_recipe(self) -> TakeRecipe:
+        return TakeRecipe(
+            version="fixed-single-v1",
+            seed_policy="none",
+            single_take_seed=None,
+            seed_range=None,
+            sampling=(),
+            supports_multiple=False,
+        )
+
     def __init__(self, *, runtime: _Runtime | None = None) -> None:
         self._runtime = runtime if runtime is not None else _HttpRuntime()
         self._prepared_inputs: dict[tuple[str, str], _PreparedInput] = {}
@@ -371,14 +388,21 @@ class AivisSpeechAdapter:
             },
         }
 
-    def generation_input(self, job: LineJob) -> Mapping[str, Any]:
+    def generation_input(
+        self,
+        job: LineJob,
+        take_context: TakeContext,
+    ) -> Mapping[str, Any]:
+        require_take_context(take_context, self.take_recipe())
         return self._prepared_input(job).as_generation_input()
 
     def generate(
         self,
         job: LineJob,
+        take_context: TakeContext,
         output_wav: Path,
     ) -> Mapping[str, Any]:
+        require_take_context(take_context, self.take_recipe())
         prepared = self._prepared_input(job)
         try:
             realized = self._runtime.synthesize(

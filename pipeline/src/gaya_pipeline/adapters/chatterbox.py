@@ -15,7 +15,14 @@ from typing import Any, Protocol
 
 import yaml
 
-from gaya_pipeline.adapters.base import Capabilities, LineJob, ModelProfile
+from gaya_pipeline.adapters.base import (
+    Capabilities,
+    LineJob,
+    ModelProfile,
+    TakeContext,
+    TakeRecipe,
+    require_take_context,
+)
 from gaya_pipeline.voice_assets import validate_voice_metadata
 
 MODEL_ID = "chatterbox-multilingual-v3"
@@ -166,6 +173,7 @@ class _Runtime(Protocol):
         text: str,
         reference_wav: Path,
         exaggeration: float,
+        seed: int,
     ) -> Any: ...
 
     def write_pcm16(self, path: Path, waveform: Any, sample_rate: int) -> None: ...
@@ -337,11 +345,12 @@ class _NativeRuntime:
         text: str,
         reference_wav: Path,
         exaggeration: float,
+        seed: int,
     ) -> Any:
         if self._torch is None:
             raise ChatterboxAdapterError("Chatterbox runtime が初期化されていません。")
-        self._torch.manual_seed(SEED)
-        self._torch.cuda.manual_seed_all(SEED)
+        self._torch.manual_seed(seed)
+        self._torch.cuda.manual_seed_all(seed)
         return model.generate(
             text,
             language_id=LANGUAGE_ID,
@@ -419,6 +428,22 @@ class ChatterboxAdapter:
             reading=False,
         ),
     )
+
+    def take_recipe(self) -> TakeRecipe:
+        return TakeRecipe(
+            version="seed-only-v1",
+            seed_policy="derived-sha256-v1",
+            single_take_seed=SEED,
+            seed_range=(0, 2**32 - 1),
+            sampling=(
+                ("cfg_weight", CFG_WEIGHT),
+                ("min_p", MIN_P),
+                ("repetition_penalty", REPETITION_PENALTY),
+                ("temperature", TEMPERATURE),
+                ("top_p", TOP_P),
+            ),
+            supports_multiple=True,
+        )
 
     def __init__(
         self,
@@ -512,7 +537,6 @@ class ChatterboxAdapter:
             "pykakasi_version": PYKAKASI_VERSION,
             "safetensors_version": SAFETENSORS_VERSION,
             "s3tokenizer_version": S3TOKENIZER_VERSION,
-            "seed": SEED,
             "cfg_weight": CFG_WEIGHT,
             "temperature": TEMPERATURE,
             "repetition_penalty": REPETITION_PENALTY,
@@ -526,10 +550,26 @@ class ChatterboxAdapter:
             "perth_watermark": True,
         }
 
-    def generation_input(self, job: LineJob) -> Mapping[str, Any]:
-        return self._prepared_input(job).as_generation_input()
+    def generation_input(
+        self,
+        job: LineJob,
+        take_context: TakeContext,
+    ) -> Mapping[str, Any]:
+        require_take_context(take_context, self.take_recipe())
+        return {
+            **self._prepared_input(job).as_generation_input(),
+            "seed": take_context.seed,
+        }
 
-    def generate(self, job: LineJob, output_wav: Path) -> Mapping[str, Any]:
+    def generate(
+        self,
+        job: LineJob,
+        take_context: TakeContext,
+        output_wav: Path,
+    ) -> Mapping[str, Any]:
+        require_take_context(take_context, self.take_recipe())
+        seed = take_context.seed
+        assert seed is not None
         prepared = self._prepared_input(job)
         model = self._ensure_model()
         self._runtime.reset_peak_memory_stats()
@@ -540,6 +580,7 @@ class ChatterboxAdapter:
                 text=prepared.text,
                 reference_wav=prepared.reference.wav_path,
                 exaggeration=prepared.exaggeration,
+                seed=seed,
             ),
         )
         _validate_waveform(waveform)
@@ -562,7 +603,7 @@ class ChatterboxAdapter:
                 "runtime_load": _copy_peak(self._runtime_load_peak),
                 "generation": generation_peak,
             },
-            "seed": SEED,
+            "seed": seed,
             "sample_rate_hz": SAMPLE_RATE_HZ,
             "language_id": LANGUAGE_ID,
             "line_emotion_audit": prepared.emotion,

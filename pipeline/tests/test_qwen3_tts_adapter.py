@@ -10,7 +10,7 @@ from typing import Any
 
 import pytest
 from gaya_pipeline.adapters import qwen3_tts
-from gaya_pipeline.adapters.base import LineJob
+from gaya_pipeline.adapters.base import LineJob, TakeContext
 from gaya_pipeline.adapters.qwen3_tts import (
     ATTENTION_BACKEND,
     BASE_MODEL_ID,
@@ -181,6 +181,10 @@ class FakeRuntime:
         return isinstance(error, FakeOutOfMemoryError)
 
 
+def _take_context(adapter: Qwen3TTSAdapter) -> TakeContext:
+    return adapter.take_recipe().single_take_context()
+
+
 def _job(
     *,
     line_id: str = "vendor-001",
@@ -253,6 +257,12 @@ def test_profile_and_requested_parameters_are_canonical(tmp_path: Path) -> None:
         "nonverbal": False,
         "reading": False,
     }
+    recipe = adapter.take_recipe()
+    assert recipe.version == "fixed-single-v1"
+    assert recipe.seed_policy == "fixed"
+    assert recipe.single_take_seed == SEED
+    assert recipe.seed_range == (0, 2**32 - 1)
+    assert recipe.supports_multiple is False
     params = adapter.generation_params()
     assert params == {
         "qwen_tts_version": QWEN_TTS_VERSION,
@@ -363,7 +373,10 @@ def test_prepare_caches_by_scenario_character_and_rebuilds_changed_input(
     assert cached_runtime.snapshots == []
     assert cached_runtime.loaded == []
     assert cached_runtime.design_calls == []
-    assert cached_adapter.generation_input(jobs[0]) == {
+    assert cached_adapter.generation_input(
+        jobs[0],
+        _take_context(cached_adapter),
+    ) == {
         "text": "いらっしゃい！",
         "language": LANGUAGE,
         "emotion": "cheerful",
@@ -427,9 +440,21 @@ def test_prepare_builds_distinct_emotion_intensity_banks_and_reuses_prompts(
         assert metadata["intensity"] == intensity
         assert metadata["text"] == REFERENCE_TEXT_BY_EMOTION[emotion]
 
-    adapter.generate(cheerful, tmp_path / "audio" / "cheerful.wav")
-    adapter.generate(angry, tmp_path / "audio" / "angry.wav")
-    adapter.generate(cheerful, tmp_path / "audio" / "cheerful-again.wav")
+    adapter.generate(
+        cheerful,
+        _take_context(adapter),
+        tmp_path / "audio" / "cheerful.wav",
+    )
+    adapter.generate(
+        angry,
+        _take_context(adapter),
+        tmp_path / "audio" / "angry.wav",
+    )
+    adapter.generate(
+        cheerful,
+        _take_context(adapter),
+        tmp_path / "audio" / "cheerful-again.wav",
+    )
 
     assert len(runtime.prompt_calls) == 2
     assert [call["ref_text"] for call in runtime.prompt_calls] == [
@@ -541,8 +566,8 @@ def test_base_is_lazy_prompt_is_reused_and_output_is_pcm16(
     assert [repo for repo, _ in runtime.loaded] == [VOICE_DESIGN_MODEL_ID]
     output_one = tmp_path / "audio" / "one.wav"
     output_two = tmp_path / "audio" / "two.wav"
-    realized_one = adapter.generate(first, output_one)
-    realized_two = adapter.generate(second, output_two)
+    realized_one = adapter.generate(first, _take_context(adapter), output_one)
+    realized_two = adapter.generate(second, _take_context(adapter), output_two)
 
     assert [(repo, revision) for repo, revision, _ in runtime.snapshots] == [
         (VOICE_DESIGN_MODEL_ID, VOICE_DESIGN_REVISION),
@@ -632,7 +657,7 @@ def test_prepare_and_generate_fail_fast_on_invalid_environment_and_oom(
     adapter.prepare([job], tmp_path / "artifacts", tmp_path / "voices")
     runtime.oom_on = "clone"
     with pytest.raises(Qwen3TTSAdapterError, match="CUDA out of memory"):
-        adapter.generate(job, tmp_path / "output.wav")
+        adapter.generate(job, _take_context(adapter), tmp_path / "output.wav")
     assert not (tmp_path / "output.wav").exists()
 
 
@@ -677,7 +702,7 @@ def test_adapter_rejects_unprepared_and_non_japanese_jobs(tmp_path: Path) -> Non
     adapter = Qwen3TTSAdapter(runtime=FakeRuntime(tmp_path))
     job = _job()
     with pytest.raises(Qwen3TTSAdapterError, match=r"prepare\(\)"):
-        adapter.generation_input(job)
+        adapter.generation_input(job, _take_context(adapter))
 
     english_job = LineJob(
         scene=job.scene,

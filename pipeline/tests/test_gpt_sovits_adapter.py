@@ -33,6 +33,8 @@ from gaya_pipeline.adapters.gpt_sovits import (
     _validate_upstream,
 )
 
+TAKE_CONTEXT = GPTSoVITSAdapter().take_recipe().single_take_context()
+
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 REGISTERED_VOICES = {
     "amitaro-countdown",
@@ -192,6 +194,12 @@ def test_profile_registry_and_generation_contract_are_canonical() -> None:
         "nonverbal": False,
         "reading": True,
     }
+    recipe = adapter.take_recipe()
+    assert recipe.version == "fixed-single-v1"
+    assert recipe.seed_policy == "fixed"
+    assert recipe.single_take_seed == SEED
+    assert recipe.seed_range == (0, 2**32 - 1)
+    assert recipe.supports_multiple is False
     params = adapter.generation_params()
     assert params["torch_version"] == TORCH_VERSION
     assert params["torchaudio_version"] == TORCHAUDIO_VERSION
@@ -224,7 +232,7 @@ def test_explicit_reference_and_reading_create_exact_five_second_clip(
     job = _job(reading="カンパイシヨウ！")
 
     adapter.prepare([job], tmp_path / "artifacts", voices_dir)
-    generation_input = adapter.generation_input(job)
+    generation_input = adapter.generation_input(job, TAKE_CONTEXT)
 
     assert generation_input["text"] == "カンパイシヨウ！"
     assert generation_input["reading_source"] == "line.reading"
@@ -246,7 +254,7 @@ def test_explicit_reference_and_reading_create_exact_five_second_clip(
     ]
 
     output_wav = tmp_path / "output.wav"
-    realized = adapter.generate(job, output_wav)
+    realized = adapter.generate(job, TAKE_CONTEXT, output_wav)
     reference_wav = runtime.synthesize_calls[0]["reference_wav"]
     with wave.open(str(reference_wav), "rb") as wav_file:
         assert wav_file.getnframes() == REFERENCE_FRAME_COUNT
@@ -307,7 +315,7 @@ def test_null_reference_uses_only_exact_assignment(
 
     adapter.prepare([job], tmp_path / "artifacts", voices_dir)
 
-    generation_input = adapter.generation_input(job)
+    generation_input = adapter.generation_input(job, TAKE_CONTEXT)
     assert generation_input["reference_voice"] == voice_id
     assert generation_input["reference_selection_source"] == (
         f"adapter.assignment:{scenario_id}/{character_id}"
@@ -388,7 +396,7 @@ def test_prepare_and_generation_oom_fail_fast(tmp_path: Path) -> None:
     adapter.prepare([_job()], tmp_path / "artifacts-2", voices_dir)
     runtime.oom_on = "synthesize"
     with pytest.raises(GPTSoVITSAdapterError, match="CUDA out of memory"):
-        adapter.generate(_job(), tmp_path / "failed.wav")
+        adapter.generate(_job(), TAKE_CONTEXT, tmp_path / "failed.wav")
     assert not (tmp_path / "failed.wav").exists()
 
 
@@ -401,7 +409,7 @@ def test_prepare_gate_and_delayed_generator_error(
         upstream_root=tmp_path / "upstream",
     )
     with pytest.raises(GPTSoVITSAdapterError, match=r"prepare\(\)"):
-        adapter.generation_input(_job())
+        adapter.generation_input(_job(), TAKE_CONTEXT)
 
     with pytest.raises(GPTSoVITSAdapterError, match="Japanese 固定"):
         adapter.prepare(

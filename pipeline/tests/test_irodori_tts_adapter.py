@@ -10,7 +10,7 @@ from typing import Any
 import pytest
 import yaml
 from gaya_pipeline.adapters import irodori_tts
-from gaya_pipeline.adapters.base import LineJob
+from gaya_pipeline.adapters.base import LineJob, TakeContext
 from gaya_pipeline.adapters.irodori_tts import (
     CHECKPOINT_ID,
     CHECKPOINT_REVISION,
@@ -94,6 +94,10 @@ class FakeRuntime:
 
     def is_out_of_memory(self, error: BaseException) -> bool:
         return isinstance(error, FakeOutOfMemoryError)
+
+
+def _take_context(adapter: IrodoriTTSAdapter) -> TakeContext:
+    return adapter.take_recipe().single_take_context()
 
 
 def _job(
@@ -219,6 +223,12 @@ def test_profile_revisions_capabilities_and_parameters_are_canonical() -> None:
         "nonverbal": True,
         "reading": True,
     }
+    recipe = adapter.take_recipe()
+    assert recipe.version == "fixed-single-v1"
+    assert recipe.seed_policy == "fixed"
+    assert recipe.single_take_seed == SEED
+    assert recipe.seed_range == (0, 2**32 - 1)
+    assert recipe.supports_multiple is False
     params = adapter.generation_params()
     assert params["checkpoint"] == CHECKPOINT_ID
     assert params["checkpoint_revision"] == CHECKPOINT_REVISION
@@ -269,7 +279,7 @@ def test_no_reference_uses_explicit_no_ref_input_and_writes_pcm16(
     adapter.prepare([job], tmp_path / "artifacts", voices_dir)
 
     assert runtime.prepare_count == 0
-    assert adapter.generation_input(job) == {
+    assert adapter.generation_input(job, _take_context(adapter)) == {
         "text": "🤭カンパイシヨウ！",
         "reading_source": "pyopenjtalk.g2p(kana=True)",
         "emotion": "laughing",
@@ -285,7 +295,7 @@ def test_no_reference_uses_explicit_no_ref_input_and_writes_pcm16(
     }
 
     output_wav = tmp_path / "output.wav"
-    realized = adapter.generate(job, output_wav)
+    realized = adapter.generate(job, _take_context(adapter), output_wav)
     assert runtime.prepare_count == 1
     assert runtime.synthesize_calls[0]["reference_wav"] is None
     assert realized["silentcipher_watermark_stage_executed"] is True
@@ -318,7 +328,7 @@ def test_explicit_reading_has_priority_without_invoking_converter(
     job = _job(reading="カンパイシヨウ！", emotion="neutral")
     adapter.prepare([job], tmp_path / "artifacts", _voices_dir(tmp_path))
 
-    generation_input = adapter.generation_input(job)
+    generation_input = adapter.generation_input(job, _take_context(adapter))
     assert generation_input["text"] == "カンパイシヨウ！"
     assert generation_input["reading_source"] == "line.reading"
     assert generation_input["emotion_emoji"] is None
@@ -337,9 +347,12 @@ def test_registered_reference_is_hashed_and_used_for_clone(
     adapter.prepare([job], tmp_path / "artifacts", voices_dir)
 
     expected_path = voices_dir / "test-voice" / "reference.wav"
-    assert adapter.generation_input(job)["reference_sha256"] == _sha256(expected_path)
+    assert adapter.generation_input(
+        job,
+        _take_context(adapter),
+    )["reference_sha256"] == _sha256(expected_path)
     output_wav = tmp_path / "clone.wav"
-    adapter.generate(job, output_wav)
+    adapter.generate(job, _take_context(adapter), output_wav)
     assert runtime.synthesize_calls[0]["reference_wav"] == expected_path
 
 
@@ -381,7 +394,7 @@ def test_prepare_gate_language_and_oom_fail_fast(tmp_path: Path) -> None:
     )
     job = _job()
     with pytest.raises(IrodoriTTSAdapterError, match=r"prepare\(\)"):
-        adapter.generation_input(job)
+        adapter.generation_input(job, _take_context(adapter))
 
     with pytest.raises(IrodoriTTSAdapterError, match="Japanese 固定"):
         adapter.prepare(
@@ -397,7 +410,11 @@ def test_prepare_gate_language_and_oom_fail_fast(tmp_path: Path) -> None:
         _voices_dir(tmp_path / "oom"),
     )
     with pytest.raises(IrodoriTTSAdapterError, match="CUDA out of memory"):
-        adapter.generate(job, tmp_path / "load-failed.wav")
+        adapter.generate(
+            job,
+            _take_context(adapter),
+            tmp_path / "load-failed.wav",
+        )
     assert not (tmp_path / "load-failed.wav").exists()
 
     runtime.oom_on = None
@@ -408,7 +425,7 @@ def test_prepare_gate_language_and_oom_fail_fast(tmp_path: Path) -> None:
     )
     runtime.oom_on = "synthesize"
     with pytest.raises(IrodoriTTSAdapterError, match="CUDA out of memory"):
-        adapter.generate(job, tmp_path / "failed.wav")
+        adapter.generate(job, _take_context(adapter), tmp_path / "failed.wav")
     assert not (tmp_path / "failed.wav").exists()
 
 

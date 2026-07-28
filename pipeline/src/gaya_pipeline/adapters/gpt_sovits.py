@@ -16,7 +16,14 @@ from typing import Any, Protocol, TypeVar
 
 import yaml
 
-from gaya_pipeline.adapters.base import Capabilities, LineJob, ModelProfile
+from gaya_pipeline.adapters.base import (
+    Capabilities,
+    LineJob,
+    ModelProfile,
+    TakeContext,
+    TakeRecipe,
+    require_take_context,
+)
 from gaya_pipeline.voice_assets import validate_voice_metadata
 
 MODEL_ID = "gpt-sovits-v2-pro-plus"
@@ -423,6 +430,21 @@ class GPTSoVITSAdapter:
         ),
     )
 
+    def take_recipe(self) -> TakeRecipe:
+        return TakeRecipe(
+            version="fixed-single-v1",
+            seed_policy="fixed",
+            single_take_seed=SEED,
+            seed_range=(0, 2**32 - 1),
+            sampling=(
+                ("repetition_penalty", REPETITION_PENALTY),
+                ("temperature", TEMPERATURE),
+                ("top_k", TOP_K),
+                ("top_p", TOP_P),
+            ),
+            supports_multiple=False,
+        )
+
     def __init__(
         self,
         *,
@@ -532,14 +554,21 @@ class GPTSoVITSAdapter:
             "prompt_text_mode": "reference-free",
         }
 
-    def generation_input(self, job: LineJob) -> Mapping[str, Any]:
+    def generation_input(
+        self,
+        job: LineJob,
+        take_context: TakeContext,
+    ) -> Mapping[str, Any]:
+        require_take_context(take_context, self.take_recipe())
         return self._prepared_input(job).as_generation_input()
 
     def generate(
         self,
         job: LineJob,
+        take_context: TakeContext,
         output_wav: Path,
     ) -> Mapping[str, Any]:
+        require_take_context(take_context, self.take_recipe())
         prepared = self._prepared_input(job)
         try:
             realized = self._runtime.synthesize(

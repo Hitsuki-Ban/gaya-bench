@@ -55,7 +55,7 @@ uv run --project pipeline gaya gen --model dummy --scenario tavern-night --line 
 
 最終Opusはデコードして再測定し、Integrated Loudness が -18 ±1.5 LUFS を外れるか、True Peak が `distribution_true_peak_max_dbtp` の -0.9 dBTP を超えた場合は生成を失敗させる。エンコード前目標を満たしていても最終 gate を省略せず、codec overshoot は fail-fast で拒否する。±0.2 LUFSを外れるが硬い許容範囲内にある場合は `shortfall` として公開する。-1.75 dBTP の選定根拠と381件の比較結果は [Opus配信用True Peakエンコード前シーリング実測](../docs/research/opus-true-peak-ceiling.md) に記録する。
 
-algorithm v7が生成するsidecarはformat v2を使用し、`loudness.normalized_wav` にエンコード前WAV、`loudness.encoded_opus` に最終Opusの測定値を記録する。sidecar format v2以外は拒否し、再生成するときは `--force` を明示する。`data/manifest.json` はformat v3を使用し、`clip.loudness.source: encoded_opus` とともに最終Opusの測定値だけを公開する。各 `(model, scenario, line, variant)` の最新結果は成功 (`clips`) または失敗 (`failures`) のどちらか一方に記録する。失敗したキーは次回実行時にキャッシュを使わず再生成し、成功すれば `clips` に戻る。公開 manifest の失敗理由は `generation_failed` のみで、例外の詳細は保存しない。
+algorithm v7が生成する現行single-take sidecarはformat v3を使用し、明示的な`take`、`generation_input_sha256`、最終Opusに拘束した`take_id`、実行したffmpeg/ffprobe versionとlibopus capabilityに加え、`loudness.normalized_wav`へエンコード前WAV、`loudness.encoded_opus`へ最終Opusの測定値を記録する。toolchain identityが変わったartifactはcacheに再利用しない。sidecar format v3以外は拒否し、再生成するときは`--force`を明示する。Nテイクrun用sidecar/ledger v1は[設計書](../docs/take-harness-design.md)の独立契約であり、後続実装で接続する。`data/manifest.json`はformat v3を維持し、`clip.loudness.source: encoded_opus`とともに最終Opusの測定値だけを公開する。各`(model, scenario, line, variant)`の最新結果は成功(`clips`)または失敗(`failures`)のどちらか一方に記録する。失敗したキーは次回実行時にキャッシュを使わず再生成し、成功すれば`clips`に戻る。公開manifestの失敗理由は`generation_failed`のみで、例外の詳細は保存しない。
 
 ## R2 への公開
 
