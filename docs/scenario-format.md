@@ -60,6 +60,10 @@ lines:
 | `line.reading` | 漢字の誤読対策。読み指定対応モデ用。非対応モデルには使わない (誤読も品質差として観測する) |
 | `line.difficulty` | `hard` = 方言・叫び・笑い混じり・囁き・フィラー・非言語音などTTSの苦手要素を含む行。集計分析用 |
 
+`辛い / 行った / 人気 / 大分` のように文脈で読みが変わる語を含む場合、
+`line.reading` を省略すると `gaya validate` が warning を出す。自動 G2P
+の推定を正解として採用せず、発話意図に合う全文のかな読みを明記する。
+
 ## emotion enum
 
 `neutral / cheerful / angry / sad / fearful / surprised / tired / drunk / whisper / shout / laughing / pain`

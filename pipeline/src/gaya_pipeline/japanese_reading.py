@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib
+import unicodedata
 from collections.abc import Callable
 from dataclasses import dataclass
 
@@ -25,6 +26,19 @@ ReadingConverter = Callable[[str], str]
 
 EXPLICIT_READING_SOURCE = "line.reading"
 PYOPENJTALK_READING_SOURCE = "pyopenjtalk.g2p(kana=True)"
+
+AMBIGUOUS_JAPANESE_READINGS: dict[str, tuple[str, ...]] = {
+    "辛い": ("カライ", "ツライ"),
+    "行った": ("イッタ", "オコナッタ"),
+    "人気": ("ニンキ", "ヒトケ"),
+    "大分": ("ダイブン", "ダイブ", "オオイタ"),
+}
+
+
+@dataclass(frozen=True)
+class AmbiguousJapaneseReading:
+    surface: str
+    candidates: tuple[str, ...]
 
 
 def resolve_japanese_reading(
@@ -73,6 +87,44 @@ def resolve_japanese_reading(
         text=converted,
         source=PYOPENJTALK_READING_SOURCE,
     )
+
+
+def find_ambiguous_japanese_readings(
+    text: object,
+) -> tuple[AmbiguousJapaneseReading, ...]:
+    if not isinstance(text, str):
+        return ()
+    return tuple(
+        AmbiguousJapaneseReading(surface=surface, candidates=candidates)
+        for surface, candidates in AMBIGUOUS_JAPANESE_READINGS.items()
+        if surface in text
+    )
+
+
+def contains_japanese_ideograph(text: str) -> bool:
+    return any(
+        "\u3400" <= character <= "\u4dbf"
+        or "\u4e00" <= character <= "\u9fff"
+        or "\uf900" <= character <= "\ufaff"
+        for character in text
+    )
+
+
+def normalize_japanese_reading(text: str) -> str:
+    normalized = unicodedata.normalize("NFKC", text)
+    output: list[str] = []
+    for character in normalized:
+        codepoint = ord(character)
+        if 0x3041 <= codepoint <= 0x3096:
+            character = chr(codepoint + 0x60)
+        if (
+            "\u30a1" <= character <= "\u30fa"
+            or character in {"ー", "ヽ", "ヾ"}
+            or character.isascii()
+            and character.isalnum()
+        ):
+            output.append(character.upper())
+    return "".join(output)
 
 
 def _pyopenjtalk_kana(text: str) -> str:

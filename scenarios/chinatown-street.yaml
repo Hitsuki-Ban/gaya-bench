@@ -92,6 +92,7 @@ lines:
   - id: shokudo-oyaji-002
     character: shokudo-oyaji
     text: うちの麻婆は辛いよ、覚悟しな！
+    reading: ウチノマーボーワカライヨ、カクゴシナ！
     emotion: laughing
     intensity: 2
     delivery: 豪快な笑いを含んだ脅し文句。だみ声が楽しげに揺れる。

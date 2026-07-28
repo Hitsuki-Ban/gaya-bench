@@ -5,10 +5,14 @@ from types import SimpleNamespace
 
 import pytest
 from gaya_pipeline.japanese_reading import (
+    AMBIGUOUS_JAPANESE_READINGS,
     EXPLICIT_READING_SOURCE,
     PYOPENJTALK_READING_SOURCE,
+    contains_japanese_ideograph,
+    find_ambiguous_japanese_readings,
     JapaneseReading,
     JapaneseReadingError,
+    normalize_japanese_reading,
     resolve_japanese_reading,
 )
 
@@ -149,3 +153,25 @@ def test_converter_failure_is_reported_without_an_alternate_path() -> None:
             text="こんにちは。",
             converter=broken_converter,
         )
+
+
+def test_ambiguous_reading_catalog_finds_only_present_surfaces() -> None:
+    result = find_ambiguous_japanese_readings(
+        "麻婆は辛いが、大分県の人気店だ。",
+    )
+
+    assert [(item.surface, item.candidates) for item in result] == [
+        ("辛い", AMBIGUOUS_JAPANESE_READINGS["辛い"]),
+        ("人気", AMBIGUOUS_JAPANESE_READINGS["人気"]),
+        ("大分", AMBIGUOUS_JAPANESE_READINGS["大分"]),
+    ]
+    assert find_ambiguous_japanese_readings(None) == ()
+
+
+def test_reading_normalization_preserves_pronunciation_not_punctuation() -> None:
+    assert (
+        normalize_japanese_reading(" うちのマーボーわ、からいよ！ ")
+        == "ウチノマーボーワカライヨ"
+    )
+    assert contains_japanese_ideograph("麻婆は辛い")
+    assert not contains_japanese_ideograph("マーボーワカライ")
