@@ -29,9 +29,55 @@ DTYPE = "bfloat16"
 ATTENTION_BACKEND = "sdpa"
 LANGUAGE = "Japanese"
 SEED = 0
-REFERENCE_TEXT = "こんにちは。今日はとても良い天気ですね。"
+REFERENCE_TEXT_BY_EMOTION = {
+    "neutral": "さて、今日も一日を始めましょう。",
+    "cheerful": "やった！こんなに嬉しいことがあるなんて！",
+    "angry": "いい加減にしろ！もう絶対に許さないぞ！",
+    "sad": "もう会えないなんて、本当に寂しいよ……。",
+    "fearful": "待って、何かいる……こっちに来ないで！",
+    "surprised": "えっ、本当に？そんなことがあるなんて！",
+    "tired": "はあ……今日はもう、すっかり疲れたよ。",
+    "drunk": "へへっ、今夜はまだまだ飲めるぞぉ。",
+    "whisper": "静かに……誰かに聞かれたら困るから。",
+    "shout": "みんな、急げ！今すぐここから逃げろ！",
+    "laughing": "はははっ、こんなに笑ったのは久しぶりだ！",
+    "pain": "うっ……痛い、でもまだ動ける……。",
+}
+EMOTION_INSTRUCTION = {
+    "neutral": "自然で落ち着いた中立の感情",
+    "cheerful": "明るく弾むような喜び",
+    "angry": "抑えきれない怒り",
+    "sad": "深い悲しみと寂しさ",
+    "fearful": "切迫した恐怖",
+    "surprised": "思わず声が跳ねる驚き",
+    "tired": "疲労で力の抜けた様子",
+    "drunk": "酔いが回って舌が少し緩んだ様子",
+    "whisper": "息を混ぜた小さな囁き",
+    "shout": "遠くへ届く切迫した叫び",
+    "laughing": "自然な笑いを含む楽しさ",
+    "pain": "痛みに耐えながら絞り出す声",
+}
+DELIVERY_INSTRUCTION = {
+    "neutral": "自然な間を取り、平静な口調で話す。",
+    "cheerful": "声を弾ませ、明るいテンポで話す。",
+    "angry": "語気を強め、短く鋭く言い切る。",
+    "sad": "息を多めに含み、間を置きながら沈んだ調子で話す。",
+    "fearful": "息を詰め、声を震わせながら切迫して話す。",
+    "surprised": "冒頭で息をのみ、声を大きく跳ね上げる。",
+    "tired": "力を抜き、息を漏らしながらゆっくり話す。",
+    "drunk": "言葉を少しもつれさせ、揺れるテンポで話す。",
+    "whisper": "声量を抑え、耳元で囁くように話す。",
+    "shout": "腹から声を出し、遠くへ強く呼びかける。",
+    "laughing": "言葉の合間に自然な笑いを混ぜる。",
+    "pain": "息を詰まらせ、痛みに耐えながら絞り出す。",
+}
+INTENSITY_INSTRUCTION = {
+    1: "弱め。声質を崩さず控えめに表す",
+    2: "中程度。台詞の意図が明確に伝わる強さで表す",
+    3: "強め。声質を保ったまま感情をはっきり表す",
+}
 
-_CACHE_FORMAT_VERSION = 1
+_CACHE_FORMAT_VERSION = 2
 _IDENTIFIER = re.compile(r"^[a-z0-9][a-z0-9-]*$")
 _MIB = 1024 * 1024
 _SAMPLING: dict[str, int | float | bool] = {
@@ -48,6 +94,8 @@ _SAMPLING: dict[str, int | float | bool] = {
 }
 _PEAK_KEYS = {"allocated_mib", "reserved_mib"}
 _CACHE_PEAK_KEYS = {"voice_design_load", "voice_design_generate"}
+_REFERENCE_CONTROL = "voice_design_emotion_bank"
+_ReferenceKey = tuple[str, str, str, int]
 
 
 class Qwen3TTSAdapterError(RuntimeError):
@@ -269,7 +317,10 @@ class Qwen3TTSAdapter:
         id=MODEL_ID,
         name="Qwen3-TTS 12Hz 1.7B",
         version=PROFILE_VERSION,
-        license_note="Apache-2.0（Qwen3-TTS code / Base / VoiceDesign）",
+        license_note=(
+            "Apache-2.0（Qwen3-TTS code / Base / VoiceDesign）。"
+            "VoiceDesign 感情参照 bank は A/B 検証前の実験経路"
+        ),
         capabilities=Capabilities(
             emotion=False,
             voice_prompt=True,
@@ -281,8 +332,8 @@ class Qwen3TTSAdapter:
 
     def __init__(self, runtime: _Runtime | None = None) -> None:
         self._runtime = _NativeRuntime() if runtime is None else runtime
-        self._references: dict[tuple[str, str], _VoiceReference] = {}
-        self._clone_prompts: dict[tuple[str, str], Any] = {}
+        self._references: dict[_ReferenceKey, _VoiceReference] = {}
+        self._clone_prompts: dict[_ReferenceKey, Any] = {}
         self._base_model: Any | None = None
         self._base_load_peak: dict[str, float] | None = None
         self._prepared = False
@@ -298,26 +349,38 @@ class Qwen3TTSAdapter:
         self._references.clear()
         self._clone_prompts.clear()
 
-        identities: dict[tuple[str, str], dict[str, Any]] = {}
-        paths: dict[tuple[str, str], tuple[Path, Path]] = {}
+        grouped_jobs: dict[_ReferenceKey, list[LineJob]] = {}
         for job in jobs:
             key = _job_key(job)
-            identity = _cache_identity(job)
-            previous = identities.get(key)
-            if previous is not None and previous != identity:
+            grouped_jobs.setdefault(key, []).append(job)
+
+        identities: dict[_ReferenceKey, dict[str, Any]] = {}
+        paths: dict[_ReferenceKey, tuple[Path, Path]] = {}
+        for key, bank_jobs in grouped_jobs.items():
+            identity = _cache_identity(bank_jobs[0])
+            if any(_cache_identity(job) != identity for job in bank_jobs[1:]):
                 raise Qwen3TTSAdapterError(
-                    "同じ scenario/character に異なる VoiceDesign 入力があります: "
-                    f"{key[0]}/{key[1]}",
+                    "同じ感情参照 bank key に異なる VoiceDesign 入力があります: "
+                    f"{_format_reference_key(key)}",
                 )
             identities[key] = identity
-            reference_dir = artifacts_dir / "voices" / MODEL_ID / key[0] / key[1]
+            reference_dir = (
+                artifacts_dir
+                / "voices"
+                / MODEL_ID
+                / key[0]
+                / key[1]
+                / key[2]
+                / f"intensity-{key[3]}"
+            )
             paths[key] = (
                 reference_dir / "reference.wav",
                 reference_dir / "reference.json",
             )
 
-        missing: list[tuple[str, str]] = []
-        for key, identity in identities.items():
+        missing: list[_ReferenceKey] = []
+        for key in sorted(identities):
+            identity = identities[key]
             wav_path, metadata_path = paths[key]
             cached = _read_cached_reference(
                 wav_path=wav_path,
@@ -347,10 +410,10 @@ class Qwen3TTSAdapter:
                     self._runtime.seed(SEED)
                     self._runtime.reset_peak_memory_stats()
                     generated = self._run_phase(
-                        f"VoiceDesign generation ({key[0]}/{key[1]})",
+                        f"VoiceDesign generation ({_format_reference_key(key)})",
                         lambda identity=identity: self._runtime.generate_voice_design(
                             voice_model,
-                            text=REFERENCE_TEXT,
+                            text=str(identity["text"]),
                             language=LANGUAGE,
                             instruct=str(identity["instruct"]),
                             sampling=_sampling(),
@@ -391,15 +454,34 @@ class Qwen3TTSAdapter:
             "dtype": DTYPE,
             "attention_backend": ATTENTION_BACKEND,
             "sampling": _sampling(),
-            "reference_text": REFERENCE_TEXT,
+            "reference_control": _REFERENCE_CONTROL,
+            "reference_key": [
+                "scenario",
+                "character",
+                "emotion",
+                "intensity",
+            ],
+            "reference_text_by_emotion": dict(REFERENCE_TEXT_BY_EMOTION),
+            "emotion_instruction": dict(EMOTION_INSTRUCTION),
+            "delivery_instruction": dict(DELIVERY_INSTRUCTION),
+            "intensity_instruction": {
+                str(intensity): instruction
+                for intensity, instruction in INTENSITY_INSTRUCTION.items()
+            },
         }
 
     def generation_input(self, job: LineJob) -> Mapping[str, Any]:
         reference = self._reference_for(job)
         text = _required_string(job.line, "text", "line")
+        key = _job_key(job)
+        reference_text = _reference_text(key[2])
         return {
             "text": text,
             "language": LANGUAGE,
+            "emotion": key[2],
+            "intensity": key[3],
+            "reference_control": _REFERENCE_CONTROL,
+            "reference_text": reference_text,
             "reference_sha256": reference.sha256,
         }
 
@@ -413,12 +495,13 @@ class Qwen3TTSAdapter:
         model = self._ensure_base_model()
         prompt = self._clone_prompts.get(key)
         if prompt is None:
+            reference_text = _reference_text(key[2])
             prompt = self._run_phase(
-                f"Base clone prompt ({key[0]}/{key[1]})",
+                f"Base clone prompt ({_format_reference_key(key)})",
                 lambda: self._runtime.create_voice_clone_prompt(
                     model,
                     ref_audio=str(reference.wav_path),
-                    ref_text=REFERENCE_TEXT,
+                    ref_text=reference_text,
                 ),
             )
             self._clone_prompts[key] = prompt
@@ -469,7 +552,7 @@ class Qwen3TTSAdapter:
             return self._references[key]
         except KeyError as error:
             raise Qwen3TTSAdapterError(
-                f"VoiceDesign reference がありません: {key[0]}/{key[1]}",
+                f"VoiceDesign reference がありません: {_format_reference_key(key)}",
             ) from error
 
     def _ensure_base_model(self) -> Any:
@@ -553,18 +636,22 @@ def _sampling() -> dict[str, int | float | bool]:
     return dict(_SAMPLING)
 
 
-def _job_key(job: LineJob) -> tuple[str, str]:
+def _job_key(job: LineJob) -> _ReferenceKey:
     if job.locale != "ja":
         raise Qwen3TTSAdapterError(
             f"Qwen3-TTS adapter の language は Japanese 固定です: {job.locale}",
         )
     scenario_id = _required_identifier(job.scene, "id", "scene")
     character_id = _required_identifier(job.character, "id", "character")
-    return scenario_id, character_id
+    emotion = _required_string(job.line, "emotion", "line")
+    if emotion not in REFERENCE_TEXT_BY_EMOTION:
+        raise Qwen3TTSAdapterError(f"未対応の line.emotion です: {emotion}")
+    intensity = _required_intensity(job.line)
+    return scenario_id, character_id, emotion, intensity
 
 
 def _cache_identity(job: LineJob) -> dict[str, Any]:
-    scenario_id, character_id = _job_key(job)
+    scenario_id, character_id, emotion, intensity = _job_key(job)
     voice = _required_string(job.character, "voice", "character")
     setting = _required_string(job.scene, "setting", "scene")
     instruction_parts = [f"声質: {voice}"]
@@ -576,6 +663,11 @@ def _cache_identity(job: LineJob) -> dict[str, Any]:
     instruction_parts.extend(
         (
             f"場面: {setting}",
+            f"感情: {EMOTION_INSTRUCTION[emotion]}",
+            f"感情の強度: {INTENSITY_INSTRUCTION[intensity]}",
+            f"演技: {DELIVERY_INSTRUCTION[emotion]}",
+            "感情が変わっても、同じキャラクターの声質、年齢感、"
+            "話者としての同一性を保つ。",
             "実在の人物や声優を模倣せず、この架空キャラクターの声として自然に発声する。",
         ),
     )
@@ -585,12 +677,37 @@ def _cache_identity(job: LineJob) -> dict[str, Any]:
         "revision": VOICE_DESIGN_REVISION,
         "scenario": scenario_id,
         "character": character_id,
+        "emotion": emotion,
+        "intensity": intensity,
+        "delivery": DELIVERY_INSTRUCTION[emotion],
         "language": LANGUAGE,
-        "text": REFERENCE_TEXT,
+        "text": _reference_text(emotion),
         "instruct": "\n".join(instruction_parts),
         "seed": SEED,
         "sampling": _sampling(),
     }
+
+
+def _reference_text(emotion: str) -> str:
+    try:
+        return REFERENCE_TEXT_BY_EMOTION[emotion]
+    except KeyError as error:
+        raise Qwen3TTSAdapterError(f"未対応の line.emotion です: {emotion}") from error
+
+
+def _required_intensity(line: Mapping[str, Any]) -> int:
+    intensity = line.get("intensity")
+    if (
+        not isinstance(intensity, int)
+        or isinstance(intensity, bool)
+        or intensity not in INTENSITY_INSTRUCTION
+    ):
+        raise Qwen3TTSAdapterError("line.intensity は 1 / 2 / 3 が必要です。")
+    return intensity
+
+
+def _format_reference_key(key: _ReferenceKey) -> str:
+    return f"{key[0]}/{key[1]}/{key[2]}/intensity-{key[3]}"
 
 
 def _read_cached_reference(
@@ -627,7 +744,9 @@ def _read_cached_reference(
             f"VoiceDesign cache metadata の項目が一致しません: {metadata_path}",
         )
     if any(cached[key] != value for key, value in identity.items()):
-        return None
+        raise Qwen3TTSAdapterError(
+            f"VoiceDesign cache identity が一致しません: {metadata_path}",
+        )
     peaks = cached["phase_peak_vram_mib"]
     if not _valid_cache_peaks(peaks):
         raise Qwen3TTSAdapterError(

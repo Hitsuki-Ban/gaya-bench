@@ -15,13 +15,16 @@ from gaya_pipeline.adapters.qwen3_tts import (
     ATTENTION_BACKEND,
     BASE_MODEL_ID,
     BASE_REVISION,
+    DELIVERY_INSTRUCTION,
     DEVICE,
     DTYPE,
+    EMOTION_INSTRUCTION,
+    INTENSITY_INSTRUCTION,
     LANGUAGE,
     MODEL_ID,
     PROFILE_VERSION,
     QWEN_TTS_VERSION,
-    REFERENCE_TEXT,
+    REFERENCE_TEXT_BY_EMOTION,
     SEED,
     VOICE_DESIGN_MODEL_ID,
     VOICE_DESIGN_REVISION,
@@ -185,6 +188,9 @@ def _job(
     character_id: str = "vendor",
     voice: str = "明るく張りのある声。",
     personality: str | None = "商売熱心。",
+    emotion: str = "cheerful",
+    intensity: object = 2,
+    delivery: str = "明るく弾むように呼びかける。",
 ) -> LineJob:
     character: dict[str, Any] = {
         "id": character_id,
@@ -198,13 +204,32 @@ def _job(
             "setting": "港町の朝市。人通りが多い。",
         },
         character=character,
-        line={"id": line_id, "text": text},
+        line={
+            "id": line_id,
+            "text": text,
+            "emotion": emotion,
+            "intensity": intensity,
+            "delivery": delivery,
+        },
         locale="ja",
     )
 
 
-def _reference_paths(root: Path, character: str = "vendor") -> tuple[Path, Path]:
-    reference_dir = root / "voices" / MODEL_ID / "market-day" / character
+def _reference_paths(
+    root: Path,
+    character: str = "vendor",
+    emotion: str = "cheerful",
+    intensity: int = 2,
+) -> tuple[Path, Path]:
+    reference_dir = (
+        root
+        / "voices"
+        / MODEL_ID
+        / "market-day"
+        / character
+        / emotion
+        / f"intensity-{intensity}"
+    )
     return reference_dir / "reference.wav", reference_dir / "reference.json"
 
 
@@ -220,6 +245,7 @@ def test_profile_and_requested_parameters_are_canonical(tmp_path: Path) -> None:
     assert QWEN_TTS_VERSION in adapter.profile.version
     assert BASE_REVISION in adapter.profile.version
     assert VOICE_DESIGN_REVISION in adapter.profile.version
+    assert "感情参照 bank は A/B 検証前の実験経路" in adapter.profile.license_note
     assert adapter.profile.capabilities.as_dict() == {
         "emotion": False,
         "voice_prompt": True,
@@ -249,8 +275,22 @@ def test_profile_and_requested_parameters_are_canonical(tmp_path: Path) -> None:
             "subtalker_top_k": 50,
             "max_new_tokens": 2048,
         },
-        "reference_text": REFERENCE_TEXT,
+        "reference_control": "voice_design_emotion_bank",
+        "reference_key": [
+            "scenario",
+            "character",
+            "emotion",
+            "intensity",
+        ],
+        "reference_text_by_emotion": REFERENCE_TEXT_BY_EMOTION,
+        "emotion_instruction": EMOTION_INSTRUCTION,
+        "delivery_instruction": DELIVERY_INSTRUCTION,
+        "intensity_instruction": {
+            str(intensity): instruction
+            for intensity, instruction in INTENSITY_INSTRUCTION.items()
+        },
     }
+    assert json.loads(json.dumps(params, ensure_ascii=False)) == params
 
 
 def test_prepare_caches_by_scenario_character_and_rebuilds_changed_input(
@@ -277,10 +317,23 @@ def test_prepare_caches_by_scenario_character_and_rebuilds_changed_input(
     assert [repo for repo, _ in runtime.loaded] == [VOICE_DESIGN_MODEL_ID]
     assert len(runtime.design_calls) == 2
     assert runtime.released == [VOICE_DESIGN_MODEL_ID]
-    assert "声質: 明るく張りのある声。" in runtime.design_calls[0]["instruct"]
-    assert "性格: 商売熱心。" in runtime.design_calls[0]["instruct"]
-    assert "場面: 港町の朝市。人通りが多い。" in runtime.design_calls[0]["instruct"]
-    assert "実在の人物や声優を模倣せず" in runtime.design_calls[0]["instruct"]
+    vendor_call = next(
+        call
+        for call in runtime.design_calls
+        if "声質: 明るく張りのある声。" in call["instruct"]
+    )
+    assert "性格: 商売熱心。" in vendor_call["instruct"]
+    assert "場面: 港町の朝市。人通りが多い。" in vendor_call["instruct"]
+    assert f"感情: {EMOTION_INSTRUCTION['cheerful']}" in (
+        vendor_call["instruct"]
+    )
+    assert f"感情の強度: {INTENSITY_INSTRUCTION[2]}" in (
+        vendor_call["instruct"]
+    )
+    assert f"演技: {DELIVERY_INSTRUCTION['cheerful']}" in vendor_call["instruct"]
+    assert "同じキャラクターの声質、年齢感" in vendor_call["instruct"]
+    assert "実在の人物や声優を模倣せず" in vendor_call["instruct"]
+    assert vendor_call["text"] == REFERENCE_TEXT_BY_EMOTION["cheerful"]
 
     wav_path, metadata_path = _reference_paths(tmp_path / "artifacts")
     metadata_value = json.loads(metadata_path.read_text(encoding="utf-8"))
@@ -290,6 +343,9 @@ def test_prepare_caches_by_scenario_character_and_rebuilds_changed_input(
         "revision",
         "scenario",
         "character",
+        "emotion",
+        "intensity",
+        "delivery",
         "language",
         "text",
         "instruct",
@@ -310,20 +366,133 @@ def test_prepare_caches_by_scenario_character_and_rebuilds_changed_input(
     assert cached_adapter.generation_input(jobs[0]) == {
         "text": "いらっしゃい！",
         "language": LANGUAGE,
+        "emotion": "cheerful",
+        "intensity": 2,
+        "reference_control": "voice_design_emotion_bank",
+        "reference_text": REFERENCE_TEXT_BY_EMOTION["cheerful"],
         "reference_sha256": _sha256(wav_path),
     }
 
+    original_metadata = metadata_path.read_text(encoding="utf-8")
     changed_runtime = FakeRuntime(tmp_path)
     changed_adapter = Qwen3TTSAdapter(runtime=changed_runtime)
     changed_job = _job(voice="落ち着いた低い声。")
-    changed_adapter.prepare(
-        [changed_job],
-        tmp_path / "artifacts",
+    with pytest.raises(Qwen3TTSAdapterError, match="cache identity"):
+        changed_adapter.prepare(
+            [changed_job],
+            tmp_path / "artifacts",
+            tmp_path / "voices",
+        )
+    assert changed_runtime.snapshots == []
+    assert changed_runtime.design_calls == []
+    assert metadata_path.read_text(encoding="utf-8") == original_metadata
+
+
+def test_prepare_builds_distinct_emotion_intensity_banks_and_reuses_prompts(
+    tmp_path: Path,
+) -> None:
+    runtime = FakeRuntime(tmp_path)
+    cheerful = _job()
+    cheerful_low = _job(
+        line_id="vendor-002",
+        text="今日は安いよ！",
+        intensity=1,
+        delivery="親しみを込めて軽やかに話す。",
+    )
+    angry = _job(
+        line_id="vendor-003",
+        text="ふざけるな！",
+        emotion="angry",
+        intensity=3,
+        delivery="腹の底から強く怒鳴る。",
+    )
+    adapter = Qwen3TTSAdapter(runtime=runtime)
+    artifacts = tmp_path / "artifacts"
+    adapter.prepare(
+        [cheerful, cheerful_low, angry],
+        artifacts,
         tmp_path / "voices",
     )
-    assert len(changed_runtime.design_calls) == 1
-    changed_metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
-    assert "声質: 落ち着いた低い声。" in changed_metadata["instruct"]
+
+    assert len(runtime.design_calls) == 3
+    for emotion, intensity in (("cheerful", 2), ("cheerful", 1), ("angry", 3)):
+        wav_path, metadata_path = _reference_paths(
+            artifacts,
+            emotion=emotion,
+            intensity=intensity,
+        )
+        assert wav_path.is_file()
+        metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+        assert metadata["emotion"] == emotion
+        assert metadata["intensity"] == intensity
+        assert metadata["text"] == REFERENCE_TEXT_BY_EMOTION[emotion]
+
+    adapter.generate(cheerful, tmp_path / "audio" / "cheerful.wav")
+    adapter.generate(angry, tmp_path / "audio" / "angry.wav")
+    adapter.generate(cheerful, tmp_path / "audio" / "cheerful-again.wav")
+
+    assert len(runtime.prompt_calls) == 2
+    assert [call["ref_text"] for call in runtime.prompt_calls] == [
+        REFERENCE_TEXT_BY_EMOTION["cheerful"],
+        REFERENCE_TEXT_BY_EMOTION["angry"],
+    ]
+    assert runtime.clone_calls[0]["prompt"] is runtime.clone_calls[2]["prompt"]
+    assert runtime.clone_calls[0]["prompt"] is not runtime.clone_calls[1]["prompt"]
+
+
+def test_reference_delivery_recipe_is_line_order_independent(
+    tmp_path: Path,
+) -> None:
+    later = _job(
+        line_id="vendor-020",
+        delivery="大きく身振りを付けるように話す。",
+    )
+    earlier = _job(
+        line_id="vendor-010",
+        delivery="相手へ優しく微笑みかけるように話す。",
+    )
+    runtime = FakeRuntime(tmp_path)
+    artifacts = tmp_path / "artifacts"
+    Qwen3TTSAdapter(runtime=runtime).prepare(
+        [later, earlier],
+        artifacts,
+        tmp_path / "voices",
+    )
+
+    _, metadata_path = _reference_paths(artifacts)
+    metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+    assert metadata["delivery"] == DELIVERY_INSTRUCTION["cheerful"]
+    assert f"演技: {DELIVERY_INSTRUCTION['cheerful']}" in metadata["instruct"]
+
+    cached_runtime = FakeRuntime(tmp_path)
+    Qwen3TTSAdapter(runtime=cached_runtime).prepare(
+        [earlier, later],
+        artifacts,
+        tmp_path / "voices",
+    )
+    assert cached_runtime.design_calls == []
+
+
+@pytest.mark.parametrize(
+    ("job", "message"),
+    [
+        (_job(emotion="unknown"), "未対応の line.emotion"),
+        (_job(intensity=None), "line.intensity"),
+        (_job(intensity=True), "line.intensity"),
+        (_job(intensity=4), "line.intensity"),
+    ],
+)
+def test_prepare_rejects_invalid_emotion_bank_inputs(
+    tmp_path: Path,
+    job: LineJob,
+    message: str,
+) -> None:
+    with pytest.raises(Qwen3TTSAdapterError, match=message):
+        Qwen3TTSAdapter(runtime=FakeRuntime(tmp_path)).prepare(
+            [job],
+            tmp_path / "artifacts",
+            tmp_path / "voices",
+        )
 
 
 def test_prepare_fails_fast_on_corrupt_cache(tmp_path: Path) -> None:
@@ -387,7 +556,10 @@ def test_base_is_lazy_prompt_is_reused_and_output_is_pcm16(
     assert runtime.loaded[1][0] not in runtime.released
     assert all(path.is_dir() for _, path in runtime.loaded)
     assert len(runtime.prompt_calls) == 1
-    assert runtime.prompt_calls[0]["ref_text"] == REFERENCE_TEXT
+    assert (
+        runtime.prompt_calls[0]["ref_text"]
+        == REFERENCE_TEXT_BY_EMOTION["cheerful"]
+    )
     assert len(runtime.clone_calls) == 2
     assert runtime.clone_calls[0]["language"] == LANGUAGE
     assert runtime.clone_calls[0]["prompt"] is runtime.clone_calls[1]["prompt"]

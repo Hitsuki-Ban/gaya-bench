@@ -63,7 +63,7 @@ R2 の `HEAD` で `sha256` metadata、サイズ、`Content-Type`、`Cache-Contro
 
 ## Qwen3-TTS 12Hz-1.7B
 
-`qwen3-tts-12hz-1.7b` は、VoiceDesign でキャラクターごとの参照音声を設計し、Base の reusable voice clone prompt で全セリフへ同じ声を適用する。
+`qwen3-tts-12hz-1.7b` は、VoiceDesign で `(scenario, character, emotion, intensity)` ごとの感情参照音声を設計し、Base の reusable voice clone prompt で該当するセリフへ適用する。Base に逐行 instruction を渡す方式ではなく、VoiceDesign で作った演技参照を ICL clone へ渡す間接制御である。
 
 実行環境は Windows 11 / NVIDIA CUDA / BF16 / SDPA の単一経路で、Python 依存関係は Qwen 専用 extra として同期する。
 
@@ -78,7 +78,7 @@ uv sync --project pipeline --locked --extra qwen
 - Base: `Qwen/Qwen3-TTS-12Hz-1.7B-Base@fd4b254389122332181a7c3db7f27e918eec64e3`
 - VoiceDesign: `Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign@5ecdb67327fd37bb2e042aab12ff7391903235d3`
 
-初回実行時は Hugging Face の完全な revision snapshot をローカルキャッシュへ取得する。モデル読み込み中に別 revision へ追従しない。キャラクター参照音声は `artifacts/voices/qwen3-tts-12hz-1.7b/<scenario>/<character>/` に保存し、入力と WAV hash が一致するときだけ再利用する。
+初回実行時は Hugging Face の完全な revision snapshot をローカルキャッシュへ取得する。モデル読み込み中に別 revision へ追従しない。感情参照音声は `artifacts/voices/qwen3-tts-12hz-1.7b/<scenario>/<character>/<emotion>/intensity-<1|2|3>/` に必要な組み合わせだけ保存し、固定した reference text / emotion / intensity / delivery recipe、キャラクターの voice / personality、scene setting、model revision、sampling と WAV hash が一致するときだけ再利用する。cache identity が変わった場合は同じ path を上書きせず失敗するため、再設計時は対象 cache を明示的に退避または削除してから作り直す。未対応 emotion や intensity 欠落時に neutral へ切り替えない。
 
 まず1行で CUDA・BF16・12GB VRAM の gate を確認する。
 
@@ -93,9 +93,11 @@ uv run --project pipeline --locked --extra qwen gaya gen --model qwen3-tts-12hz-
 uv run --project pipeline --locked --extra qwen gaya gen --model qwen3-tts-12hz-1.7b --scenario market-day
 ```
 
-2026-07-28 に RTX 4070 Ti 12GB で上記2シナリオ（12行）を実測し、失敗0件、最大 4,193 MiB allocated / 4,296 MiB reserved、warm RTF 5.52〜9.81（cold canary 42.79）だった。
+2026-07-28 に RTX 4070 Ti 12GB で旧 character-only 参照による上記2シナリオ（12行）を実測し、失敗0件、最大 4,193 MiB allocated / 4,296 MiB reserved、warm RTF 5.52〜9.81（cold canary 42.79）だった。感情参照 bank の品質と VRAM は同じ固定環境で A/B する。
 
-Base の現行 API は line ごとの `instruct` を受け取らないため、この adapter は `character.voice` / `personality` / `scene.setting` を参照音声設計に使い、`emotion` capability は `false` と宣言する。未対応の `emotion` / `delivery` を生成入力へ偽装しない。
+Base の現行 API は line ごとの `instruct` を受け取らない。adapter は 12 emotion の reference text と代表 delivery を明示 table で固定し、`line.emotion` と exact `intensity` で bank を選ぶ。全 emotion で `character.voice` / `personality` / `scene.setting` の共通 prefix と「同じ話者の声質・年齢感を保つ」という指示を維持する。逐行の自由記述 `line.delivery` は Base へ直接渡さない。効果は「中立参照が棒読みの根因」という確定事項ではなく、旧公開音声との blind A/B で検証する仮説である。A/B で逐行情動の変化と声質維持を確認するまでは、production manifest の `emotion` capability を `false` に保つ。
+
+現行 corpus は 58 scenario-scoped character、161行で、実際に使う character-emotion 組み合わせは146、exact intensity を含めると157である。全 `58 × 12 × 3 = 2,088` 件は事前生成せず、要求された157件だけを作る。旧58参照の実測平均は約30.1秒 / 0.198 MiB だったため、157件の粗い見積もりは約78.8分 / 31.1 MiB、旧方式からの純増は約49.7分 / 19.6 MiBである。最初の A/B は少数行だけを指定し、全量 bank は A/B 合格後に生成する。
 
 依存欠落、CUDA unavailable、BF16 非対応、モデル取得・読み込み失敗、OOM はその場で失敗する。CPU、GGUF、WSL、クラウド、別 attention backend への自動切替は行わない。
 
