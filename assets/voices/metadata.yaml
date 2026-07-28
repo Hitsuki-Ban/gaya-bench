@@ -1,0 +1,198 @@
+format_version: 1
+voices:
+  - id: amitaro-countdown
+    file: amitaro-countdown/reference.wav
+    sha256: fdc3ffc571a329250168b9b228e9ebfa660d885677e19bc5547b9a6dbe7509eb
+    duration_sec: 10.961417
+    language: ja
+    transcript: "10、9、8、7、6、5、4、3、2、1、0"
+    transcript_rights:
+      license: あみたろの声素材工房 利用規約
+      evidence_url: https://amitaro.net/voice/voice_rule/
+      credit_text: "音声素材：あみたろの声素材工房（https://amitaro.net/）"
+    source:
+      title: あみたろの声素材工房 カウントダウン
+      speaker: あみたろ
+      download_page: https://amitaro.net/voice/voice_dl/
+      files:
+        - label: num010-000_02_01.wav
+          url: https://amitaro.net/voice/voice_dl/
+          sha256: 43ec1036367f75391ae1acf28e092f31df20b1d8b12e4149b53c605af8c02088
+    rights:
+      license: あみたろの声素材工房 利用規約
+      verified_on: "2026-07-28"
+      voice_synthesis_evidence_url: https://amitaro.net/voice/voice_rule/
+      commercial_use_evidence_url: https://amitaro.net/voice/voice_rule/
+      redistribution:
+        status: allowed_with_conditions
+        evidence_url: https://amitaro.net/voice/voice_rule/
+        notes: 素材単体の再配布は行わない。公開利用時は公式規約の同梱・報告条件に従う。
+    credit_text: "音声素材：あみたろの声素材工房（https://amitaro.net/）"
+    voice:
+      gender: female
+      age: young_adult
+      notes: 明るく高めの女声。年齢帯はベンチ用の聴感分類。
+    processing:
+      source_member: num010-000_02_01.wav
+      source_sha256: 43ec1036367f75391ae1acf28e092f31df20b1d8b12e4149b53c605af8c02088
+      summary: 原音全体を mono / 48 kHz / PCM 16-bit WAV に変換。
+
+  - id: hadou-emotion-11
+    file: hadou-emotion-11/reference.wav
+    sha256: e98033d63f847c4113d8b47e264bca82f38212519da8d62661133847b3d221bc
+    duration_sec: 10.004
+    language: ja
+    transcript: イタリア旅行で彼は、いくつか景勝の地として有名な都市、例えば、ナポリやフィレンツェを訪れた。
+    transcript_rights:
+      license: Unlicense（パブリックドメイン）
+      evidence_url: https://github.com/mmorise/ita-corpus
+      credit_text: "台本：ITAコーパス（パブリックドメイン） https://github.com/mmorise/ita-corpus"
+    source:
+      title: Hadou Voice Dataset
+      speaker: ハドウ
+      download_page: https://huggingface.co/datasets/hadou1225/Hadou-Voice-Dataset
+      files:
+        - label: audio/emotion/EMOTION100_011.wav
+          url: https://huggingface.co/datasets/hadou1225/Hadou-Voice-Dataset/resolve/4f68840833d01d825b6ec4c24da55858dabf96bb/audio/emotion/EMOTION100_011.wav
+          sha256: 042dab5d640ee8f50878ed95292418c8fcc2cf407d0bf179532956001f14ba35
+    rights:
+      license: Hadou Voice Dataset 利用規約
+      verified_on: "2026-07-28"
+      voice_synthesis_evidence_url: https://huggingface.co/datasets/hadou1225/Hadou-Voice-Dataset
+      commercial_use_evidence_url: https://huggingface.co/datasets/hadou1225/Hadou-Voice-Dataset
+      redistribution:
+        status: prohibited
+        evidence_url: https://huggingface.co/datasets/hadou1225/Hadou-Voice-Dataset
+        notes: 原音声・加工音声の素材としての再配布は禁止。ローカル参照入力だけに使用する。
+    credit_text: |-
+      学習元音声：ハドウ（Hadou Voice Dataset）
+      https://huggingface.co/datasets/hadou1225/Hadou-Voice-Dataset
+    voice:
+      gender: male
+      age: adult
+      notes: 落ち着いた男性声。年齢帯はベンチ用の聴感分類。
+    processing:
+      source_member: audio/emotion/EMOTION100_011.wav
+      source_sha256: 042dab5d640ee8f50878ed95292418c8fcc2cf407d0bf179532956001f14ba35
+      summary: 原音全体を mono / 48 kHz / PCM 16-bit WAV に変換。
+
+  - id: lux-emotion-76
+    file: lux-emotion-76/reference.wav
+    sha256: 432de3f3fb40c5838a80e5fb509977176352a8db03a10e8fb37cca1e83bcc4b5
+    duration_sec: 11.1875
+    language: ja
+    transcript: ノースウエスタン大学の研究者、アイリーン・ペパーバーグは、オウムは人の口まねをするだけでなく言葉の意味を学ぶことができることを発見しつつある。
+    transcript_rights:
+      license: Unlicense（パブリックドメイン）
+      evidence_url: https://github.com/mmorise/ita-corpus
+      credit_text: "台本：ITAコーパス（パブリックドメイン） https://github.com/mmorise/ita-corpus"
+    source:
+      title: Lux Japanese Speech Corpus
+      speaker: Lux
+      download_page: https://huggingface.co/datasets/Lami/Lux-Japanese-Speech-Corpus
+      files:
+        - label: data/cleaned/ita_emotion/EMOTION100_076.wav
+          url: https://huggingface.co/datasets/Lami/Lux-Japanese-Speech-Corpus/resolve/3f8a7c0922bb078bff2b2b596053acbea74a2e41/data/cleaned/ita_emotion/EMOTION100_076.wav
+          sha256: 285602f55ce65591c36a9b01de51866f7e1378ad397f8ce4d89f1e424c790cf2
+    rights:
+      license: CC BY 4.0
+      verified_on: "2026-07-28"
+      voice_synthesis_evidence_url: https://huggingface.co/datasets/Lami/Lux-Japanese-Speech-Corpus
+      commercial_use_evidence_url: https://creativecommons.org/licenses/by/4.0/
+      redistribution:
+        status: allowed_with_conditions
+        evidence_url: https://creativecommons.org/licenses/by/4.0/
+        notes: CC BY 4.0 の表示条件がある。リポジトリ方針により原音は公開しない。
+    credit_text: |-
+      音声データ：Lux Japanese Speech Corpus / Lami（CC BY 4.0）
+      https://huggingface.co/datasets/Lami/Lux-Japanese-Speech-Corpus
+    voice:
+      gender: female
+      age: young_adult
+      notes: 明瞭な若い女声。年齢帯はベンチ用の聴感分類。
+    processing:
+      source_member: data/cleaned/ita_emotion/EMOTION100_076.wav
+      source_sha256: 285602f55ce65591c36a9b01de51866f7e1378ad397f8ce4d89f1e424c790cf2
+      summary: 原音全体を mono / 48 kHz / PCM 16-bit WAV に変換。
+
+  - id: sayoko-emotion-75
+    file: sayoko-emotion-75/reference.wav
+    sha256: a011117b10fe8c54718e548abd6bd52ded68c2c168c8cce8796d0cde50869034
+    duration_sec: 16.757792
+    language: ja
+    transcript: 弊社のエンジニアが日本国内で販売されている同様の製品と仕様を比較した結果、非常に競合力があると判断いたしました。
+    transcript_rights:
+      license: Unlicense（パブリックドメイン）
+      evidence_url: https://github.com/mmorise/ita-corpus
+      credit_text: "台本：ITAコーパス（パブリックドメイン） https://github.com/mmorise/ita-corpus"
+    source:
+      title: サヨ子音声コーパス
+      speaker: サヨ子（収録時81歳）
+      download_page: https://huggingface.co/datasets/bandad/sayoko-tts-corpus
+      files:
+        - label: 配布 ZIP
+          url: https://drive.google.com/file/d/1StMFlDH_RcBAaAyRwEIOWuTQFetVaMUU/view
+          sha256: 3ed9c506538d3329252e9e56a3da4411629be9ff37b68a6c5af13dfb74d3adab
+    rights:
+      license: CC BY 4.0
+      verified_on: "2026-07-28"
+      voice_synthesis_evidence_url: https://huggingface.co/datasets/bandad/sayoko-tts-corpus
+      commercial_use_evidence_url: https://creativecommons.org/licenses/by/4.0/
+      redistribution:
+        status: allowed_with_conditions
+        evidence_url: https://creativecommons.org/licenses/by/4.0/
+        notes: CC BY 4.0 の表示条件がある。リポジトリ方針により原音は公開しない。
+    credit_text: |-
+      音声データ：Fusic/サヨ子音声コーパス（CC BY 4.0）
+      https://huggingface.co/datasets/bandad/sayoko-tts-corpus
+    voice:
+      gender: female
+      age: elderly
+      notes: 収録時81歳の女性話者。穏やかで明瞭な高齢女性声。
+    processing:
+      source_member: c_sayoko/wav/EMOTION100_075.wav
+      source_sha256: 3c0038f91d9c746f276a7578fcc982a7d06d17f79ad09b1d640ba5232510cab8
+      summary: ZIP 内の単文を mono / 48 kHz / PCM 16-bit WAV に変換。
+
+  - id: tsukuyomi-corpus-94
+    file: tsukuyomi-corpus-94/reference.wav
+    sha256: 06547a71a939b3355985d32c59dc703bad06e4ea044550342bb8b4e6513d4777
+    duration_sec: 13.449583
+    language: ja
+    transcript: 若き日の反逆ゆえに、宇宙の中央を追放されて、惑星、地球にやってきた主人公、ベルゼバブが、宇宙船カルナークのなかで、孫に語る壮大な物語。
+    transcript_rights:
+      license: CC BY-SA 4.0
+      evidence_url: https://tyc.rei-yumesaki.net/material/corpus/voiceactress100/
+      credit_text: |-
+        台本：JVSコーパス版 voiceactress100（CC BY-SA 4.0）
+        https://tyc.rei-yumesaki.net/material/corpus/voiceactress100/
+        https://creativecommons.org/licenses/by-sa/4.0/
+    source:
+      title: つくよみちゃんコーパス Vol.1
+      speaker: 夢前黎
+      download_page: https://tyc.rei-yumesaki.net/material/corpus/
+      files:
+        - label: tyc-corpus1.zip
+          url: https://tyc.rei-yumesaki.net/files/voice/tyc-corpus1.zip
+          sha256: 801a8edc99f49893e2d270b28ecea7107a20f270bb23542bafe592d32b8442f1
+    rights:
+      license: つくよみちゃんコーパス利用規約
+      verified_on: "2026-07-28"
+      voice_synthesis_evidence_url: https://tyc.rei-yumesaki.net/material/corpus/
+      commercial_use_evidence_url: https://tyc.rei-yumesaki.net/material/corpus/
+      redistribution:
+        status: prohibited
+        evidence_url: https://tyc.rei-yumesaki.net/material/corpus/
+        notes: コーパス原音・加工原音は再配布せず、各利用者が公式配布元から取得する。
+    credit_text: |-
+      音声合成には、フリー素材キャラクター「つくよみちゃん」が無料公開している音声データを使用しています。
+      ■つくよみちゃんコーパス（CV.夢前黎）
+      https://tyc.rei-yumesaki.net/material/corpus/
+    voice:
+      gender: female
+      age: teen
+      notes: 公式説明では14歳前後の高音ウィスパー系アニメキャラクター風ボイス。
+    processing:
+      source_member: 01 WAV/VOICEACTRESS100_094.wav
+      source_sha256: 15cdf36998da98a29c6f55104cfd6df8616885bdc1e285b7a7dc2c0be3aa1ce9
+      summary: 原音全体を 96 kHz float から mono / 48 kHz / PCM 16-bit WAV に変換。

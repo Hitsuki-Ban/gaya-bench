@@ -10,6 +10,7 @@ from gaya_pipeline.validation import validate_scenarios
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 SCENARIOS_DIR = REPOSITORY_ROOT / "scenarios"
+VOICES_DIR = REPOSITORY_ROOT / "assets" / "voices"
 FIXTURES_DIR = Path(__file__).parent / "fixtures"
 
 
@@ -24,6 +25,10 @@ def _scenarios_from_fixtures(
         SCENARIOS_DIR / "schema" / "scenario.schema.json",
         schema_dir / "scenario.schema.json",
     )
+    voices_dir = tmp_path / "assets" / "voices"
+    voices_dir.mkdir(parents=True)
+    for filename in ("metadata.schema.json", "metadata.yaml"):
+        shutil.copy2(VOICES_DIR / filename, voices_dir / filename)
     for fixture_name in fixture_names:
         shutil.copy2(
             FIXTURES_DIR / fixture_name,
@@ -112,6 +117,23 @@ def test_identifier_constraints_are_rejected(tmp_path: Path) -> None:
     assert any("ファイル名" in reason for reason in reasons)
     assert any("scenario id" in reason and "重複" in reason for reason in reasons)
     assert any("line id" in reason and "重複" in reason for reason in reasons)
+
+
+def test_unknown_reference_voice_is_rejected(tmp_path: Path) -> None:
+    scenarios_dir = _scenarios_from_fixtures(tmp_path)
+    scenario_path = SCENARIOS_DIR / "tavern-night.yaml"
+    document = yaml.safe_load(scenario_path.read_text(encoding="utf-8"))
+    document["characters"][0]["reference_voice"] = "missing-voice"
+    (scenarios_dir / scenario_path.name).write_text(
+        yaml.safe_dump(document, allow_unicode=True, sort_keys=False),
+        encoding="utf-8",
+    )
+
+    result = validate_scenarios(scenarios_dir)
+
+    assert len(result.problems) == 1
+    assert result.problems[0].target == "tavern-night/barmaid"
+    assert "missing-voice" in result.problems[0].reason
 
 
 def test_cli_reports_file_target_reason_and_nonzero_exit(

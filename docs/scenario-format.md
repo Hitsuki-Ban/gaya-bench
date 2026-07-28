@@ -31,7 +31,7 @@ characters:
     archetype: 給仕
     voice: 明るく張りのある声。やや早口で、喧騒を通す接客の声。
     personality: 気さくで世話焼き。常連には遠慮がない。
-    reference_voice: null   # assets/voices/ の素材ID (クローン系モデル用、任意)
+    reference_voice: null   # assets/voices/metadata.yaml の素材ID (クローン系モデル用、任意)
 
 lines:
   - id: barmaid-001         # シーン内一意。グローバルIDは <scenario>/<line> で合成
@@ -54,7 +54,7 @@ lines:
 | `character.kind` | キャラクター種別。`human / machine / creature / spirit`。任意で、省略時は `human` として扱う |
 | `character.gender / age` | 生物学的属性ではなく、音声から受ける声質・演技上の印象。非人間キャラクターにも適用する |
 | `character.voice` | **声質のテキスト記述**。声質プロンプト対応モデルにはそのまま、非対応モデルには話者選択のヒントとして使う |
-| `character.reference_voice` | ゼロショットクローン系モデルへの参照音声。権利確認済み素材 (`assets/voices/`) のIDのみ許可 |
+| `character.reference_voice` | ゼロショットクローン系モデルへの参照音声。`assets/voices/metadata.yaml` に登録された権利確認済み素材ID（`^[a-z0-9]+(?:-[a-z0-9]+)*$`）のみ許可 |
 | `line.emotion` + `intensity` | 機械可読な感情ラベル。感情タグ対応モデルへ直接マップ、フィルタUIにも使用 |
 | `line.delivery` | 演技指示の散文。instruct系モデル (自然文で演技指示できるもの) へ渡す |
 | `line.reading` | 漢字の誤読対策。読み指定対応モデ用。非対応モデルには使わない (誤読も品質差として観測する) |

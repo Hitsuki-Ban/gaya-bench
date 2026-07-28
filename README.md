@@ -41,4 +41,5 @@ artifacts/          生成物の一次出力 (git管理外)
 
 - コード: [MIT](LICENSE)
 - シナリオテキスト (`scenarios/`): CC BY 4.0
+- 参照音声の台本・権利情報: [`assets/voices/metadata.yaml`](assets/voices/metadata.yaml) の素材別ライセンスに従う
 - 生成音声: 各TTSモデルの利用規約に従う (サイト内クレジットページに明記)

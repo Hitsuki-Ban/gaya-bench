@@ -18,7 +18,7 @@ characters:
     archetype: 隠居
     voice: しわがれた高めの声。ゆっくりとした丁寧な口調。
     personality: 世話好きで近所付き合いを大事にする。長年の畑仕事で足腰が弱い。
-    reference_voice: null
+    reference_voice: sayoko-emotion-75
 
   - id: teen-boy
     name: 農家の少年

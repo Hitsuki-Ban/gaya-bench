@@ -9,6 +9,8 @@ import yaml
 from jsonschema import Draft202012Validator
 from jsonschema.exceptions import SchemaError
 
+from gaya_pipeline.voice_assets import validate_voice_metadata
+
 
 @dataclass(frozen=True)
 class Problem:
@@ -66,7 +68,14 @@ def validate_scenarios(scenarios_dir: Path) -> ValidationResult:
         )
 
     validator = Draft202012Validator(schema)
-    problems: list[Problem] = []
+    voice_result = validate_voice_metadata(
+        scenarios_dir.parent / "assets" / "voices",
+    )
+    problems: list[Problem] = [
+        Problem(problem.file, problem.target, problem.reason)
+        for problem in voice_result.problems
+    ]
+    known_voice_ids = None if voice_result.problems else voice_result.voice_ids
     valid_documents: list[tuple[Path, Mapping[str, Any]]] = []
 
     for scenario_file in scenario_files:
@@ -92,7 +101,7 @@ def validate_scenarios(scenarios_dir: Path) -> ValidationResult:
 
         valid_documents.append((scenario_file, document))
 
-    problems.extend(_validate_references(valid_documents))
+    problems.extend(_validate_references(valid_documents, known_voice_ids))
     return ValidationResult(
         file_count=len(scenario_files),
         problems=tuple(problems),
@@ -118,6 +127,7 @@ def _load_yaml(
 
 def _validate_references(
     documents: list[tuple[Path, Mapping[str, Any]]],
+    known_voice_ids: frozenset[str] | None,
 ) -> list[Problem]:
     problems: list[Problem] = []
     scenario_files_by_id: dict[str, Path] = {}
@@ -150,6 +160,23 @@ def _validate_references(
             scenario_files_by_id[scenario_id] = scenario_file
 
         characters = document["characters"]
+        if known_voice_ids is not None:
+            for character in characters:
+                reference_voice = character.get("reference_voice")
+                if (
+                    reference_voice is not None
+                    and reference_voice not in known_voice_ids
+                ):
+                    problems.append(
+                        Problem(
+                            scenario_file,
+                            f"{scenario_id}/{character['id']}",
+                            (
+                                f"reference_voice '{reference_voice}' が "
+                                "assets/voices/metadata.yaml に存在しません。"
+                            ),
+                        ),
+                    )
         character_ids = [str(character["id"]) for character in characters]
         problems.extend(
             _duplicate_id_problems(

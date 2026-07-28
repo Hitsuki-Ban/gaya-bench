@@ -22,6 +22,7 @@ from gaya_pipeline.generation import (
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 SCENARIOS_DIR = REPOSITORY_ROOT / "scenarios"
+VOICES_DIR = REPOSITORY_ROOT / "assets" / "voices"
 
 
 def _two_scenarios(tmp_path: Path) -> Path:
@@ -32,6 +33,10 @@ def _two_scenarios(tmp_path: Path) -> Path:
         SCENARIOS_DIR / "schema" / "scenario.schema.json",
         schema_dir / "scenario.schema.json",
     )
+    voices_dir = tmp_path / "assets" / "voices"
+    voices_dir.mkdir(parents=True)
+    for filename in ("metadata.schema.json", "metadata.yaml"):
+        shutil.copy2(VOICES_DIR / filename, voices_dir / filename)
     for scenario_id in ("tavern-night", "market-day"):
         shutil.copy2(
             SCENARIOS_DIR / f"{scenario_id}.yaml",

@@ -17,6 +17,10 @@ from gaya_pipeline.publish import (
     run_publish,
 )
 from gaya_pipeline.validation import default_scenarios_dir, validate_scenarios
+from gaya_pipeline.voice_assets import (
+    default_voices_dir,
+    validate_local_voice_assets,
+)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -32,6 +36,25 @@ def build_parser() -> argparse.ArgumentParser:
         type=Path,
         default=default_scenarios_dir(),
         help="シナリオディレクトリ",
+    )
+
+    voices_parser = subparsers.add_parser(
+        "voices",
+        help="参照音声キットを操作する",
+    )
+    voices_subparsers = voices_parser.add_subparsers(
+        dest="voices_command",
+        required=True,
+    )
+    voices_validate_parser = voices_subparsers.add_parser(
+        "validate-local",
+        help="ローカル参照 WAV とメタデータを検証する",
+    )
+    voices_validate_parser.add_argument(
+        "--voices",
+        type=Path,
+        default=default_voices_dir(),
+        help="参照音声キットのディレクトリ",
     )
 
     gen_parser = subparsers.add_parser(
@@ -69,6 +92,24 @@ def main(argv: Sequence[str] | None = None) -> int:
             return 1
 
         print(f"検証成功: {result.file_count} シナリオ")
+        return 0
+
+    if args.command == "voices":
+        if args.voices_command != "validate-local":
+            raise AssertionError(
+                f"unknown voices command: {args.voices_command}",
+            )
+        result = validate_local_voice_assets(args.voices)
+        if result.problems:
+            for problem in result.problems:
+                print(f"ERROR: {problem}", file=sys.stderr)
+            print(
+                f"検証失敗: {len(result.problems)} 件の問題があります。",
+                file=sys.stderr,
+            )
+            return 1
+
+        print(f"検証成功: {len(result.voice_ids)} 参照音声")
         return 0
 
     if args.command == "gen":

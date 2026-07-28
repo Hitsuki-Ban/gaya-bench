@@ -55,7 +55,15 @@
         "voice": { "type": "string", "description": "声質のテキスト記述 (声質プロンプト対応モデルへの入力)" },
         "personality": { "type": "string" },
         "reference_voice": {
-          "type": ["string", "null"],
+          "oneOf": [
+            {
+              "type": "string",
+              "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+            },
+            {
+              "type": "null"
+            }
+          ],
           "description": "assets/voices/ の参照音声素材ID (クローン系モデル用)"
         }
       }
