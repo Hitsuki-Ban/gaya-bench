@@ -62,14 +62,14 @@ export function FilterToolbar({
   const isDefault = encodeFilterState(state, benchmarkData) === "";
 
   return (
-    <section aria-labelledby="filter-heading" className="rounded-lg border bg-card p-4">
+    <section aria-labelledby="filter-heading" className="rounded-md border bg-card p-3">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="flex items-center gap-2 text-sm font-semibold" id="filter-heading">
             <SlidersHorizontal aria-hidden="true" className="size-4 text-primary" />
             比較フィルタ
           </h2>
-          <p className="mt-1 text-xs text-muted-foreground" aria-live="polite">
+          <p className="mt-0.5 text-xs text-muted-foreground" aria-live="polite">
             {filteredRows}/{totalRows} セリフを表示。選択状態は URL で共有できます。
           </p>
         </div>
@@ -79,11 +79,11 @@ export function FilterToolbar({
         </Button>
       </div>
 
-      <div className="mt-4 grid gap-4 lg:grid-cols-2 xl:grid-cols-3">
-        <label className="space-y-2 text-xs font-medium">
+      <div className="mt-3 grid gap-2 md:grid-cols-2 xl:grid-cols-4">
+        <label className="space-y-1 text-xs font-medium">
           <span>シナリオ</span>
           <select
-            className="min-h-10 w-full rounded-md border bg-background px-3 text-sm"
+            className="min-h-8 w-full rounded border bg-background px-2 text-sm"
             onChange={(event) =>
               onChange(
                 updateScenarioFilter(
@@ -162,14 +162,14 @@ function FilterCheckboxGroup({
   selected: ReadonlySet<string>;
 }) {
   return (
-    <fieldset className="rounded-md border bg-background/55 p-3">
+    <fieldset className="rounded border bg-background/55 px-2 py-1.5">
       <legend className="px-1 text-xs font-medium">{legend}</legend>
-      <div className="mt-1 flex flex-wrap gap-x-3 gap-y-2">
+      <div className="flex flex-wrap gap-x-2.5 gap-y-1">
         {options.map(({ value, label }) => {
           const checked = selected.has(value);
           return (
             <label
-              className="flex min-h-8 cursor-pointer items-center gap-2 text-xs text-muted-foreground has-checked:text-foreground"
+              className="flex min-h-6 cursor-pointer items-center gap-1.5 text-xs text-muted-foreground has-checked:text-foreground"
               key={value}
             >
               <input

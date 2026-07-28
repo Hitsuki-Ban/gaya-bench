@@ -16,7 +16,7 @@ export function AppLayout() {
   return (
     <div className="min-h-screen">
       <header className="sticky top-0 z-20 border-b bg-background/95 backdrop-blur">
-        <div className="mx-auto flex min-h-16 max-w-[1480px] items-center gap-6 px-4 sm:px-6">
+        <div className="mx-auto flex min-h-14 max-w-[1480px] items-center gap-6 px-4 sm:px-6">
           <NavLink
             className="flex items-center gap-3"
             to={{ pathname: "/", search: location.search }}
@@ -58,7 +58,7 @@ export function AppLayout() {
         </div>
       </header>
 
-      <main className="mx-auto max-w-[1480px] px-4 py-8 sm:px-6">
+      <main className="mx-auto max-w-[1480px] px-4 py-5 sm:px-6 sm:py-6">
         <AudioProvider fallback={<AudioBootShell />}>
           <Outlet />
         </AudioProvider>
@@ -73,7 +73,7 @@ function AudioBootShell() {
       aria-busy="true"
       aria-labelledby="audio-boot-heading"
       aria-live="polite"
-      className="rounded-lg border bg-card p-6 sm:p-8"
+      className="rounded-md border bg-card p-6 sm:p-8"
     >
       <p className="font-mono text-[10px] tracking-[0.18em] text-primary uppercase">Audio system</p>
       <div className="mt-3 flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
@@ -86,7 +86,11 @@ function AudioBootShell() {
           </p>
         </div>
         <Button disabled variant="outline">
-          <LoaderCircle aria-hidden="true" className="animate-spin" data-icon="inline-start" />
+          <LoaderCircle
+            aria-hidden="true"
+            className="animate-spin motion-reduce:animate-none"
+            data-icon="inline-start"
+          />
           音声準備中
         </Button>
       </div>

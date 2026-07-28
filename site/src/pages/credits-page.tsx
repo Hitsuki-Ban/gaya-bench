@@ -3,7 +3,7 @@ import { PageIntro } from "@/components/page-intro";
 
 export function CreditsPage() {
   return (
-    <div className="space-y-7">
+    <div className="space-y-5">
       <PageIntro
         description="モデル、参照音声、生成物、OSS の権利情報を一か所で確認できる公開ページです。"
         eyebrow="Provenance"

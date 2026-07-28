@@ -108,7 +108,7 @@ export function MobileMatrix({ controller, model, projection, search }: MobileMa
             <article
               className={[
                 "rounded-lg border bg-card p-4",
-                cursor.rowIndex === rowIndex ? "border-accent/70" : "",
+                cursor.rowIndex === rowIndex ? "border-primary/70" : "",
                 isCurrent ? "shadow-[inset_3px_0_0_var(--primary)]" : "",
               ].join(" ")}
               key={`${row.scenario.id}/${row.line.id}`}
@@ -122,7 +122,7 @@ export function MobileMatrix({ controller, model, projection, search }: MobileMa
                 </Link>
               ) : null}
               {isCharacterStart ? (
-                <p className="text-xs font-semibold text-accent">{row.character.name}</p>
+                <p className="text-xs font-semibold text-primary">{row.character.name}</p>
               ) : null}
               <p className="mt-1 text-sm leading-6">{row.line.text}</p>
               <div className="my-3 flex flex-wrap gap-1.5">

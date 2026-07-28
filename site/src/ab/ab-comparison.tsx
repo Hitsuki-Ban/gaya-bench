@@ -10,16 +10,20 @@ import {
   RotateCcw,
   Trophy,
 } from "lucide-react";
-import { useEffect, useRef, type KeyboardEvent } from "react";
+import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 
+import { useAudioProgress } from "@/audio/audio-provider";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { WaveformProgress } from "@/components/waveform-progress";
 import { resolveAbShortcut, type AbShortcut } from "./keyboard";
-import { useAbSession, type CandidateSide } from "./use-ab-session";
+import { useAbSession, type CandidateSide, type PreviousVote } from "./use-ab-session";
 
 export function AbComparison() {
   const session = useAbSession();
+  const audioProgress = useAudioProgress();
+  const [sessionMemo, setSessionMemo] = useState("");
   const terminalRef = useRef<HTMLDivElement>(null);
   const previousKindRef = useRef(session.kind);
 
@@ -44,6 +48,10 @@ export function AbComparison() {
 
   return (
     <div className="space-y-6">
+      {session.kind === "unavailable" || session.kind === "error" ? null : (
+        <SessionProgress votesCount={session.votesCount} totalMatches={session.totalMatches} />
+      )}
+
       {session.kind === "error" ? (
         <div
           className="outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
@@ -56,10 +64,13 @@ export function AbComparison() {
         <UnavailableState modelCount={session.modelCount} />
       ) : session.kind === "complete" ? (
         <div
-          className="outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+          className="space-y-4 outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
           ref={terminalRef}
           tabIndex={-1}
         >
+          {session.previousVote === null ? null : (
+            <PreviousVoteNotice previousVote={session.previousVote} />
+          )}
           <CompleteState total={session.totalMatches} />
         </div>
       ) : (
@@ -78,7 +89,11 @@ export function AbComparison() {
             <p className="text-xs text-muted-foreground">モデル名は投票中の候補に表示されません</p>
           </div>
 
-          <Card className="border-primary/25 bg-primary/[0.035]">
+          {session.previousVote === null ? null : (
+            <PreviousVoteNotice previousVote={session.previousVote} />
+          )}
+
+          <Card className="bg-primary/[0.035] ring-primary/25">
             <CardHeader>
               <div className="flex flex-wrap items-center gap-2">
                 <Badge variant="secondary">{session.presentation.scenarioTitle}</Badge>
@@ -97,50 +112,64 @@ export function AbComparison() {
             </CardHeader>
           </Card>
 
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid items-stretch gap-4 lg:grid-cols-2">
             <CandidateCard
+              currentTime={audioProgress.currentTime}
+              fallbackDuration={session.presentation.left.clip.duration_sec}
               label="A"
               onPlay={() => void session.playCandidate("left")}
+              progressDuration={audioProgress.duration}
               shortcut="ArrowLeft"
               status={session.presentation.leftStatus}
             />
             <CandidateCard
+              currentTime={audioProgress.currentTime}
+              fallbackDuration={session.presentation.right.clip.duration_sec}
               label="B"
               onPlay={() => void session.playCandidate("right")}
+              progressDuration={audioProgress.duration}
               shortcut="ArrowRight"
               status={session.presentation.rightStatus}
             />
           </div>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>どちらが好みですか？</CardTitle>
-              <CardDescription>
-                必要なだけ聴き比べてから選んでください。保存後は次の比較へ自動で進みます。
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="grid gap-2 sm:grid-cols-3">
-              <VoteButton
-                disabled={session.isCommitting}
-                label="A が好み"
-                number="1"
-                onClick={() => session.castVote("left")}
-              />
-              <VoteButton
-                disabled={session.isCommitting}
-                label="引き分け"
-                number="2"
-                onClick={() => session.castVote("tie")}
-                variant="secondary"
-              />
-              <VoteButton
-                disabled={session.isCommitting}
-                label="B が好み"
-                number="3"
-                onClick={() => session.castVote("right")}
-              />
-            </CardContent>
-          </Card>
+          <div className="grid items-stretch gap-4 lg:grid-cols-[minmax(0,1.25fr)_minmax(18rem,0.75fr)]">
+            <Card>
+              <CardHeader>
+                <CardTitle>どちらが好みですか？</CardTitle>
+                <CardDescription>
+                  必要なだけ聴き比べてから選んでください。保存後は次の比較へ自動で進みます。
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="grid gap-2 sm:grid-cols-3">
+                <VoteButton
+                  disabled={session.isCommitting}
+                  label="A が好み"
+                  number="1"
+                  onClick={() => session.castVote("left")}
+                />
+                <VoteButton
+                  disabled={session.isCommitting}
+                  label="引き分け"
+                  number="2"
+                  onClick={() => session.castVote("tie")}
+                  variant="secondary"
+                />
+                <VoteButton
+                  disabled={session.isCommitting}
+                  label="B が好み"
+                  number="3"
+                  onClick={() => session.castVote("right")}
+                />
+              </CardContent>
+            </Card>
+
+            <SessionMemo
+              onChange={setSessionMemo}
+              onClear={() => setSessionMemo("")}
+              value={sessionMemo}
+            />
+          </div>
 
           <KeyboardGuide />
         </section>
@@ -174,23 +203,98 @@ export function AbComparison() {
   );
 }
 
+function SessionProgress({
+  totalMatches,
+  votesCount,
+}: {
+  totalMatches: number;
+  votesCount: number;
+}) {
+  const ratio = votesCount / totalMatches;
+  return (
+    <div className="rounded-lg border border-primary/25 bg-primary/[0.035] px-4 py-3">
+      <div className="mb-2 flex items-center justify-between gap-3 text-sm">
+        <span className="font-medium">セッション進捗</span>
+        <span className="font-mono text-primary">
+          {votesCount} / {totalMatches}
+        </span>
+      </div>
+      <div
+        aria-label="セッション進捗"
+        aria-valuemax={totalMatches}
+        aria-valuemin={0}
+        aria-valuenow={votesCount}
+        className="h-2 overflow-hidden rounded-full bg-primary/15"
+        role="progressbar"
+      >
+        <div
+          aria-hidden="true"
+          className="h-full rounded-full bg-primary transition-[width] duration-300 motion-reduce:transition-none"
+          style={{ width: `${ratio * 100}%` }}
+        />
+      </div>
+    </div>
+  );
+}
+
+function PreviousVoteNotice({ previousVote }: { previousVote: PreviousVote }) {
+  return (
+    <aside
+      aria-label="前回の投票"
+      className="rounded-lg border border-primary/30 bg-primary/[0.04] px-4 py-3"
+    >
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-xs font-semibold tracking-[0.16em] text-primary">前回の投票</p>
+        <p className="text-sm">
+          選択: <strong className="text-primary">{previousVote.choice}</strong>
+        </p>
+      </div>
+      <dl className="mt-2 grid gap-x-5 gap-y-1 font-mono text-xs sm:grid-cols-2">
+        <div className="flex min-w-0 gap-2">
+          <dt className="shrink-0 text-primary">A</dt>
+          <dd className="min-w-0 break-words text-muted-foreground">
+            {previousVote.leftModelName}
+          </dd>
+        </div>
+        <div className="flex min-w-0 gap-2">
+          <dt className="shrink-0 text-primary">B</dt>
+          <dd className="min-w-0 break-words text-muted-foreground">
+            {previousVote.rightModelName}
+          </dd>
+        </div>
+      </dl>
+    </aside>
+  );
+}
+
 function CandidateCard({
+  currentTime,
+  fallbackDuration,
   label,
+  progressDuration,
   shortcut,
   status,
   onPlay,
 }: {
+  currentTime: number;
+  fallbackDuration: number;
   label: "A" | "B";
+  progressDuration: number;
   shortcut: "ArrowLeft" | "ArrowRight";
   status: "idle" | "loading" | "playing" | "paused" | "error";
   onPlay: () => void;
 }) {
   const isActive = status === "loading" || status === "playing" || status === "paused";
+  const duration = progressDuration > 0 ? progressDuration : fallbackDuration;
+  const elapsed = duration > 0 ? Math.min(Math.max(currentTime, 0), duration) : 0;
+  const ratio = duration > 0 ? elapsed / duration : 0;
   return (
-    <Card className={isActive ? "ring-1 ring-primary/70" : undefined}>
+    <Card
+      className={isActive ? "h-full bg-primary/[0.035] ring-primary/60" : "h-full ring-primary/20"}
+    >
       <CardHeader>
         <div className="flex items-center justify-between gap-3">
-          <span className="grid size-12 place-items-center rounded-lg bg-muted font-mono text-2xl font-semibold">
+          <span className="grid size-12 place-items-center rounded-full border border-primary/35 bg-primary/[0.06] font-mono text-2xl font-semibold text-primary">
             {label}
           </span>
           <Badge variant={isActive ? "default" : status === "error" ? "destructive" : "outline"}>
@@ -199,7 +303,14 @@ function CandidateCard({
         </div>
         <CardTitle className="mt-2">候補 {label}</CardTitle>
       </CardHeader>
-      <CardContent>
+      <CardContent className="flex flex-1 flex-col">
+        <div className="mb-4 rounded-md border border-primary/20 bg-background/45 px-3 py-3">
+          <WaveformProgress className="h-16" ratio={ratio} />
+          <div className="mt-2 flex justify-between font-mono text-[10px] text-muted-foreground">
+            <span>{isActive ? formatTime(elapsed) : "0:00.0"}</span>
+            <span>{formatTime(duration)}</span>
+          </div>
+        </div>
         <Button
           aria-keyshortcuts={shortcut}
           className="h-12 w-full text-base"
@@ -221,6 +332,39 @@ function CandidateCard({
             この候補を再生できませんでした。もう一度お試しください。
           </p>
         ) : null}
+      </CardContent>
+    </Card>
+  );
+}
+
+function SessionMemo({
+  onChange,
+  onClear,
+  value,
+}: {
+  onChange: (value: string) => void;
+  onClear: () => void;
+  value: string;
+}) {
+  return (
+    <Card className="ring-primary/20">
+      <CardHeader className="gap-2">
+        <div className="flex items-center justify-between gap-3">
+          <CardTitle className="text-base">セッションメモ（このタブのみ）</CardTitle>
+          <Button disabled={value.length === 0} onClick={onClear} size="sm" variant="ghost">
+            クリア
+          </Button>
+        </div>
+        <CardDescription>気づいた音の特徴を一時的に書き留められます。</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <textarea
+          aria-label="セッションメモ"
+          className="border-input placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 min-h-24 w-full resize-y rounded-md border bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:ring-3"
+          onChange={(event) => onChange(event.currentTarget.value)}
+          placeholder="例: A は子音が明瞭、B は距離感が自然"
+          value={value}
+        />
       </CardContent>
     </Card>
   );
@@ -316,7 +460,7 @@ function UnavailableState({ modelCount }: { modelCount: number }) {
 
 function CompleteState({ total }: { total: number }) {
   return (
-    <Card className="border-accent/40 bg-accent/[0.04]">
+    <Card className="bg-primary/[0.04] ring-primary/40">
       <CardHeader>
         <Badge variant="secondary">
           <Check aria-hidden="true" />
@@ -426,4 +570,9 @@ function candidateActionLabel(
     return `候補 ${label} を再開`;
   }
   return `候補 ${label} を再生`;
+}
+
+function formatTime(seconds: number): string {
+  const minutes = Math.floor(seconds / 60);
+  return `${minutes}:${(seconds % 60).toFixed(1).padStart(4, "0")}`;
 }

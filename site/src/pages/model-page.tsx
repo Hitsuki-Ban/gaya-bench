@@ -45,7 +45,7 @@ export function ModelPage() {
   const parameterSets = collectGenerationParameterSets(clips);
 
   return (
-    <div className="space-y-7">
+    <div className="space-y-5">
       <PageIntro
         aside={
           <Link
@@ -111,7 +111,7 @@ export function ModelPage() {
         <Card>
           <CardContent className="grid gap-4 pt-1 sm:grid-cols-[auto_1fr] sm:items-center">
             <div className="flex items-center gap-3">
-              <div className="rounded-lg bg-primary/10 p-3 text-primary">
+              <div className="rounded-md bg-primary/10 p-3 text-primary">
                 <Gauge aria-hidden="true" className="size-6" />
               </div>
               <div>
@@ -161,7 +161,7 @@ export function ModelPage() {
             ))}
           </div>
         ) : (
-          <p className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
+          <p className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">
             生成済みクリップがないため、パラメータは記録されていません。
           </p>
         )}
@@ -206,7 +206,7 @@ export function ModelPage() {
             ))}
           </div>
         ) : (
-          <p className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
+          <p className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">
             {failureEntries.length > 0
               ? "成功したクリップはありません。記録された生成失敗を下記に表示します。"
               : "このモデルのクリップは未生成です。"}
@@ -249,7 +249,7 @@ export function ModelPage() {
             ))}
           </div>
         ) : (
-          <p className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
+          <p className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">
             記録された生成失敗はありません。
           </p>
         )}

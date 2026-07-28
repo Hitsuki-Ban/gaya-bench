@@ -22,7 +22,7 @@ export function ScenarioPage() {
   const lineEntries = buildScenarioLineEntries(scenario, clips, failures);
 
   return (
-    <div className="space-y-7">
+    <div className="space-y-5">
       <PageIntro
         aside={
           <Link
@@ -66,7 +66,7 @@ export function ScenarioPage() {
       </section>
 
       <aside
-        className="flex gap-3 rounded-lg border border-primary/30 bg-primary/5 p-4"
+        className="flex gap-3 rounded-md border border-primary/30 bg-primary/5 p-4"
         role="note"
       >
         <AudioWaveform aria-hidden="true" className="mt-0.5 size-5 shrink-0 text-primary" />
@@ -198,7 +198,7 @@ function SceneFact({
   value: string;
 }) {
   return (
-    <div className="rounded-lg border bg-card p-4">
+    <div className="rounded-md border bg-card p-4">
       <div className="flex items-center gap-2 text-xs font-medium text-primary">
         <Icon aria-hidden="true" className="size-4" />
         {label}
