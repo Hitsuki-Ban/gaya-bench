@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Protocol
@@ -60,6 +60,14 @@ class LineJob:
 
 class Adapter(Protocol):
     profile: ModelProfile
+
+    def prepare(
+        self,
+        jobs: Sequence[LineJob],
+        artifacts_dir: Path,
+    ) -> None:
+        """Prepare persistent inputs required before generation hashes are built."""
+        ...
 
     def generation_params(self) -> Mapping[str, Any]:
         """Return requested parameters that can change generated audio."""

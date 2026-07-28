@@ -11,4 +11,8 @@ class UnknownAdapterError(ValueError):
 def create_adapter(model_id: str) -> Adapter:
     if model_id == "dummy":
         return DummyAdapter()
+    if model_id == "qwen3-tts-12hz-1.7b":
+        from gaya_pipeline.adapters.qwen3_tts import Qwen3TTSAdapter
+
+        return Qwen3TTSAdapter()
     raise UnknownAdapterError(f"未知の model id です: {model_id}")

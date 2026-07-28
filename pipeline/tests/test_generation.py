@@ -295,6 +295,22 @@ def test_adapter_boundary_errors_are_controlled(
 
     monkeypatch.setattr(generation, "create_adapter", original_create_adapter)
 
+    def fail_preparation(
+        adapter: DummyAdapter,
+        jobs: object,
+        artifacts_dir: Path,
+    ) -> None:
+        raise RuntimeError("CUDA preparation failed")
+
+    monkeypatch.setattr(DummyAdapter, "prepare", fail_preparation)
+    with pytest.raises(
+        GenerationError,
+        match="adapter 準備.*CUDA preparation failed",
+    ):
+        run_selected()
+
+    monkeypatch.undo()
+
     def fail_input(adapter: DummyAdapter, job: object) -> dict[str, object]:
         raise RuntimeError("prompt preprocessing failed")
 
@@ -304,6 +320,58 @@ def test_adapter_boundary_errors_are_controlled(
         match="tavern-night/barmaid-001.*adapter 入力構築.*prompt preprocessing",
     ):
         run_selected()
+
+
+def test_adapter_prepare_runs_once_before_generation_input(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    scenarios_dir = _two_scenarios(tmp_path)
+    events: list[str] = []
+    original_prepare = DummyAdapter.prepare
+    original_generation_input = DummyAdapter.generation_input
+
+    def record_prepare(
+        adapter: DummyAdapter,
+        jobs: object,
+        artifacts_dir: Path,
+    ) -> None:
+        events.append("prepare")
+        original_prepare(adapter, jobs, artifacts_dir)
+
+    def record_generation_input(
+        adapter: DummyAdapter,
+        job: LineJob,
+    ) -> Mapping[str, Any]:
+        events.append(f"input:{job.line_id}")
+        return original_generation_input(adapter, job)
+
+    monkeypatch.setattr(DummyAdapter, "prepare", record_prepare)
+    monkeypatch.setattr(
+        DummyAdapter,
+        "generation_input",
+        record_generation_input,
+    )
+
+    summary = run_generation(
+        model_id="dummy",
+        scenarios_dir=scenarios_dir,
+        artifacts_dir=tmp_path / "artifacts",
+        manifest_path=tmp_path / "data" / "manifest.json",
+        scenario_id="tavern-night",
+    )
+
+    assert summary.generated_count == 6
+    assert events[0] == "prepare"
+    assert events.count("prepare") == 1
+    assert events[1:] == [
+        "input:barmaid-001",
+        "input:barmaid-002",
+        "input:drunkard-001",
+        "input:drunkard-002",
+        "input:old-regular-001",
+        "input:old-regular-002",
+    ]
 
 
 def test_later_batch_failure_keeps_manifest_in_sync(

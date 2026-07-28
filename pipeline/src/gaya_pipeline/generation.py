@@ -123,6 +123,12 @@ def run_generation(
         raise GenerationError(
             f"adapter 初期化に失敗しました: {error}",
         ) from error
+    try:
+        adapter.prepare(jobs, artifacts_dir)
+    except Exception as error:
+        raise GenerationError(
+            f"adapter 準備に失敗しました: {error}",
+        ) from error
 
     records: list[GenerationRecord] = []
     clips: list[dict[str, Any]] = []
