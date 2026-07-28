@@ -57,6 +57,15 @@
 - [#22](https://github.com/Hitsuki-Ban/gaya-bench/issues/22) シーン喧騒ミキサー
 - RunPodによる大型モデル追加ベンチ (必要になり次第起票)
 
+### M7: 品質強化 (2026-07-28 Owner方針)
+
+一発ポン出しでの実用化は困難という初期ラン所見を受けた品質フェーズ。
+運用方向: **複数モデル × 複数テイクの数打ちガチャ + 自動品質ゲートで足切り → 人間は通過テイクだけ選抜**。
+
+- [#74](https://github.com/Hitsuki-Ban/gaya-bench/issues/74) 演技力・表現力の再現手法 独立調査 `P1` (Claude 3方向調査 `docs/research/expressiveness/` との対照統合)
+- [#75](https://github.com/Hitsuki-Ban/gaya-bench/issues/75) 読み・リズム・トーンの自動検証と自動調整 `P1` (実例: 辛い=からい/つらいの誤読。ASRラウンドトリップ + 曖昧読み警告)
+- [#76](https://github.com/Hitsuki-Ban/gaya-bench/issues/76) 数打ちガチャ運用: 品質ゲート付きテイク選抜ハーネス `P1` `epic` (設計先行、依存: #74 #75)
+
 ### クリティカルパス
 
 `#1 → #8(アダプタ群)` と `#3 → #4 → #5` が合流して `#10(生成ラン)`、
