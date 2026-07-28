@@ -13,7 +13,7 @@ from typing import Any
 import pytest
 import yaml
 from gaya_pipeline.adapters import create_adapter
-from gaya_pipeline.adapters.base import LineJob
+from gaya_pipeline.adapters.base import LineJob, TakeContext
 from gaya_pipeline.adapters.voxcpm2 import (
     ARCHITECTURE,
     CFG_VALUE,
@@ -31,6 +31,7 @@ from gaya_pipeline.adapters.voxcpm2 import (
     WEIGHTS_REVISION,
     VoxCPM2Adapter,
     VoxCPM2AdapterError,
+    _NativeRuntime,
 )
 
 TAKE_CONTEXT = VoxCPM2Adapter().take_recipe().single_take_context()
@@ -74,6 +75,7 @@ class FakeRuntime:
         *,
         text: str,
         reference_wav_path: Path | None,
+        seed: int,
     ) -> Any:
         assert model == {"model": "voxcpm2"}
         phase = "design" if reference_wav_path is None else "clone"
@@ -82,6 +84,7 @@ class FakeRuntime:
                 "text": text,
                 "reference_wav_path": reference_wav_path,
                 "phase": phase,
+                "seed": seed,
             },
         )
         if self.oom_on == phase:
@@ -258,11 +261,11 @@ def test_profile_registry_and_requested_parameters_are_canonical() -> None:
         "reading": True,
     }
     recipe = adapter.take_recipe()
-    assert recipe.version == "fixed-single-v1"
-    assert recipe.seed_policy == "fixed"
+    assert recipe.version == "seed-only-v1"
+    assert recipe.seed_policy == "derived-sha256-v1"
     assert recipe.single_take_seed == SEED
     assert recipe.seed_range == (0, 2**32 - 1)
-    assert recipe.supports_multiple is False
+    assert recipe.supports_multiple is True
     params = adapter.generation_params()
     assert params["model_root_environment"] == MODEL_ROOT_ENV
     assert params["architecture"] == "voxcpm2"
@@ -276,7 +279,7 @@ def test_profile_registry_and_requested_parameters_are_canonical() -> None:
     assert params["retry_badcase"] is False
     assert params["cfg_value"] == CFG_VALUE
     assert params["inference_timesteps"] == INFERENCE_TIMESTEPS
-    assert params["seed"] == SEED
+    assert "seed" not in params
     assert params["emotion_instructions"] == EMOTION_INSTRUCTIONS
     assert params["intensity_instructions"] == {
         str(intensity): instruction
@@ -346,6 +349,38 @@ def test_native_runtime_dependency_versions_are_exact_and_never_import_torchcode
         runtime._load_dependencies()
     assert "torchcodec" not in imported
     assert "huggingface_hub" not in imported
+
+
+def test_native_runtime_disables_retry_and_verifies_actual_seed() -> None:
+    calls: dict[str, Any] = {}
+
+    class FakeModel:
+        def __init__(self) -> None:
+            self.tts_model = SimpleNamespace(last_successful_seed=123_456)
+
+        def generate(self, **kwargs: Any) -> list[float]:
+            calls.update(kwargs)
+            return [0.0]
+
+    model = FakeModel()
+    runtime = _NativeRuntime()
+    assert runtime.generate(
+        model,
+        text="テスト",
+        reference_wav_path=None,
+        seed=123_456,
+    ) == [0.0]
+    assert calls["retry_badcase"] is False
+    assert calls["seed"] == 123_456
+
+    model.tts_model.last_successful_seed = 654_321
+    with pytest.raises(VoxCPM2AdapterError, match="actual=654321"):
+        runtime.generate(
+            model,
+            text="テスト",
+            reference_wav_path=None,
+            seed=123_456,
+        )
 
 
 def test_all_emotions_reading_and_explicit_reference_provenance(
@@ -432,6 +467,43 @@ def test_clone_is_lazy_uses_reference_and_writes_pcm16(
         assert wav_file.getsampwidth() == 2
         assert wav_file.getframerate() == 48_000
         assert wav_file.getnframes() == 4
+
+
+def test_reference_seed_is_fixed_and_take_seed_reaches_runtime(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    root = _model_root(tmp_path, monkeypatch)
+    runtime = FakeRuntime()
+    adapter = VoxCPM2Adapter(runtime=runtime, model_root=root)
+    job = _job(reference_voice=None)
+    adapter.prepare([job], tmp_path / "artifacts", tmp_path / "unused-voices")
+    recipe = adapter.take_recipe()
+    first_context = recipe.single_take_context()
+    second_context = TakeContext.create(
+        index=2,
+        seed=123_456,
+        recipe_version=recipe.version,
+        sampling=dict(recipe.sampling),
+    )
+
+    first = adapter.generate(job, first_context, tmp_path / "first.wav")
+    second = adapter.generate(job, second_context, tmp_path / "second.wav")
+
+    assert [call["phase"] for call in runtime.generate_calls] == [
+        "design",
+        "clone",
+        "clone",
+    ]
+    assert [call["seed"] for call in runtime.generate_calls] == [
+        SEED,
+        SEED,
+        123_456,
+    ]
+    assert first["seed"] == SEED
+    assert first["sampling"] == first_context.sampling_dict()
+    assert second["seed"] == 123_456
+    assert second["sampling"] == second_context.sampling_dict()
 
 
 def test_voice_design_cache_reuse_identity_change_and_corruption(

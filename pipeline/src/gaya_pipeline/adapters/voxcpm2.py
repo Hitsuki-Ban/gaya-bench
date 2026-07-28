@@ -149,6 +149,7 @@ class _Runtime(Protocol):
         *,
         text: str,
         reference_wav_path: Path | None,
+        seed: int,
     ) -> Any: ...
 
     def write_pcm16(self, path: Path, samples: Any, sample_rate: int) -> None: ...
@@ -258,8 +259,9 @@ class _NativeRuntime:
         *,
         text: str,
         reference_wav_path: Path | None,
+        seed: int,
     ) -> Any:
-        return model.generate(
+        waveform = model.generate(
             text=text,
             reference_wav_path=(
                 None if reference_wav_path is None else str(reference_wav_path)
@@ -269,8 +271,15 @@ class _NativeRuntime:
             normalize=False,
             denoise=False,
             retry_badcase=False,
-            seed=SEED,
+            seed=seed,
         )
+        actual_seed = getattr(model.tts_model, "last_successful_seed", None)
+        if actual_seed != seed:
+            raise VoxCPM2AdapterError(
+                "VoxCPM2 realized seed が一致しません: "
+                f"expected={seed}, actual={actual_seed!r}",
+            )
+        return waveform
 
     def write_pcm16(self, path: Path, samples: Any, sample_rate: int) -> None:
         self._load_dependencies()
@@ -379,15 +388,15 @@ class VoxCPM2Adapter:
 
     def take_recipe(self) -> TakeRecipe:
         return TakeRecipe(
-            version="fixed-single-v1",
-            seed_policy="fixed",
+            version="seed-only-v1",
+            seed_policy="derived-sha256-v1",
             single_take_seed=SEED,
             seed_range=(0, 2**32 - 1),
             sampling=(
                 ("cfg_value", CFG_VALUE),
                 ("inference_timesteps", INFERENCE_TIMESTEPS),
             ),
-            supports_multiple=False,
+            supports_multiple=True,
         )
 
     def __init__(
@@ -500,6 +509,7 @@ class VoxCPM2Adapter:
                     model,
                     text=str(identity["model_text"]),
                     reference_wav_path=None,
+                    seed=SEED,
                 ),
             )
             _validate_waveform(waveform, "VoiceDesign generation")
@@ -559,7 +569,6 @@ class VoxCPM2Adapter:
             "retry_badcase": False,
             "cfg_value": CFG_VALUE,
             "inference_timesteps": INFERENCE_TIMESTEPS,
-            "seed": SEED,
             "reference_text": REFERENCE_TEXT,
             "emotion_instructions": dict(EMOTION_INSTRUCTIONS),
             "intensity_instructions": {
@@ -583,6 +592,8 @@ class VoxCPM2Adapter:
         output_wav: Path,
     ) -> Mapping[str, Any]:
         require_take_context(take_context, self.take_recipe())
+        seed = take_context.seed
+        assert seed is not None
         prepared = self._prepared_input(job)
         model = self._ensure_model()
         self._runtime.reset_peak_memory_stats()
@@ -592,6 +603,7 @@ class VoxCPM2Adapter:
                 model,
                 text=prepared.model_text,
                 reference_wav_path=prepared.reference.wav_path,
+                seed=seed,
             ),
         )
         _validate_waveform(waveform, "Controllable Cloning generation")
@@ -620,7 +632,8 @@ class VoxCPM2Adapter:
         }
         return {
             "phase_peak_vram_mib": phase_peaks,
-            "seed": SEED,
+            "seed": seed,
+            "sampling": take_context.sampling_dict(),
             "sample_rate_hz": SAMPLE_RATE_HZ,
             "reading_source": prepared.reading_source,
             "reference_kind": prepared.reference.kind,

@@ -10,7 +10,7 @@ import pytest
 
 from gaya_pipeline.adapters import supertonic3 as supertonic3_module
 from gaya_pipeline.adapters import create_adapter
-from gaya_pipeline.adapters.base import LineJob
+from gaya_pipeline.adapters.base import LineJob, TakeContext
 from gaya_pipeline.adapters.supertonic3 import (
     EXPECTED_PROVIDERS,
     EXPECTED_VOICE_STYLES,
@@ -51,19 +51,21 @@ class _FakeRuntime:
         text: str,
         voice_style: str,
         output_wav: Path,
+        seed: int,
     ) -> dict[str, Any]:
         self.calls.append(
             {
                 "text": text,
                 "voice_style": voice_style,
                 "output_wav": output_wav,
+                "seed": seed,
             },
         )
         if self.write_output:
             _write_pcm_wav(output_wav)
         return {
             "sample_rate_hz": SAMPLE_RATE_HZ,
-            "seed": SEED,
+            "seed": seed,
             "voice_style": voice_style,
         }
 
@@ -144,11 +146,11 @@ def test_profile_params_and_registry_are_exact() -> None:
         "reading": True,
     }
     recipe = adapter.take_recipe()
-    assert recipe.version == "fixed-single-v1"
-    assert recipe.seed_policy == "fixed"
+    assert recipe.version == "seed-only-v1"
+    assert recipe.seed_policy == "derived-sha256-v1"
     assert recipe.single_take_seed == SEED
     assert recipe.seed_range == (0, 2**32 - 1)
-    assert recipe.supports_multiple is False
+    assert recipe.supports_multiple is True
     assert "Open RAIL-M" in adapter.profile.license_note
     assert "機械生成" in adapter.profile.license_note
 
@@ -347,6 +349,7 @@ def test_generate_uses_exact_prepared_input_and_requires_output(
             "text": "ハイヨッ、エールフタツオマチ！",
             "voice_style": "F2",
             "output_wav": output,
+            "seed": SEED,
         },
     ]
     assert realized["reading_source"] == "line.reading"
@@ -363,6 +366,31 @@ def test_generate_uses_exact_prepared_input_and_requires_output(
     )
     with pytest.raises(Supertonic3AdapterError, match="adapter 出力"):
         missing_adapter.generate(job, TAKE_CONTEXT, tmp_path / "missing.wav")
+
+
+def test_take_seed_reaches_runtime_and_realized_metadata(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    job = _job()
+    adapter, runtime = _prepare(monkeypatch, tmp_path, [job])
+    recipe = adapter.take_recipe()
+    first_context = recipe.single_take_context()
+    second_context = TakeContext.create(
+        index=2,
+        seed=123_456,
+        recipe_version=recipe.version,
+        sampling=dict(recipe.sampling),
+    )
+
+    first = adapter.generate(job, first_context, tmp_path / "first.wav")
+    second = adapter.generate(job, second_context, tmp_path / "second.wav")
+
+    assert [call["seed"] for call in runtime.calls] == [SEED, 123_456]
+    assert first["seed"] == SEED
+    assert first["sampling"] == first_context.sampling_dict()
+    assert second["seed"] == 123_456
+    assert second["sampling"] == second_context.sampling_dict()
 
 
 def test_model_inventory_accepts_cache_and_rejects_drift(tmp_path: Path) -> None:
@@ -518,6 +546,7 @@ def test_local_runtime_locks_packages_provider_threads_seed_and_wav(
         text="テストです。",
         voice_style="F2",
         output_wav=output,
+        seed=123_456,
     )
     assert init_args == {
         "model": "supertonic-3",
@@ -537,6 +566,7 @@ def test_local_runtime_locks_packages_provider_threads_seed_and_wav(
         "verbose": False,
     }
     assert realized["onnx_providers"] == ["CPUExecutionProvider"]
+    assert realized["seed"] == 123_456
     assert realized["sample_rate_hz"] == SAMPLE_RATE_HZ
     assert output.is_file()
 
@@ -577,4 +607,5 @@ def test_local_runtime_rejects_invalid_waveforms(
             text="テスト",
             voice_style="F2",
             output_wav=tmp_path / "invalid.wav",
+            seed=123_456,
         )

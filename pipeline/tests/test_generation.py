@@ -1,23 +1,28 @@
 from __future__ import annotations
 
-import hashlib
 import json
 import shutil
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Any
 
 import pytest
 import yaml
+
 from gaya_pipeline import cli, generation
-from gaya_pipeline.adapters.base import LineJob, TakeContext, TakeRecipe
+from gaya_pipeline.adapters.base import (
+    Capabilities,
+    LineJob,
+    ModelProfile,
+    TakeContext,
+    TakeRecipe,
+)
 from gaya_pipeline.adapters.dummy import DummyAdapter
 from gaya_pipeline.audio import (
-    AudioProcessingError,
+    AudioProbe,
     AudioTools,
-    PostprocessProfile,
-    find_audio_tools,
-    probe_audio,
+    EncodedLoudnessReport,
+    NormalizedLoudnessReport,
 )
 from gaya_pipeline.generation import (
     GenerationError,
@@ -26,38 +31,202 @@ from gaya_pipeline.generation import (
     GenerationSummary,
     run_generation,
 )
+from gaya_pipeline.take_ledger import read_ledger
+from gaya_pipeline.take_sidecar import validate_take_sidecar
+
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 SCENARIOS_DIR = REPOSITORY_ROOT / "scenarios"
 VOICES_DIR = REPOSITORY_ROOT / "assets" / "voices"
 
 
-def _two_scenarios(tmp_path: Path) -> Path:
+def _scenarios(tmp_path: Path) -> Path:
     scenarios_dir = tmp_path / "scenarios"
     schema_dir = scenarios_dir / "schema"
-    schema_dir.mkdir(parents=True)
+    schema_dir.mkdir(parents=True, exist_ok=True)
     shutil.copy2(
         SCENARIOS_DIR / "schema" / "scenario.schema.json",
         schema_dir / "scenario.schema.json",
     )
+    shutil.copy2(
+        SCENARIOS_DIR / "tavern-night.yaml",
+        scenarios_dir / "tavern-night.yaml",
+    )
     voices_dir = tmp_path / "assets" / "voices"
-    voices_dir.mkdir(parents=True)
+    voices_dir.mkdir(parents=True, exist_ok=True)
     for filename in ("metadata.schema.json", "metadata.yaml"):
         shutil.copy2(VOICES_DIR / filename, voices_dir / filename)
-    for scenario_id in ("tavern-night", "market-day"):
-        shutil.copy2(
-            SCENARIOS_DIR / f"{scenario_id}.yaml",
-            scenarios_dir / f"{scenario_id}.yaml",
-        )
     return scenarios_dir
 
 
-def _sha256(path: Path) -> str:
-    return hashlib.sha256(path.read_bytes()).hexdigest()
+@pytest.fixture
+def fake_audio(monkeypatch: pytest.MonkeyPatch) -> AudioTools:
+    tools = AudioTools(
+        ffmpeg="ffmpeg",
+        ffprobe="ffprobe",
+        ffmpeg_version="ffmpeg version 8.0",
+        ffprobe_version="ffprobe version 8.0",
+        libopus_encoder=True,
+    )
+
+    def probe(_tools: AudioTools, path: Path) -> AudioProbe:
+        return AudioProbe(
+            codec_name="opus" if path.suffix == ".opus" else "pcm_s16le",
+            sample_rate_hz=48_000,
+            channels=1,
+            duration_sec=1.0,
+        )
+
+    def normalize(
+        _tools: AudioTools,
+        input_wav: Path,
+        output_wav: Path,
+        _profile: object,
+    ) -> NormalizedLoudnessReport:
+        output_wav.write_bytes(input_wav.read_bytes() + b"-normalized")
+        return NormalizedLoudnessReport(
+            integrated_lufs=-18.0,
+            true_peak_dbtp=-1.75,
+            loudness_range_lu=1.0,
+            normalization_type="linear",
+        )
+
+    def encode(
+        _tools: AudioTools,
+        input_wav: Path,
+        output_opus: Path,
+        _profile: object,
+    ) -> None:
+        output_opus.write_bytes(input_wav.read_bytes() + b"-opus")
+
+    def measure(
+        _tools: AudioTools,
+        _path: Path,
+        _profile: object,
+    ) -> EncodedLoudnessReport:
+        return EncodedLoudnessReport(
+            integrated_lufs=-18.0,
+            true_peak_dbtp=-1.0,
+            loudness_range_lu=1.0,
+        )
+
+    monkeypatch.setattr(generation, "find_audio_tools", lambda: tools)
+    monkeypatch.setattr(generation, "probe_audio", probe)
+    monkeypatch.setattr(generation, "normalize_wav", normalize)
+    monkeypatch.setattr(generation, "encode_opus", encode)
+    monkeypatch.setattr(generation, "measure_encoded_opus", measure)
+    return tools
+
+
+class FakeStochasticAdapter:
+    profile = ModelProfile(
+        id="fake-stochastic",
+        name="Fake Stochastic",
+        version="1",
+        license_note="test",
+        capabilities=Capabilities(
+            emotion=False,
+            voice_prompt=False,
+            clone=False,
+            nonverbal=False,
+            reading=False,
+        ),
+    )
+
+    def __init__(
+        self,
+        *,
+        input_salt: str = "v1",
+        output_salt: str = "stable",
+        fail_indices: set[int] | None = None,
+        wrong_sampling_indices: set[int] | None = None,
+    ) -> None:
+        self.input_salt = input_salt
+        self.output_salt = output_salt
+        self.fail_indices = fail_indices or set()
+        self.wrong_sampling_indices = wrong_sampling_indices or set()
+        self.prepare_count = 0
+        self.generate_contexts: list[TakeContext] = []
+
+    def take_recipe(self) -> TakeRecipe:
+        return TakeRecipe(
+            version="seed-only-v1",
+            seed_policy="derived-sha256-v1",
+            single_take_seed=42,
+            seed_range=(0, 2**32 - 1),
+            sampling=(("temperature", 0.8),),
+            supports_multiple=True,
+        )
+
+    def prepare(
+        self,
+        jobs: Sequence[LineJob],
+        artifacts_dir: Path,
+        voices_dir: Path,
+    ) -> None:
+        del jobs, artifacts_dir, voices_dir
+        self.prepare_count += 1
+
+    def generation_params(self) -> Mapping[str, Any]:
+        return {"backend": "fake-v1"}
+
+    def generation_input(
+        self,
+        job: LineJob,
+        take_context: TakeContext,
+    ) -> Mapping[str, Any]:
+        return {
+            "text": str(job.line["text"]),
+            "input_salt": self.input_salt,
+            "seed_seen": take_context.seed,
+        }
+
+    def generate(
+        self,
+        job: LineJob,
+        take_context: TakeContext,
+        output_wav: Path,
+    ) -> Mapping[str, Any]:
+        del job
+        self.generate_contexts.append(take_context)
+        if take_context.index in self.fail_indices:
+            raise RuntimeError(f"failed index {take_context.index}")
+        output_wav.write_bytes(
+            f"{take_context.seed}:{self.output_salt}".encode(),
+        )
+        sampling = take_context.sampling_dict()
+        if take_context.index in self.wrong_sampling_indices:
+            sampling = {"temperature": 9.9}
+        return {
+            "seed": take_context.seed,
+            "sampling": sampling,
+        }
+
+
+def _run_fake(
+    *,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    adapter: FakeStochasticAdapter,
+    takes: int = 3,
+    seed_base: int = 42,
+    force: bool = False,
+) -> GenerationSummary:
+    monkeypatch.setattr(generation, "create_adapter", lambda _model: adapter)
+    return run_generation(
+        model_id=adapter.profile.id,
+        scenarios_dir=_scenarios(tmp_path),
+        artifacts_dir=tmp_path / "artifacts",
+        scenario_id="tavern-night",
+        line_id="barmaid-001",
+        takes=takes,
+        seed_base=seed_base,
+        force=force,
+    )
 
 
 def test_line_jobにcharacter_kindをそのまま渡す(tmp_path: Path) -> None:
-    scenarios_dir = _two_scenarios(tmp_path)
+    scenarios_dir = _scenarios(tmp_path)
     scenario_path = scenarios_dir / "tavern-night.yaml"
     document = yaml.safe_load(scenario_path.read_text(encoding="utf-8"))
     character = document["characters"][0]
@@ -67,827 +236,421 @@ def test_line_jobにcharacter_kindをそのまま渡す(tmp_path: Path) -> None:
         encoding="utf-8",
     )
 
-    jobs = generation._load_jobs(
+    jobs, _sources = generation._load_jobs(
         scenarios_dir,
         scenario_id="tavern-night",
         line_id="barmaid-001",
     )
 
-    assert len(jobs) == 1
     assert jobs[0].character == character
     assert jobs[0].character["kind"] == "machine"
 
 
-def test_dummy_two_scenario_e2e_and_idempotency(
-    tmp_path: Path,
-    capsys: pytest.CaptureFixture[str],
-) -> None:
-    scenarios_dir = _two_scenarios(tmp_path)
-    artifacts_dir = tmp_path / "artifacts"
-    manifest_path = tmp_path / "data" / "manifest.json"
-
-    first = run_generation(
-        model_id="dummy",
-        scenarios_dir=scenarios_dir,
-        artifacts_dir=artifacts_dir,
-        manifest_path=manifest_path,
-    )
-    cli._print_generation_summary(first)
-    first_log = capsys.readouterr().out
-
-    assert first.generated_count == 12
-    assert first.skipped_count == 0
-    assert first.manifest_updated is True
-    assert "生成" in first_log
-    assert "RTF=" in first_log
-    assert "所要時間" in first_log
-
-    wav_files = sorted(artifacts_dir.rglob("*-dry.wav"))
-    opus_files = sorted(artifacts_dir.rglob("*-dry.opus"))
-    metadata_files = sorted(artifacts_dir.rglob("*-dry.json"))
-    assert len(wav_files) == 12
-    assert len(opus_files) == 12
-    assert len(metadata_files) == 12
-    assert not list(artifacts_dir.rglob("*-source.wav"))
-
-    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-    assert manifest["format_version"] == 3
-    assert len(manifest["models"]) == 1
-    assert manifest["models"][0]["id"] == "dummy"
-    assert manifest["models"][0]["capabilities"] == {
-        "emotion": False,
-        "voice_prompt": False,
-        "clone": False,
-        "nonverbal": False,
-        "reading": False,
-    }
-    assert len(manifest["clips"]) == 12
-    assert manifest["failures"] == []
-    for clip in manifest["clips"]:
-        opus_path = artifacts_dir / clip["path"]
-        assert opus_path.is_file()
-        assert clip["sha256"] == _sha256(opus_path)
-        assert clip["rtf"] >= 0
-        assert set(clip["loudness"]) == {
-            "source",
-            "i_lufs",
-            "tp_dbtp",
-            "shortfall",
-        }
-        assert clip["loudness"]["source"] == "encoded_opus"
-        assert clip["loudness"]["i_lufs"] == pytest.approx(-18.0, abs=0.2)
-        assert clip["loudness"]["tp_dbtp"] <= -0.9
-        assert clip["loudness"]["shortfall"] is False
-
-    tools = find_audio_tools()
-    opus_probe = probe_audio(tools, opus_files[0])
-    assert opus_probe.codec_name == "opus"
-    assert opus_probe.sample_rate_hz == 48_000
-    assert opus_probe.channels == 1
-
-    for metadata_path in metadata_files:
-        metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
-        assert metadata["format_version"] == 3
-        assert metadata["take"] == {
-            "index": 1,
-            "seed": None,
-            "recipe_version": "fixed-single-v1",
-            "sampling": {},
-        }
-        assert len(metadata["generation_input_sha256"]) == 64
-        assert len(metadata["take_id"]) == 64
-        assert metadata["toolchain"]["libopus_encoder"] is True
-        assert metadata["toolchain"]["ffmpeg_version"].startswith("ffmpeg version ")
-        assert metadata["toolchain"]["ffprobe_version"].startswith("ffprobe version ")
-        profile = PostprocessProfile()
-        assert metadata["postprocess"] == profile.as_dict()
-        assert "true_peak_dbtp" not in metadata["postprocess"]
-        loudness = metadata["loudness"]
-        assert set(loudness) == {"normalized_wav", "encoded_opus"}
-        assert loudness["normalized_wav"]["normalization_type"] in {
-            "linear",
-            "dynamic",
-        }
-        assert (
-            loudness["normalized_wav"]["true_peak_dbtp"]
-            <= profile.pre_encode_true_peak_target_dbtp + 0.1
-        )
-        assert set(loudness["encoded_opus"]) == {
-            "integrated_lufs",
-            "true_peak_dbtp",
-            "loudness_range_lu",
-        }
-        assert loudness["encoded_opus"]["integrated_lufs"] == pytest.approx(
-            -18.0,
-            abs=0.2,
-        )
-        assert (
-            loudness["encoded_opus"]["true_peak_dbtp"]
-            <= profile.distribution_true_peak_max_dbtp
-        )
-
-    tracked_outputs = [manifest_path, *wav_files, *opus_files, *metadata_files]
-    mtimes = {path: path.stat().st_mtime_ns for path in tracked_outputs}
-    manifest_bytes = manifest_path.read_bytes()
-
-    second = run_generation(
-        model_id="dummy",
-        scenarios_dir=scenarios_dir,
-        artifacts_dir=artifacts_dir,
-        manifest_path=manifest_path,
-    )
-    cli._print_generation_summary(second)
-    second_log = capsys.readouterr().out
-
-    assert second.generated_count == 0
-    assert second.skipped_count == 12
-    assert second.manifest_updated is False
-    assert "スキップ" in second_log
-    assert manifest_path.read_bytes() == manifest_bytes
-    assert {path: path.stat().st_mtime_ns for path in tracked_outputs} == mtimes
-
-
-def test_selector_hash_invalidation_force_and_failed_replacement(
+def test_n_takeは固有path_sidecar_ledgerとidentityを生成する(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
+    fake_audio: AudioTools,
 ) -> None:
-    scenarios_dir = _two_scenarios(tmp_path)
-    artifacts_dir = tmp_path / "artifacts"
-    manifest_path = tmp_path / "data" / "manifest.json"
+    del fake_audio
+    summary = _run_fake(
+        tmp_path=tmp_path,
+        monkeypatch=monkeypatch,
+        adapter=FakeStochasticAdapter(),
+    )
 
-    def run_selected(
-        *,
-        line_id: str = "barmaid-001",
-        force: bool = False,
-    ) -> GenerationSummary:
-        return run_generation(
-            model_id="dummy",
-            scenarios_dir=scenarios_dir,
-            artifacts_dir=artifacts_dir,
-            manifest_path=manifest_path,
-            scenario_id="tavern-night",
-            line_id=line_id,
-            force=force,
+    assert summary.generated_count == 3
+    assert summary.skipped_count == 0
+    assert summary.failed_count == 0
+    ledger = read_ledger(summary.ledger_path)
+    assert [attempt["take_index"] for attempt in ledger["attempts"]] == [1, 2, 3]
+    assert len({attempt["generation"]["seed"] for attempt in ledger["attempts"]}) == 3
+    assert len({attempt["generation_input_sha256"] for attempt in ledger["attempts"]}) == 3
+    assert len({attempt["take_id"] for attempt in ledger["attempts"]}) == 3
+
+    paths: set[str] = set()
+    for attempt in ledger["attempts"]:
+        assert attempt["status"] == "generated"
+        for kind in ("wav", "opus"):
+            relative = attempt["audio"][f"{kind}_path"]
+            assert relative not in paths
+            paths.add(relative)
+            assert (summary.ledger_path.parent / relative).is_file()
+        sidecar_path = (
+            summary.ledger_path.parent
+            / attempt["audio"]["opus_path"]
+        ).with_suffix(".json")
+        sidecar = validate_take_sidecar(
+            json.loads(sidecar_path.read_text(encoding="utf-8")),
         )
+        assert sidecar["run_id"] == summary.run_id
+        assert sidecar["take_id"] == attempt["take_id"]
 
-    first = run_selected()
-    second = run_selected()
-    assert first.generated_count == 1
-    assert second.skipped_count == 1
 
-    scenario_path = scenarios_dir / "tavern-night.yaml"
-    document = yaml.safe_load(scenario_path.read_text(encoding="utf-8"))
-    document["lines"][0]["text"] += "！"
-    scenario_path.write_text(
-        yaml.safe_dump(document, allow_unicode=True, sort_keys=False),
-        encoding="utf-8",
+def test_whole_run_cacheとforceは既存provenanceを変更しない(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    fake_audio: AudioTools,
+) -> None:
+    del fake_audio
+    first_adapter = FakeStochasticAdapter()
+    first = _run_fake(
+        tmp_path=tmp_path,
+        monkeypatch=monkeypatch,
+        adapter=first_adapter,
+        takes=2,
     )
+    first_bytes = {
+        path.relative_to(first.ledger_path.parent).as_posix(): path.read_bytes()
+        for path in first.ledger_path.parent.rglob("*")
+        if path.is_file()
+    }
 
-    changed = run_selected()
-    forced = run_selected(force=True)
-    assert changed.generated_count == 1
-    assert forced.generated_count == 1
-    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-    assert len(manifest["clips"]) == 1
+    cached_adapter = FakeStochasticAdapter()
+    cached = _run_fake(
+        tmp_path=tmp_path,
+        monkeypatch=monkeypatch,
+        adapter=cached_adapter,
+        takes=2,
+    )
+    assert cached.run_id == first.run_id
+    assert cached.generated_count == 0
+    assert cached.skipped_count == 2
+    assert cached_adapter.generate_contexts == []
 
-    output_dir = artifacts_dir / "audio" / "dummy" / "tavern-night"
-    stable_artifact_paths = [
-        output_dir / "barmaid-001-dry.wav",
-        output_dir / "barmaid-001-dry.opus",
-        output_dir / "barmaid-001-dry.json",
+    forced_adapter = FakeStochasticAdapter()
+    forced = _run_fake(
+        tmp_path=tmp_path,
+        monkeypatch=monkeypatch,
+        adapter=forced_adapter,
+        takes=2,
+        force=True,
+    )
+    assert forced.run_id != first.run_id
+    assert [record.take_id for record in forced.records] == [
+        record.take_id for record in first.records
     ]
-    stable_bytes = {path: path.read_bytes() for path in stable_artifact_paths}
-    metadata_path = output_dir / "barmaid-001-dry.json"
-    old_metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
-    old_metadata["format_version"] = 1
-    metadata_path.write_text(
-        json.dumps(old_metadata, ensure_ascii=False),
-        encoding="utf-8",
+    assert {
+        path.relative_to(first.ledger_path.parent).as_posix(): path.read_bytes()
+        for path in first.ledger_path.parent.rglob("*")
+        if path.is_file()
+    } == first_bytes
+
+
+def test_seed_baseとresolved_input変更は新しいrunとidentityになる(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    fake_audio: AudioTools,
+) -> None:
+    del fake_audio
+    first = _run_fake(
+        tmp_path=tmp_path,
+        monkeypatch=monkeypatch,
+        adapter=FakeStochasticAdapter(),
+        takes=1,
     )
-    old_sidecar = run_selected()
-    assert old_sidecar.failed_count == 1
-    assert "format_version" in old_sidecar.failures[0].message
-    regenerated_after_old_sidecar = run_selected(force=True)
-    assert regenerated_after_old_sidecar.generated_count == 1
-
-    identity_metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
-    identity_metadata["take_id"] = "0" * 64
-    metadata_path.write_text(
-        json.dumps(identity_metadata, ensure_ascii=False),
-        encoding="utf-8",
+    seed_changed = _run_fake(
+        tmp_path=tmp_path,
+        monkeypatch=monkeypatch,
+        adapter=FakeStochasticAdapter(),
+        takes=1,
+        seed_base=43,
     )
-    broken_identity = run_selected()
-    assert broken_identity.failed_count == 1
-    assert "provenance" in broken_identity.failures[0].message
-    regenerated_after_broken_identity = run_selected(force=True)
-    assert regenerated_after_broken_identity.generated_count == 1
-
-    broken_metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
-    del broken_metadata["loudness"]
-    metadata_path.write_text(
-        json.dumps(broken_metadata, ensure_ascii=False),
-        encoding="utf-8",
+    input_changed = _run_fake(
+        tmp_path=tmp_path,
+        monkeypatch=monkeypatch,
+        adapter=FakeStochasticAdapter(input_salt="v2"),
+        takes=1,
     )
-    broken = run_selected()
-    assert broken.failed_count == 1
-    assert "生成メタの項目" in broken.failures[0].message
-    forced_after_broken_metadata = run_selected(force=True)
-    assert forced_after_broken_metadata.generated_count == 1
-    stable_bytes = {path: path.read_bytes() for path in stable_artifact_paths}
 
-    original_generate = DummyAdapter.generate
-
-    def fail_generation(
-        adapter: DummyAdapter,
-        job: object,
-        take_context: TakeContext,
-        output_wav: Path,
-    ) -> dict[str, object]:
-        del adapter, job, take_context, output_wav
-        raise RuntimeError("CUDA out of memory")
-
-    monkeypatch.setattr(DummyAdapter, "generate", fail_generation)
-    failed = run_selected(force=True)
-    assert failed.failed_count == 1
-    assert "CUDA out of memory" in failed.failures[0].message
-    assert {path: path.read_bytes() for path in stable_artifact_paths} == stable_bytes
-    assert not list(output_dir.glob("*.pending.*"))
-    failed_manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-    assert failed_manifest["clips"] == []
-    assert failed_manifest["failures"] == [
+    assert len({first.run_id, seed_changed.run_id, input_changed.run_id}) == 3
+    assert len(
         {
-            "model": "dummy",
-            "scenario": "tavern-night",
-            "line": "barmaid-001",
-            "variant": "dry",
-            "reason": "generation_failed",
+            first.records[0].take_id,
+            seed_changed.records[0].take_id,
+            input_changed.records[0].take_id,
         },
-    ]
-
-    monkeypatch.setattr(DummyAdapter, "generate", original_generate)
-    retried = run_selected()
-    assert retried.generated_count == 1
-    assert retried.skipped_count == 0
-    recovered_manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-    assert len(recovered_manifest["clips"]) == 1
-    assert recovered_manifest["failures"] == []
-
-    with pytest.raises(GenerationError, match="--scenario"):
-        run_generation(
-            model_id="dummy",
-            scenarios_dir=scenarios_dir,
-            artifacts_dir=artifacts_dir,
-            manifest_path=manifest_path,
-            line_id="barmaid-001",
-        )
-    with pytest.raises(GenerationError, match="line id"):
-        run_selected(line_id="missing-line")
+    ) == 3
 
 
-def test_adapter_boundary_errors_are_controlled(
+def test_forceで同inputから異なる音声があればcacheを自動選択しない(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
+    fake_audio: AudioTools,
 ) -> None:
-    scenarios_dir = _two_scenarios(tmp_path)
-    artifacts_dir = tmp_path / "artifacts"
-    manifest_path = tmp_path / "data" / "manifest.json"
-
-    def run_selected() -> GenerationSummary:
-        return run_generation(
-            model_id="dummy",
-            scenarios_dir=scenarios_dir,
-            artifacts_dir=artifacts_dir,
-            manifest_path=manifest_path,
-            scenario_id="tavern-night",
-            line_id="barmaid-001",
-        )
-
-    original_create_adapter = generation.create_adapter
-
-    def fail_initialization(model_id: str) -> DummyAdapter:
-        raise RuntimeError(f"{model_id}: CUDA initialization failed")
-
-    monkeypatch.setattr(generation, "create_adapter", fail_initialization)
-    with pytest.raises(
-        GenerationError,
-        match="adapter 初期化.*CUDA initialization failed",
-    ):
-        run_selected()
-
-    monkeypatch.setattr(generation, "create_adapter", original_create_adapter)
-
-    def fail_preparation(
-        adapter: DummyAdapter,
-        jobs: object,
-        artifacts_dir: Path,
-        voices_dir: Path,
-    ) -> None:
-        del adapter, jobs, artifacts_dir, voices_dir
-        raise RuntimeError("CUDA preparation failed")
-
-    monkeypatch.setattr(DummyAdapter, "prepare", fail_preparation)
-    with pytest.raises(
-        GenerationError,
-        match="adapter 準備.*CUDA preparation failed",
-    ):
-        run_selected()
-
-    monkeypatch.undo()
-
-    def fail_input(
-        adapter: DummyAdapter,
-        job: object,
-        take_context: TakeContext,
-    ) -> dict[str, object]:
-        del adapter, job, take_context
-        raise RuntimeError("prompt preprocessing failed")
-
-    monkeypatch.setattr(DummyAdapter, "generation_input", fail_input)
-    failed = run_selected()
-    assert failed.failed_count == 1
-    assert "adapter 入力構築" in failed.failures[0].message
-    assert "prompt preprocessing" in failed.failures[0].message
-
-
-def test_adapter_prepare_runs_once_before_generation_input(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    scenarios_dir = _two_scenarios(tmp_path)
-    events: list[str] = []
-    input_context_ids: dict[str, int] = {}
-    generate_context_ids: dict[str, int] = {}
-    original_prepare = DummyAdapter.prepare
-    original_generation_input = DummyAdapter.generation_input
-    original_generate = DummyAdapter.generate
-
-    def record_prepare(
-        adapter: DummyAdapter,
-        jobs: object,
-        artifacts_dir: Path,
-        voices_dir: Path,
-    ) -> None:
-        events.append(f"prepare:{voices_dir.as_posix()}")
-        original_prepare(adapter, jobs, artifacts_dir, voices_dir)
-
-    def record_generation_input(
-        adapter: DummyAdapter,
-        job: LineJob,
-        take_context: TakeContext,
-    ) -> Mapping[str, Any]:
-        events.append(f"input:{job.line_id}")
-        input_context_ids[job.line_id] = id(take_context)
-        return original_generation_input(adapter, job, take_context)
-
-    def record_generate(
-        adapter: DummyAdapter,
-        job: LineJob,
-        take_context: TakeContext,
-        output_wav: Path,
-    ) -> Mapping[str, Any]:
-        generate_context_ids[job.line_id] = id(take_context)
-        return original_generate(adapter, job, take_context, output_wav)
-
-    monkeypatch.setattr(DummyAdapter, "prepare", record_prepare)
-    monkeypatch.setattr(
-        DummyAdapter,
-        "generation_input",
-        record_generation_input,
+    del fake_audio
+    _run_fake(
+        tmp_path=tmp_path,
+        monkeypatch=monkeypatch,
+        adapter=FakeStochasticAdapter(output_salt="one"),
+        takes=1,
     )
-    monkeypatch.setattr(DummyAdapter, "generate", record_generate)
-
-    summary = run_generation(
-        model_id="dummy",
-        scenarios_dir=scenarios_dir,
-        artifacts_dir=tmp_path / "artifacts",
-        manifest_path=tmp_path / "data" / "manifest.json",
-        scenario_id="tavern-night",
-    )
-
-    assert summary.generated_count == 6
-    assert events[0] == (
-        f"prepare:{(scenarios_dir.parent / 'assets' / 'voices').as_posix()}"
-    )
-    assert sum(event.startswith("prepare:") for event in events) == 1
-    assert events[1:] == [
-        "input:barmaid-001",
-        "input:barmaid-002",
-        "input:drunkard-001",
-        "input:drunkard-002",
-        "input:old-regular-001",
-        "input:old-regular-002",
-    ]
-    assert input_context_ids == generate_context_ids
-
-
-def test_postprocess_algorithm_version_invalidates_cached_audio(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    scenarios_dir = _two_scenarios(tmp_path)
-    artifacts_dir = tmp_path / "artifacts"
-    manifest_path = tmp_path / "data" / "manifest.json"
-
-    monkeypatch.setattr(
-        generation,
-        "PostprocessProfile",
-        lambda: PostprocessProfile(algorithm_version=1),
-    )
-    first = run_generation(
-        model_id="dummy",
-        scenarios_dir=scenarios_dir,
-        artifacts_dir=artifacts_dir,
-        manifest_path=manifest_path,
-        scenario_id="tavern-night",
-        line_id="barmaid-001",
-    )
-    monkeypatch.setattr(generation, "PostprocessProfile", PostprocessProfile)
-    upgraded = run_generation(
-        model_id="dummy",
-        scenarios_dir=scenarios_dir,
-        artifacts_dir=artifacts_dir,
-        manifest_path=manifest_path,
-        scenario_id="tavern-night",
-        line_id="barmaid-001",
-    )
-
-    assert first.generated_count == 1
-    assert upgraded.generated_count == 1
-    metadata_path = (
-        artifacts_dir / "audio" / "dummy" / "tavern-night" / "barmaid-001-dry.json"
-    )
-    metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
-    assert metadata["postprocess"] == PostprocessProfile().as_dict()
-    assert metadata["postprocess"]["algorithm_version"] == 7
-
-
-def test_take_context変更でgeneration_inputとcacheが変わる(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    scenarios_dir = _two_scenarios(tmp_path)
-    artifacts_dir = tmp_path / "artifacts"
-    manifest_path = tmp_path / "data" / "manifest.json"
-    arguments = {
-        "model_id": "dummy",
-        "scenarios_dir": scenarios_dir,
-        "artifacts_dir": artifacts_dir,
-        "manifest_path": manifest_path,
-        "scenario_id": "tavern-night",
-        "line_id": "barmaid-001",
-    }
-    first = run_generation(**arguments)
-    metadata_path = (
-        artifacts_dir / "audio" / "dummy" / "tavern-night" / "barmaid-001-dry.json"
-    )
-    first_metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
-
-    def changed_recipe(adapter: DummyAdapter) -> TakeRecipe:
-        del adapter
-        return TakeRecipe(
-            version="fixed-single-v2",
-            seed_policy="none",
-            single_take_seed=None,
-            seed_range=None,
-            sampling=(),
-            supports_multiple=False,
-        )
-
-    monkeypatch.setattr(DummyAdapter, "take_recipe", changed_recipe)
-    changed = run_generation(**arguments)
-    changed_metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
-
-    assert first.generated_count == 1
-    assert changed.generated_count == 1
-    assert first_metadata["generation_input_sha256"] != (
-        changed_metadata["generation_input_sha256"]
-    )
-    assert first_metadata["take_id"] != changed_metadata["take_id"]
-
-
-def test_encoder_toolchain変更でgeneration_inputとcacheが変わる(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    scenarios_dir = _two_scenarios(tmp_path)
-    artifacts_dir = tmp_path / "artifacts"
-    manifest_path = tmp_path / "data" / "manifest.json"
-    arguments = {
-        "model_id": "dummy",
-        "scenarios_dir": scenarios_dir,
-        "artifacts_dir": artifacts_dir,
-        "manifest_path": manifest_path,
-        "scenario_id": "tavern-night",
-        "line_id": "barmaid-001",
-    }
-    first = run_generation(**arguments)
-    metadata_path = (
-        artifacts_dir / "audio" / "dummy" / "tavern-night" / "barmaid-001-dry.json"
-    )
-    first_metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
-    actual = find_audio_tools()
-
-    monkeypatch.setattr(
-        generation,
-        "find_audio_tools",
-        lambda: AudioTools(
-            ffmpeg=actual.ffmpeg,
-            ffprobe=actual.ffprobe,
-            ffmpeg_version=f"{actual.ffmpeg_version} test-other-build",
-            ffprobe_version=actual.ffprobe_version,
-            libopus_encoder=True,
-        ),
-    )
-    changed = run_generation(**arguments)
-    changed_metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
-
-    assert first.generated_count == 1
-    assert changed.generated_count == 1
-    assert first_metadata["generation_input_sha256"] != (
-        changed_metadata["generation_input_sha256"]
-    )
-
-
-def test_force_regeneration_preserves_opus_hash(tmp_path: Path) -> None:
-    scenarios_dir = _two_scenarios(tmp_path)
-    artifacts_dir = tmp_path / "artifacts"
-    manifest_path = tmp_path / "data" / "manifest.json"
-    arguments = {
-        "model_id": "dummy",
-        "scenarios_dir": scenarios_dir,
-        "artifacts_dir": artifacts_dir,
-        "manifest_path": manifest_path,
-        "scenario_id": "tavern-night",
-        "line_id": "barmaid-001",
-    }
-
-    run_generation(**arguments)
-    first_manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-    first_sha256 = first_manifest["clips"][0]["sha256"]
-
-    run_generation(**arguments, force=True)
-    second_manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-
-    assert second_manifest["clips"][0]["sha256"] == first_sha256
-
-
-def test_encoded_opus_gate_failure_does_not_reencode_or_replace_outputs(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    scenarios_dir = _two_scenarios(tmp_path)
-    artifacts_dir = tmp_path / "artifacts"
-    manifest_path = tmp_path / "data" / "manifest.json"
-    arguments = {
-        "model_id": "dummy",
-        "scenarios_dir": scenarios_dir,
-        "artifacts_dir": artifacts_dir,
-        "manifest_path": manifest_path,
-        "scenario_id": "tavern-night",
-        "line_id": "barmaid-001",
-    }
-    run_generation(**arguments)
-    output_dir = artifacts_dir / "audio" / "dummy" / "tavern-night"
-    stable_paths = [
-        output_dir / "barmaid-001-dry.wav",
-        output_dir / "barmaid-001-dry.opus",
-        output_dir / "barmaid-001-dry.json",
-    ]
-    stable_bytes = {path: path.read_bytes() for path in stable_paths}
-    original_encode_opus = generation.encode_opus
-    encode_calls = 0
-
-    def count_encode(*args: object, **kwargs: object) -> None:
-        nonlocal encode_calls
-        encode_calls += 1
-        original_encode_opus(*args, **kwargs)
-
-    def reject_encoded_opus(*args: object, **kwargs: object) -> None:
-        raise AudioProcessingError(
-            "エンコード後 Opus が loudness profile を満たしません。",
-        )
-
-    monkeypatch.setattr(generation, "encode_opus", count_encode)
-    monkeypatch.setattr(generation, "measure_encoded_opus", reject_encoded_opus)
-
-    failed = run_generation(**arguments, force=True)
-
-    assert failed.failed_count == 1
-    assert "エンコード後 Opus" in failed.failures[0].message
-    assert encode_calls == 1
-    assert {path: path.read_bytes() for path in stable_paths} == stable_bytes
-    assert not list(output_dir.glob("*.pending.*"))
-
-
-def test_later_batch_failure_continues_and_keeps_manifest_in_sync(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    scenarios_dir = _two_scenarios(tmp_path)
-    artifacts_dir = tmp_path / "artifacts"
-    manifest_path = tmp_path / "data" / "manifest.json"
-
-    def run_scenario(*, force: bool = False) -> GenerationSummary:
-        return run_generation(
-            model_id="dummy",
-            scenarios_dir=scenarios_dir,
-            artifacts_dir=artifacts_dir,
-            manifest_path=manifest_path,
-            scenario_id="tavern-night",
-            force=force,
-        )
-
-    baseline = run_scenario()
-    assert baseline.generated_count == 6
-    baseline_manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-    baseline_first_sha = baseline_manifest["clips"][0]["sha256"]
-
-    scenario_path = scenarios_dir / "tavern-night.yaml"
-    document = yaml.safe_load(scenario_path.read_text(encoding="utf-8"))
-    document["lines"][0]["text"] += "！"
-    scenario_path.write_text(
-        yaml.safe_dump(document, allow_unicode=True, sort_keys=False),
-        encoding="utf-8",
-    )
-
-    original_generate = DummyAdapter.generate
-    generation_count = 0
-
-    def fail_second_generation(
-        adapter: DummyAdapter,
-        job: LineJob,
-        take_context: TakeContext,
-        output_wav: Path,
-    ) -> Mapping[str, Any]:
-        nonlocal generation_count
-        generation_count += 1
-        if generation_count == 2:
-            raise RuntimeError("CUDA out of memory later")
-        return original_generate(adapter, job, take_context, output_wav)
-
-    monkeypatch.setattr(DummyAdapter, "generate", fail_second_generation)
-    summary = run_scenario(force=True)
-
-    assert generation_count == 6
-    assert summary.generated_count == 5
-    assert summary.failed_count == 1
-    assert summary.failures[0].line_id == "barmaid-002"
-    assert "CUDA out of memory later" in summary.failures[0].message
-    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-    assert len(manifest["clips"]) == 5
-    assert manifest["failures"] == [
-        {
-            "model": "dummy",
-            "scenario": "tavern-night",
-            "line": "barmaid-002",
-            "variant": "dry",
-            "reason": "generation_failed",
-        },
-    ]
-    assert manifest["clips"][0]["sha256"] != baseline_first_sha
-    for clip in manifest["clips"]:
-        assert clip["sha256"] == _sha256(artifacts_dir / clip["path"])
-
-
-def test_first_batch_failure_continues_remaining_lines(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    scenarios_dir = _two_scenarios(tmp_path)
-    artifacts_dir = tmp_path / "artifacts"
-    manifest_path = tmp_path / "data" / "manifest.json"
-
-    baseline = run_generation(
-        model_id="dummy",
-        scenarios_dir=scenarios_dir,
-        artifacts_dir=artifacts_dir,
-        manifest_path=manifest_path,
-        scenario_id="tavern-night",
-    )
-    assert baseline.generated_count == 6
-    old_manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-    baseline_sha = {clip["line"]: clip["sha256"] for clip in old_manifest["clips"]}
-    generation_count = 0
-    original_generate = DummyAdapter.generate
-
-    def fail_first_generation(
-        adapter: DummyAdapter,
-        job: LineJob,
-        take_context: TakeContext,
-        output_wav: Path,
-    ) -> Mapping[str, Any]:
-        nonlocal generation_count
-        generation_count += 1
-        if generation_count == 1:
-            raise RuntimeError("first job failed")
-        return original_generate(adapter, job, take_context, output_wav)
-
-    monkeypatch.setattr(DummyAdapter, "generate", fail_first_generation)
-    summary = run_generation(
-        model_id="dummy",
-        scenarios_dir=scenarios_dir,
-        artifacts_dir=artifacts_dir,
-        manifest_path=manifest_path,
-        scenario_id="tavern-night",
+    _run_fake(
+        tmp_path=tmp_path,
+        monkeypatch=monkeypatch,
+        adapter=FakeStochasticAdapter(output_salt="two"),
+        takes=1,
         force=True,
     )
 
-    output = json.loads(manifest_path.read_text(encoding="utf-8"))
-    assert generation_count == 6
-    assert summary.generated_count == 5
-    assert summary.failed_count == 1
-    assert summary.failures[0].line_id == "barmaid-001"
-    assert "first job failed" in summary.failures[0].message
-    assert len(output["clips"]) == 5
-    assert all(
-        clip["sha256"] == baseline_sha[clip["line"]]
-        for clip in output["clips"]
-    )
-    assert output["failures"][0]["line"] == "barmaid-001"
+    with pytest.raises(GenerationError, match="自動選択"):
+        _run_fake(
+            tmp_path=tmp_path,
+            monkeypatch=monkeypatch,
+            adapter=FakeStochasticAdapter(output_salt="three"),
+            takes=1,
+        )
 
 
-def test_manifest_write_failure_preserves_original_generation_error(
+def test_generation_failureは一度だけ記録して残りを続行する(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
+    fake_audio: AudioTools,
 ) -> None:
-    scenarios_dir = _two_scenarios(tmp_path)
-    artifacts_dir = tmp_path / "artifacts"
-    manifest_path = tmp_path / "data" / "manifest.json"
-    original_update_manifest = generation.update_manifest
+    del fake_audio
+    adapter = FakeStochasticAdapter(fail_indices={2})
+    summary = _run_fake(
+        tmp_path=tmp_path,
+        monkeypatch=monkeypatch,
+        adapter=adapter,
+    )
 
-    def fail_generation(
-        adapter: DummyAdapter,
-        job: LineJob,
-        take_context: TakeContext,
-        output_wav: Path,
-    ) -> Mapping[str, Any]:
-        del adapter, job, take_context, output_wav
-        raise RuntimeError("CUDA original failure")
+    assert [context.index for context in adapter.generate_contexts] == [1, 2, 3]
+    assert summary.generated_count == 2
+    assert summary.failed_count == 1
+    assert summary.failures[0].take_index == 2
+    statuses = [
+        attempt["status"]
+        for attempt in read_ledger(summary.ledger_path)["attempts"]
+    ]
+    assert statuses == ["generated", "generation_failed", "generated"]
 
-    def fail_failure_write(
-        path: Path,
-        manifest: dict[str, Any],
-        profile: object,
-        clips: list[dict[str, Any]],
-        failures: list[dict[str, Any]],
-        **scope: object,
-    ) -> bool:
-        if failures:
-            raise OSError("manifest disk failure")
-        return original_update_manifest(
-            path,
-            manifest,
-            profile,  # type: ignore[arg-type]
-            clips,
-            failures,
-            **scope,  # type: ignore[arg-type]
+
+def test_generated_checkpoint_failureは成果物を除去して残りを続行する(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    fake_audio: AudioTools,
+) -> None:
+    del fake_audio
+    adapter = FakeStochasticAdapter()
+    real_write_ledger = generation.write_ledger_atomic
+    write_count = 0
+
+    def flaky_write_ledger(path: Path, ledger: dict[str, Any]) -> None:
+        nonlocal write_count
+        write_count += 1
+        if write_count == 2:
+            raise OSError("transient checkpoint failure")
+        real_write_ledger(path, ledger)
+
+    monkeypatch.setattr(generation, "write_ledger_atomic", flaky_write_ledger)
+    summary = _run_fake(
+        tmp_path=tmp_path,
+        monkeypatch=monkeypatch,
+        adapter=adapter,
+        takes=2,
+    )
+
+    assert [context.index for context in adapter.generate_contexts] == [1, 2]
+    assert summary.generated_count == 1
+    assert summary.failed_count == 1
+    assert "ledger checkpoint" in summary.failures[0].message
+    ledger = read_ledger(summary.ledger_path)
+    assert [attempt["status"] for attempt in ledger["attempts"]] == [
+        "generation_failed",
+        "generated",
+    ]
+    assert not list(summary.ledger_path.parent.rglob("take-0001.*"))
+
+
+def test_realized_sampling不一致はgeneration_failedにする(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    fake_audio: AudioTools,
+) -> None:
+    del fake_audio
+    summary = _run_fake(
+        tmp_path=tmp_path,
+        monkeypatch=monkeypatch,
+        adapter=FakeStochasticAdapter(wrong_sampling_indices={1}),
+        takes=1,
+    )
+
+    assert summary.failed_count == 1
+    assert "realized sampling" in summary.failures[0].message
+    attempt = read_ledger(summary.ledger_path)["attempts"][0]
+    assert attempt["status"] == "generation_failed"
+    assert not list(summary.ledger_path.parent.rglob("take-0001.json"))
+
+
+def test_prepare中のscenario変更はrun作成前に拒否する(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    fake_audio: AudioTools,
+) -> None:
+    del fake_audio
+    scenarios_dir = _scenarios(tmp_path)
+    scenario_path = scenarios_dir / "tavern-night.yaml"
+    adapter = FakeStochasticAdapter()
+
+    def mutate_scenario(
+        jobs: Sequence[LineJob],
+        artifacts_dir: Path,
+        voices_dir: Path,
+    ) -> None:
+        del jobs, artifacts_dir, voices_dir
+        scenario_path.write_text(
+            scenario_path.read_text(encoding="utf-8") + "\n",
+            encoding="utf-8",
         )
 
-    monkeypatch.setattr(DummyAdapter, "generate", fail_generation)
-    monkeypatch.setattr(generation, "update_manifest", fail_failure_write)
+    monkeypatch.setattr(adapter, "prepare", mutate_scenario)
+    monkeypatch.setattr(generation, "create_adapter", lambda _model: adapter)
 
-    with pytest.raises(GenerationError) as raised:
+    with pytest.raises(GenerationError, match="scenario source が変更"):
         run_generation(
-            model_id="dummy",
+            model_id=adapter.profile.id,
             scenarios_dir=scenarios_dir,
-            artifacts_dir=artifacts_dir,
-            manifest_path=manifest_path,
+            artifacts_dir=tmp_path / "artifacts",
             scenario_id="tavern-night",
             line_id="barmaid-001",
-            force=True,
+            takes=1,
+            seed_base=42,
+        )
+    assert adapter.generate_contexts == []
+    assert not (tmp_path / "artifacts" / "takes").exists()
+
+
+def test_unsupported_nとseed_collisionはprepare前に拒否する(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    fake_audio: AudioTools,
+) -> None:
+    del fake_audio
+
+    class SpyDummy(DummyAdapter):
+        def __init__(self) -> None:
+            self.prepare_count = 0
+
+        def prepare(
+            self,
+            jobs: Sequence[LineJob],
+            artifacts_dir: Path,
+            voices_dir: Path,
+        ) -> None:
+            del jobs, artifacts_dir, voices_dir
+            self.prepare_count += 1
+
+    deterministic = SpyDummy()
+    monkeypatch.setattr(generation, "create_adapter", lambda _model: deterministic)
+    with pytest.raises(GenerationError, match="複数 take"):
+        run_generation(
+            model_id="dummy",
+            scenarios_dir=_scenarios(tmp_path),
+            artifacts_dir=tmp_path / "artifacts",
+            scenario_id="tavern-night",
+            line_id="barmaid-001",
+            takes=2,
+            seed_base=42,
+        )
+    assert deterministic.prepare_count == 0
+    assert not (tmp_path / "artifacts" / "takes").exists()
+
+    stochastic = FakeStochasticAdapter()
+    monkeypatch.setattr(generation, "create_adapter", lambda _model: stochastic)
+    monkeypatch.setattr(generation, "derive_seed", lambda **_arguments: 7)
+    with pytest.raises(GenerationError, match="seed が重複"):
+        run_generation(
+            model_id=stochastic.profile.id,
+            scenarios_dir=_scenarios(tmp_path / "collision"),
+            artifacts_dir=tmp_path / "collision" / "artifacts",
+            scenario_id="tavern-night",
+            line_id="barmaid-001",
+            takes=2,
+            seed_base=42,
+        )
+    assert stochastic.prepare_count == 0
+
+
+def test_public_manifestは読まず書かず存在しなくても生成できる(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    fake_audio: AudioTools,
+) -> None:
+    del fake_audio
+    manifest_path = tmp_path / "data" / "manifest.json"
+    manifest_path.parent.mkdir()
+    manifest_path.write_bytes(b"legacy-public-manifest\n")
+
+    _run_fake(
+        tmp_path=tmp_path,
+        monkeypatch=monkeypatch,
+        adapter=FakeStochasticAdapter(),
+        takes=1,
+    )
+
+    assert manifest_path.read_bytes() == b"legacy-public-manifest\n"
+    manifest_path.unlink()
+    _run_fake(
+        tmp_path=tmp_path / "missing",
+        monkeypatch=monkeypatch,
+        adapter=FakeStochasticAdapter(),
+        takes=1,
+    )
+    assert not (tmp_path / "missing" / "data" / "manifest.json").exists()
+
+
+@pytest.mark.parametrize(
+    ("takes", "seed_base", "message"),
+    [
+        (0, 42, "--takes"),
+        (True, 42, "--takes"),
+        (1, True, "--seed-base"),
+    ],
+)
+def test_cli_inputのboolと範囲を拒否(
+    tmp_path: Path,
+    takes: object,
+    seed_base: object,
+    message: str,
+) -> None:
+    with pytest.raises(GenerationError, match=message):
+        run_generation(
+            model_id="dummy",
+            scenarios_dir=_scenarios(tmp_path),
+            artifacts_dir=tmp_path / "artifacts",
+            takes=takes,  # type: ignore[arg-type]
+            seed_base=seed_base,  # type: ignore[arg-type]
         )
 
-    message = str(raised.value)
-    assert "CUDA original failure" in message
-    assert "manifest disk failure" in message
 
-
-def test_gen_cli_routes_selectors_and_logs(
+def test_gen_cliはselectors_take_seed_forceをroutingしてrunを表示する(
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    received: dict[str, object] = {}
+    captured: dict[str, object] = {}
 
     def fake_run_generation(**arguments: object) -> GenerationSummary:
-        received.update(arguments)
+        captured.update(arguments)
         return GenerationSummary(
+            run_id="20260729T000000000000Z-dummy-n3",
+            ledger_path=Path("artifacts/takes/run/ledger.json"),
             records=(
                 GenerationRecord(
                     scenario_id="tavern-night",
                     line_id="barmaid-001",
+                    take_index=1,
                     status="generated",
                     generation_seconds=0.25,
                     rtf=0.5,
+                    take_id="a" * 64,
                 ),
             ),
             failures=(),
-            elapsed_seconds=0.5,
-            manifest_updated=True,
+            elapsed_seconds=0.3,
         )
 
     monkeypatch.setattr(cli, "run_generation", fake_run_generation)
-
-    exit_code = cli.main(
+    result = cli.main(
         [
             "gen",
             "--model",
@@ -896,46 +659,88 @@ def test_gen_cli_routes_selectors_and_logs(
             "tavern-night",
             "--line",
             "barmaid-001",
+            "--takes",
+            "3",
+            "--seed-base",
+            "77",
             "--force",
         ],
     )
+
+    assert result == 0
+    assert captured["takes"] == 3
+    assert captured["seed_base"] == 77
+    assert captured["force"] is True
+    assert "manifest_path" not in captured
     output = capsys.readouterr().out
-
-    assert exit_code == 0
-    assert received["model_id"] == "dummy"
-    assert received["scenario_id"] == "tavern-night"
-    assert received["line_id"] == "barmaid-001"
-    assert received["force"] is True
-    assert "生成=0.250s RTF=0.500" in output
-    assert "失敗 0" in output
-    assert "所要時間 0.500s" in output
+    assert "Run ID:" in output
+    assert "take-0001" in output
 
 
-def test_gen_cli_prints_failure_summary_last_and_returns_nonzero(
+def test_gen_cliはfailure_summaryを最後に出して非zeroを返す(
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    def fake_run_generation(**arguments: object) -> GenerationSummary:
-        del arguments
-        return GenerationSummary(
+    monkeypatch.setattr(
+        cli,
+        "run_generation",
+        lambda **_arguments: GenerationSummary(
+            run_id="run",
+            ledger_path=Path("artifacts/takes/run/ledger.json"),
             records=(),
             failures=(
                 GenerationFailureRecord(
-                    scenario_id="castle-gate",
-                    line_id="guard-onna-003",
-                    message="loudness gate exceeded",
+                    scenario_id="tavern-night",
+                    line_id="barmaid-001",
+                    take_index=2,
+                    message="backend error",
                 ),
             ),
             elapsed_seconds=0.5,
-            manifest_updated=True,
-        )
+        ),
+    )
 
-    monkeypatch.setattr(cli, "run_generation", fake_run_generation)
+    result = cli.main(
+        [
+            "gen",
+            "--model",
+            "dummy",
+            "--takes",
+            "1",
+            "--seed-base",
+            "42",
+        ],
+    )
 
-    exit_code = cli.main(["gen", "--model", "dummy"])
+    assert result == 1
     output = capsys.readouterr().out
-
-    assert exit_code == 1
     assert "失敗サマリ:" in output
-    assert "castle-gate/guard-onna-003: loudness gate exceeded" in output
-    assert output.rstrip().endswith("失敗 1 / 所要時間 0.500s")
+    assert "take-0002: backend error" in output
+    assert output.rstrip().endswith("所要時間 0.500s")
+
+
+def test_adapter初期化errorはcliの安定したerrorへ変換する(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    def fail_adapter(_model: str) -> FakeStochasticAdapter:
+        raise RuntimeError("model extra is missing")
+
+    monkeypatch.setattr(generation, "create_adapter", fail_adapter)
+
+    result = cli.main(
+        [
+            "gen",
+            "--model",
+            "fake-stochastic",
+            "--takes",
+            "1",
+            "--seed-base",
+            "42",
+        ],
+    )
+
+    assert result == 1
+    error = capsys.readouterr().err
+    assert error == "ERROR: model extra is missing\n"
+    assert "Traceback" not in error

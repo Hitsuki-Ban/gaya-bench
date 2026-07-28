@@ -12,7 +12,7 @@ from typing import Any
 import pytest
 import yaml
 from gaya_pipeline.adapters import create_adapter
-from gaya_pipeline.adapters.base import LineJob
+from gaya_pipeline.adapters.base import LineJob, TakeContext
 from gaya_pipeline.adapters.cosyvoice3 import (
     ARCHITECTURE,
     CODE_ROOT_ENV,
@@ -101,6 +101,7 @@ class FakeRuntime:
         tts_text: str,
         instruction: str,
         reference_wav: Path,
+        seed: int,
     ) -> Sequence[Mapping[str, Any]]:
         assert model == {"model": "cosyvoice3"}
         self.synthesize_calls.append(
@@ -108,6 +109,7 @@ class FakeRuntime:
                 "tts_text": tts_text,
                 "instruction": instruction,
                 "reference_wav": reference_wav,
+                "seed": seed,
             },
         )
         if self.oom_on == "generate":
@@ -335,11 +337,11 @@ def test_profile_registry_and_generation_params_are_canonical() -> None:
         "reading": True,
     }
     recipe = adapter.take_recipe()
-    assert recipe.version == "fixed-single-v1"
-    assert recipe.seed_policy == "fixed"
+    assert recipe.version == "seed-only-v1"
+    assert recipe.seed_policy == "derived-sha256-v1"
     assert recipe.single_take_seed == SEED
     assert recipe.seed_range == (0, 2**32 - 1)
-    assert recipe.supports_multiple is False
+    assert recipe.supports_multiple is True
 
     params = adapter.generation_params()
     assert params["code_root_environment"] == CODE_ROOT_ENV
@@ -348,7 +350,7 @@ def test_profile_registry_and_generation_params_are_canonical() -> None:
     assert params["model_architecture"] == MODEL_ARCHITECTURE
     assert params["device"] == DEVICE
     assert params["sample_rate_hz"] == SAMPLE_RATE_HZ
-    assert params["seed"] == SEED
+    assert "seed" not in params
     assert params["fp16"] is True
     assert params["load_trt"] is False
     assert params["load_vllm"] is False
@@ -652,6 +654,33 @@ def test_generate_concatenates_all_chunks_and_writes_native_pcm16(
     assert realized["reference_samples"] == 480_000
     assert realized["reference_duration_sec"] == 10.0
     assert not _contains_absolute_path(realized)
+
+
+def test_take_seed_reaches_runtime_and_realized_metadata(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    runtime = FakeRuntime()
+    adapter = CosyVoice3Adapter(runtime=runtime)
+    job = _prepare_one(adapter, tmp_path)
+    _configure_roots(tmp_path / "roots", monkeypatch)
+    recipe = adapter.take_recipe()
+    first_context = recipe.single_take_context()
+    second_context = TakeContext.create(
+        index=2,
+        seed=123_456,
+        recipe_version=recipe.version,
+        sampling=dict(recipe.sampling),
+    )
+
+    first = adapter.generate(job, first_context, tmp_path / "first.wav")
+    second = adapter.generate(job, second_context, tmp_path / "second.wav")
+
+    assert [call["seed"] for call in runtime.synthesize_calls] == [SEED, 123_456]
+    assert first["seed"] == SEED
+    assert first["sampling"] == first_context.sampling_dict()
+    assert second["seed"] == 123_456
+    assert second["sampling"] == second_context.sampling_dict()
 
 
 @pytest.mark.parametrize(
@@ -1088,9 +1117,14 @@ def test_native_synthesize_seeds_every_line_and_passes_fixed_api_arguments(
         tts_text="ヨミ",
         instruction=f"Instruction.{INSTRUCTION_END}",
         reference_wav=tmp_path / "reference.wav",
+        seed=123_456,
     )
 
-    assert events == [("numpy", SEED), ("torch", SEED), ("cuda", SEED)]
+    assert events == [
+        ("numpy", 123_456),
+        ("torch", 123_456),
+        ("cuda", 123_456),
+    ]
     assert fake_torch.backends.cudnn.benchmark is False
     assert fake_torch.backends.cudnn.allow_tf32 is False
     assert fake_torch.backends.cuda.matmul.allow_tf32 is False

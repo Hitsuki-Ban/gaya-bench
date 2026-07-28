@@ -41,21 +41,21 @@ uv run --project pipeline --locked --extra qc gaya qc
 リポジトリルートからダミーアダプタで生成する:
 
 ```console
-uv run --project pipeline gaya gen --model dummy
+uv run --project pipeline gaya gen --model dummy --takes 1 --seed-base 42
 ```
 
 対象を絞る場合は scenario を指定する。line は scenario 内だけで一意なため、必ず両方を指定する:
 
 ```console
-uv run --project pipeline gaya gen --model dummy --scenario tavern-night
-uv run --project pipeline gaya gen --model dummy --scenario tavern-night --line barmaid-001
+uv run --project pipeline gaya gen --model dummy --scenario tavern-night --takes 1 --seed-base 42
+uv run --project pipeline gaya gen --model dummy --scenario tavern-night --line barmaid-001 --takes 1 --seed-base 42
 ```
 
-生成物は `artifacts/audio/`、公開用メタデータは `data/manifest.json` に出力される。`ffmpeg` と `ffprobe`（libopus encoder を含む）が必須。後処理 algorithm v7 は -18 LUFS / 48kHz mono に正規化し、エンコード前の `pre_encode_true_peak_target_dbtp` を -1.75 dBTP に固定する。正規化後PCMを再測定し、目標を満たさない場合はlookahead limiterで最大2回補正する。各WAVは libopus 64kbps VBR / application audio で1回だけエンコードする。
+生成物は `artifacts/takes/<run-id>/audio/`、操作履歴は同じ run root の `ledger.json` に出力される。`--takes` と `--seed-base` は必須で、seed を持たない deterministic adapter は `--takes 1` だけを受理する。`gaya gen` は公開用 `data/manifest.json` を読まず書かず、v4 cutover まで既存 v3 manifest は read-only のまま保持する。`ffmpeg` と `ffprobe`（libopus encoder を含む）が必須。後処理 algorithm v7 は -18 LUFS / 48kHz mono に正規化し、エンコード前の `pre_encode_true_peak_target_dbtp` を -1.75 dBTP に固定する。正規化後PCMを再測定し、目標を満たさない場合はlookahead limiterで最大2回補正する。各WAVは libopus 64kbps VBR / application audio で1回だけエンコードする。
 
 最終Opusはデコードして再測定し、Integrated Loudness が -18 ±1.5 LUFS を外れるか、True Peak が `distribution_true_peak_max_dbtp` の -0.9 dBTP を超えた場合は生成を失敗させる。エンコード前目標を満たしていても最終 gate を省略せず、codec overshoot は fail-fast で拒否する。±0.2 LUFSを外れるが硬い許容範囲内にある場合は `shortfall` として公開する。-1.75 dBTP の選定根拠と381件の比較結果は [Opus配信用True Peakエンコード前シーリング実測](../docs/research/opus-true-peak-ceiling.md) に記録する。
 
-algorithm v7が生成する現行single-take sidecarはformat v3を使用し、明示的な`take`、`generation_input_sha256`、最終Opusに拘束した`take_id`、実行したffmpeg/ffprobe versionとlibopus capabilityに加え、`loudness.normalized_wav`へエンコード前WAV、`loudness.encoded_opus`へ最終Opusの測定値を記録する。toolchain identityが変わったartifactはcacheに再利用しない。sidecar format v3以外は拒否し、再生成するときは`--force`を明示する。Nテイクrun用sidecar/ledger v1は[設計書](../docs/take-harness-design.md)の独立契約であり、後続実装で接続する。`data/manifest.json`はformat v3を維持し、`clip.loudness.source: encoded_opus`とともに最終Opusの測定値だけを公開する。各`(model, scenario, line, variant)`の最新結果は成功(`clips`)または失敗(`failures`)のどちらか一方に記録する。失敗したキーは次回実行時にキャッシュを使わず再生成し、成功すれば`clips`に戻る。公開manifestの失敗理由は`generation_failed`のみで、例外の詳細は保存しない。
+algorithm v7が生成する現行Nテイクsidecar/ledgerはformat v1を使用する。sidecarはrun/slot、明示的なseed/sampling、`generation_input_sha256`、最終Opusに拘束した`take_id`、実行したffmpeg/ffprobe versionとlibopus capabilityに加え、`loudness.normalized_wav`へエンコード前WAV、`loudness.encoded_opus`へ最終Opusの測定値を記録する。toolchain identityが変わったartifactはwhole-run cacheに再利用しない。`--force`は既存runを上書きせず、新しいrunを作成する。同一生成入力の完了runに異なるtake identityが複数ある場合は自動選択しない。公開`data/manifest.json`はformat v3を維持するが、`gaya gen`からは更新しない。詳細は[設計書](../docs/take-harness-design.md)を参照する。
 
 ## R2 への公開
 
@@ -99,14 +99,14 @@ uv sync --project pipeline --locked --extra qwen
 まず1行で CUDA・BF16・12GB VRAM の gate を確認する。
 
 ```console
-uv run --project pipeline --locked --extra qwen gaya gen --model qwen3-tts-12hz-1.7b --scenario tavern-night --line barmaid-001
+uv run --project pipeline --locked --extra qwen gaya gen --model qwen3-tts-12hz-1.7b --scenario tavern-night --line barmaid-001 --takes 1 --seed-base 42
 ```
 
 gate 通過後、受け入れ確認用の2シナリオを生成する。
 
 ```console
-uv run --project pipeline --locked --extra qwen gaya gen --model qwen3-tts-12hz-1.7b --scenario tavern-night
-uv run --project pipeline --locked --extra qwen gaya gen --model qwen3-tts-12hz-1.7b --scenario market-day
+uv run --project pipeline --locked --extra qwen gaya gen --model qwen3-tts-12hz-1.7b --scenario tavern-night --takes 1 --seed-base 42
+uv run --project pipeline --locked --extra qwen gaya gen --model qwen3-tts-12hz-1.7b --scenario market-day --takes 1 --seed-base 42
 ```
 
 2026-07-28 に RTX 4070 Ti 12GB で旧 character-only 参照による上記2シナリオ（12行）を実測し、失敗0件、最大 4,193 MiB allocated / 4,296 MiB reserved、warm RTF 5.52〜9.81（cold canary 42.79）だった。感情参照 bank の品質と VRAM は同じ固定環境で A/B する。
@@ -172,14 +172,14 @@ uv run --project pipeline --locked --extra irodori gaya voices validate-local
 まず clone を含む1行で CUDA・BF16・12GB VRAM・参照音声・watermark の gate を確認する。
 
 ```console
-uv run --project pipeline --locked --extra irodori gaya gen --model irodori-tts-600m-v3-voicedesign --scenario tavern-night --line barmaid-001
+uv run --project pipeline --locked --extra irodori gaya gen --model irodori-tts-600m-v3-voicedesign --scenario tavern-night --line barmaid-001 --takes 1 --seed-base 42
 ```
 
 gate 通過後、受け入れ確認用の2シナリオを生成する。
 
 ```console
-uv run --project pipeline --locked --extra irodori gaya gen --model irodori-tts-600m-v3-voicedesign --scenario tavern-night
-uv run --project pipeline --locked --extra irodori gaya gen --model irodori-tts-600m-v3-voicedesign --scenario market-day
+uv run --project pipeline --locked --extra irodori gaya gen --model irodori-tts-600m-v3-voicedesign --scenario tavern-night --takes 1 --seed-base 42
+uv run --project pipeline --locked --extra irodori gaya gen --model irodori-tts-600m-v3-voicedesign --scenario market-day --takes 1 --seed-base 42
 ```
 
 2026-07-28 に Windows 11 / RTX 4070 Ti 12GB で上記2シナリオ（12行）を BF16 / 40 steps / seed 0 で実測し、失敗0件、最大 2,493 MiB allocated / 3,696 MiB reserved、warm RTF 0.552〜1.093（平均 0.800）だった。12出力はすべて48kHz monoで、固定 SilentCipher snapshot による payload `IRDTS` の埋め込み stage を実行した。段階別の独立 decode では source PCM16 と loudnorm 後 WAV が各12/12完全一致、最終64kbps Opusが通常 decode で8/12完全一致、phase-shift decodeでも9/12完全一致だった。したがって `silentcipher_watermark_stage_executed` は埋め込み stage の実行事実だけを表し、最終 Opus からの検出可能性は保証しない。測定方法と全12件の結果は [SilentCipher 最終 Opus 残存率](../docs/research/silentcipher-survival.md) に記録する。
@@ -241,14 +241,14 @@ intensity は benchmark 固有の保守的な固定値として、1/2/3 を `int
 まず1行で Engine、model、speaker/style、CPU経路を確認する。
 
 ```console
-uv run --project pipeline --locked gaya gen --model aivisspeech-kohaku --scenario tavern-night --line barmaid-001
+uv run --project pipeline --locked gaya gen --model aivisspeech-kohaku --scenario tavern-night --line barmaid-001 --takes 1 --seed-base 42
 ```
 
 gate 通過後、受け入れ確認用の2シナリオを生成する。
 
 ```console
-uv run --project pipeline --locked gaya gen --model aivisspeech-kohaku --scenario tavern-night
-uv run --project pipeline --locked gaya gen --model aivisspeech-kohaku --scenario market-day
+uv run --project pipeline --locked gaya gen --model aivisspeech-kohaku --scenario tavern-night --takes 1 --seed-base 42
+uv run --project pipeline --locked gaya gen --model aivisspeech-kohaku --scenario market-day --takes 1 --seed-base 42
 ```
 
 2026-07-28 に Windows 11 / AivisSpeech Engine 1.2.0 / コハク 1.1.0 を `--no-use_gpu` で起動し、process command line と Engine log の `Using CPU for inference.` を照合して上記2シナリオ（12行）を実測した。失敗0件、RTF 0.426〜0.786（平均0.502）、Engine process の GPU 使用なし（peak VRAM 0 MiB）だった。Engine process の peak working set は 2,459 MiB で、検証時は初回導入された「まお」も同時ロードしているため保守側の値である。12出力はすべて native 44.1kHz PCM16 mono で、共通後処理後の48kHz Opusは -18.02〜-17.92 LUFS、shortfall 0件だった。
@@ -319,14 +319,14 @@ $env:GAYA_GPT_SOVITS_ROOT = (Resolve-Path "models/gpt-sovits/upstream")
 まず1行で固定 weight、CUDA、FP16、参照音声、12GB VRAM の gate を確認する。
 
 ```console
-uv run --project pipeline --locked --extra gpt-sovits gaya gen --model gpt-sovits-v2-pro-plus --scenario tavern-night --line barmaid-001
+uv run --project pipeline --locked --extra gpt-sovits gaya gen --model gpt-sovits-v2-pro-plus --scenario tavern-night --line barmaid-001 --takes 1 --seed-base 42
 ```
 
 gate 通過後、受け入れ確認用の2シナリオを生成する。
 
 ```console
-uv run --project pipeline --locked --extra gpt-sovits gaya gen --model gpt-sovits-v2-pro-plus --scenario tavern-night
-uv run --project pipeline --locked --extra gpt-sovits gaya gen --model gpt-sovits-v2-pro-plus --scenario market-day
+uv run --project pipeline --locked --extra gpt-sovits gaya gen --model gpt-sovits-v2-pro-plus --scenario tavern-night --takes 1 --seed-base 42
+uv run --project pipeline --locked --extra gpt-sovits gaya gen --model gpt-sovits-v2-pro-plus --scenario market-day --takes 1 --seed-base 42
 ```
 
 2026-07-28 に RTX 4070 Ti 12GB で上記2シナリオ（12行）を実測し、失敗0件、最大 1,745.761 MiB allocated / 1,796 MiB reserved、RTF 0.593〜2.191（平均0.992）だった。12出力はすべて native 32kHz PCM16 mono、共通後処理後は48kHz mono、-18.19〜-17.99 LUFS、shortfall 0件である。
@@ -371,15 +371,15 @@ $env:GAYA_VOXCPM2_ROOT = (Resolve-Path "models/voxcpm2/weights")
 まず登録参照音声と Voice Design の両経路を1行ずつ確認する。
 
 ```console
-uv run --project pipeline --locked --extra voxcpm2 gaya gen --model voxcpm2 --scenario tavern-night --line barmaid-001
-uv run --project pipeline --locked --extra voxcpm2 gaya gen --model voxcpm2 --scenario tavern-night --line drunkard-001
+uv run --project pipeline --locked --extra voxcpm2 gaya gen --model voxcpm2 --scenario tavern-night --line barmaid-001 --takes 1 --seed-base 42
+uv run --project pipeline --locked --extra voxcpm2 gaya gen --model voxcpm2 --scenario tavern-night --line drunkard-001 --takes 1 --seed-base 42
 ```
 
 gate 通過後、受け入れ確認用の2シナリオを生成する。
 
 ```console
-uv run --project pipeline --locked --extra voxcpm2 gaya gen --model voxcpm2 --scenario tavern-night
-uv run --project pipeline --locked --extra voxcpm2 gaya gen --model voxcpm2 --scenario market-day
+uv run --project pipeline --locked --extra voxcpm2 gaya gen --model voxcpm2 --scenario tavern-night --takes 1 --seed-base 42
+uv run --project pipeline --locked --extra voxcpm2 gaya gen --model voxcpm2 --scenario market-day --takes 1 --seed-base 42
 ```
 
 RTX 4070 Ti 12GB での受け入れ実測では、2シナリオ12行を失敗0件で生成し、直後の再実行は12行すべてをskipした。2行は登録済み参照音声、10行は5キャラクター分のVoice Design参照を使う。最大VRAMはallocated 5,772.845 MiB / reserved 6,658 MiB、12行の平均RTFは3.409だった。最初のmodel loadを含む1行（RTF 11.829）を除く11行の平均RTFは2.644である。
@@ -435,19 +435,19 @@ PerTh の `perth_net/pretrained/implicit/` は model 初期化前に inventory �
 | `2` | `0.5` |
 | `3` | `0.8` |
 
-`line.emotion` は audit metadata に残すが、モデルへの独立した emotion 指示には使わない。固定値は `seed=42`、`cfg_weight=0.5`、`temperature=0.8`、`repetition_penalty=1.2`、`min_p=0.05`、`top_p=1.0` である。capability は intensity による `exaggeration` 制御だけを emotion 対応として `true`、clone を `true` とし、voice prompt、nonverbal、reading は `false` とする。
+`line.emotion` は audit metadata に残すが、モデルへの独立した emotion 指示には使わない。take seed は `seed-only-v1` で `--seed-base` と論理 slot から導出し、固定 sampling は `cfg_weight=0.5`、`temperature=0.8`、`repetition_penalty=1.2`、`min_p=0.05`、`top_p=1.0` である。capability は intensity による `exaggeration` 制御だけを emotion 対応として `true`、clone を `true` とし、voice prompt、nonverbal、reading は `false` とする。
 
 まず1行で固定 weight、CUDA、FP32、参照音声、PerTh、12GB VRAM の gate を確認する。
 
 ```console
-uv run --project pipeline --locked --extra chatterbox gaya gen --model chatterbox-multilingual-v3 --scenario tavern-night --line barmaid-001
+uv run --project pipeline --locked --extra chatterbox gaya gen --model chatterbox-multilingual-v3 --scenario tavern-night --line barmaid-001 --takes 1 --seed-base 42
 ```
 
 gate 通過後、受け入れ確認用の2シナリオを生成する。
 
 ```console
-uv run --project pipeline --locked --extra chatterbox gaya gen --model chatterbox-multilingual-v3 --scenario tavern-night
-uv run --project pipeline --locked --extra chatterbox gaya gen --model chatterbox-multilingual-v3 --scenario market-day
+uv run --project pipeline --locked --extra chatterbox gaya gen --model chatterbox-multilingual-v3 --scenario tavern-night --takes 1 --seed-base 42
+uv run --project pipeline --locked --extra chatterbox gaya gen --model chatterbox-multilingual-v3 --scenario market-day --takes 1 --seed-base 42
 ```
 
 2026-07-28 に Windows 11 / RTX 4070 Ti 12GB で上記2シナリオ（12行）を実測し、失敗0件、直後の再実行は12行すべてを skip した。最大VRAMは allocated 3,703.357 MiB / reserved 3,794 MiB、model load を含む4行を除く8行の warm RTF は1.886〜2.195（平均2.000）だった。同じ text / reference / seed で intensity 1（`exaggeration=0.3`）と intensity 3（`0.8`）を比較し、native WAV の SHA-256 が異なることも確認した。
@@ -530,20 +530,20 @@ Windows では上流の通常 requirements が CPU 版 ONNX Runtime を選ぶ一
 
 `line.reading` が non-empty string ならその値を優先し、それ以外は `pyopenjtalk.g2p(text, kana=True)` で片仮名化する。変換失敗時に原文へ戻さない。`pyopenjtalk-plus` の ONNX optional backend はこの読み経路で使わないため依存に含めず、CosyVoice の GPU ONNX Runtime と同一 module を競合させない。
 
-全行を `inference_instruct2`、`stream=False`、`speed=1.0`、`text_frontend=False`、`seed=1986` で生成する。instruction は英語の固定 emotion / intensity mapping と元の `line.delivery` を含み、必ず `<|endofprompt|>` で終える。delivery に sentinel 断片があれば失敗する。キャラクターの voice / personality を instruction へ追加しない。capability は emotion、clone、reading を `true`、voice prompt と nonverbal を `false` とする。
+全行を `inference_instruct2`、`stream=False`、`speed=1.0`、`text_frontend=False` で生成する。take seed は `seed-only-v1` で `--seed-base` と論理 slot から導出する。instruction は英語の固定 emotion / intensity mapping と元の `line.delivery` を含み、必ず `<|endofprompt|>` で終える。delivery に sentinel 断片があれば失敗する。キャラクターの voice / personality を instruction へ追加しない。capability は emotion、clone、reading を `true`、voice prompt と nonverbal を `false` とする。
 
 まず1行で固定 code / weight、CUDA provider、片仮名入力、instruction、24kHz、決定性、12GB VRAM の gate を確認する。
 
 ```console
 uv run --project pipeline --locked --extra cosyvoice3 gaya voices validate-local
-uv run --project pipeline --locked --extra cosyvoice3 gaya gen --model cosyvoice3-0.5b-2512 --scenario tavern-night --line barmaid-001
+uv run --project pipeline --locked --extra cosyvoice3 gaya gen --model cosyvoice3-0.5b-2512 --scenario tavern-night --line barmaid-001 --takes 1 --seed-base 42
 ```
 
 gate 通過後、受け入れ確認用の2シナリオを生成する。
 
 ```console
-uv run --project pipeline --locked --extra cosyvoice3 gaya gen --model cosyvoice3-0.5b-2512 --scenario tavern-night
-uv run --project pipeline --locked --extra cosyvoice3 gaya gen --model cosyvoice3-0.5b-2512 --scenario market-day
+uv run --project pipeline --locked --extra cosyvoice3 gaya gen --model cosyvoice3-0.5b-2512 --scenario tavern-night --takes 1 --seed-base 42
+uv run --project pipeline --locked --extra cosyvoice3 gaya gen --model cosyvoice3-0.5b-2512 --scenario market-day --takes 1 --seed-base 42
 ```
 
 2026-07-29 の直接 API canary では、Windows 11 / Python 3.12 / RTX 4070 Ti 12GB で CUDA speech tokenizer と CPU CampPlus を確認し、3.44秒の native 24kHz PCM16 mono 日本語を生成した。project lock の cold load は42.801秒、生成は15.485秒（RTF 4.502）、Torch peak は allocated 4,262.410 MiB / reserved 5,224 MiB、desktop process を含む GPU 全体 peak は7,927 MiBだった。同じ入力と seed の繰り返しは同一 WAV SHA-256 `d875973ae0a60a0c58bc16ff97ea2a0607c6273bdc0e4849885878bac81b3c71` になった。
@@ -585,7 +585,7 @@ $env:GAYA_SUPERTONIC3_ROOT = (
 )
 ```
 
-adapter は `.cache/` を除く19ファイル、合計401,297,315 bytesを生成前に size / SHA-256 で照合する。root、固定ファイル、preset voice、SDK / ORT / NumPy / SoundFile version、`tts_version=v1.7.3`、44.1kHz、四つの ONNX session のいずれかが不一致なら model load 前後の該当 gate で失敗する。別 snapshot、network、GPU、別 provider へ切り替えない。固定値は `seed=42`、`steps=8`、`speed=1.05`、intra-op 10 threads、inter-op 1 thread である。
+adapter は `.cache/` を除く19ファイル、合計401,297,315 bytesを生成前に size / SHA-256 で照合する。root、固定ファイル、preset voice、SDK / ORT / NumPy / SoundFile version、`tts_version=v1.7.3`、44.1kHz、四つの ONNX session のいずれかが不一致なら model load 前後の該当 gate で失敗する。別 snapshot、network、GPU、別 provider へ切り替えない。take seed は `seed-only-v1` で導出し、固定値は `steps=8`、`speed=1.05`、intra-op 10 threads、inter-op 1 thread である。
 
 | scenario / character | preset |
 | --- | --- |
@@ -599,8 +599,8 @@ adapter は `.cache/` を除く19ファイル、合計401,297,315 bytesを生成
 この割当は公式 preset description に基づく固定選択であり、voice diversity の評価軸には使わない。表にない role を gender / age から推測せず失敗する。`line.reading` が non-empty string なら実入力として優先し、それ以外は `line.text` をそのまま使う。emotion、intensity、delivery、character voice、reference voice はモデル入力にしない。公式資料は10個の expression tag を述べるが、公開資料で確認できるのは一部だけなので本 adapter では全 tag を禁止し、capability は reading のみ `true` とする。
 
 ```console
-uv run --project pipeline --locked --extra supertonic3 gaya gen --model supertonic-3 --scenario tavern-night
-uv run --project pipeline --locked --extra supertonic3 gaya gen --model supertonic-3 --scenario market-day
+uv run --project pipeline --locked --extra supertonic3 gaya gen --model supertonic-3 --scenario tavern-night --takes 1 --seed-base 42
+uv run --project pipeline --locked --extra supertonic3 gaya gen --model supertonic-3 --scenario market-day --takes 1 --seed-base 42
 ```
 
 2026-07-29 に Windows 11 build 26200、Intel Core i9-10850K（10 cores / 20 logical processors）、Python 3.12.13 で実測した。2シナリオ12行は失敗0件、直後の再実行は各6行すべて skip した。native 出力は44.1kHz mono PCM16、共通後処理後は48kHz monoである。生成 RTF は0.284〜0.455、平均0.354、最終 loudness は -18.04〜-17.97 LUFS、最大 true peak は -1.00 dBTP。Windows process `PeakWorkingSet64` の最大は540,426,240 bytes（515.4 MiB）で、ONNX session は全て `CPUExecutionProvider`、GPU VRAM は使用しない。

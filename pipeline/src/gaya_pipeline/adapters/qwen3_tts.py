@@ -339,12 +339,12 @@ class Qwen3TTSAdapter:
 
     def take_recipe(self) -> TakeRecipe:
         return TakeRecipe(
-            version="fixed-single-v1",
-            seed_policy="fixed",
+            version="seed-only-v1",
+            seed_policy="derived-sha256-v1",
             single_take_seed=SEED,
             seed_range=(0, 2**32 - 1),
             sampling=tuple(sorted(_sampling().items())),
-            supports_multiple=False,
+            supports_multiple=True,
         )
 
     def __init__(self, runtime: _Runtime | None = None) -> None:
@@ -514,6 +514,8 @@ class Qwen3TTSAdapter:
         output_wav: Path,
     ) -> Mapping[str, Any]:
         require_take_context(take_context, self.take_recipe())
+        seed = take_context.seed
+        assert seed is not None
         reference = self._reference_for(job)
         key = _job_key(job)
         model = self._ensure_base_model()
@@ -531,7 +533,7 @@ class Qwen3TTSAdapter:
             self._clone_prompts[key] = prompt
 
         text = _required_string(job.line, "text", "line")
-        self._runtime.seed(SEED)
+        self._runtime.seed(seed)
         self._runtime.reset_peak_memory_stats()
         generated = self._run_phase(
             f"Base voice clone generation ({key[0]}/{job.line_id})",
@@ -564,7 +566,8 @@ class Qwen3TTSAdapter:
                 "base_load": _copy_peak(self._base_load_peak),
                 "voice_clone_generate": _copy_peak(generation_peak),
             },
-            "seed": SEED,
+            "seed": seed,
+            "sampling": take_context.sampling_dict(),
             "sample_rate_hz": sample_rate,
         }
 

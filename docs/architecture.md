@@ -22,14 +22,14 @@ pipeline (Python/uv) ── モデル別アダプタ ──▶ artifacts/audio/<
 
 - Python 3.12 + uv のCLIプロジェクト。エントリ: `uv run gaya <subcommand>`
   - `gaya validate` — シナリオのスキーマ検証 + 相互参照チェック (character参照、ID一意性)
-  - `gaya gen --model <id> [--scenario <id>] [--line <id>]` — 生成実行
+  - `gaya gen --model <id> --takes <N> --seed-base <S> [--scenario <id>] [--line <id>]` — run ledger 単位の候補生成
   - `gaya publish` — manifest/hash検証 → エンコード済みOpusをR2へ差分アップロード
 - **アダプタインターフェース**: `LineJob { scene, character, line, locale }` を受け取り音声を返す。モデル固有の入力形式 (スタイルプロンプト / 感情タグ / 参照音声) への変換はアダプタが担う
 - **capability profile**: アダプタごとに「スキーマのどのフィールドを解釈できるか」を宣言 (emotion対応 / voice記述対応 / クローン対応 / 非言語音対応...)。manifestに含め、サイトでバッジ表示する
-- **冪等性**: 生成済みクリップは (アダプタが解釈する入力 + モデルversion + 生成パラメータ + 後処理profile) のハッシュと成果物hashが一致した場合のみスキップ。`--force` で再生成。manifest 上の最新結果が失敗の場合はキャッシュを使わず実生成を再試行する
-- **manifest 更新**: 各ジョブの成功・スキップ・失敗をその場で原子的に反映する。行単位の失敗は `failures[]` に記録して残りのジョブを続行し、最後に失敗サマリと非ゼロ終了を返す。変更がある場合だけ、同一ディレクトリの一時ファイルを `flush` / `fsync` してから `os.replace` する。バッチ全件が成功した後にだけ selector scope 内の古い結果を整理し、scope 外の結果は保持する
+- **冪等性**: source、group、N、seed-base、recipe、全 generation input と artifact provenance が一致する完了済み run だけを whole-run cache として再利用する。同じ input に異なる take identity の run が複数ある場合は自動選択しない。`--force` は既存 run を書き換えず、常に新しい run を生成する
+- **ledger 更新**: `gaya gen` は `artifacts/takes/<run-id>/ledger.json` だけを操作履歴として原子的に checkpoint し、公開 manifest は更新しない。1 attempt の失敗は `generation_failed` として記録して残りを続行し、最後に非ゼロ終了を返す。再生成は既存 slot を変更せず新しい run で行う
 - **正規化・エンコードの方針**: 後処理 algorithm v7 は全クリップを2-pass loudnormで -18 LUFS / mono / 48kHz に正規化し、`pre_encode_true_peak_target_dbtp` を -1.75 dBTP に固定する。落盤後のPCMを再測定し、ピーク制約で目標LUFSに届かない場合は最大2回のlookahead limiter補正を行う。各 WAV は libopus 64kbps VBR / application audio で1回だけエンコードする。公開 Opus をデコードして再測定し、Integrated Loudness が -18 ±1.5 LUFS を外れるか、True Peak が `distribution_true_peak_max_dbtp` の -0.9 dBTP を上回る場合は生成を失敗させる。±0.2 LUFSを外れるが硬い許容範囲内にあるクリップは manifest の `loudness.shortfall` を `true` にする。エンコード前目標は最終配信上限の代替ではなく、codec overshoot を抑えるためのヘッドルームであり、最終 Opus gate は常に fail-fast で適用する。候補値の根拠は [Opus配信用True Peakエンコード前シーリング実測](research/opus-true-peak-ceiling.md) に記録する。モデル間の音量差による印象バイアスを抑える一方、囁き/叫びの意図的な音量差が失われる副作用は +α の scene バリアント (距離感シミュレーション) で補う。Opus は Ogg muxer の format bitexact を有効にして、同一ツールチェーン・同一PCMから同一ファイルhashを生成する
-- **現行 single-take sidecar (v3)**: algorithm v7 の loudness provenance に加え、明示的な `take`、`generation_input_sha256`、最終 Opus に拘束した `take_id`、実行した ffmpeg/ffprobe version と libopus capability を保持する。toolchain identity も generation input hash に含め、異なる encoder build の artifact を cache に再利用しない。`loudness.normalized_wav` は正規化完了後・Opus エンコード前の WAV、`loudness.encoded_opus` はエンコード済み Opus をデコードした測定値を表す。Nテイク run 用 sidecar/ledger v1 は独立契約として段階導入し、format v3 public manifest へは公開される最終 Opus の `encoded_opus` 測定だけを転記する
+- **現行 N-take sidecar / ledger (v1)**: 各 take の sidecar は run/slot、明示的 seed/sampling、`generation_input_sha256`、最終 Opus に拘束した `take_id`、WAV/Opus hash、実行した ffmpeg/ffprobe version と libopus capability、algorithm v7 の loudness provenance を保持する。toolchain identity も generation input hash に含め、異なる encoder build の artifact を cache に再利用しない。format v3 public manifest は v4 cutover まで read-only とする
 - **バリアント**: v1は `dry` (正規化のみ) 単一。`scene` (EQ+リバーブ+減衰の中距離シミュレーション) は+α
 
 ## manifest 形式 (v3)
@@ -62,7 +62,7 @@ pipeline (Python/uv) ── モデル別アダプタ ──▶ artifacts/audio/<
 - **CORS**: [infra/r2-cors.json](../infra/r2-cors.json) を正とし、Pages 本番 origin とローカル開発 origin の `GET` / `HEAD` を許可する
 - **差分公開**: `gaya publish` は manifest の全 Opus をローカルで先に検証し、R2 `HEAD` の `sha256` metadata・サイズ・HTTP metadata が一致するものをスキップする。object key は再生成時に再利用するため、`Cache-Control: public, max-age=0, must-revalidate` として古い音声の長期固定を避ける
 - **manifest**: `data/manifest.json` をリポジトリにコミット (ビルドの決定性とPRレビュー可能性のため)
-- **生成メタ**: 入力hash・WAV/Opus hash・生成時間・RTF・後処理結果を `artifacts/audio/.../<line>-<variant>.json` に保存 (git管理外)
+- **生成メタ**: 入力hash・WAV/Opus hash・生成時間・RTF・後処理結果を `artifacts/takes/<run-id>/audio/<model>/<scenario>/<line>/<variant>/take-<index>.json` に保存し、run root の `ledger.json` から参照する (git管理外)
 - **ローカル開発fallback**: `site/public/audio/` に同一パス構造で置き、`VITE_AUDIO_BASE` で切替
 
 ## サイト (`site/`)

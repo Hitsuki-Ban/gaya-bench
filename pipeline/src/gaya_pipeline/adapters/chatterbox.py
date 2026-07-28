@@ -604,6 +604,7 @@ class ChatterboxAdapter:
                 "generation": generation_peak,
             },
             "seed": seed,
+            "sampling": take_context.sampling_dict(),
             "sample_rate_hz": SAMPLE_RATE_HZ,
             "language_id": LANGUAGE_ID,
             "line_emotion_audit": prepared.emotion,

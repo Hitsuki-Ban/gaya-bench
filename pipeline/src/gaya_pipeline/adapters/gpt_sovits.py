@@ -228,6 +228,7 @@ class _Runtime(Protocol):
         text: str,
         reference_wav: Path,
         output_wav: Path,
+        seed: int,
     ) -> Mapping[str, Any]: ...
 
     def is_out_of_memory(self, error: BaseException) -> bool: ...
@@ -327,6 +328,7 @@ class _NativeRuntime:
         text: str,
         reference_wav: Path,
         output_wav: Path,
+        seed: int,
     ) -> Mapping[str, Any]:
         if (
             self._tts is None
@@ -354,7 +356,7 @@ class _NativeRuntime:
             "split_bucket": False,
             "speed_factor": 1.0,
             "fragment_interval": 0.3,
-            "seed": SEED,
+            "seed": seed,
             "return_fragment": False,
             "streaming_mode": False,
             "parallel_infer": False,
@@ -388,7 +390,7 @@ class _NativeRuntime:
             wav_file.writeframes(audio.tobytes())
         torch.cuda.synchronize(0)
         return {
-            "seed": SEED,
+            "seed": seed,
             "sample_rate_hz": sample_rate,
             "prompt_text_mode": "reference-free",
             "phase_peak_vram_mib": {"generation": _peak(torch)},
@@ -432,8 +434,8 @@ class GPTSoVITSAdapter:
 
     def take_recipe(self) -> TakeRecipe:
         return TakeRecipe(
-            version="fixed-single-v1",
-            seed_policy="fixed",
+            version="seed-only-v1",
+            seed_policy="derived-sha256-v1",
             single_take_seed=SEED,
             seed_range=(0, 2**32 - 1),
             sampling=(
@@ -442,7 +444,7 @@ class GPTSoVITSAdapter:
                 ("top_k", TOP_K),
                 ("top_p", TOP_P),
             ),
-            supports_multiple=False,
+            supports_multiple=True,
         )
 
     def __init__(
@@ -536,7 +538,6 @@ class GPTSoVITSAdapter:
             "precision": PRECISION,
             "native_sample_rate_hz": NATIVE_SAMPLE_RATE_HZ,
             "language": "all_ja",
-            "seed": SEED,
             "top_k": TOP_K,
             "top_p": TOP_P,
             "temperature": TEMPERATURE,
@@ -569,12 +570,15 @@ class GPTSoVITSAdapter:
         output_wav: Path,
     ) -> Mapping[str, Any]:
         require_take_context(take_context, self.take_recipe())
+        seed = take_context.seed
+        assert seed is not None
         prepared = self._prepared_input(job)
         try:
             realized = self._runtime.synthesize(
                 text=prepared.text,
                 reference_wav=prepared.reference.path,
                 output_wav=output_wav,
+                seed=seed,
             )
         except Exception as error:
             self._raise_runtime_error(
@@ -597,6 +601,8 @@ class GPTSoVITSAdapter:
             "runtime_load": _copy_peak(self._load_peak),
             **{str(name): _copy_peak(peak) for name, peak in peaks.items()},
         }
+        result["seed"] = seed
+        result["sampling"] = take_context.sampling_dict()
         result.update(
             {
                 "reading_source": prepared.reading_source,

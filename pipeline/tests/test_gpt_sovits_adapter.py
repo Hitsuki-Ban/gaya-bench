@@ -11,7 +11,7 @@ from typing import Any
 import pytest
 import yaml
 from gaya_pipeline.adapters import create_adapter
-from gaya_pipeline.adapters.base import LineJob
+from gaya_pipeline.adapters.base import LineJob, TakeContext
 from gaya_pipeline.adapters.gpt_sovits import (
     CUDA_WHEEL_VERSION,
     MODEL_ID,
@@ -77,6 +77,7 @@ class FakeRuntime:
         text: str,
         reference_wav: Path,
         output_wav: Path,
+        seed: int,
     ) -> dict[str, Any]:
         if self.oom_on == "synthesize":
             raise FakeOutOfMemoryError("CUDA out of memory")
@@ -85,6 +86,7 @@ class FakeRuntime:
                 "text": text,
                 "reference_wav": reference_wav,
                 "output_wav": output_wav,
+                "seed": seed,
             },
         )
         output_wav.parent.mkdir(parents=True, exist_ok=True)
@@ -96,7 +98,7 @@ class FakeRuntime:
                 b"".join(struct.pack("<h", sample) for sample in (0, 4096, -4096, 0)),
             )
         return {
-            "seed": SEED,
+            "seed": seed,
             "sample_rate_hz": NATIVE_SAMPLE_RATE_HZ,
             "prompt_text_mode": "reference-free",
             "phase_peak_vram_mib": {
@@ -195,11 +197,11 @@ def test_profile_registry_and_generation_contract_are_canonical() -> None:
         "reading": True,
     }
     recipe = adapter.take_recipe()
-    assert recipe.version == "fixed-single-v1"
-    assert recipe.seed_policy == "fixed"
+    assert recipe.version == "seed-only-v1"
+    assert recipe.seed_policy == "derived-sha256-v1"
     assert recipe.single_take_seed == SEED
     assert recipe.seed_range == (0, 2**32 - 1)
-    assert recipe.supports_multiple is False
+    assert recipe.supports_multiple is True
     params = adapter.generation_params()
     assert params["torch_version"] == TORCH_VERSION
     assert params["torchaudio_version"] == TORCHAUDIO_VERSION
@@ -284,6 +286,37 @@ def test_explicit_reference_and_reading_create_exact_five_second_clip(
     )
     assert realized["reference_clip_start_frame"] == 0
     assert realized["reference_clip_frame_count"] == REFERENCE_FRAME_COUNT
+
+
+def test_take_seed_reaches_runtime_and_realized_metadata(tmp_path: Path) -> None:
+    runtime = FakeRuntime()
+    adapter = GPTSoVITSAdapter(
+        runtime=runtime,
+        upstream_root=tmp_path / "upstream",
+    )
+    job = _job()
+    adapter.prepare(
+        [job],
+        tmp_path / "artifacts",
+        _voices_dir(tmp_path, materialize={"amitaro-countdown"}),
+    )
+    recipe = adapter.take_recipe()
+    first_context = recipe.single_take_context()
+    second_context = TakeContext.create(
+        index=2,
+        seed=123_456,
+        recipe_version=recipe.version,
+        sampling=dict(recipe.sampling),
+    )
+
+    first = adapter.generate(job, first_context, tmp_path / "first.wav")
+    second = adapter.generate(job, second_context, tmp_path / "second.wav")
+
+    assert [call["seed"] for call in runtime.synthesize_calls] == [SEED, 123_456]
+    assert first["seed"] == SEED
+    assert first["sampling"] == first_context.sampling_dict()
+    assert second["seed"] == 123_456
+    assert second["sampling"] == second_context.sampling_dict()
 
 
 @pytest.mark.parametrize(

@@ -141,6 +141,7 @@ class _Runtime(Protocol):
         caption: str,
         reference_wav: Path | None,
         output_wav: Path,
+        seed: int,
     ) -> Mapping[str, Any]: ...
 
     def is_out_of_memory(self, error: BaseException) -> bool: ...
@@ -329,6 +330,7 @@ class _NativeRuntime:
         caption: str,
         reference_wav: Path | None,
         output_wav: Path,
+        seed: int,
     ) -> Mapping[str, Any]:
         runtime = self._runtime
         if runtime is None:
@@ -362,7 +364,7 @@ class _NativeRuntime:
             cfg_max_t=CFG_MAX_T,
             context_kv_cache=True,
             speaker_uncond_mode="mask",
-            seed=SEED,
+            seed=seed,
             t_schedule_mode="linear",
             sway_coeff=-1.0,
             trim_tail=True,
@@ -380,9 +382,9 @@ class _NativeRuntime:
         )
         generation_peak = self.peak_memory_mib()
 
-        if result.used_seed != SEED:
+        if result.used_seed != seed:
             raise IrodoriTTSAdapterError(
-                f"seed が一致しません: expected={SEED}, actual={result.used_seed}",
+                f"seed が一致しません: expected={seed}, actual={result.used_seed}",
             )
         if result.sample_rate != SAMPLE_RATE_HZ:
             raise IrodoriTTSAdapterError(
@@ -479,8 +481,8 @@ class IrodoriTTSAdapter:
 
     def take_recipe(self) -> TakeRecipe:
         return TakeRecipe(
-            version="fixed-single-v1",
-            seed_policy="fixed",
+            version="seed-only-v1",
+            seed_policy="derived-sha256-v1",
             single_take_seed=SEED,
             seed_range=(0, 2**32 - 1),
             sampling=(
@@ -492,7 +494,7 @@ class IrodoriTTSAdapter:
                 ("cfg_scale_text", CFG_SCALE_TEXT),
                 ("num_steps", NUM_STEPS),
             ),
-            supports_multiple=False,
+            supports_multiple=True,
         )
 
     def __init__(
@@ -557,7 +559,6 @@ class IrodoriTTSAdapter:
             "model_precision": MODEL_PRECISION,
             "codec_precision": CODEC_PRECISION,
             "sample_rate_hz": SAMPLE_RATE_HZ,
-            "seed": SEED,
             "num_steps": NUM_STEPS,
             "cfg": {
                 "guidance_mode": CFG_GUIDANCE_MODE,
@@ -603,6 +604,8 @@ class IrodoriTTSAdapter:
         output_wav: Path,
     ) -> Mapping[str, Any]:
         require_take_context(take_context, self.take_recipe())
+        seed = take_context.seed
+        assert seed is not None
         prepared = self._prepared_input(job)
         if self._load_peak is None:
             peak = self._run_phase("Irodori runtime load", self._runtime.prepare)
@@ -614,6 +617,7 @@ class IrodoriTTSAdapter:
                 caption=prepared.caption,
                 reference_wav=prepared.reference_wav,
                 output_wav=output_wav,
+                seed=seed,
             ),
         )
         if not output_wav.is_file():
@@ -632,6 +636,8 @@ class IrodoriTTSAdapter:
             "runtime_load": _copy_peak(self._load_peak),
             **{str(name): _copy_peak(peak) for name, peak in peaks.items()},
         }
+        result["seed"] = seed
+        result["sampling"] = take_context.sampling_dict()
         return result
 
     def _prepared_input(self, job: LineJob) -> _PreparedInput:

@@ -200,6 +200,13 @@ def test_unknown_key_duplicate_slot_path_escapeを拒否(mutation: object) -> No
         validate_ledger(ledger)
 
 
+def test_run_idのpath_escapeを拒否() -> None:
+    ledger = _ledger()
+    ledger["run_id"] = "../outside"
+    with pytest.raises(TakeLedgerError, match="path segment"):
+        validate_ledger(ledger)
+
+
 def test_atomic_replace失敗時に既存bytesを保持(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

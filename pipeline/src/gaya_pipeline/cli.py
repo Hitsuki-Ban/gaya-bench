@@ -68,9 +68,21 @@ def build_parser() -> argparse.ArgumentParser:
     gen_parser.add_argument("--scenario", help="scenario id")
     gen_parser.add_argument("--line", help="scenario 内の line id")
     gen_parser.add_argument(
+        "--takes",
+        required=True,
+        type=int,
+        help="各 line で生成する take 数",
+    )
+    gen_parser.add_argument(
+        "--seed-base",
+        required=True,
+        type=int,
+        help="take seed 導出の基準整数",
+    )
+    gen_parser.add_argument(
         "--force",
         action="store_true",
-        help="hash 一致時も再生成する",
+        help="whole-run cache を使わず新しい run を生成する",
     )
 
     qc_parser = subparsers.add_parser(
@@ -162,9 +174,10 @@ def main(argv: Sequence[str] | None = None) -> int:
                 model_id=args.model,
                 scenarios_dir=repository_root / "scenarios",
                 artifacts_dir=repository_root / "artifacts",
-                manifest_path=repository_root / "data" / "manifest.json",
                 scenario_id=args.scenario,
                 line_id=args.line,
+                takes=args.takes,
+                seed_base=args.seed_base,
                 force=args.force,
             )
         except GenerationError as error:
@@ -212,17 +225,21 @@ def main(argv: Sequence[str] | None = None) -> int:
 
 
 def _print_generation_summary(summary: GenerationSummary) -> None:
+    print(f"Run ID: {summary.run_id}")
+    print(f"Ledger: {summary.ledger_path.as_posix()}")
     for record in summary.records:
         action = "生成" if record.status == "generated" else "スキップ"
         print(
-            f"{action}: {record.scenario_id}/{record.line_id} "
+            f"{action}: {record.scenario_id}/{record.line_id}/"
+            f"take-{record.take_index:04d} "
             f"生成={record.generation_seconds:.3f}s RTF={record.rtf:.3f}",
         )
     if summary.failures:
         print("失敗サマリ:")
         for failure in summary.failures:
             print(
-                f"  - {failure.scenario_id}/{failure.line_id}: "
+                f"  - {failure.scenario_id}/{failure.line_id}/"
+                f"take-{failure.take_index:04d}: "
                 f"{failure.message}",
             )
     print(
