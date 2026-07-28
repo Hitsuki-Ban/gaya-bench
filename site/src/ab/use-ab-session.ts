@@ -20,10 +20,17 @@ export type CandidateSide = "left" | "right";
 export type VoteChoice = CandidateSide | "tie";
 export type AbSessionKind = "ready" | "complete" | "unavailable" | "error";
 
+export interface PreviousVote {
+  readonly leftModelName: string;
+  readonly rightModelName: string;
+  readonly choice: "A" | "B" | "引き分け";
+}
+
 interface SessionData {
   readonly votes: readonly BlindVote[];
   readonly rawSnapshot: string | null;
   readonly presentation: PresentedMatch | null;
+  readonly previousVote: PreviousVote | null;
   readonly error: string | null;
   readonly notice: string;
 }
@@ -115,6 +122,7 @@ export function useAbSession() {
           votes: stored.votes,
           rawSnapshot: stored.rawSnapshot,
           presentation: selectNextMatch(catalog, stored.votes),
+          previousVote: null,
           error: null,
           notice: "別のタブで更新された投票結果を読み込みました。",
         });
@@ -122,6 +130,7 @@ export function useAbSession() {
         setSession((current) => ({
           ...current,
           presentation: null,
+          previousVote: null,
           error: storageErrorMessage(),
           notice: "",
         }));
@@ -159,9 +168,14 @@ export function useAbSession() {
         return;
       }
 
+      const currentPresentation = session.presentation;
+      const previousVote: PreviousVote = {
+        leftModelName: modelName(currentPresentation.left.modelId),
+        rightModelName: modelName(currentPresentation.right.modelId),
+        choice: voteChoiceLabel(choice),
+      };
       committingRef.current = true;
       setIsCommitting(true);
-      const currentPresentation = session.presentation;
       try {
         const storage = storageRef.current ?? browserStorage();
         storageRef.current = storage;
@@ -191,6 +205,7 @@ export function useAbSession() {
           votes,
           rawSnapshot,
           presentation: nextPresentation,
+          previousVote,
           error: null,
           notice:
             nextPresentation === null
@@ -227,6 +242,7 @@ export function useAbSession() {
         votes: [],
         rawSnapshot: null,
         presentation: selectNextMatch(catalog, []),
+        previousVote: null,
         error: null,
         notice: "ローカル結果をリセットしました。",
       });
@@ -251,6 +267,7 @@ export function useAbSession() {
     remainingMatches: catalog.matches.length - session.votes.length,
     votesCount: session.votes.length,
     rankings,
+    previousVote: session.previousVote,
     presentation: presentation!,
     comparisonRef,
     isCommitting,
@@ -274,6 +291,7 @@ function initializeSession(
       votes: stored.votes,
       rawSnapshot: stored.rawSnapshot,
       presentation: selectNextMatch(currentCatalog, stored.votes),
+      previousVote: null,
       error: null,
       notice: "",
     };
@@ -282,6 +300,7 @@ function initializeSession(
       votes: [],
       rawSnapshot: null,
       presentation: null,
+      previousVote: null,
       error: storageErrorMessage(),
       notice: "",
     };
@@ -315,6 +334,24 @@ function candidateStatus(
   key: string,
 ) {
   return currentClipKey === key ? status : "idle";
+}
+
+function modelName(modelId: string): string {
+  const model = catalog.models.find(({ id }) => id === modelId);
+  if (!model) {
+    throw new Error(`A/B candidate の model が存在しません: ${modelId}`);
+  }
+  return model.name;
+}
+
+function voteChoiceLabel(choice: VoteChoice): PreviousVote["choice"] {
+  if (choice === "left") {
+    return "A";
+  }
+  if (choice === "right") {
+    return "B";
+  }
+  return "引き分け";
 }
 
 function storageErrorMessage(): string {

@@ -1,6 +1,7 @@
 import { memo, type KeyboardEvent } from "react";
 
 import { useAudioProgress } from "@/audio/audio-provider";
+import { WaveformProgress } from "@/components/waveform-progress";
 import type { PlaybackStatus } from "@/audio/playback-manager";
 import type { Model } from "@/data";
 import { resolveAudioUrl } from "@/lib/audio-url";
@@ -87,14 +88,14 @@ export const MatrixCell = memo(function MatrixCell({
                   : "再生"
       }`}
       className={[
-        "group relative flex min-h-11 w-full items-center justify-between overflow-hidden rounded border px-2.5 py-2 text-left font-mono text-xs transition-[border-color,background-color,color]",
+        "group relative flex min-h-10 w-full items-center justify-between overflow-hidden rounded border px-2 py-1.5 text-left font-mono text-[11px] transition-[border-color,background-color,color] motion-reduce:transition-none",
         "focus-visible:z-10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary",
         cell === undefined
           ? "border-dashed border-border/70 bg-muted/30 text-muted-foreground"
           : generationFailure
             ? "border-destructive/55 bg-destructive/10 text-destructive"
             : "border-border bg-card text-foreground hover:border-primary/55 hover:bg-primary/5",
-        isCursor ? "ring-1 ring-accent/80" : "",
+        isCursor ? "ring-2 ring-primary/75" : "",
         isCurrent ? "border-primary bg-primary/12 text-primary" : "",
         isError ? "border-destructive bg-destructive/10 text-destructive" : "",
       ].join(" ")}
@@ -123,12 +124,12 @@ export const MatrixCell = memo(function MatrixCell({
                 : model.name}
         </span>
       </span>
-      {clip ? (
+      {clip && !isCurrent ? (
         <span className="relative z-10 ml-2 shrink-0 text-[10px] text-current/70">
           {clip.duration_sec.toFixed(2)}s
         </span>
       ) : null}
-      {isCurrent && clip ? <CellProgress fallbackDuration={clip.duration_sec} /> : null}
+      {isCurrent && clip ? <CellPlaybackProgress fallbackDuration={clip.duration_sec} /> : null}
       {generationFailure ? (
         <span className="relative z-10 ml-2 shrink-0 text-[9px] text-current/75">再生成待ち</span>
       ) : null}
@@ -136,18 +137,27 @@ export const MatrixCell = memo(function MatrixCell({
   );
 });
 
-function CellProgress({ fallbackDuration }: { fallbackDuration: number }) {
+function CellPlaybackProgress({ fallbackDuration }: { fallbackDuration: number }) {
   const progress = useAudioProgress();
   const duration = progress.duration > 0 ? progress.duration : fallbackDuration;
   const ratio = duration > 0 ? Math.min(progress.currentTime / duration, 1) : 0;
 
   return (
-    <span
-      aria-hidden="true"
-      className="absolute inset-y-0 left-0 bg-primary/14 transition-[width] duration-150"
-      style={{ width: `${ratio * 100}%` }}
-    />
+    <>
+      <span className="absolute inset-x-1.5 bottom-1 z-0">
+        <WaveformProgress className="h-4 opacity-70" ratio={ratio} />
+      </span>
+      <span className="relative z-10 ml-2 shrink-0 bg-card/85 px-1 text-[10px] text-primary">
+        {formatCompactTime(progress.currentTime)}
+      </span>
+    </>
   );
+}
+
+function formatCompactTime(seconds: number): string {
+  const safeSeconds = Number.isFinite(seconds) && seconds >= 0 ? seconds : 0;
+  const minutes = Math.floor(safeSeconds / 60);
+  return `${minutes}:${(safeSeconds % 60).toFixed(1).padStart(4, "0")}`;
 }
 
 function keyToDirection(key: string): NavigationDirection | null {

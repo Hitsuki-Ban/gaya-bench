@@ -1,4 +1,4 @@
-import { RotateCcw, SlidersHorizontal } from "lucide-react";
+import { ChevronDown, RotateCcw, SlidersHorizontal } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { benchmarkData, type Age, type Difficulty, type Emotion, type Gender } from "@/data";
@@ -62,91 +62,102 @@ export function FilterToolbar({
   const isDefault = encodeFilterState(state, benchmarkData) === "";
 
   return (
-    <section aria-labelledby="filter-heading" className="rounded-lg border bg-card p-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h2 className="flex items-center gap-2 text-sm font-semibold" id="filter-heading">
+    <details className="group rounded-md border bg-card">
+      <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-2.5 outline-none focus-visible:ring-3 focus-visible:ring-ring/50">
+        <span>
+          <span className="flex items-center gap-2 text-sm font-semibold">
             <SlidersHorizontal aria-hidden="true" className="size-4 text-primary" />
             比較フィルタ
-          </h2>
-          <p className="mt-1 text-xs text-muted-foreground" aria-live="polite">
+          </span>
+          <span className="mt-0.5 block text-xs text-muted-foreground" aria-live="polite">
             {filteredRows}/{totalRows} セリフを表示。選択状態は URL で共有できます。
-          </p>
+          </span>
+        </span>
+        <span className="flex shrink-0 items-center gap-1 whitespace-nowrap text-xs text-muted-foreground">
+          詳細
+          <ChevronDown
+            aria-hidden="true"
+            className="size-4 transition-transform group-open:rotate-180 motion-reduce:transition-none"
+          />
+        </span>
+      </summary>
+
+      <div className="border-t px-3 pt-2 pb-3">
+        <div className="mb-2 flex justify-end">
+          <Button disabled={isDefault} onClick={onReset} size="sm" variant="ghost">
+            <RotateCcw aria-hidden="true" data-icon="inline-start" />
+            すべて解除
+          </Button>
         </div>
-        <Button disabled={isDefault} onClick={onReset} size="sm" variant="ghost">
-          <RotateCcw aria-hidden="true" data-icon="inline-start" />
-          すべて解除
-        </Button>
-      </div>
+        <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-4">
+          <label className="space-y-1 text-xs font-medium">
+            <span>シナリオ</span>
+            <select
+              className="min-h-8 w-full rounded border bg-background px-2 text-sm"
+              onChange={(event) =>
+                onChange(
+                  updateScenarioFilter(
+                    state,
+                    event.currentTarget.value.length === 0 ? null : event.currentTarget.value,
+                    benchmarkData,
+                  ),
+                )
+              }
+              value={state.scenario ?? ""}
+            >
+              <option value="">すべてのシナリオ</option>
+              {benchmarkData.scenarios.map((scenario) => (
+                <option key={scenario.id} value={scenario.id}>
+                  {scenario.title}
+                </option>
+              ))}
+            </select>
+          </label>
 
-      <div className="mt-4 grid gap-4 lg:grid-cols-2 xl:grid-cols-3">
-        <label className="space-y-2 text-xs font-medium">
-          <span>シナリオ</span>
-          <select
-            className="min-h-10 w-full rounded-md border bg-background px-3 text-sm"
-            onChange={(event) =>
-              onChange(
-                updateScenarioFilter(
-                  state,
-                  event.currentTarget.value.length === 0 ? null : event.currentTarget.value,
-                  benchmarkData,
-                ),
-              )
+          <FilterCheckboxGroup
+            legend="性別"
+            onToggle={(value) =>
+              onChange(toggleFilterValue(state, "gender", value as Gender, benchmarkData))
             }
-            value={state.scenario ?? ""}
-          >
-            <option value="">すべてのシナリオ</option>
-            {benchmarkData.scenarios.map((scenario) => (
-              <option key={scenario.id} value={scenario.id}>
-                {scenario.title}
-              </option>
-            ))}
-          </select>
-        </label>
-
-        <FilterCheckboxGroup
-          legend="性別"
-          onToggle={(value) =>
-            onChange(toggleFilterValue(state, "gender", value as Gender, benchmarkData))
-          }
-          options={genderOptions}
-          selected={state.gender}
-        />
-        <FilterCheckboxGroup
-          legend="年齢"
-          onToggle={(value) =>
-            onChange(toggleFilterValue(state, "age", value as Age, benchmarkData))
-          }
-          options={ageOptions}
-          selected={state.age}
-        />
-        <FilterCheckboxGroup
-          legend="感情"
-          onToggle={(value) =>
-            onChange(toggleFilterValue(state, "emotion", value as Emotion, benchmarkData))
-          }
-          options={emotionOptions}
-          selected={state.emotion}
-        />
-        <FilterCheckboxGroup
-          legend="難易度"
-          onToggle={(value) =>
-            onChange(toggleFilterValue(state, "difficulty", value as Difficulty, benchmarkData))
-          }
-          options={difficultyOptions}
-          selected={state.difficulty}
-        />
-        <FilterCheckboxGroup
-          legend="モデル列"
-          onToggle={(value) => onChange(toggleFilterValue(state, "model", value, benchmarkData))}
-          options={benchmarkData.manifest.models.map(({ id, name }) => ({
-            value: id,
-            label: name,
-          }))}
-          selected={state.model}
-        />
+            options={genderOptions}
+            selected={state.gender}
+          />
+          <FilterCheckboxGroup
+            legend="年齢"
+            onToggle={(value) =>
+              onChange(toggleFilterValue(state, "age", value as Age, benchmarkData))
+            }
+            options={ageOptions}
+            selected={state.age}
+          />
+          <FilterCheckboxGroup
+            legend="感情"
+            onToggle={(value) =>
+              onChange(toggleFilterValue(state, "emotion", value as Emotion, benchmarkData))
+            }
+            options={emotionOptions}
+            selected={state.emotion}
+          />
+          <FilterCheckboxGroup
+            legend="難易度"
+            onToggle={(value) =>
+              onChange(toggleFilterValue(state, "difficulty", value as Difficulty, benchmarkData))
+            }
+            options={difficultyOptions}
+            selected={state.difficulty}
+          />
+          <FilterCheckboxGroup
+            legend="モデル列"
+            onToggle={(value) => onChange(toggleFilterValue(state, "model", value, benchmarkData))}
+            options={benchmarkData.manifest.models.map(({ id, name }) => ({
+              value: id,
+              label: name,
+            }))}
+            selected={state.model}
+          />
+        </div>
       </div>
-    </section>
+    </details>
   );
 }
 
@@ -162,14 +173,14 @@ function FilterCheckboxGroup({
   selected: ReadonlySet<string>;
 }) {
   return (
-    <fieldset className="rounded-md border bg-background/55 p-3">
+    <fieldset className="rounded border bg-background/55 px-2 py-1.5">
       <legend className="px-1 text-xs font-medium">{legend}</legend>
-      <div className="mt-1 flex flex-wrap gap-x-3 gap-y-2">
+      <div className="flex flex-wrap gap-x-2.5 gap-y-1">
         {options.map(({ value, label }) => {
           const checked = selected.has(value);
           return (
             <label
-              className="flex min-h-8 cursor-pointer items-center gap-2 text-xs text-muted-foreground has-checked:text-foreground"
+              className="flex min-h-6 cursor-pointer items-center gap-1.5 text-xs text-muted-foreground has-checked:text-foreground"
               key={value}
             >
               <input

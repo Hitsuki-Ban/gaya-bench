@@ -27,7 +27,7 @@ export function DesktopMatrix({ controller, model, projection, search }: Desktop
 
   return (
     <div
-      className="max-h-[68vh] overflow-auto rounded-lg border bg-background shadow-2xl shadow-black/20"
+      className="max-h-[70vh] overflow-auto rounded-md border bg-background shadow-2xl shadow-black/20"
       ref={scrollRef}
     >
       <table
@@ -37,12 +37,12 @@ export function DesktopMatrix({ controller, model, projection, search }: Desktop
         aria-rowcount={projection.rows.length + 1}
         className="w-full min-w-max border-separate border-spacing-0"
         role="grid"
-        style={{ minWidth: `${360 + visibleModels.length * 180}px` }}
+        style={{ minWidth: `${300 + visibleModels.length * 132}px` }}
       >
         <thead className="sticky top-0 z-20 bg-background/98 backdrop-blur">
           <tr role="row">
             <th
-              className="sticky left-0 z-30 w-[360px] border-r border-b bg-background px-4 py-3 text-left"
+              className="sticky left-0 z-30 w-[300px] border-r border-b bg-background px-3 py-2.5 text-left"
               role="columnheader"
             >
               <span className="font-mono text-[10px] tracking-[0.16em] text-muted-foreground uppercase">
@@ -52,8 +52,8 @@ export function DesktopMatrix({ controller, model, projection, search }: Desktop
             {visibleModels.map((item) => (
               <th
                 className={[
-                  "w-[180px] border-r border-b bg-background px-2 py-2.5 text-left last:border-r-0",
-                  playingCoordinate?.modelId === item.id ? "bg-primary/8" : "",
+                  "w-[132px] border-r border-b bg-background px-2 py-2 text-left last:border-r-0",
+                  playingCoordinate?.modelId === item.id ? "bg-primary/12" : "",
                 ].join(" ")}
                 key={item.id}
                 role="columnheader"
@@ -77,6 +77,7 @@ export function DesktopMatrix({ controller, model, projection, search }: Desktop
                     label="N"
                     title="非言語音"
                   />
+                  <CapabilityBadge active={item.capabilities.reading} label="R" title="読み仮名" />
                 </div>
               </th>
             ))}
@@ -169,14 +170,16 @@ const MatrixRow = memo(function MatrixRow({
       className={[
         "group/row",
         isScenarioStart ? "border-t-2 border-t-border" : "",
-        isActiveRow ? "bg-primary/[0.035]" : "",
+        isActiveRow ? "bg-primary/[0.065]" : "",
       ].join(" ")}
       role="row"
     >
       <th
         className={[
-          "sticky left-0 z-10 w-[360px] border-r border-b bg-background px-4 py-3 text-left align-top",
-          isActiveRow ? "bg-[#15130f]" : "",
+          "sticky left-0 z-10 w-[300px] border-r border-b bg-background px-3 py-2.5 text-left align-top",
+          isActiveRow
+            ? "bg-[#18140d] shadow-[inset_0_1px_0_rgba(245,166,35,0.55),inset_0_-1px_0_rgba(245,166,35,0.4)]"
+            : "",
         ].join(" ")}
         role="rowheader"
       >
@@ -189,7 +192,7 @@ const MatrixRow = memo(function MatrixRow({
           </Link>
         ) : null}
         {isCharacterStart ? (
-          <p className="mb-1 text-xs font-semibold text-accent">{row.character.name}</p>
+          <p className="mb-1 text-xs font-semibold text-primary">{row.character.name}</p>
         ) : null}
         <p className="text-sm leading-6 text-foreground">{row.line.text}</p>
         <div className="mt-2 flex flex-wrap items-center gap-1.5">
@@ -207,8 +210,12 @@ const MatrixRow = memo(function MatrixRow({
         return (
           <td
             className={[
-              "w-[180px] border-r border-b p-1.5 align-middle last:border-r-0",
-              playingModelId === item.id ? "bg-primary/[0.055]" : "",
+              "w-[132px] border-r border-b p-1 align-middle last:border-r-0",
+              playingModelId === item.id
+                ? "bg-primary/[0.085] shadow-[inset_0_1px_0_rgba(245,166,35,0.55),inset_0_-1px_0_rgba(245,166,35,0.4)]"
+                : isActiveRow
+                  ? "shadow-[inset_0_1px_0_rgba(245,166,35,0.4),inset_0_-1px_0_rgba(245,166,35,0.28)]"
+                  : "",
             ].join(" ")}
             key={item.id}
             role="gridcell"
@@ -249,7 +256,7 @@ function CapabilityBadge({
       className={[
         "grid size-5 place-items-center rounded border font-mono text-[9px]",
         active
-          ? "border-accent/50 bg-accent/10 text-accent"
+          ? "border-primary/55 bg-primary/10 text-primary"
           : "border-border text-muted-foreground/55",
       ].join(" ")}
       title={`${title}: ${active ? "対応" : "非対応"}`}

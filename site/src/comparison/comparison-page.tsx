@@ -82,10 +82,10 @@ function FilteredComparisonPage({
   const filteredClipCount = useMemo(() => countProjectionClips(projection), [projection]);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <PageIntro
         aside={
-          <div className="grid min-w-64 grid-cols-3 gap-px overflow-hidden rounded-lg border bg-border">
+          <div className="grid min-w-64 grid-cols-3 gap-px overflow-hidden rounded-md border bg-border">
             <Metric
               label="lines"
               value={`${projection.rows.length}/${comparisonModel.rows.length}`}
@@ -155,7 +155,7 @@ function MatrixToolbar({
   visibleModelCount: number;
 }) {
   return (
-    <div className="flex flex-col gap-3 rounded-lg border bg-card p-3 lg:flex-row lg:items-center lg:justify-between">
+    <div className="flex flex-col gap-2 rounded-md border bg-card px-3 py-2 lg:flex-row lg:items-center lg:justify-between">
       <div className="flex flex-wrap items-center gap-2">
         <Badge variant="outline">
           <AudioWaveform aria-hidden="true" data-icon="inline-start" />
@@ -228,7 +228,7 @@ function DirectionButton({
 function KeyboardHelp({ isDesktop }: { isDesktop: boolean }) {
   return (
     <div
-      className="flex flex-wrap items-center gap-x-5 gap-y-2 rounded-lg border bg-muted/35 px-4 py-3 text-xs text-muted-foreground"
+      className="flex flex-wrap items-center gap-x-4 gap-y-1.5 rounded-md border bg-muted/35 px-3 py-2 text-xs text-muted-foreground"
       id="matrix-keyboard-help"
     >
       <span className="font-mono text-[10px] tracking-wider text-foreground uppercase">
@@ -294,7 +294,7 @@ function Transport({
   );
 
   return (
-    <div className="sticky bottom-4 z-30 rounded-lg border border-primary/30 bg-background/95 p-3 shadow-2xl shadow-black/50 backdrop-blur">
+    <div className="sticky bottom-3 z-30 rounded-md border border-primary/45 bg-background/96 p-3 shadow-2xl shadow-black/50 backdrop-blur">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm">
@@ -328,9 +328,16 @@ function Transport({
         </div>
 
         <div className="w-full lg:w-72">
-          <div className="h-1.5 overflow-hidden rounded-full bg-muted">
+          <div
+            aria-label="現在のクリップの再生位置"
+            aria-valuemax={Math.max(duration, 0)}
+            aria-valuemin={0}
+            aria-valuenow={Math.min(progress.currentTime, Math.max(duration, 0))}
+            className="h-1.5 overflow-hidden rounded-full bg-muted"
+            role="progressbar"
+          >
             <div
-              className="h-full rounded-full bg-primary transition-[width] duration-150"
+              className="gaya-progress h-full rounded-full bg-primary transition-[width] duration-150"
               style={{ width: `${ratio * 100}%` }}
             />
           </div>
