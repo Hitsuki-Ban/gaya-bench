@@ -314,3 +314,56 @@ uv run --project pipeline --locked --extra gpt-sovits gaya gen --model gpt-sovit
 [GPT-SoVITS code](https://github.com/RVC-Boss/GPT-SoVITS) と [lj1995/GPT-SoVITS 公式 weight](https://huggingface.co/lj1995/GPT-SoVITS) は MIT。言語識別用 [fastText `lid.176.bin`](https://fasttext.cc/docs/en/language-identification.html) は CC BY-SA 3.0 で、Meta AI Research の model として帰属する。透かしはない。生成時は `assets/voices/metadata.yaml` の素材別ライセンス、クレジット、再配布条件にも従い、無断の声真似や誤認を招く利用を禁止する。
 
 Windows native 以外、依存や固定 file の欠落・hash 不一致、tracked upstream の変更、許可外の untracked file、CUDA unavailable、cu128 wheel 不一致、model identity の変化、不正・無音・複数結果、OOM は明示的に失敗する。CPU、別 CUDA wheel、別 weight、HTTP API、クラウドへ自動切替しない。
+
+## VoxCPM2
+
+`voxcpm2` は、登録済み参照音声または Voice Design で作成したキャラクター参照音声を使い、全台詞を Controllable Cloning で生成する。`character.reference_voice` が指定されている場合はその素材を優先し、`null` の場合だけ `gender` / `age` / `archetype` / `voice` / `personality` から scenario・character 単位の参照 WAV を生成して `artifacts/voices/voxcpm2/` に保存する。登録素材の欠落や破損時に Voice Design へ切り替えない。
+
+検証経路は Windows 11 / Python 3.12 / NVIDIA CUDA:0 / BF16 / PyTorch 2.10.0 cu130 のみ。VoxCPM2 専用 extra は Qwen / Irodori / GPT-SoVITS の PyTorch と相互排他的である。上流 lock と同じ `torch==2.10.0`、`torchaudio==2.10.0`、`torchcodec==0.10.0`、`transformers==5.3.0` を使う。
+
+```console
+uv sync --project pipeline --locked --extra voxcpm2
+```
+
+code は `OpenBMB/VoxCPM@616d3d3e630a9c96c2853250eef91b0f39dcd5fa` を uv source として固定する。PyPI 2.0.3 には再現可能な `seed` API がないため使わない。weight は固定 revision をローカルへ取得する。
+
+```powershell
+hf download openbmb/VoxCPM2 `
+  --revision bffb3df5a29440629464e5e839f4d214c8714c3d `
+  --local-dir models/voxcpm2/weights
+
+$env:GAYA_VOXCPM2_ROOT = (Resolve-Path "models/voxcpm2/weights")
+```
+
+adapter は root の9ファイルを生成前に照合する。主 weight は `model.safetensors`（4,580,080,592 bytes、SHA-256 `f7f964cfa9da23653baec6e6f7750719977ad944ed9f95fe52fe3a620506891d`）、AudioVAE は `audiovae.pth`（376,951,122 bytes、SHA-256 `94b5d51e107e0507d4acc976cfdadb64edd6fd06d1f751dadbf2fd1594274bf1`）であり、固定 code は後者を `weights_only=True` で読み込む。残りの config / tokenizer / model card も個別の size と SHA-256 を照合する。root、環境変数、固定ファイルのいずれかが欠けた場合はネットワーク取得や別 snapshot へ切り替えず失敗する。
+
+参照音声キットを検証してから実行する。
+
+```powershell
+uv run --project pipeline --locked --extra voxcpm2 gaya voices validate-local
+$env:GAYA_VOXCPM2_ROOT = (Resolve-Path "models/voxcpm2/weights")
+```
+
+`line.reading` が non-empty string ならその値を優先し、それ以外は `pyopenjtalk.g2p(text, kana=True)` で片仮名化する。上流の `normalize=True` は漢字を含む日本語を中国語 normalizer へ送るため無効にする。clone の制御 prefix は固定英語 emotion、3段階 intensity、元の `line.delivery` を組み合わせ、キャラクターの声質記述は参照音声生成時だけ使う。
+
+上流の自動挙動は使用しない。`load_denoiser=False`、`optimize=False`、`normalize=False`、`denoise=False`、`retry_badcase=False`、`cfg_value=2.0`、`inference_timesteps=10` とし、CUDA unavailable、cu130 / BF16 / model architecture / 48kHz 不一致、無効 waveform、OOM は明示的に失敗する。CPU、MPS、WSL、Triton、GGUF、vLLM、クラウド、別 weight へ自動切替しない。
+
+まず登録参照音声と Voice Design の両経路を1行ずつ確認する。
+
+```console
+uv run --project pipeline --locked --extra voxcpm2 gaya gen --model voxcpm2 --scenario tavern-night --line barmaid-001
+uv run --project pipeline --locked --extra voxcpm2 gaya gen --model voxcpm2 --scenario tavern-night --line drunkard-001
+```
+
+gate 通過後、受け入れ確認用の2シナリオを生成する。
+
+```console
+uv run --project pipeline --locked --extra voxcpm2 gaya gen --model voxcpm2 --scenario tavern-night
+uv run --project pipeline --locked --extra voxcpm2 gaya gen --model voxcpm2 --scenario market-day
+```
+
+RTX 4070 Ti 12GB での受け入れ実測では、2シナリオ12行を失敗0件で生成し、直後の再実行は12行すべてをskipした。2行は登録済み参照音声、10行は5キャラクター分のVoice Design参照を使う。最大VRAMはallocated 5,772.845 MiB / reserved 6,658 MiB、12行の平均RTFは3.409だった。最初のmodel loadを含む1行（RTF 11.829）を除く11行の平均RTFは2.644である。
+
+capability は、構造化 emotion/intensity を control prefix へ反映するため emotion、Voice Design 参照を作るため voice prompt、全行で reference を使うため clone、解決済み reading を実入力にするため reading を `true` とする。非言語タグは本 adapter では構造化していないため nonverbal は `false` とする。
+
+[VoxCPM code](https://github.com/OpenBMB/VoxCPM) と [openbmb/VoxCPM2 weight](https://huggingface.co/openbmb/VoxCPM2) は Apache-2.0 で、公式 model card は commercial-ready と記載する。内蔵デジタル透かしはなく、生成物は AI 生成であることを明示する。clone 時は `assets/voices/metadata.yaml` の素材別ライセンス、クレジット、再配布条件にも従い、無断の声真似、詐欺、なりすまし、偽情報に利用しない。Voice Design 結果が実在人物に似ていると制作担当が認識した場合は採用しない。

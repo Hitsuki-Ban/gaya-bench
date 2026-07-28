@@ -46,6 +46,17 @@ qwen = [
     "torch==2.11.0",
     "torchaudio==2.11.0",
 ]
+voxcpm2 = [
+    "funasr==1.3.1",
+    "huggingface-hub==1.7.1",
+    "modelscope==1.35.0",
+    "torch==2.10.0",
+    "torchaudio==2.10.0",
+    "torchcodec==0.10.0",
+    "transformers==5.3.0",
+    "voxcpm",
+    "wetext==0.1.2",
+]
 
 [project.scripts]
 gaya = "gaya_pipeline.cli:main"
@@ -73,21 +84,36 @@ conflicts = [
         { extra = "irodori" },
         { extra = "qwen" },
     ],
+    [
+        { extra = "gpt-sovits" },
+        { extra = "voxcpm2" },
+    ],
+    [
+        { extra = "irodori" },
+        { extra = "voxcpm2" },
+    ],
+    [
+        { extra = "qwen" },
+        { extra = "voxcpm2" },
+    ],
 ]
 extra-build-variables = { sentencepiece = { CMAKE_POLICY_VERSION_MINIMUM = "3.5" } }
 
 [tool.uv.sources]
 irodori-tts = { git = "https://github.com/Aratako/Irodori-TTS.git", rev = "eaf74d6a19138f743acb5b71a445fd25a57db987" }
 dacvae = { git = "https://github.com/facebookresearch/dacvae", rev = "414c20785fc3a28373073ea8ef7a1316eeeaca6e" }
+voxcpm = { git = "https://github.com/OpenBMB/VoxCPM.git", rev = "616d3d3e630a9c96c2853250eef91b0f39dcd5fa" }
 torch = [
     { index = "pytorch-cu128", extra = "gpt-sovits" },
     { index = "pytorch-cu128", extra = "irodori" },
     { index = "pytorch-cu130", extra = "qwen" },
+    { index = "pytorch-cu130", extra = "voxcpm2" },
 ]
 torchaudio = [
     { index = "pytorch-cu128", extra = "gpt-sovits" },
     { index = "pytorch-cu128", extra = "irodori" },
     { index = "pytorch-cu130", extra = "qwen" },
+    { index = "pytorch-cu130", extra = "voxcpm2" },
 ]
 
 [[tool.uv.index]]

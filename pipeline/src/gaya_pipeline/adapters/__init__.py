@@ -27,4 +27,8 @@ def create_adapter(model_id: str) -> Adapter:
         from gaya_pipeline.adapters.gpt_sovits import GPTSoVITSAdapter
 
         return GPTSoVITSAdapter()
+    if model_id == "voxcpm2":
+        from gaya_pipeline.adapters.voxcpm2 import VoxCPM2Adapter
+
+        return VoxCPM2Adapter()
     raise UnknownAdapterError(f"未知の model id です: {model_id}")
