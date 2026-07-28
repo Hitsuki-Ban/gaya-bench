@@ -13,6 +13,11 @@ class AudioProcessingError(RuntimeError):
     pass
 
 
+LOUDNESS_TOLERANCE_LU = 0.2
+TRUE_PEAK_TOLERANCE_DB = 0.1
+MAX_LIMITER_CORRECTION_PASSES = 2
+
+
 @dataclass(frozen=True)
 class AudioTools:
     ffmpeg: str
@@ -21,6 +26,7 @@ class AudioTools:
 
 @dataclass(frozen=True)
 class PostprocessProfile:
+    algorithm_version: int = 2
     integrated_lufs: float = -18.0
     loudness_range_lu: float = 7.0
     true_peak_dbtp: float = -1.0
@@ -33,6 +39,7 @@ class PostprocessProfile:
 
     def as_dict(self) -> dict[str, Any]:
         return {
+            "algorithm_version": self.algorithm_version,
             "integrated_lufs": self.integrated_lufs,
             "loudness_range_lu": self.loudness_range_lu,
             "true_peak_dbtp": self.true_peak_dbtp,
@@ -101,36 +108,8 @@ def normalize_wav(
         f"LRA={profile.loudness_range_lu:g}:"
         f"TP={profile.true_peak_dbtp:g}"
     )
-    measure_result = _run(
-        [
-            tools.ffmpeg,
-            "-hide_banner",
-            "-nostats",
-            "-v",
-            "info",
-            "-nostdin",
-            "-i",
-            str(input_wav),
-            "-map",
-            "0:a:0",
-            "-af",
-            f"loudnorm={target}:print_format=json",
-            "-f",
-            "null",
-            "-",
-        ],
-    )
-    measurement = _parse_loudnorm_json(measure_result.stderr)
-    measured_values = {
-        "measured_I": _finite_value(measurement, "input_i"),
-        "measured_TP": _finite_value(measurement, "input_tp"),
-        "measured_LRA": _finite_value(measurement, "input_lra"),
-        "measured_thresh": _finite_value(measurement, "input_thresh"),
-        "offset": _finite_value(measurement, "target_offset"),
-    }
-    measured_filter = ":".join(
-        f"{name}={value:g}" for name, value in measured_values.items()
-    )
+    measurement = _measure_loudness(tools, input_wav, target)
+    measured_filter = _measured_filter(measurement)
 
     output_wav.parent.mkdir(parents=True, exist_ok=True)
     normalize_result = _run(
@@ -168,12 +147,69 @@ def normalize_wav(
         raise AudioProcessingError(
             "loudnorm の normalization_type が不正です。",
         )
-    return LoudnessReport(
-        integrated_lufs=_finite_value(normalized, "output_i"),
-        true_peak_dbtp=_finite_value(normalized, "output_tp"),
-        loudness_range_lu=_finite_value(normalized, "output_lra"),
-        normalization_type=normalization_type,
+    final_report = _measure_normalized_output(
+        tools,
+        output_wav,
+        target,
+        normalization_type,
     )
+    if _loudness_matches_profile(final_report, profile):
+        return final_report
+
+    correction_wav = output_wav.with_suffix(".limiter-correction.wav")
+    correction_wav.unlink(missing_ok=True)
+    try:
+        for _ in range(MAX_LIMITER_CORRECTION_PASSES):
+            gain_db = profile.integrated_lufs - final_report.integrated_lufs
+            gain = 10 ** (gain_db / 20)
+            limit = 10 ** (profile.true_peak_dbtp / 20)
+            if not 0.015625 <= gain <= 64:
+                break
+            _run(
+                [
+                    tools.ffmpeg,
+                    "-hide_banner",
+                    "-nostats",
+                    "-v",
+                    "error",
+                    "-nostdin",
+                    "-y",
+                    "-i",
+                    str(output_wav),
+                    "-map",
+                    "0:a:0",
+                    "-vn",
+                    "-sn",
+                    "-dn",
+                    "-af",
+                    (
+                        f"alimiter=level_in={gain:.12g}:limit={limit:.12g}:"
+                        "level=false:latency=true"
+                    ),
+                    "-ar",
+                    str(profile.sample_rate_hz),
+                    "-ac",
+                    str(profile.channels),
+                    "-c:a",
+                    "pcm_s16le",
+                    "-map_metadata",
+                    "-1",
+                    str(correction_wav),
+                ],
+            )
+            final_report = _measure_normalized_output(
+                tools,
+                correction_wav,
+                target,
+                "dynamic",
+            )
+            correction_wav.replace(output_wav)
+            if _loudness_matches_profile(final_report, profile):
+                return final_report
+        _validate_loudness_report(final_report, profile)
+        return final_report
+    finally:
+        correction_wav.unlink(missing_ok=True)
 
 
 def encode_opus(
@@ -256,6 +292,84 @@ def probe_audio(tools: AudioTools, audio_path: Path) -> AudioProbe:
         sample_rate_hz=sample_rate_hz,
         channels=channels,
         duration_sec=duration_sec,
+    )
+
+
+def _measure_normalized_output(
+    tools: AudioTools,
+    output_wav: Path,
+    target: str,
+    normalization_type: str,
+) -> LoudnessReport:
+    measurement = _measure_loudness(tools, output_wav, target)
+    return LoudnessReport(
+        integrated_lufs=_finite_value(measurement, "input_i"),
+        true_peak_dbtp=_finite_value(measurement, "input_tp"),
+        loudness_range_lu=_finite_value(measurement, "input_lra"),
+        normalization_type=normalization_type,
+    )
+
+
+def _measure_loudness(
+    tools: AudioTools,
+    audio_path: Path,
+    target: str,
+) -> dict[str, Any]:
+    result = _run(
+        [
+            tools.ffmpeg,
+            "-hide_banner",
+            "-nostats",
+            "-v",
+            "info",
+            "-nostdin",
+            "-i",
+            str(audio_path),
+            "-map",
+            "0:a:0",
+            "-af",
+            f"loudnorm={target}:print_format=json",
+            "-f",
+            "null",
+            "-",
+        ],
+    )
+    return _parse_loudnorm_json(result.stderr)
+
+
+def _measured_filter(measurement: dict[str, Any]) -> str:
+    measured_values = {
+        "measured_I": _finite_value(measurement, "input_i"),
+        "measured_TP": _finite_value(measurement, "input_tp"),
+        "measured_LRA": _finite_value(measurement, "input_lra"),
+        "measured_thresh": _finite_value(measurement, "input_thresh"),
+        "offset": _finite_value(measurement, "target_offset"),
+    }
+    return ":".join(f"{name}={value:g}" for name, value in measured_values.items())
+
+
+def _loudness_matches_profile(
+    report: LoudnessReport,
+    profile: PostprocessProfile,
+) -> bool:
+    return (
+        abs(report.integrated_lufs - profile.integrated_lufs) <= LOUDNESS_TOLERANCE_LU
+        and report.true_peak_dbtp <= profile.true_peak_dbtp + TRUE_PEAK_TOLERANCE_DB
+    )
+
+
+def _validate_loudness_report(
+    report: LoudnessReport,
+    profile: PostprocessProfile,
+) -> None:
+    if _loudness_matches_profile(report, profile):
+        return
+    raise AudioProcessingError(
+        "正規化後 WAV が loudness profile を満たしません: "
+        f"I={report.integrated_lufs:g} LUFS "
+        f"(target={profile.integrated_lufs:g}±{LOUDNESS_TOLERANCE_LU:g}), "
+        f"TP={report.true_peak_dbtp:g} dBTP "
+        f"(max={profile.true_peak_dbtp + TRUE_PEAK_TOLERANCE_DB:g})",
     )
 
 
