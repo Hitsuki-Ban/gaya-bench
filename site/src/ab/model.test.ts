@@ -359,6 +359,7 @@ function character(id: string): Character {
   return {
     id,
     name: id,
+    kind: "human",
     gender: "neutral",
     age: "adult",
     voice: "自然な声",

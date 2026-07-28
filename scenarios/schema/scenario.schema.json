@@ -44,6 +44,11 @@
       "properties": {
         "id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$" },
         "name": { "type": "string" },
+        "kind": {
+          "enum": ["human", "machine", "creature", "spirit"],
+          "default": "human",
+          "description": "キャラクター種別。省略時は human"
+        },
         "gender": { "enum": ["female", "male", "neutral"] },
         "age": { "enum": ["child", "teen", "young_adult", "adult", "middle_aged", "elderly"] },
         "archetype": { "type": "string", "description": "役柄 (給仕・衛兵・商人...)" },

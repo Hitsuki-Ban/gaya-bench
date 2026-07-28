@@ -44,6 +44,28 @@ def _sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
+def test_line_jobにcharacter_kindをそのまま渡す(tmp_path: Path) -> None:
+    scenarios_dir = _two_scenarios(tmp_path)
+    scenario_path = scenarios_dir / "tavern-night.yaml"
+    document = yaml.safe_load(scenario_path.read_text(encoding="utf-8"))
+    character = document["characters"][0]
+    character["kind"] = "machine"
+    scenario_path.write_text(
+        yaml.safe_dump(document, allow_unicode=True, sort_keys=False),
+        encoding="utf-8",
+    )
+
+    jobs = generation._load_jobs(
+        scenarios_dir,
+        scenario_id="tavern-night",
+        line_id="barmaid-001",
+    )
+
+    assert len(jobs) == 1
+    assert jobs[0].character == character
+    assert jobs[0].character["kind"] == "machine"
+
+
 def test_dummy_two_scenario_e2e_and_idempotency(
     tmp_path: Path,
     capsys: pytest.CaptureFixture[str],

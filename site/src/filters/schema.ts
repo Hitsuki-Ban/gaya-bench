@@ -1,6 +1,12 @@
-import type { Age, BenchmarkData, Difficulty, Emotion, Gender } from "../data/types";
+import type { Age, BenchmarkData, CharacterKind, Difficulty, Emotion, Gender } from "../data/types";
 import type { FilterState, FilterValueByKey, MultiFilterKey } from "./types";
 
+export const CHARACTER_KIND_ORDER = [
+  "human",
+  "machine",
+  "creature",
+  "spirit",
+] as const satisfies readonly CharacterKind[];
 export const GENDER_ORDER = ["female", "male", "neutral"] as const satisfies readonly Gender[];
 export const AGE_ORDER = [
   "child",
@@ -30,6 +36,7 @@ export function createDefaultFilterState(data: BenchmarkData): FilterState {
   const { modelIds } = getDataFilterValues(data);
   return {
     scenario: null,
+    kind: new Set(CHARACTER_KIND_ORDER),
     gender: new Set(GENDER_ORDER),
     age: new Set(AGE_ORDER),
     emotion: new Set(EMOTION_ORDER),
@@ -111,6 +118,9 @@ export function getDataFilterValues(data: BenchmarkData): {
 }
 
 export function getAllowedValues(key: MultiFilterKey, data: BenchmarkData): readonly string[] {
+  if (key === "kind") {
+    return CHARACTER_KIND_ORDER;
+  }
   if (key === "gender") {
     return GENDER_ORDER;
   }
@@ -131,6 +141,12 @@ function replaceFilterSet(
   key: MultiFilterKey,
   values: ReadonlySet<string>,
 ): FilterState {
+  if (key === "kind") {
+    return {
+      ...state,
+      kind: new Set(CHARACTER_KIND_ORDER.filter((value) => values.has(value))),
+    };
+  }
   if (key === "gender") {
     return { ...state, gender: new Set(GENDER_ORDER.filter((value) => values.has(value))) };
   }

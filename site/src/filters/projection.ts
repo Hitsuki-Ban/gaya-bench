@@ -1,6 +1,12 @@
 import type { ComparisonModel, ComparisonRow } from "../comparison/model";
 import type { Model } from "../data/types";
-import { AGE_ORDER, DIFFICULTY_ORDER, EMOTION_ORDER, GENDER_ORDER } from "./schema";
+import {
+  AGE_ORDER,
+  CHARACTER_KIND_ORDER,
+  DIFFICULTY_ORDER,
+  EMOTION_ORDER,
+  GENDER_ORDER,
+} from "./schema";
 import type { FilterState } from "./types";
 
 export interface ComparisonProjection {
@@ -39,6 +45,7 @@ export function projectComparisonModel(
 function rowMatches(row: ComparisonRow, state: FilterState): boolean {
   return (
     (state.scenario === null || row.scenario.id === state.scenario) &&
+    state.kind.has(row.character.kind) &&
     state.gender.has(row.character.gender) &&
     state.age.has(row.character.age) &&
     state.emotion.has(row.line.emotion) &&
@@ -47,6 +54,7 @@ function rowMatches(row: ComparisonRow, state: FilterState): boolean {
 }
 
 function assertProjectionState(model: ComparisonModel, state: FilterState): void {
+  assertSelectedValues("kind", state.kind, CHARACTER_KIND_ORDER);
   assertSelectedValues("gender", state.gender, GENDER_ORDER);
   assertSelectedValues("age", state.age, AGE_ORDER);
   assertSelectedValues("emotion", state.emotion, EMOTION_ORDER);
@@ -83,6 +91,7 @@ function assertSelectedValues(
 function createProjectionKey(model: ComparisonModel, state: FilterState): string {
   return JSON.stringify([
     state.scenario,
+    CHARACTER_KIND_ORDER.filter((value) => state.kind.has(value)),
     GENDER_ORDER.filter((value) => state.gender.has(value)),
     AGE_ORDER.filter((value) => state.age.has(value)),
     EMOTION_ORDER.filter((value) => state.emotion.has(value)),

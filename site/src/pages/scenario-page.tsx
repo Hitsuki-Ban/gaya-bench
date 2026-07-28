@@ -1,6 +1,7 @@
 import { AudioWaveform, Ear, MapPinned, Volume2 } from "lucide-react";
 import { Link, useLocation, useParams } from "react-router";
 
+import { CharacterKindBadge } from "@/components/character-kind-badge";
 import { ClipButton } from "@/components/clip-button";
 import { PageIntro } from "@/components/page-intro";
 import { Badge } from "@/components/ui/badge";
@@ -91,6 +92,7 @@ export function ScenarioPage() {
             <Card key={character.id} size="sm">
               <CardHeader>
                 <div className="flex flex-wrap gap-2">
+                  <CharacterKindBadge kind={character.kind} />
                   <Badge variant="secondary">{character.gender}</Badge>
                   <Badge variant="outline">{character.age}</Badge>
                   {character.archetype ? (

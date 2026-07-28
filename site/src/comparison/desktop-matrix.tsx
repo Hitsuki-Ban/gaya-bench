@@ -1,6 +1,7 @@
 import { memo, useRef } from "react";
 import { Link } from "react-router";
 
+import { CharacterKindBadge } from "@/components/character-kind-badge";
 import { Badge } from "@/components/ui/badge";
 import type { ComparisonProjection } from "@/filters";
 
@@ -192,7 +193,10 @@ const MatrixRow = memo(function MatrixRow({
           </Link>
         ) : null}
         {isCharacterStart ? (
-          <p className="mb-1 text-xs font-semibold text-primary">{row.character.name}</p>
+          <div className="mb-1 flex flex-wrap items-center gap-1.5">
+            <p className="text-xs font-semibold text-primary">{row.character.name}</p>
+            <CharacterKindBadge kind={row.character.kind} />
+          </div>
         ) : null}
         <p className="text-sm leading-6 text-foreground">{row.line.text}</p>
         <div className="mt-2 flex flex-wrap items-center gap-1.5">
