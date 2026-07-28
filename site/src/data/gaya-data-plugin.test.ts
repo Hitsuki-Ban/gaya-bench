@@ -45,7 +45,7 @@ describe("virtual:gaya-data integration", () => {
     const clips = getClipsForScenario("market-day");
     expect(clips).toHaveLength(scenarioById.get("market-day")!.lines.length * modelCount);
     expect(clipKey(clips[0]!)).toBe(
-      JSON.stringify(["dummy", "market-day", "fruit-vendor-001", "dry"]),
+      JSON.stringify(["chatterbox-multilingual-v3", "market-day", "fruit-vendor-001", "dry"]),
     );
     expect(() => getClipsForScenario("missing")).toThrow("未知の scenario id です: missing");
     expect(getFailuresForScenario("market-day")).toEqual([]);
