@@ -37,6 +37,31 @@ def _write_high_crest_wav(path: Path) -> None:
         output.writeframes(b"".join(frames))
 
 
+def _write_intersample_overshoot_wav(path: Path) -> None:
+    sample_rate = 24_000
+    with wave.open(str(path), "wb") as output:
+        output.setnchannels(1)
+        output.setsampwidth(2)
+        output.setframerate(sample_rate)
+        frames: list[bytes] = []
+        for index in range(sample_rate * 3):
+            sample = 0.02 * math.sin(
+                2 * math.pi * 220 * index / sample_rate,
+            )
+            if sample_rate <= index < sample_rate + 120:
+                sample += 0.92 * math.sin(
+                    2
+                    * math.pi
+                    * 10_000
+                    * (index - sample_rate)
+                    / sample_rate
+                    + math.pi / 4,
+                )
+            sample = max(-1.0, min(1.0, sample))
+            frames.append(struct.pack("<h", round(sample * 32767)))
+        output.writeframes(b"".join(frames))
+
+
 def _measure_final_wav(path: Path) -> tuple[float, float]:
     tools = find_audio_tools()
     result = subprocess.run(
@@ -94,6 +119,33 @@ def test_dynamic_correction_hits_profile_and_reports_final_pcm(
         assert normalized.getnchannels() == 1
         assert normalized.getsampwidth() == 2
         assert normalized.getframerate() == 48_000
+
+
+def test_intersample_overshoot_correction_hits_profile(
+    tmp_path: Path,
+) -> None:
+    source_wav = tmp_path / "transient-24k.wav"
+    output_wav = tmp_path / "normalized.wav"
+    _write_intersample_overshoot_wav(source_wav)
+    with wave.open(str(source_wav), "rb") as source:
+        assert source.getframerate() == 24_000
+
+    report = normalize_wav(
+        find_audio_tools(),
+        source_wav,
+        output_wav,
+        PostprocessProfile(),
+    )
+    measured_lufs, measured_peak = _measure_final_wav(output_wav)
+
+    assert PostprocessProfile().algorithm_version == 5
+    assert report.normalization_type == "dynamic"
+    assert report.integrated_lufs == measured_lufs
+    assert report.true_peak_dbtp == measured_peak
+    assert report.as_manifest_dict(PostprocessProfile())["shortfall"] is False
+    assert measured_lufs == pytest.approx(-18.0, abs=0.2)
+    assert measured_peak <= -0.9
+    assert not list(tmp_path.glob("*.limiter-correction.wav"))
 
 
 @pytest.mark.parametrize(

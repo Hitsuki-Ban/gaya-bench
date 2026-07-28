@@ -17,6 +17,7 @@ LOUDNESS_TARGET_TOLERANCE_LU = 0.2
 LOUDNESS_GATE_TOLERANCE_LU = 1.5
 TRUE_PEAK_TOLERANCE_DB = 0.1
 MAX_LIMITER_CORRECTION_PASSES = 2
+LIMITER_SAMPLE_RATE_HZ = 192_000
 
 
 @dataclass(frozen=True)
@@ -27,7 +28,7 @@ class AudioTools:
 
 @dataclass(frozen=True)
 class PostprocessProfile:
-    algorithm_version: int = 4
+    algorithm_version: int = 5
     integrated_lufs: float = -18.0
     loudness_range_lu: float = 7.0
     true_peak_dbtp: float = -1.0
@@ -197,8 +198,10 @@ def normalize_wav(
                     "-dn",
                     "-af",
                     (
+                        f"aresample={LIMITER_SAMPLE_RATE_HZ},"
                         f"alimiter=level_in={gain:.12g}:limit={limit:.12g}:"
-                        "level=false:latency=true"
+                        "level=false:latency=true,"
+                        f"aresample={profile.sample_rate_hz}"
                     ),
                     "-ar",
                     str(profile.sample_rate_hz),

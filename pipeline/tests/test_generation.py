@@ -424,7 +424,7 @@ def test_postprocess_algorithm_version_invalidates_cached_audio(
         artifacts_dir / "audio" / "dummy" / "tavern-night" / "barmaid-001-dry.json"
     )
     metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
-    assert metadata["postprocess"]["algorithm_version"] == 4
+    assert metadata["postprocess"]["algorithm_version"] == 5
 
 
 def test_force_regeneration_preserves_opus_hash(tmp_path: Path) -> None:
