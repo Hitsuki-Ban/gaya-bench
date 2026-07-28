@@ -1,0 +1,160 @@
+format_version: 1
+id: west-market
+title: 石畳のマーケット広場
+locale: ja
+tags: [western, outdoor, market, crowd]
+
+scene:
+  setting: >-
+    欧米の大都市の一角、石畳の広場に面したアーケード市場。午前、花とチーズと
+    焼きたてのパンの屋台が並び、広場の前を市電が鐘を鳴らして通っていく。
+  acoustics: アーケードの浅い反響。屋台のやり取りと石畳の足音、時折市電の鐘が重なる。
+  listener: プレイヤーは屋台の間を歩く。声は2〜6mの中距離。
+
+characters:
+  - id: hana-uri
+    name: 花売りの娘
+    gender: female
+    age: young_adult
+    archetype: 花売り
+    voice: 涼やかでよく通る声。歌うような呼び込みが癖。
+    personality: 商売上手で褒め上手。売れ残りを気にしている。
+    reference_voice: null
+
+  - id: cheese-shujin
+    name: チーズ屋の主人
+    gender: male
+    age: middle_aged
+    archetype: チーズ職人
+    voice: 恰幅のよさがそのまま出た太い声。自慢話になると大きくなる。
+    personality: 誇り高い職人肌。味見をさせたがる。
+    reference_voice: null
+
+  - id: kyuuji
+    name: カフェの給仕
+    gender: neutral
+    age: young_adult
+    archetype: 給仕
+    voice: 明瞭で歯切れのよい声。皿を運びながらでも通る。
+    personality: 忙しいほど調子が出る。常連の注文は聞く前に運ぶ。
+    reference_voice: null
+
+  - id: kankou-fujin
+    name: 観光の婦人
+    gender: female
+    age: middle_aged
+    archetype: 旅行者
+    voice: おっとりした柔らかい中音域。感嘆が素直に声に出る。
+    personality: 見るものすべてに感動する。歩き回って少しくたびれ気味。
+    reference_voice: null
+
+lines:
+  - id: hana-uri-001
+    character: hana-uri
+    text: 朝摘みの薔薇、いかがですかー？
+    emotion: cheerful
+    intensity: 2
+    delivery: 歌うような節のついた呼び込み。語尾を柔らかく伸ばす。
+    situation: 花束を掲げて通行人に声をかける。
+    difficulty: standard
+    loop_ok: true
+
+  - id: hana-uri-002
+    character: hana-uri
+    text: あら旦那、一輪どうです？お似合いよ。
+    emotion: cheerful
+    intensity: 2
+    delivery: 目の合った客への軽口。褒めて畳みかける営業上手な調子。
+    situation: 立ち止まった紳士にすかさず売り込む。
+    difficulty: standard
+    loop_ok: true
+
+  - id: hana-uri-003
+    character: hana-uri
+    text: ふんふんふん……今日も売れますように。
+    emotion: cheerful
+    intensity: 1
+    delivery: 鼻歌まじりの独り言。旋律のような節が言葉に混ざる。
+    situation: 花の水を替えながら小声で歌っている。
+    difficulty: hard
+    loop_ok: true
+
+  - id: cheese-shujin-001
+    character: cheese-shujin
+    text: 熟成ものだよ、味見していきな！
+    emotion: shout
+    intensity: 2
+    delivery: 太い声の呼び込み。切り分けたかけらを差し出す勢い。
+    situation: 店先で通行人に試食を勧める。
+    difficulty: standard
+    loop_ok: true
+
+  - id: cheese-shujin-002
+    character: cheese-shujin
+    text: ふふん、これはうちの自慢でね。
+    emotion: laughing
+    intensity: 1
+    delivery: 得意げな含み笑い。胸を張る間が語尾に出る。
+    situation: 客に看板商品を褒められて上機嫌。
+    difficulty: hard
+    loop_ok: true
+
+  - id: cheese-shujin-003
+    character: cheese-shujin
+    text: こら、つまみ食いはお代を貰うよ！
+    emotion: angry
+    intensity: 2
+    delivery: 冗談半分の叱り声。太い声だが目は笑っている。
+    situation: 試食台に何度も手を伸ばす子供を咎める。
+    difficulty: standard
+    loop_ok: true
+
+  - id: kyuuji-001
+    character: kyuuji
+    text: お待たせ、熱いから気をつけて！
+    emotion: neutral
+    intensity: 2
+    delivery: 歯切れのいい応対。皿を置く動きと一体の声。
+    situation: テラス席に湯気の立つカップを運ぶ。
+    difficulty: standard
+    loop_ok: true
+
+  - id: kyuuji-002
+    character: kyuuji
+    text: テラス席、空いてますよー！
+    emotion: cheerful
+    intensity: 2
+    delivery: 通りへ向けた明るい案内の声。忙しさの中でも軽やか。
+    situation: 席を探す通行人を呼び込む。
+    difficulty: standard
+    loop_ok: true
+
+  - id: kankou-fujin-001
+    character: kankou-fujin
+    text: まあ、鐘の音まで素敵じゃない。
+    emotion: cheerful
+    intensity: 1
+    delivery: うっとりした感嘆。ゆったりと言葉を置く。
+    situation: 大聖堂の鐘に足を止めて聞き入る。
+    difficulty: standard
+    loop_ok: true
+
+  - id: kankou-fujin-002
+    character: kankou-fujin
+    text: ふう、少し歩き疲れたわね……。
+    emotion: tired
+    intensity: 1
+    delivery: 息をつく独り言。語尾が柔らかく沈む。
+    situation: 石畳を歩き回ってベンチを探している。
+    difficulty: standard
+    loop_ok: true
+
+  - id: kankou-fujin-003
+    character: kankou-fujin
+    text: きゃっ、市電！びっくりした……。
+    emotion: surprised
+    intensity: 3
+    delivery: 短い悲鳴から安堵へ落ちる。胸を押さえる間が語尾に出る。
+    situation: 鐘を鳴らして通り過ぎる市電に驚く。
+    difficulty: hard
+    loop_ok: true

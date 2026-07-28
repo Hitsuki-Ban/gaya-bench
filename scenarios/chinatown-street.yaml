@@ -1,0 +1,150 @@
+format_version: 1
+id: chinatown-street
+title: 中華街・大通りの夕暮れ
+locale: ja
+tags: [chinatown, retro, outdoor, crowd]
+
+scene:
+  setting: >-
+    レトロな中華街の大通り。夕暮れ、赤い提灯に次々と灯が入り、屋台と食堂が夜の商いを始める。
+    石畳に蒸籠の湯気と炒め物の匂いが流れる。
+  acoustics: 通りの雑踏。中華鍋を振る音と蒸気の音が近く、遠くから二胡の音色がかすかに届く。残響は少ない。
+  listener: プレイヤーは屋台の並ぶ大通りを歩いて通過する。声は2〜6mの中距離。
+
+characters:
+  - id: tenshin-okami
+    name: 点心屋台のおかみ
+    gender: female
+    age: adult
+    archetype: 点心売り
+    voice: よく通る張りのある中音域。湯気越しでも届く景気のいい声。
+    personality: 手際がよく口も回る。常連の顔は忘れない。
+    reference_voice: null
+
+  - id: shokudo-oyaji
+    name: 食堂の親父
+    gender: male
+    age: middle_aged
+    archetype: 食堂の主人
+    voice: 野太いだみ声。厨房の奥から張る声が癖になっている。
+    personality: 豪快で世話焼き。自家製の辛さが自慢。
+    reference_voice: null
+
+  - id: kaimono-musume
+    name: 買い出しの娘
+    gender: female
+    age: teen
+    archetype: 住人の娘
+    voice: 明るく軽やかな高めの声。歌うような抑揚。
+    personality: おつかいの途中でつい寄り道してしまう。
+    reference_voice: null
+
+  - id: nimotsu-ani
+    name: 荷運びの兄ちゃん
+    gender: male
+    age: young_adult
+    archetype: 荷運び人足
+    voice: 張りのある若い声。息が上がっても声量が落ちない。
+    personality: 気は優しくて力持ち。通りの誰とでも顔見知り。
+    reference_voice: null
+
+lines:
+  - id: tenshin-okami-001
+    character: tenshin-okami
+    text: 蒸したての焼売だよ、熱々だよー！
+    emotion: shout
+    intensity: 3
+    delivery: 湯気の向こうから通りへ張り上げる呼び込み。語尾を伸ばしてリズムをつける。
+    situation: 蒸籠の蓋を開けながら通行人に声を張る。
+    difficulty: hard
+    loop_ok: true
+
+  - id: tenshin-okami-002
+    character: tenshin-okami
+    text: はいよ、点心ふたつね、まいど！
+    emotion: cheerful
+    intensity: 2
+    delivery: 手を動かしながらの威勢のいい応対。歯切れよく畳みかける。
+    situation: 注文を受けて手早く包みを渡す。
+    difficulty: standard
+    loop_ok: true
+
+  - id: tenshin-okami-003
+    character: tenshin-okami
+    text: アイヤー、もう売り切れちまうよ。
+    emotion: surprised
+    intensity: 2
+    delivery: 嬉しい悲鳴。感嘆詞から一息に言い、笑いが少し混じる。
+    situation: 蒸籠の残りが少ないことに気づいて声を上げる。
+    difficulty: hard
+    loop_ok: true
+
+  - id: shokudo-oyaji-001
+    character: shokudo-oyaji
+    text: 老酒のお代わり、一丁！
+    emotion: shout
+    intensity: 2
+    delivery: 客席から厨房の奥へ通す注文の声。短く歯切れよく。
+    situation: 客の注文を受けて奥へ通している。
+    difficulty: standard
+    loop_ok: true
+
+  - id: shokudo-oyaji-002
+    character: shokudo-oyaji
+    text: うちの麻婆は辛いよ、覚悟しな！
+    emotion: laughing
+    intensity: 2
+    delivery: 豪快な笑いを含んだ脅し文句。だみ声が楽しげに揺れる。
+    situation: 初見の客に名物の辛さを自慢する。
+    difficulty: hard
+    loop_ok: true
+
+  - id: shokudo-oyaji-003
+    character: shokudo-oyaji
+    text: 奥の円卓、空いたよー！
+    emotion: cheerful
+    intensity: 2
+    delivery: 店先から待ち客へ知らせる声。忙しさの中の景気のよさ。
+    situation: 席が空いたのを見て順番待ちの客を呼ぶ。
+    difficulty: standard
+    loop_ok: true
+
+  - id: kaimono-musume-001
+    character: kaimono-musume
+    text: 月餅、まだ残ってるといいなぁ。
+    emotion: neutral
+    intensity: 1
+    delivery: 歌うような独り言。語尾がふわりと上がる。
+    situation: おつかいのついでに菓子屋へ寄ろうと歩いている。
+    difficulty: standard
+    loop_ok: true
+
+  - id: kaimono-musume-002
+    character: kaimono-musume
+    text: わあっ、獅子舞が来てる！
+    emotion: surprised
+    intensity: 3
+    delivery: 弾けるような高い声。息を吸う間もなく言い切る。
+    situation: 通りの先に獅子舞の行列を見つけて駆け出す。
+    difficulty: hard
+    loop_ok: true
+
+  - id: nimotsu-ani-001
+    character: nimotsu-ani
+    text: 通るよ通るよ、荷が通るよっ！
+    emotion: shout
+    intensity: 3
+    delivery: 人混みを割る掛け声。リズムよく繰り返して張り上げる。
+    situation: 大きな荷を担いで雑踏を縫って進む。
+    difficulty: hard
+    loop_ok: true
+
+  - id: nimotsu-ani-002
+    character: nimotsu-ani
+    text: ふう、今日はよく働いたなぁ。
+    emotion: tired
+    intensity: 1
+    delivery: 息をつきながらの独り言。疲れの中に満足が滲む。
+    situation: 荷下ろしを終えて首の手ぬぐいで汗を拭う。
+    difficulty: standard
+    loop_ok: true

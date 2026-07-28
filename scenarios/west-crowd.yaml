@@ -1,0 +1,150 @@
+format_version: 1
+id: west-crowd
+title: 大通りの雑踏
+locale: ja
+tags: [western, outdoor, walla]
+
+scene:
+  setting: >-
+    マーケット広場へ続く欧米大都市の大通り。昼、足早の通行人が行き交い、
+    会話の断片が流れては雑踏に消えていく。
+  acoustics: 開けた石畳の通り。足音と衣擦れ、遠い市電の音が絶えず、個々の声はすぐ雑踏に溶ける。
+  listener: プレイヤーは人の流れに乗って歩く。すれ違いざまの1〜4mで断片だけが耳に入る。
+
+characters:
+  - id: isogi-shinshi
+    name: 急ぎ足の紳士
+    gender: male
+    age: adult
+    archetype: 勤め人
+    voice: 低く早口。常に半分うわの空で喋る。
+    personality: 約束に遅れかけていて余裕がない。
+    reference_voice: null
+
+  - id: oshaberi-fujin
+    name: おしゃべりな婦人
+    gender: female
+    age: adult
+    archetype: 街の婦人
+    voice: よく通る華やかな中音域。相槌も感嘆も大きい。
+    personality: 話し出すと止まらない。連れはいつも聞き役。
+    reference_voice: null
+
+  - id: shinbun-shounen
+    name: 新聞売りの少年
+    gender: male
+    age: child
+    archetype: 新聞売り
+    voice: 甲高い少年の声。売り声で鍛えられてよく通る。
+    personality: 商売熱心で愛想がいい。お得意の顔は覚えている。
+    reference_voice: null
+
+  - id: machibouke-seinen
+    name: 待ちぼうけの青年
+    gender: male
+    age: young_adult
+    archetype: 待ち合わせ中の青年
+    voice: 若く柔らかい声。独り言が多い。
+    personality: 心配性でいつも約束より早く着く。
+    reference_voice: null
+
+lines:
+  - id: isogi-shinshi-001
+    character: isogi-shinshi
+    text: ……だから時間がないと言ったんだ。
+    emotion: angry
+    intensity: 1
+    delivery: 押し殺した早口の断片。すれ違いざまに一瞬だけ聞こえる連れへの小言。
+    situation: 連れと歩きながら言い合いの続きをしている。
+    difficulty: hard
+    loop_ok: true
+
+  - id: isogi-shinshi-002
+    character: isogi-shinshi
+    text: おっと、失礼。
+    emotion: neutral
+    intensity: 1
+    delivery: 反射的な短い詫び。立ち止まらずに言い捨てる。
+    situation: 人混みで肩がぶつかりかける。
+    difficulty: standard
+    loop_ok: true
+
+  - id: isogi-shinshi-003
+    character: isogi-shinshi
+    text: 次の市電に……間に合うか、急げば。
+    emotion: neutral
+    intensity: 2
+    delivery: 途切れがちな早口の独り言。語尾が呑み込まれる。
+    situation: 懐中時計を見ながら足を速める。
+    difficulty: hard
+    loop_ok: true
+
+  - id: oshaberi-fujin-001
+    character: oshaberi-fujin
+    text: それでね、聞いてちょうだいよ、それがねえ。
+    emotion: cheerful
+    intensity: 2
+    delivery: 前置きばかりが続く早口。抑揚が大きく波打つ。
+    situation: 連れの婦人に話の続きを溜めている。
+    difficulty: hard
+    loop_ok: true
+
+  - id: oshaberi-fujin-002
+    character: oshaberi-fujin
+    text: まあ、うそでしょう？あはは！
+    emotion: laughing
+    intensity: 2
+    delivery: 大きな相槌から笑いへ流れる。周りを気にしない声量。
+    situation: 連れの話に大げさに反応する。
+    difficulty: hard
+    loop_ok: true
+
+  - id: oshaberi-fujin-003
+    character: oshaberi-fujin
+    text: あら、ごめんなさいね、つい長話。
+    emotion: cheerful
+    intensity: 1
+    delivery: まったく反省のない詫び。笑いの余韻が残る。
+    situation: 話し込みすぎたことにようやく気づく。
+    difficulty: standard
+    loop_ok: true
+
+  - id: shinbun-shounen-001
+    character: shinbun-shounen
+    text: 号外、号外だよー！
+    emotion: shout
+    intensity: 3
+    delivery: 通りの端まで届く甲高い売り声。決まった節回しで繰り返す。
+    situation: 刷りたての新聞を掲げて売り歩く。
+    difficulty: hard
+    loop_ok: true
+
+  - id: shinbun-shounen-002
+    character: shinbun-shounen
+    text: 毎度あり！お釣りだよっ。
+    emotion: cheerful
+    intensity: 2
+    delivery: 威勢のいい応対。手渡しの動きと一体の歯切れ。
+    situation: 立ち止まった客に一部売れた。
+    difficulty: standard
+    loop_ok: true
+
+  - id: machibouke-seinen-001
+    character: machibouke-seinen
+    text: 遅いなぁ……もう三十分だぞ……。
+    emotion: tired
+    intensity: 1
+    delivery: 力の抜けた独り言。時計を見てため息が混じる。
+    situation: 待ち合わせ相手が来ずに街灯の下で待ち続ける。
+    difficulty: standard
+    loop_ok: true
+
+  - id: machibouke-seinen-002
+    character: machibouke-seinen
+    text: あっ、来た来た！おーい、こっち！
+    emotion: cheerful
+    intensity: 3
+    delivery: 安堵から一気に張り上げる呼びかけ。手を振る勢いが声に出る。
+    situation: 人混みの向こうに相手を見つける。
+    difficulty: hard
+    loop_ok: true

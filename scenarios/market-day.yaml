@@ -1,15 +1,17 @@
 # サンプルシナリオ 2 (屋外・呼び込み・子供声のカバー)
+# 2026-07-28: 欧米市場シーン (west-market) 追加に伴い、城下町の青空市場から港町の朝市へテーマをシフト
+# (ID・行IDは互換維持のため変更しない)
 format_version: 1
 id: market-day
-title: 市場・昼の雑踏
+title: 港町の朝市
 locale: ja
-tags: [fantasy, outdoor, crowd]
+tags: [fantasy, outdoor, harbor, crowd]
 
 scene:
   setting: >-
-    城下町の青空市場。昼どき、露店が並び人通りが多い。
-  acoustics: 屋外の雑踏。残響はほぼなく、遠近さまざまな声が重なる。
-  listener: プレイヤーは通りを歩いて露店の前を通過する。声は2〜6mの中距離。
+    ファンタジー世界の港町、埠頭沿いの朝市。漁から戻った船で賑わう朝、露店が並び人通りが多い。
+  acoustics: 屋外の雑踏。カモメの声と波音が遠い暗騒音として続き、時折汽笛が響く。残響はほぼない。
+  listener: プレイヤーは埠頭沿いの通りを歩いて露店の前を通過する。声は2〜6mの中距離。
 
 characters:
   - id: fruit-vendor

@@ -1,0 +1,150 @@
+format_version: 1
+id: chinatown-chat
+title: 中華街・路地裏の井戸端
+locale: ja
+tags: [chinatown, retro, outdoor, chatter]
+
+scene:
+  setting: >-
+    中華街の大通りから一本入った裏路地。夕食後、店じまいを終えた住人たちが
+    店先の丸椅子に集まって世間話に花を咲かせている。
+  acoustics: 路地の静けさに話し声だけが響く。二階のどこかから麻雀牌をかき混ぜる音。
+  listener: プレイヤーは路地を通り抜ける。輪の脇を通る2〜4mの距離で雑談が聞こえる。
+
+characters:
+  - id: mahjong-inkyo
+    name: 麻雀帰りの隠居
+    gender: male
+    age: elderly
+    archetype: 隠居
+    voice: かすれた低い声。ゆったりと間を取る話し方。
+    personality: 勝ち負けにこだわらないと言いつつ、負けは根に持つ。
+    reference_voice: null
+
+  - id: chakan-obaa
+    name: 茶館の常連ばあさん
+    gender: female
+    age: elderly
+    archetype: 茶館の常連
+    voice: よく回る高めのしわがれ声。噂話になると早口になる。
+    personality: 路地一番の情報通。話に尾ひれをつけがち。
+    reference_voice: null
+
+  - id: wakate-tenin
+    name: 食堂の若い店員
+    gender: male
+    age: young_adult
+    archetype: 食堂の店員
+    voice: 人懐こい明るい声。仕事終わりで少し気が抜けている。
+    personality: 聞き上手で年寄りたちに可愛がられている。
+    reference_voice: null
+
+  - id: kanpo-shujin
+    name: 漢方屋の主人
+    gender: male
+    age: middle_aged
+    archetype: 漢方屋
+    voice: 落ち着いた低めの声。効能を語る講釈口調が染み付いている。
+    personality: 商売っ気より講釈が先に立つ。
+    reference_voice: null
+
+lines:
+  - id: mahjong-inkyo-001
+    character: mahjong-inkyo
+    text: 今日はさっぱり牌が来なくてなぁ。
+    emotion: tired
+    intensity: 1
+    delivery: ため息まじりのぼやき。ゆっくりと語尾が沈む。
+    situation: 丸椅子に腰を下ろして今日の麻雀を振り返る。
+    difficulty: standard
+    loop_ok: true
+
+  - id: mahjong-inkyo-002
+    character: mahjong-inkyo
+    text: ほっほっほ、そりゃ傑作だ。
+    emotion: laughing
+    intensity: 2
+    delivery: かすれた含み笑いから言葉になる。膝を打つような調子。
+    situation: 隣の噂話に思わず笑う。
+    difficulty: hard
+    loop_ok: true
+
+  - id: mahjong-inkyo-003
+    character: mahjong-inkyo
+    text: 明日は雨だね、膝がそう言ってる。
+    emotion: neutral
+    intensity: 1
+    delivery: 確信めいた静かな断言。少し得意げ。
+    situation: 夕空を見上げて天気を予言する。
+    difficulty: standard
+    loop_ok: true
+
+  - id: chakan-obaa-001
+    character: chakan-obaa
+    text: 角の家の息子、嫁をもらったんだってさ。
+    emotion: cheerful
+    intensity: 2
+    delivery: 噂話の口火を切る早口。声をわずかに落として身を乗り出す。
+    situation: 仕入れたばかりの近所の噂を披露する。
+    difficulty: standard
+    loop_ok: true
+
+  - id: chakan-obaa-002
+    character: chakan-obaa
+    text: ここだけの話だけどねぇ……。
+    emotion: whisper
+    intensity: 1
+    delivery: 声を潜めた前置き。もったいぶって語尾を引く。
+    situation: とっておきの話に入る前の間。
+    difficulty: hard
+    loop_ok: true
+
+  - id: chakan-obaa-003
+    character: chakan-obaa
+    text: あんた、飲茶もせずに帰る気かい？
+    emotion: surprised
+    intensity: 2
+    delivery: 呆れ半分の呼び止め。語尾が跳ね上がる。
+    situation: 席を立とうとした顔なじみを引き留める。
+    difficulty: standard
+    loop_ok: true
+
+  - id: wakate-tenin-001
+    character: wakate-tenin
+    text: 店長、今度は薬膳粥を始めるってさ。
+    emotion: neutral
+    intensity: 2
+    delivery: 仕事終わりの気の抜けた報告。世間話の相槌を待つ調子。
+    situation: 店の新メニューの話題を輪に持ち込む。
+    difficulty: standard
+    loop_ok: true
+
+  - id: wakate-tenin-002
+    character: wakate-tenin
+    text: ええっ、あの二人がですか！？
+    emotion: surprised
+    intensity: 3
+    delivery: 声が裏返る驚き。身を乗り出す勢い。
+    situation: ばあさんの噂話の核心に驚く。
+    difficulty: hard
+    loop_ok: true
+
+  - id: kanpo-shujin-001
+    character: kanpo-shujin
+    text: 季節の変わり目は白湯がいちばんだよ。
+    emotion: neutral
+    intensity: 1
+    delivery: 講釈口調の穏やかな断言。ゆっくり言い聞かせる。
+    situation: 誰かの体調の愚痴に持論で応じる。
+    difficulty: standard
+    loop_ok: true
+
+  - id: kanpo-shujin-002
+    character: kanpo-shujin
+    text: 商売はぼちぼち、と言っておくよ。
+    emotion: laughing
+    intensity: 1
+    delivery: 含み笑いまじりのはぐらかし。語尾に余裕がある。
+    situation: 儲かっているのかと冷やかされて受け流す。
+    difficulty: hard
+    loop_ok: true
