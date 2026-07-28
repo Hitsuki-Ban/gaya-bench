@@ -247,7 +247,7 @@ function projection(
 }
 
 interface MutableManifest {
-  format_version: 2;
+  format_version: 3;
   generated_at: string;
   models: Model[];
   clips: MutableClip[];
@@ -298,7 +298,7 @@ function smallFixture(): MutableBenchmarkData {
   ];
   return {
     manifest: {
-      format_version: 2,
+      format_version: 3,
       generated_at: "2026-07-28T00:00:00Z",
       models,
       clips,
@@ -319,7 +319,7 @@ function syntheticFixture(rowCount: number, modelCount: number): BenchmarkData {
   );
   return {
     manifest: {
-      format_version: 2,
+      format_version: 3,
       generated_at: "2026-07-28T00:00:00Z",
       models,
       clips,
@@ -392,6 +392,11 @@ function clip(model: string, scenarioId: string, lineId: string): MutableClip {
     sha256: `${model}-${scenarioId}-${lineId}`,
     gen_params: {},
     rtf: 0.1,
-    loudness: { i_lufs: -18, tp_dbtp: -1, shortfall: false },
+    loudness: {
+      source: "encoded_opus",
+      i_lufs: -18,
+      tp_dbtp: -1,
+      shortfall: false,
+    },
   };
 }

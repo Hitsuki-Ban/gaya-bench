@@ -190,7 +190,7 @@ function fixture(): BenchmarkData {
   const models = [ttsModel("alpha"), ttsModel("beta")];
   return {
     manifest: {
-      format_version: 2,
+      format_version: 3,
       generated_at: "2026-07-28T00:00:00Z",
       models,
       clips: scenarios.flatMap((fixtureScenario) =>
@@ -270,6 +270,11 @@ function clip(model: string, scenario: string, lineId: string): Clip {
     sha256: `${model}-${scenario}-${lineId}`,
     gen_params: {},
     rtf: 0.1,
-    loudness: { i_lufs: -18, tp_dbtp: -1, shortfall: false },
+    loudness: {
+      source: "encoded_opus",
+      i_lufs: -18,
+      tp_dbtp: -1,
+      shortfall: false,
+    },
   };
 }

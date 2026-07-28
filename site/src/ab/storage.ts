@@ -124,9 +124,9 @@ export function decodeStoredVotes(
 
 function assertDatasetShape(value: unknown): asserts value is DatasetIdentity {
   assertExactKeys(value, ["formatVersion", "generatedAt"], "dataset");
-  if (value.formatVersion !== 2) {
+  if (value.formatVersion !== 3) {
     throw new Error(
-      `dataset の formatVersion は 2 である必要があります: ${String(value.formatVersion)}`,
+      `dataset の formatVersion は 3 である必要があります: ${String(value.formatVersion)}`,
     );
   }
   if (typeof value.generatedAt !== "string") {

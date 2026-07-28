@@ -3,7 +3,7 @@ import type { BenchmarkData, Clip, Line, Model, Scenario } from "../data/types";
 export const MIN_MODEL_APPEARANCES = 5;
 
 export interface DatasetIdentity {
-  readonly formatVersion: 2;
+  readonly formatVersion: 3;
   readonly generatedAt: string;
 }
 

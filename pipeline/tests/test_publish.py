@@ -77,7 +77,7 @@ def _write_fixture(
     manifest_path = root / "data" / "manifest.json"
     manifest_path.parent.mkdir(parents=True)
     manifest = {
-        "format_version": 2,
+        "format_version": 3,
         "generated_at": "2026-07-28T00:00:00+00:00",
         "models": [
             {
@@ -106,6 +106,7 @@ def _write_fixture(
                 "gen_params": {},
                 "rtf": 0.5,
                 "loudness": {
+                    "source": "encoded_opus",
                     "i_lufs": -18.0,
                     "tp_dbtp": -1.0,
                     "shortfall": False,

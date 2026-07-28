@@ -33,7 +33,7 @@ const CLIP_KEYS = [
   "rtf",
   "loudness",
 ] as const;
-const LOUDNESS_KEYS = ["i_lufs", "tp_dbtp", "shortfall"] as const;
+const LOUDNESS_KEYS = ["source", "i_lufs", "tp_dbtp", "shortfall"] as const;
 const FAILURE_KEYS = ["model", "scenario", "line", "variant", "reason"] as const;
 const SCENARIO_REQUIRED_KEYS = [
   "format_version",
@@ -71,6 +71,7 @@ const EMOTIONS = new Set([
   "pain",
 ]);
 const DIFFICULTIES = new Set(["standard", "hard"]);
+const LOUDNESS_SOURCES = new Set(["encoded_opus"]);
 const FAILURE_REASONS = new Set(["generation_failed"]);
 
 type WatchFile = (file: string) => void;
@@ -166,7 +167,7 @@ function loadManifest(manifestPath: string): Manifest {
   assertDisjointArtifactKeys(clips, failures);
 
   return {
-    format_version: 2,
+    format_version: 3,
     generated_at: value.generated_at,
     models,
     clips,
@@ -203,6 +204,7 @@ function validateClip(value: unknown, index: number): Clip {
   assertRecord(value.gen_params, `${label}.gen_params`);
   assertRecord(value.loudness, `${label}.loudness`);
   assertExactKeys(value.loudness, LOUDNESS_KEYS, [], `${label}.loudness`);
+  assertEnum(value.loudness.source, LOUDNESS_SOURCES, `${label}.loudness.source`);
   assertFiniteNumber(value.loudness.i_lufs, `${label}.loudness.i_lufs`);
   assertFiniteNumber(value.loudness.tp_dbtp, `${label}.loudness.tp_dbtp`);
   assertBoolean(value.loudness.shortfall, `${label}.loudness.shortfall`);
@@ -485,9 +487,9 @@ function assertExactKeys(
   }
 }
 
-function assertManifestVersion(value: unknown): asserts value is 2 {
-  if (value !== 2) {
-    throw new GayaDataError(`manifest format_version は2が必要です。`);
+function assertManifestVersion(value: unknown): asserts value is 3 {
+  if (value !== 3) {
+    throw new GayaDataError(`manifest format_version は3が必要です。`);
   }
 }
 

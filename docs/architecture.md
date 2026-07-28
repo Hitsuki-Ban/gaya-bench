@@ -28,14 +28,15 @@ pipeline (Python/uv) ── モデル別アダプタ ──▶ artifacts/audio/<
 - **capability profile**: アダプタごとに「スキーマのどのフィールドを解釈できるか」を宣言 (emotion対応 / voice記述対応 / クローン対応 / 非言語音対応...)。manifestに含め、サイトでバッジ表示する
 - **冪等性**: 生成済みクリップは (アダプタが解釈する入力 + モデルversion + 生成パラメータ + 後処理profile) のハッシュと成果物hashが一致した場合のみスキップ。`--force` で再生成。manifest 上の最新結果が失敗の場合はキャッシュを使わず実生成を再試行する
 - **manifest 更新**: 各ジョブの成功・スキップ・失敗をその場で原子的に反映する。行単位の失敗は `failures[]` に記録して残りのジョブを続行し、最後に失敗サマリと非ゼロ終了を返す。変更がある場合だけ、同一ディレクトリの一時ファイルを `flush` / `fsync` してから `os.replace` する。バッチ全件が成功した後にだけ selector scope 内の古い結果を整理し、scope 外の結果は保持する
-- **正規化・エンコードの方針**: 全クリップを2-pass loudnormで -18 LUFS / peak -1 dBTP / mono / 48kHz に正規化する。落盤後のPCMを再測定し、ピーク制約で目標LUFSに届かない場合は最大2回のlookahead limiter補正を行う。最終値が -18 ±1.5 LUFS / peak -0.9 dBTP以下なら成功とし、±0.2 LUFSを外れたクリップは manifest の `loudness.shortfall` を `true` にする。±1.5 LUFSを超えた場合だけ生成を失敗させる。モデル間の音量差による印象バイアスを抑えつつ、高クレストファクタの囁きなどはピーク制約内のベストエフォートとして扱う。囁き/叫びの意図的な音量差が失われる副作用はドキュメントに明記し、+αの scene バリアント (距離感シミュレーション) で補う。Opus は Ogg muxer の format bitexact を有効にして、同一ツールチェーン・同一PCMから同一ファイルhashを生成する
+- **正規化・エンコードの方針**: 全クリップを2-pass loudnormで -18 LUFS / peak -1 dBTP / mono / 48kHz に正規化する。落盤後のPCMを再測定し、ピーク制約で目標LUFSに届かない場合は最大2回のlookahead limiter補正を行う。Opus エンコード後は公開ファイルを再デコードして loudness を測定し、最終値が -18 ±1.5 LUFS / peak -0.9 dBTP以下なら成功とする。±0.2 LUFSを外れたクリップは manifest の `loudness.shortfall` を `true` にし、Integrated Loudness が ±1.5 LUFS を超えるか True Peak が -0.9 dBTP を上回る場合は生成を失敗させる。モデル間の音量差による印象バイアスを抑えつつ、高クレストファクタの囁きなどはピーク制約内のベストエフォートとして扱う。囁き/叫びの意図的な音量差が失われる副作用はドキュメントに明記し、+αの scene バリアント (距離感シミュレーション) で補う。Opus は Ogg muxer の format bitexact を有効にして、同一ツールチェーン・同一PCMから同一ファイルhashを生成する
+- **生成 sidecar (v2)**: `loudness.normalized_wav` は正規化完了後・Opus エンコード前の WAV を測定した値、`loudness.encoded_opus` はエンコード済み Opus をデコードして測定した値を表す。両段階を保持してエンコードによる変化を追跡し、manifest へは公開される最終 Opus の `encoded_opus` 測定だけを転記する
 - **バリアント**: v1は `dry` (正規化のみ) 単一。`scene` (EQ+リバーブ+減衰の中距離シミュレーション) は+α
 
-## manifest 形式 (v2)
+## manifest 形式 (v3)
 
 ```jsonc
 {
-  "format_version": 2,
+  "format_version": 3,
   "generated_at": "...",
   "models": [ { "id": "...", "name": "...", "version": "...", "license_note": "...",
                  "capabilities": { "emotion": true, "voice_prompt": false, "clone": true,
@@ -43,7 +44,8 @@ pipeline (Python/uv) ── モデル別アダプタ ──▶ artifacts/audio/<
   "clips": [ { "model": "...", "scenario": "...", "line": "...", "variant": "dry",
                 "path": "audio/<model>/<scenario>/<line>-dry.opus",
                 "duration_sec": 1.8, "sha256": "...", "gen_params": {}, "rtf": 0.4,
-                "loudness": { "i_lufs": -18.57, "tp_dbtp": -0.94, "shortfall": true } } ],
+                "loudness": { "source": "encoded_opus", "i_lufs": -18.57,
+                              "tp_dbtp": -0.94, "shortfall": true } } ],
   "failures": [ { "model": "...", "scenario": "...", "line": "...", "variant": "dry",
                    "reason": "generation_failed" } ]
 }
@@ -51,7 +53,7 @@ pipeline (Python/uv) ── モデル別アダプタ ──▶ artifacts/audio/<
 
 `(model, scenario, line, variant)` は `clips` と `failures` を通して一意で、各キーの最新結果をどちらか一方だけに記録する。成功またはスキップは同じキーの失敗を置換し、失敗は古い成功を置換する。
 
-`failure.reason` は公開安全な低基数 enum で、現在許可する値は `generation_failed` のみ。例外本文、モデル出力、ローカルパスなどの詳細は manifest に保存しない。manifest は `format_version: 2` と上記の完全なトップレベル項目だけを受理する。
+`clip.loudness` は最終 Opus をデコードして測定した値で、`source` は `encoded_opus` のみを許可する。`failure.reason` は公開安全な低基数 enum で、現在許可する値は `generation_failed` のみ。例外本文、モデル出力、ローカルパスなどの詳細は manifest に保存しない。manifest は `format_version: 3` と上記の完全な項目だけを受理する。
 
 ## ストレージ
 

@@ -12,7 +12,12 @@ import yaml
 from gaya_pipeline import cli, generation
 from gaya_pipeline.adapters.base import LineJob
 from gaya_pipeline.adapters.dummy import DummyAdapter
-from gaya_pipeline.audio import PostprocessProfile, find_audio_tools, probe_audio
+from gaya_pipeline.audio import (
+    AudioProcessingError,
+    PostprocessProfile,
+    find_audio_tools,
+    probe_audio,
+)
 from gaya_pipeline.generation import (
     GenerationError,
     GenerationFailureRecord,
@@ -105,7 +110,7 @@ def test_dummy_two_scenario_e2e_and_idempotency(
     assert not list(artifacts_dir.rglob("*-source.wav"))
 
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-    assert manifest["format_version"] == 2
+    assert manifest["format_version"] == 3
     assert len(manifest["models"]) == 1
     assert manifest["models"][0]["id"] == "dummy"
     assert manifest["models"][0]["capabilities"] == {
@@ -122,7 +127,13 @@ def test_dummy_two_scenario_e2e_and_idempotency(
         assert opus_path.is_file()
         assert clip["sha256"] == _sha256(opus_path)
         assert clip["rtf"] >= 0
-        assert set(clip["loudness"]) == {"i_lufs", "tp_dbtp", "shortfall"}
+        assert set(clip["loudness"]) == {
+            "source",
+            "i_lufs",
+            "tp_dbtp",
+            "shortfall",
+        }
+        assert clip["loudness"]["source"] == "encoded_opus"
         assert clip["loudness"]["i_lufs"] == pytest.approx(-18.0, abs=0.2)
         assert clip["loudness"]["tp_dbtp"] <= -0.9
         assert clip["loudness"]["shortfall"] is False
@@ -135,10 +146,23 @@ def test_dummy_two_scenario_e2e_and_idempotency(
 
     for metadata_path in metadata_files:
         metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+        assert metadata["format_version"] == 2
         loudness = metadata["loudness"]
-        assert loudness["integrated_lufs"] == pytest.approx(-18.0, abs=0.2)
-        assert loudness["true_peak_dbtp"] <= -0.9
-        assert loudness["normalization_type"] in {"linear", "dynamic"}
+        assert set(loudness) == {"normalized_wav", "encoded_opus"}
+        assert loudness["normalized_wav"]["normalization_type"] in {
+            "linear",
+            "dynamic",
+        }
+        assert set(loudness["encoded_opus"]) == {
+            "integrated_lufs",
+            "true_peak_dbtp",
+            "loudness_range_lu",
+        }
+        assert loudness["encoded_opus"]["integrated_lufs"] == pytest.approx(
+            -18.0,
+            abs=0.2,
+        )
+        assert loudness["encoded_opus"]["true_peak_dbtp"] <= -0.9
 
     tracked_outputs = [manifest_path, *wav_files, *opus_files, *metadata_files]
     mtimes = {path: path.stat().st_mtime_ns for path in tracked_outputs}
@@ -212,6 +236,18 @@ def test_selector_hash_invalidation_force_and_failed_replacement(
     ]
     stable_bytes = {path: path.read_bytes() for path in stable_artifact_paths}
     metadata_path = output_dir / "barmaid-001-dry.json"
+    old_metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+    old_metadata["format_version"] = 1
+    metadata_path.write_text(
+        json.dumps(old_metadata, ensure_ascii=False),
+        encoding="utf-8",
+    )
+    old_sidecar = run_selected()
+    assert old_sidecar.failed_count == 1
+    assert "format_version" in old_sidecar.failures[0].message
+    regenerated_after_old_sidecar = run_selected(force=True)
+    assert regenerated_after_old_sidecar.generated_count == 1
+
     broken_metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
     del broken_metadata["loudness"]
     metadata_path.write_text(
@@ -424,7 +460,7 @@ def test_postprocess_algorithm_version_invalidates_cached_audio(
         artifacts_dir / "audio" / "dummy" / "tavern-night" / "barmaid-001-dry.json"
     )
     metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
-    assert metadata["postprocess"]["algorithm_version"] == 5
+    assert metadata["postprocess"]["algorithm_version"] == 6
 
 
 def test_force_regeneration_preserves_opus_hash(tmp_path: Path) -> None:
@@ -448,6 +484,54 @@ def test_force_regeneration_preserves_opus_hash(tmp_path: Path) -> None:
     second_manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
 
     assert second_manifest["clips"][0]["sha256"] == first_sha256
+
+
+def test_encoded_opus_gate_failure_does_not_reencode_or_replace_outputs(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    scenarios_dir = _two_scenarios(tmp_path)
+    artifacts_dir = tmp_path / "artifacts"
+    manifest_path = tmp_path / "data" / "manifest.json"
+    arguments = {
+        "model_id": "dummy",
+        "scenarios_dir": scenarios_dir,
+        "artifacts_dir": artifacts_dir,
+        "manifest_path": manifest_path,
+        "scenario_id": "tavern-night",
+        "line_id": "barmaid-001",
+    }
+    run_generation(**arguments)
+    output_dir = artifacts_dir / "audio" / "dummy" / "tavern-night"
+    stable_paths = [
+        output_dir / "barmaid-001-dry.wav",
+        output_dir / "barmaid-001-dry.opus",
+        output_dir / "barmaid-001-dry.json",
+    ]
+    stable_bytes = {path: path.read_bytes() for path in stable_paths}
+    original_encode_opus = generation.encode_opus
+    encode_calls = 0
+
+    def count_encode(*args: object, **kwargs: object) -> None:
+        nonlocal encode_calls
+        encode_calls += 1
+        original_encode_opus(*args, **kwargs)
+
+    def reject_encoded_opus(*args: object, **kwargs: object) -> None:
+        raise AudioProcessingError(
+            "エンコード後 Opus が loudness profile を満たしません。",
+        )
+
+    monkeypatch.setattr(generation, "encode_opus", count_encode)
+    monkeypatch.setattr(generation, "measure_encoded_opus", reject_encoded_opus)
+
+    failed = run_generation(**arguments, force=True)
+
+    assert failed.failed_count == 1
+    assert "エンコード後 Opus" in failed.failures[0].message
+    assert encode_calls == 1
+    assert {path: path.read_bytes() for path in stable_paths} == stable_bytes
+    assert not list(output_dir.glob("*.pending.*"))
 
 
 def test_later_batch_failure_continues_and_keeps_manifest_in_sync(

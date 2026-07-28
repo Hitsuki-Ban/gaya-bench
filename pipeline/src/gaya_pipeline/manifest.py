@@ -15,7 +15,7 @@ class ManifestError(RuntimeError):
     pass
 
 
-FORMAT_VERSION = 2
+FORMAT_VERSION = 3
 TOP_LEVEL_KEYS = {
     "format_version",
     "generated_at",
@@ -165,7 +165,7 @@ def _validate_manifest(manifest: Any) -> None:
     if "format_version" not in manifest or manifest["format_version"] != FORMAT_VERSION:
         raise ManifestError("未対応の manifest format_version です。")
     if set(manifest) != TOP_LEVEL_KEYS:
-        raise ManifestError("manifest のトップレベル項目が v2 と一致しません。")
+        raise ManifestError("manifest のトップレベル項目が v3 と一致しません。")
     if not isinstance(manifest["generated_at"], str):
         raise ManifestError("manifest generated_at は文字列が必要です。")
     if not isinstance(manifest["models"], list):
@@ -203,11 +203,11 @@ def _validate_manifest(manifest: Any) -> None:
 
 def _validate_model(model: Any) -> None:
     if not isinstance(model, dict) or set(model) != MODEL_KEYS:
-        raise ManifestError("manifest model の項目が v2 と一致しません。")
+        raise ManifestError("manifest model の項目が v3 と一致しません。")
     if not isinstance(model["capabilities"], dict):
         raise ManifestError("model capabilities は object が必要です。")
     if set(model["capabilities"]) != CAPABILITY_KEYS:
-        raise ManifestError("model capabilities の項目が v2 と一致しません。")
+        raise ManifestError("model capabilities の項目が v3 と一致しません。")
     if not all(isinstance(model["capabilities"][key], bool) for key in CAPABILITY_KEYS):
         raise ManifestError("model capabilities は bool が必要です。")
     for key in ("id", "name", "version", "license_note"):
@@ -217,7 +217,7 @@ def _validate_model(model: Any) -> None:
 
 def _validate_clip(clip: Any) -> None:
     if not isinstance(clip, dict) or set(clip) != CLIP_KEYS:
-        raise ManifestError("manifest clip の項目が v2 と一致しません。")
+        raise ManifestError("manifest clip の項目が v3 と一致しません。")
     for key in ("model", "scenario", "line", "variant", "path", "sha256"):
         if not isinstance(clip[key], str):
             raise ManifestError(f"clip {key} は文字列が必要です。")
@@ -225,11 +225,16 @@ def _validate_clip(clip: Any) -> None:
         raise ManifestError("clip gen_params は object が必要です。")
     loudness = clip["loudness"]
     if not isinstance(loudness, dict) or set(loudness) != {
+        "source",
         "i_lufs",
         "tp_dbtp",
         "shortfall",
     }:
         raise ManifestError("clip loudness の項目が一致しません。")
+    if loudness["source"] != "encoded_opus":
+        raise ManifestError(
+            "clip loudness.source は encoded_opus が必要です。",
+        )
     for key in ("i_lufs", "tp_dbtp"):
         value = loudness[key]
         if (
@@ -253,7 +258,7 @@ def _validate_clip(clip: Any) -> None:
 
 def _validate_failure(failure: Any) -> None:
     if not isinstance(failure, dict) or set(failure) != FAILURE_KEYS:
-        raise ManifestError("manifest failure の項目が v2 と一致しません。")
+        raise ManifestError("manifest failure の項目が v3 と一致しません。")
     for key in ("model", "scenario", "line", "variant"):
         if not isinstance(failure[key], str):
             raise ManifestError(f"failure {key} は文字列が必要です。")
