@@ -1,6 +1,6 @@
 {
   "format_version": 2,
-  "generated_at": "2026-07-28T07:53:07.163673+00:00",
+  "generated_at": "2026-07-28T09:30:51.780125+00:00",
   "models": [
     {
       "id": "dummy",
@@ -4223,7 +4223,7 @@
       "variant": "dry",
       "path": "audio/qwen3-tts-12hz-1.7b/battlefield-camp/medic-001-dry.opus",
       "duration_sec": 2.8065,
-      "sha256": "e5011bba713fe04f1358c1e76c5f55111f65b0bc3f2aa85b4f4796fd26137766",
+      "sha256": "0fca40cb9fe83fb9285c61944e588cbf3280e760a935a850abcfb76480be2bff",
       "gen_params": {
         "requested": {
           "qwen_tts_version": "0.1.1",
@@ -4259,19 +4259,19 @@
               "reserved_mib": 4172.0
             },
             "base_load": {
-              "allocated_mib": 4019.218,
-              "reserved_mib": 4146.0
+              "allocated_mib": 4008.5,
+              "reserved_mib": 4134.0
             },
             "voice_clone_generate": {
-              "allocated_mib": 4198.129,
-              "reserved_mib": 4360.0
+              "allocated_mib": 4196.515,
+              "reserved_mib": 4310.0
             }
           },
           "seed": 0,
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 5.659344,
+      "rtf": 5.241094,
       "loudness": {
         "i_lufs": -18.09,
         "tp_dbtp": -0.96,
@@ -4285,7 +4285,7 @@
       "variant": "dry",
       "path": "audio/qwen3-tts-12hz-1.7b/battlefield-camp/medic-002-dry.opus",
       "duration_sec": 1.7665,
-      "sha256": "8e13e511f6821a2b7b6c31b3a09925f523c634f1180b6226a0bfd75934c66685",
+      "sha256": "3392650b55951098e6422d990c699301a028231ad03e058a10666f178ca5bb89",
       "gen_params": {
         "requested": {
           "qwen_tts_version": "0.1.1",
@@ -4321,19 +4321,19 @@
               "reserved_mib": 4172.0
             },
             "base_load": {
-              "allocated_mib": 4019.218,
-              "reserved_mib": 4146.0
+              "allocated_mib": 4008.5,
+              "reserved_mib": 4134.0
             },
             "voice_clone_generate": {
-              "allocated_mib": 4178.5,
-              "reserved_mib": 4360.0
+              "allocated_mib": 4175.958,
+              "reserved_mib": 4310.0
             }
           },
           "seed": 0,
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 5.836135,
+      "rtf": 4.976158,
       "loudness": {
         "i_lufs": -18.0,
         "tp_dbtp": -3.45,
@@ -4347,7 +4347,7 @@
       "variant": "dry",
       "path": "audio/qwen3-tts-12hz-1.7b/battlefield-camp/medic-003-dry.opus",
       "duration_sec": 2.5665,
-      "sha256": "eb4e9e0a820fc861373f09a3a97f0a43db5228a39d44292271eb6d8fb05a3bff",
+      "sha256": "4827e3ba8e8e45a1cab24e5b25ba8e7c9958a1c948b46075537cd850ce9e9234",
       "gen_params": {
         "requested": {
           "qwen_tts_version": "0.1.1",
@@ -4383,19 +4383,19 @@
               "reserved_mib": 4172.0
             },
             "base_load": {
-              "allocated_mib": 4019.218,
-              "reserved_mib": 4146.0
+              "allocated_mib": 4008.5,
+              "reserved_mib": 4134.0
             },
             "voice_clone_generate": {
-              "allocated_mib": 4193.17,
-              "reserved_mib": 4360.0
+              "allocated_mib": 4191.556,
+              "reserved_mib": 4310.0
             }
           },
           "seed": 0,
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 5.877553,
+      "rtf": 5.215462,
       "loudness": {
         "i_lufs": -18.01,
         "tp_dbtp": -1.0,
@@ -4409,7 +4409,7 @@
       "variant": "dry",
       "path": "audio/qwen3-tts-12hz-1.7b/battlefield-camp/medic-004-dry.opus",
       "duration_sec": 2.5665,
-      "sha256": "79b5288352467e02b4b79f9823608072004ca2cba2ce3035259faca3e2b0736c",
+      "sha256": "db635a7e464db0a5901ab9db067af0691b1f0b72c1b73b349b65f178e1ff3460",
       "gen_params": {
         "requested": {
           "qwen_tts_version": "0.1.1",
@@ -4445,19 +4445,19 @@
               "reserved_mib": 4172.0
             },
             "base_load": {
-              "allocated_mib": 4019.218,
-              "reserved_mib": 4146.0
+              "allocated_mib": 4008.5,
+              "reserved_mib": 4134.0
             },
             "voice_clone_generate": {
-              "allocated_mib": 4193.17,
-              "reserved_mib": 4360.0
+              "allocated_mib": 4191.556,
+              "reserved_mib": 4310.0
             }
           },
           "seed": 0,
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 6.05155,
+      "rtf": 5.300506,
       "loudness": {
         "i_lufs": -18.07,
         "tp_dbtp": -0.97,
@@ -4471,7 +4471,7 @@
       "variant": "dry",
       "path": "audio/qwen3-tts-12hz-1.7b/battlefield-camp/messenger-001-dry.opus",
       "duration_sec": 3.0465,
-      "sha256": "f508d4bad39363fd740400f9ab8489afeb886dfa8dd2354dfa9af4493749d9b5",
+      "sha256": "9008348f80b7d512ef6dbaf60c5d3803aa5ac55469d6755ecd97220f444187ee",
       "gen_params": {
         "requested": {
           "qwen_tts_version": "0.1.1",
@@ -4507,19 +4507,19 @@
               "reserved_mib": 4170.0
             },
             "base_load": {
-              "allocated_mib": 4019.218,
-              "reserved_mib": 4146.0
+              "allocated_mib": 4008.5,
+              "reserved_mib": 4134.0
             },
             "voice_clone_generate": {
-              "allocated_mib": 4183.269,
-              "reserved_mib": 4360.0
+              "allocated_mib": 4181.655,
+              "reserved_mib": 4310.0
             }
           },
           "seed": 0,
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 6.077721,
+      "rtf": 5.186812,
       "loudness": {
         "i_lufs": -18.0,
         "tp_dbtp": -2.98,
@@ -4533,7 +4533,7 @@
       "variant": "dry",
       "path": "audio/qwen3-tts-12hz-1.7b/battlefield-camp/messenger-002-dry.opus",
       "duration_sec": 3.1265,
-      "sha256": "9a6d865377347c7c9285bf2b3c5deecec6786da52af0054adb6459f432f9a6a7",
+      "sha256": "d43403d42ac602dcc33fe0e092791f15a42bb87457723d0112d1aecde4194273",
       "gen_params": {
         "requested": {
           "qwen_tts_version": "0.1.1",
@@ -4569,19 +4569,19 @@
               "reserved_mib": 4170.0
             },
             "base_load": {
-              "allocated_mib": 4019.218,
-              "reserved_mib": 4146.0
+              "allocated_mib": 4008.5,
+              "reserved_mib": 4134.0
             },
             "voice_clone_generate": {
-              "allocated_mib": 4184.921,
-              "reserved_mib": 4360.0
+              "allocated_mib": 4183.308,
+              "reserved_mib": 4310.0
             }
           },
           "seed": 0,
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 5.743202,
+      "rtf": 4.980591,
       "loudness": {
         "i_lufs": -18.01,
         "tp_dbtp": -1.13,
@@ -4595,7 +4595,7 @@
       "variant": "dry",
       "path": "audio/qwen3-tts-12hz-1.7b/battlefield-camp/messenger-003-dry.opus",
       "duration_sec": 3.5265,
-      "sha256": "52b85d2df787f9aa835bf4b4cbd7e698e09d662376687b7365a795eb339bb1ca",
+      "sha256": "fd78d6b5ab9a192f72cda0d79356f47cad667b9009fbe18094c54dd0880ac8c3",
       "gen_params": {
         "requested": {
           "qwen_tts_version": "0.1.1",
@@ -4631,19 +4631,19 @@
               "reserved_mib": 4170.0
             },
             "base_load": {
-              "allocated_mib": 4019.218,
-              "reserved_mib": 4146.0
+              "allocated_mib": 4008.5,
+              "reserved_mib": 4134.0
             },
             "voice_clone_generate": {
-              "allocated_mib": 4193.185,
-              "reserved_mib": 4360.0
+              "allocated_mib": 4191.571,
+              "reserved_mib": 4310.0
             }
           },
           "seed": 0,
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 6.089597,
+      "rtf": 4.871753,
       "loudness": {
         "i_lufs": -18.0,
         "tp_dbtp": -1.21,
@@ -4657,7 +4657,7 @@
       "variant": "dry",
       "path": "audio/qwen3-tts-12hz-1.7b/battlefield-camp/veteran-soldier-001-dry.opus",
       "duration_sec": 3.4465,
-      "sha256": "265cc17d0d6e67a4025e1a53af2df83503d01b720ed17ca080084929a017afe0",
+      "sha256": "43a3a22af5f686e1fe09f08ecaf4c5bd3ad80f11652549ff2d4283e73a134a87",
       "gen_params": {
         "requested": {
           "qwen_tts_version": "0.1.1",
@@ -4693,19 +4693,19 @@
               "reserved_mib": 4172.0
             },
             "base_load": {
-              "allocated_mib": 4019.218,
-              "reserved_mib": 4146.0
+              "allocated_mib": 4008.5,
+              "reserved_mib": 4134.0
             },
             "voice_clone_generate": {
-              "allocated_mib": 4199.792,
-              "reserved_mib": 4360.0
+              "allocated_mib": 4198.178,
+              "reserved_mib": 4310.0
             }
           },
           "seed": 0,
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 5.604568,
+      "rtf": 5.100158,
       "loudness": {
         "i_lufs": -17.99,
         "tp_dbtp": -2.52,
@@ -4719,7 +4719,7 @@
       "variant": "dry",
       "path": "audio/qwen3-tts-12hz-1.7b/battlefield-camp/veteran-soldier-002-dry.opus",
       "duration_sec": 3.3665,
-      "sha256": "336e91a6ad2da7dd7b15f297de1712253ddca613a741214fe2c1fb6a22a9bd71",
+      "sha256": "3cdcbd9af3cdb43de8d62a31a90d2aefa0852f24966c007cdd4287dc60a47274",
       "gen_params": {
         "requested": {
           "qwen_tts_version": "0.1.1",
@@ -4755,19 +4755,19 @@
               "reserved_mib": 4172.0
             },
             "base_load": {
-              "allocated_mib": 4019.218,
-              "reserved_mib": 4146.0
+              "allocated_mib": 4008.5,
+              "reserved_mib": 4134.0
             },
             "voice_clone_generate": {
-              "allocated_mib": 4198.14,
-              "reserved_mib": 4360.0
+              "allocated_mib": 4196.526,
+              "reserved_mib": 4310.0
             }
           },
           "seed": 0,
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 5.876843,
+      "rtf": 5.138452,
       "loudness": {
         "i_lufs": -18.01,
         "tp_dbtp": -2.38,
@@ -4781,7 +4781,7 @@
       "variant": "dry",
       "path": "audio/qwen3-tts-12hz-1.7b/battlefield-camp/wounded-001-dry.opus",
       "duration_sec": 2.9665,
-      "sha256": "445909f7709f93d7faedb7a6b26a98df7a43553fa8ff00f435c85797800f9a53",
+      "sha256": "64cde3bf233df8fd3aefe06821538ae472eb0a25044c21548835e7303e71dfac",
       "gen_params": {
         "requested": {
           "qwen_tts_version": "0.1.1",
@@ -4817,19 +4817,19 @@
               "reserved_mib": 4168.0
             },
             "base_load": {
-              "allocated_mib": 4019.218,
-              "reserved_mib": 4146.0
+              "allocated_mib": 4008.5,
+              "reserved_mib": 4134.0
             },
             "voice_clone_generate": {
-              "allocated_mib": 4179.441,
-              "reserved_mib": 4264.0
+              "allocated_mib": 4177.267,
+              "reserved_mib": 4272.0
             }
           },
           "seed": 0,
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 10.393511,
+      "rtf": 9.3207,
       "loudness": {
         "i_lufs": -18.0,
         "tp_dbtp": -1.16,
@@ -4843,7 +4843,7 @@
       "variant": "dry",
       "path": "audio/qwen3-tts-12hz-1.7b/battlefield-camp/wounded-002-dry.opus",
       "duration_sec": 2.8865,
-      "sha256": "6f9130eec25d1115ea6d9aff265d08c3051d63829b6168a385899b4be3000bd9",
+      "sha256": "e0ebf3b4b8327574079e6a6ce591ff1fe995038483dd6d3141aa2b86ab3692da",
       "gen_params": {
         "requested": {
           "qwen_tts_version": "0.1.1",
@@ -4879,19 +4879,19 @@
               "reserved_mib": 4168.0
             },
             "base_load": {
-              "allocated_mib": 4019.218,
-              "reserved_mib": 4146.0
+              "allocated_mib": 4008.5,
+              "reserved_mib": 4134.0
             },
             "voice_clone_generate": {
-              "allocated_mib": 4178.51,
-              "reserved_mib": 4264.0
+              "allocated_mib": 4176.843,
+              "reserved_mib": 4272.0
             }
           },
           "seed": 0,
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 5.852373,
+      "rtf": 4.90658,
       "loudness": {
         "i_lufs": -17.98,
         "tp_dbtp": -4.73,
@@ -4905,7 +4905,7 @@
       "variant": "dry",
       "path": "audio/qwen3-tts-12hz-1.7b/battlefield-camp/wounded-003-dry.opus",
       "duration_sec": 4.1665,
-      "sha256": "19ecd11a14b9f236e926bf7f8095b586d0bc9fee62ca89516c86cab04893c596",
+      "sha256": "a0f8a0e5bdd63b707aa577cd0eaeadd200883a770a21af70fc1179c1e153e6c5",
       "gen_params": {
         "requested": {
           "qwen_tts_version": "0.1.1",
@@ -4941,22 +4941,146 @@
               "reserved_mib": 4168.0
             },
             "base_load": {
-              "allocated_mib": 4019.218,
-              "reserved_mib": 4146.0
+              "allocated_mib": 4008.5,
+              "reserved_mib": 4134.0
             },
             "voice_clone_generate": {
-              "allocated_mib": 4203.095,
-              "reserved_mib": 4360.0
+              "allocated_mib": 4201.502,
+              "reserved_mib": 4310.0
             }
           },
           "seed": 0,
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 6.400028,
+      "rtf": 5.209742,
       "loudness": {
         "i_lufs": -18.01,
         "tp_dbtp": -2.1,
+        "shortfall": false
+      }
+    },
+    {
+      "model": "qwen3-tts-12hz-1.7b",
+      "scenario": "castle-gate",
+      "line": "captain-001",
+      "variant": "dry",
+      "path": "audio/qwen3-tts-12hz-1.7b/castle-gate/captain-001-dry.opus",
+      "duration_sec": 2.1665,
+      "sha256": "07b7257935015642ab0eba851b1a1ec8c7d1066d97f67184428408d6f80f2329",
+      "gen_params": {
+        "requested": {
+          "qwen_tts_version": "0.1.1",
+          "base_model": "Qwen/Qwen3-TTS-12Hz-1.7B-Base",
+          "base_revision": "fd4b254389122332181a7c3db7f27e918eec64e3",
+          "voice_design_model": "Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign",
+          "voice_design_revision": "5ecdb67327fd37bb2e042aab12ff7391903235d3",
+          "device": "cuda:0",
+          "dtype": "bfloat16",
+          "attention_backend": "sdpa",
+          "sampling": {
+            "do_sample": true,
+            "repetition_penalty": 1.05,
+            "temperature": 0.9,
+            "top_p": 1.0,
+            "top_k": 50,
+            "subtalker_dosample": true,
+            "subtalker_temperature": 0.9,
+            "subtalker_top_p": 1.0,
+            "subtalker_top_k": 50,
+            "max_new_tokens": 2048
+          },
+          "reference_text": "こんにちは。今日はとても良い天気ですね。"
+        },
+        "realized": {
+          "phase_peak_vram_mib": {
+            "voice_design_load": {
+              "allocated_mib": 3986.726,
+              "reserved_mib": 4112.0
+            },
+            "voice_design_generate": {
+              "allocated_mib": 4128.015,
+              "reserved_mib": 4260.0
+            },
+            "base_load": {
+              "allocated_mib": 4008.5,
+              "reserved_mib": 4134.0
+            },
+            "voice_clone_generate": {
+              "allocated_mib": 4226.268,
+              "reserved_mib": 4356.0
+            }
+          },
+          "seed": 0,
+          "sample_rate_hz": 24000
+        }
+      },
+      "rtf": 5.975833,
+      "loudness": {
+        "i_lufs": -18.02,
+        "tp_dbtp": -3.3,
+        "shortfall": false
+      }
+    },
+    {
+      "model": "qwen3-tts-12hz-1.7b",
+      "scenario": "castle-gate",
+      "line": "captain-002",
+      "variant": "dry",
+      "path": "audio/qwen3-tts-12hz-1.7b/castle-gate/captain-002-dry.opus",
+      "duration_sec": 2.9665,
+      "sha256": "67380857d62598761ea1d2ae5a137af664f4b821b735b5aa83c85b5f2decae59",
+      "gen_params": {
+        "requested": {
+          "qwen_tts_version": "0.1.1",
+          "base_model": "Qwen/Qwen3-TTS-12Hz-1.7B-Base",
+          "base_revision": "fd4b254389122332181a7c3db7f27e918eec64e3",
+          "voice_design_model": "Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign",
+          "voice_design_revision": "5ecdb67327fd37bb2e042aab12ff7391903235d3",
+          "device": "cuda:0",
+          "dtype": "bfloat16",
+          "attention_backend": "sdpa",
+          "sampling": {
+            "do_sample": true,
+            "repetition_penalty": 1.05,
+            "temperature": 0.9,
+            "top_p": 1.0,
+            "top_k": 50,
+            "subtalker_dosample": true,
+            "subtalker_temperature": 0.9,
+            "subtalker_top_p": 1.0,
+            "subtalker_top_k": 50,
+            "max_new_tokens": 2048
+          },
+          "reference_text": "こんにちは。今日はとても良い天気ですね。"
+        },
+        "realized": {
+          "phase_peak_vram_mib": {
+            "voice_design_load": {
+              "allocated_mib": 3986.726,
+              "reserved_mib": 4112.0
+            },
+            "voice_design_generate": {
+              "allocated_mib": 4128.015,
+              "reserved_mib": 4260.0
+            },
+            "base_load": {
+              "allocated_mib": 4008.5,
+              "reserved_mib": 4134.0
+            },
+            "voice_clone_generate": {
+              "allocated_mib": 4243.605,
+              "reserved_mib": 4400.0
+            }
+          },
+          "seed": 0,
+          "sample_rate_hz": 24000
+        }
+      },
+      "rtf": 5.275438,
+      "loudness": {
+        "i_lufs": -17.99,
+        "tp_dbtp": -1.36,
         "shortfall": false
       }
     },
@@ -4967,7 +5091,7 @@
       "variant": "dry",
       "path": "audio/qwen3-tts-12hz-1.7b/castle-gate/guard-onna-001-dry.opus",
       "duration_sec": 1.6865,
-      "sha256": "e3e9562579a851c0b73e44197ff4346da14e812ca21c504ceea1e777392a50c5",
+      "sha256": "546d9b0e1b6f4a543566a45b93fccf8517d1d981f2af962b65d6cb81994dd85c",
       "gen_params": {
         "requested": {
           "qwen_tts_version": "0.1.1",
@@ -5003,19 +5127,19 @@
               "reserved_mib": 4172.0
             },
             "base_load": {
-              "allocated_mib": 4019.218,
-              "reserved_mib": 4146.0
+              "allocated_mib": 4008.5,
+              "reserved_mib": 4134.0
             },
             "voice_clone_generate": {
-              "allocated_mib": 4152.226,
-              "reserved_mib": 4360.0
+              "allocated_mib": 4150.321,
+              "reserved_mib": 4310.0
             }
           },
           "seed": 0,
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 5.386919,
+      "rtf": 5.669847,
       "loudness": {
         "i_lufs": -17.99,
         "tp_dbtp": -1.33,
@@ -5029,7 +5153,7 @@
       "variant": "dry",
       "path": "audio/qwen3-tts-12hz-1.7b/castle-gate/guard-onna-002-dry.opus",
       "duration_sec": 2.2465,
-      "sha256": "18a7bebbc8713daca267617555beced0648bec02d878419bbf68ba580ee6e80a",
+      "sha256": "2c4b61243b8f263854435f215b7276b5e4a7c3a045437bc9b0c46256b4e1d553",
       "gen_params": {
         "requested": {
           "qwen_tts_version": "0.1.1",
@@ -5065,19 +5189,19 @@
               "reserved_mib": 4172.0
             },
             "base_load": {
-              "allocated_mib": 4019.218,
-              "reserved_mib": 4146.0
+              "allocated_mib": 4008.5,
+              "reserved_mib": 4134.0
             },
             "voice_clone_generate": {
-              "allocated_mib": 4163.486,
-              "reserved_mib": 4360.0
+              "allocated_mib": 4161.911,
+              "reserved_mib": 4310.0
             }
           },
           "seed": 0,
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 6.299752,
+      "rtf": 5.212422,
       "loudness": {
         "i_lufs": -18.04,
         "tp_dbtp": -1.0,
@@ -5087,11 +5211,73 @@
     {
       "model": "qwen3-tts-12hz-1.7b",
       "scenario": "castle-gate",
+      "line": "guard-onna-003",
+      "variant": "dry",
+      "path": "audio/qwen3-tts-12hz-1.7b/castle-gate/guard-onna-003-dry.opus",
+      "duration_sec": 2.9665,
+      "sha256": "01727182ea75fdabd688e16be81cb375b018d23357d2473b62b909c364e82ae9",
+      "gen_params": {
+        "requested": {
+          "qwen_tts_version": "0.1.1",
+          "base_model": "Qwen/Qwen3-TTS-12Hz-1.7B-Base",
+          "base_revision": "fd4b254389122332181a7c3db7f27e918eec64e3",
+          "voice_design_model": "Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign",
+          "voice_design_revision": "5ecdb67327fd37bb2e042aab12ff7391903235d3",
+          "device": "cuda:0",
+          "dtype": "bfloat16",
+          "attention_backend": "sdpa",
+          "sampling": {
+            "do_sample": true,
+            "repetition_penalty": 1.05,
+            "temperature": 0.9,
+            "top_p": 1.0,
+            "top_k": 50,
+            "subtalker_dosample": true,
+            "subtalker_temperature": 0.9,
+            "subtalker_top_p": 1.0,
+            "subtalker_top_k": 50,
+            "max_new_tokens": 2048
+          },
+          "reference_text": "こんにちは。今日はとても良い天気ですね。"
+        },
+        "realized": {
+          "phase_peak_vram_mib": {
+            "voice_design_load": {
+              "allocated_mib": 3986.726,
+              "reserved_mib": 4112.0
+            },
+            "voice_design_generate": {
+              "allocated_mib": 4061.911,
+              "reserved_mib": 4172.0
+            },
+            "base_load": {
+              "allocated_mib": 4008.5,
+              "reserved_mib": 4134.0
+            },
+            "voice_clone_generate": {
+              "allocated_mib": 4177.346,
+              "reserved_mib": 4310.0
+            }
+          },
+          "seed": 0,
+          "sample_rate_hz": 24000
+        }
+      },
+      "rtf": 5.177864,
+      "loudness": {
+        "i_lufs": -18.57,
+        "tp_dbtp": -0.94,
+        "shortfall": true
+      }
+    },
+    {
+      "model": "qwen3-tts-12hz-1.7b",
+      "scenario": "castle-gate",
       "line": "guard-otoko-001",
       "variant": "dry",
       "path": "audio/qwen3-tts-12hz-1.7b/castle-gate/guard-otoko-001-dry.opus",
       "duration_sec": 2.9665,
-      "sha256": "0b97f32cb5df7ae1f816c9dab5d3939f0c312e0226a791011c66a9a3e5de2ebd",
+      "sha256": "88db670c9f47865912ffbca101fea66a9ffdd24be54d3bb7e97f0e376536ce14",
       "gen_params": {
         "requested": {
           "qwen_tts_version": "0.1.1",
@@ -5127,19 +5313,19 @@
               "reserved_mib": 4172.0
             },
             "base_load": {
-              "allocated_mib": 4019.218,
-              "reserved_mib": 4146.0
+              "allocated_mib": 4008.5,
+              "reserved_mib": 4134.0
             },
             "voice_clone_generate": {
-              "allocated_mib": 4193.207,
-              "reserved_mib": 4360.0
+              "allocated_mib": 4191.593,
+              "reserved_mib": 4310.0
             }
           },
           "seed": 0,
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 6.723104,
+      "rtf": 5.362271,
       "loudness": {
         "i_lufs": -18.0,
         "tp_dbtp": -2.78,
@@ -5153,7 +5339,7 @@
       "variant": "dry",
       "path": "audio/qwen3-tts-12hz-1.7b/castle-gate/guard-otoko-002-dry.opus",
       "duration_sec": 1.6865,
-      "sha256": "d7c5ab834159f23234ee4c584d3d1aba7918e44e2b54ec31ae53aa495b006b6d",
+      "sha256": "0c3ac3f41a8a7b05088b6a7099023696d17d744e19c06e061027310b2e337ec2",
       "gen_params": {
         "requested": {
           "qwen_tts_version": "0.1.1",
@@ -5189,19 +5375,19 @@
               "reserved_mib": 4172.0
             },
             "base_load": {
-              "allocated_mib": 4019.218,
-              "reserved_mib": 4146.0
+              "allocated_mib": 4008.5,
+              "reserved_mib": 4134.0
             },
             "voice_clone_generate": {
-              "allocated_mib": 4167.46,
-              "reserved_mib": 4360.0
+              "allocated_mib": 4165.166,
+              "reserved_mib": 4310.0
             }
           },
           "seed": 0,
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 6.366779,
+      "rtf": 5.002828,
       "loudness": {
         "i_lufs": -18.01,
         "tp_dbtp": -5.09,
@@ -5215,7 +5401,7 @@
       "variant": "dry",
       "path": "audio/qwen3-tts-12hz-1.7b/castle-gate/guard-otoko-003-dry.opus",
       "duration_sec": 1.6065,
-      "sha256": "2c5e8a8e0f424ffb1cc5facf2c33f7bd82cf44ec6c3c6502f0096387c014ee12",
+      "sha256": "0a53beb3087f9b810323d7dee8a90773f677b53c827506fdbe1b8dc8247e062d",
       "gen_params": {
         "requested": {
           "qwen_tts_version": "0.1.1",
@@ -5251,19 +5437,19 @@
               "reserved_mib": 4172.0
             },
             "base_load": {
-              "allocated_mib": 4019.218,
-              "reserved_mib": 4146.0
+              "allocated_mib": 4008.5,
+              "reserved_mib": 4134.0
             },
             "voice_clone_generate": {
-              "allocated_mib": 4165.088,
-              "reserved_mib": 4360.0
+              "allocated_mib": 4163.513,
+              "reserved_mib": 4310.0
             }
           },
           "seed": 0,
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 8.947234,
+      "rtf": 5.280307,
       "loudness": {
         "i_lufs": -18.0,
         "tp_dbtp": -2.96,
@@ -5277,7 +5463,7 @@
       "variant": "dry",
       "path": "audio/qwen3-tts-12hz-1.7b/castle-gate/guard-otoko-004-dry.opus",
       "duration_sec": 3.1265,
-      "sha256": "988ae3992d639a3c8138433e25fba969c5661c16cd19f28513aca7313611ae59",
+      "sha256": "fdad367a89862eb7558f6b3189c95303423f1cef3560422ceb323db33d067f0d",
       "gen_params": {
         "requested": {
           "qwen_tts_version": "0.1.1",
@@ -5313,22 +5499,208 @@
               "reserved_mib": 4172.0
             },
             "base_load": {
-              "allocated_mib": 4019.218,
-              "reserved_mib": 4146.0
+              "allocated_mib": 4008.5,
+              "reserved_mib": 4134.0
             },
             "voice_clone_generate": {
-              "allocated_mib": 4196.513,
-              "reserved_mib": 4360.0
+              "allocated_mib": 4194.899,
+              "reserved_mib": 4310.0
             }
           },
           "seed": 0,
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 6.153099,
+      "rtf": 5.527139,
       "loudness": {
         "i_lufs": -17.99,
         "tp_dbtp": -2.21,
+        "shortfall": false
+      }
+    },
+    {
+      "model": "qwen3-tts-12hz-1.7b",
+      "scenario": "castle-gate",
+      "line": "merchant-001",
+      "variant": "dry",
+      "path": "audio/qwen3-tts-12hz-1.7b/castle-gate/merchant-001-dry.opus",
+      "duration_sec": 3.0465,
+      "sha256": "0827e68b4081442bf18c978128c31e178515b79de36e58af58d07bea0ae598f4",
+      "gen_params": {
+        "requested": {
+          "qwen_tts_version": "0.1.1",
+          "base_model": "Qwen/Qwen3-TTS-12Hz-1.7B-Base",
+          "base_revision": "fd4b254389122332181a7c3db7f27e918eec64e3",
+          "voice_design_model": "Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign",
+          "voice_design_revision": "5ecdb67327fd37bb2e042aab12ff7391903235d3",
+          "device": "cuda:0",
+          "dtype": "bfloat16",
+          "attention_backend": "sdpa",
+          "sampling": {
+            "do_sample": true,
+            "repetition_penalty": 1.05,
+            "temperature": 0.9,
+            "top_p": 1.0,
+            "top_k": 50,
+            "subtalker_dosample": true,
+            "subtalker_temperature": 0.9,
+            "subtalker_top_p": 1.0,
+            "subtalker_top_k": 50,
+            "max_new_tokens": 2048
+          },
+          "reference_text": "こんにちは。今日はとても良い天気ですね。"
+        },
+        "realized": {
+          "phase_peak_vram_mib": {
+            "voice_design_load": {
+              "allocated_mib": 3986.726,
+              "reserved_mib": 4112.0
+            },
+            "voice_design_generate": {
+              "allocated_mib": 4065.232,
+              "reserved_mib": 4260.0
+            },
+            "base_load": {
+              "allocated_mib": 4008.5,
+              "reserved_mib": 4134.0
+            },
+            "voice_clone_generate": {
+              "allocated_mib": 4181.787,
+              "reserved_mib": 4400.0
+            }
+          },
+          "seed": 0,
+          "sample_rate_hz": 24000
+        }
+      },
+      "rtf": 5.599928,
+      "loudness": {
+        "i_lufs": -17.82,
+        "tp_dbtp": -1.0,
+        "shortfall": false
+      }
+    },
+    {
+      "model": "qwen3-tts-12hz-1.7b",
+      "scenario": "castle-gate",
+      "line": "merchant-002",
+      "variant": "dry",
+      "path": "audio/qwen3-tts-12hz-1.7b/castle-gate/merchant-002-dry.opus",
+      "duration_sec": 2.9665,
+      "sha256": "e9a8141df5fe071777f172763a8e97a74979c76b3fb310552e329f75bd5a9da1",
+      "gen_params": {
+        "requested": {
+          "qwen_tts_version": "0.1.1",
+          "base_model": "Qwen/Qwen3-TTS-12Hz-1.7B-Base",
+          "base_revision": "fd4b254389122332181a7c3db7f27e918eec64e3",
+          "voice_design_model": "Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign",
+          "voice_design_revision": "5ecdb67327fd37bb2e042aab12ff7391903235d3",
+          "device": "cuda:0",
+          "dtype": "bfloat16",
+          "attention_backend": "sdpa",
+          "sampling": {
+            "do_sample": true,
+            "repetition_penalty": 1.05,
+            "temperature": 0.9,
+            "top_p": 1.0,
+            "top_k": 50,
+            "subtalker_dosample": true,
+            "subtalker_temperature": 0.9,
+            "subtalker_top_p": 1.0,
+            "subtalker_top_k": 50,
+            "max_new_tokens": 2048
+          },
+          "reference_text": "こんにちは。今日はとても良い天気ですね。"
+        },
+        "realized": {
+          "phase_peak_vram_mib": {
+            "voice_design_load": {
+              "allocated_mib": 3986.726,
+              "reserved_mib": 4112.0
+            },
+            "voice_design_generate": {
+              "allocated_mib": 4065.232,
+              "reserved_mib": 4260.0
+            },
+            "base_load": {
+              "allocated_mib": 4008.5,
+              "reserved_mib": 4134.0
+            },
+            "voice_clone_generate": {
+              "allocated_mib": 4180.602,
+              "reserved_mib": 4400.0
+            }
+          },
+          "seed": 0,
+          "sample_rate_hz": 24000
+        }
+      },
+      "rtf": 5.216681,
+      "loudness": {
+        "i_lufs": -18.02,
+        "tp_dbtp": -2.09,
+        "shortfall": false
+      }
+    },
+    {
+      "model": "qwen3-tts-12hz-1.7b",
+      "scenario": "castle-gate",
+      "line": "merchant-003",
+      "variant": "dry",
+      "path": "audio/qwen3-tts-12hz-1.7b/castle-gate/merchant-003-dry.opus",
+      "duration_sec": 2.4865,
+      "sha256": "f7fca9c08423572f83727787349767a0728b38c91f5368064542e1f614e42301",
+      "gen_params": {
+        "requested": {
+          "qwen_tts_version": "0.1.1",
+          "base_model": "Qwen/Qwen3-TTS-12Hz-1.7B-Base",
+          "base_revision": "fd4b254389122332181a7c3db7f27e918eec64e3",
+          "voice_design_model": "Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign",
+          "voice_design_revision": "5ecdb67327fd37bb2e042aab12ff7391903235d3",
+          "device": "cuda:0",
+          "dtype": "bfloat16",
+          "attention_backend": "sdpa",
+          "sampling": {
+            "do_sample": true,
+            "repetition_penalty": 1.05,
+            "temperature": 0.9,
+            "top_p": 1.0,
+            "top_k": 50,
+            "subtalker_dosample": true,
+            "subtalker_temperature": 0.9,
+            "subtalker_top_p": 1.0,
+            "subtalker_top_k": 50,
+            "max_new_tokens": 2048
+          },
+          "reference_text": "こんにちは。今日はとても良い天気ですね。"
+        },
+        "realized": {
+          "phase_peak_vram_mib": {
+            "voice_design_load": {
+              "allocated_mib": 3986.726,
+              "reserved_mib": 4112.0
+            },
+            "voice_design_generate": {
+              "allocated_mib": 4065.232,
+              "reserved_mib": 4260.0
+            },
+            "base_load": {
+              "allocated_mib": 4008.5,
+              "reserved_mib": 4134.0
+            },
+            "voice_clone_generate": {
+              "allocated_mib": 4170.186,
+              "reserved_mib": 4400.0
+            }
+          },
+          "seed": 0,
+          "sample_rate_hz": 24000
+        }
+      },
+      "rtf": 5.302176,
+      "loudness": {
+        "i_lufs": -18.01,
+        "tp_dbtp": -1.62,
         "shortfall": false
       }
     },
@@ -5339,7 +5711,7 @@
       "variant": "dry",
       "path": "audio/qwen3-tts-12hz-1.7b/chinatown-chat/chakan-obaa-001-dry.opus",
       "duration_sec": 3.6865,
-      "sha256": "44a4e67c39ad62cc4f4e53d04bf614fa7d1d2dccdf9c153cbcc38ac702b83126",
+      "sha256": "d4b41ec2651b07fd0a86157d2ef5dac3f669a12bcc328df0ae2dd72eff0f1152",
       "gen_params": {
         "requested": {
           "qwen_tts_version": "0.1.1",
@@ -5379,15 +5751,15 @@
               "reserved_mib": 4134.0
             },
             "voice_clone_generate": {
-              "allocated_mib": 4254.307,
-              "reserved_mib": 4496.0
+              "allocated_mib": 4254.438,
+              "reserved_mib": 4444.0
             }
           },
           "seed": 0,
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 6.14781,
+      "rtf": 5.622181,
       "loudness": {
         "i_lufs": -17.98,
         "tp_dbtp": -5.77,
@@ -5401,7 +5773,7 @@
       "variant": "dry",
       "path": "audio/qwen3-tts-12hz-1.7b/chinatown-chat/chakan-obaa-002-dry.opus",
       "duration_sec": 3.5265,
-      "sha256": "a8d5b2b98513fc32648d8672ae08b57ee759260350d26a2bb910210e774483ab",
+      "sha256": "2ef87a4677637eafa2674b71940f34f509eb001956d112eb3100f2a609690b5e",
       "gen_params": {
         "requested": {
           "qwen_tts_version": "0.1.1",
@@ -5441,15 +5813,15 @@
               "reserved_mib": 4134.0
             },
             "voice_clone_generate": {
-              "allocated_mib": 4251.701,
-              "reserved_mib": 4496.0
+              "allocated_mib": 4251.832,
+              "reserved_mib": 4444.0
             }
           },
           "seed": 0,
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 5.812074,
+      "rtf": 4.992759,
       "loudness": {
         "i_lufs": -18.0,
         "tp_dbtp": -2.45,
@@ -5463,7 +5835,7 @@
       "variant": "dry",
       "path": "audio/qwen3-tts-12hz-1.7b/chinatown-chat/chakan-obaa-003-dry.opus",
       "duration_sec": 3.4465,
-      "sha256": "0f27aaa184d96765581251a68973366b75147c006376f7c3ef7ab767fc023c01",
+      "sha256": "d59de70c7390cb8ff1385d5447daad529babdab2996f84a32bdbdc7e6e73a0b6",
       "gen_params": {
         "requested": {
           "qwen_tts_version": "0.1.1",
@@ -5503,15 +5875,15 @@
               "reserved_mib": 4134.0
             },
             "voice_clone_generate": {
-              "allocated_mib": 4249.291,
-              "reserved_mib": 4496.0
+              "allocated_mib": 4249.422,
+              "reserved_mib": 4444.0
             }
           },
           "seed": 0,
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 5.796062,
+      "rtf": 5.20052,
       "loudness": {
         "i_lufs": -18.15,
         "tp_dbtp": -4.02,
@@ -5525,7 +5897,7 @@
       "variant": "dry",
       "path": "audio/qwen3-tts-12hz-1.7b/chinatown-chat/kanpo-shujin-001-dry.opus",
       "duration_sec": 3.606542,
-      "sha256": "0252df52fb553fdb8b32155656cf0210f779499b32ce56fe87d257b9fc5e345d",
+      "sha256": "fdd840f164494d33a7eef7e9944856b08b3cd86a5d2c44719d3d612955b9d987",
       "gen_params": {
         "requested": {
           "qwen_tts_version": "0.1.1",
@@ -5565,15 +5937,15 @@
               "reserved_mib": 4134.0
             },
             "voice_clone_generate": {
-              "allocated_mib": 4224.6,
-              "reserved_mib": 4496.0
+              "allocated_mib": 4225.113,
+              "reserved_mib": 4444.0
             }
           },
           "seed": 0,
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 5.287127,
+      "rtf": 5.564229,
       "loudness": {
         "i_lufs": -18.0,
         "tp_dbtp": -2.47,
@@ -5587,7 +5959,7 @@
       "variant": "dry",
       "path": "audio/qwen3-tts-12hz-1.7b/chinatown-chat/kanpo-shujin-002-dry.opus",
       "duration_sec": 3.3665,
-      "sha256": "5fb5bebe315150494b5632dbdbce7b63d05e21657d773b47f571dd31091b08eb",
+      "sha256": "73562b3372f940dbf674a674dcfe6e8770e6e21ffef1c7769300b37788485774",
       "gen_params": {
         "requested": {
           "qwen_tts_version": "0.1.1",
@@ -5627,15 +5999,15 @@
               "reserved_mib": 4134.0
             },
             "voice_clone_generate": {
-              "allocated_mib": 4219.641,
-              "reserved_mib": 4496.0
+              "allocated_mib": 4219.771,
+              "reserved_mib": 4444.0
             }
           },
           "seed": 0,
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 5.399302,
+      "rtf": 5.269539,
       "loudness": {
         "i_lufs": -18.18,
         "tp_dbtp": -0.99,
@@ -5649,7 +6021,7 @@
       "variant": "dry",
       "path": "audio/qwen3-tts-12hz-1.7b/chinatown-chat/mahjong-inkyo-001-dry.opus",
       "duration_sec": 2.6465,
-      "sha256": "634280024dade863dfba3999d7b763d1615415a91c7905c0dde5c345c12d049e",
+      "sha256": "62ed20fe31fbba24e3defbd8e6406845217e9f0c30cf27769748dee5fc34154f",
       "gen_params": {
         "requested": {
           "qwen_tts_version": "0.1.1",
@@ -5689,15 +6061,15 @@
               "reserved_mib": 4134.0
             },
             "voice_clone_generate": {
-              "allocated_mib": 4214.641,
-              "reserved_mib": 4362.0
+              "allocated_mib": 4213.083,
+              "reserved_mib": 4400.0
             }
           },
           "seed": 0,
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 8.555987,
+      "rtf": 5.570493,
       "loudness": {
         "i_lufs": -18.01,
         "tp_dbtp": -3.13,
@@ -5711,7 +6083,7 @@
       "variant": "dry",
       "path": "audio/qwen3-tts-12hz-1.7b/chinatown-chat/mahjong-inkyo-002-dry.opus",
       "duration_sec": 2.5665,
-      "sha256": "7af4c2d8f03b10eba39fccc65782a6a619209e2a67d4a3bca385c1f1279ea3e3",
+      "sha256": "dc6e53134255f6a041a5c875fcb7c0ca24c4907c4139d2db29e6a130e1e99e9d",
       "gen_params": {
         "requested": {
           "qwen_tts_version": "0.1.1",
@@ -5751,15 +6123,15 @@
               "reserved_mib": 4134.0
             },
             "voice_clone_generate": {
-              "allocated_mib": 4211.319,
-              "reserved_mib": 4362.0
+              "allocated_mib": 4211.43,
+              "reserved_mib": 4400.0
             }
           },
           "seed": 0,
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 5.620997,
+      "rtf": 5.030099,
       "loudness": {
         "i_lufs": -18.03,
         "tp_dbtp": -0.99,
@@ -5773,7 +6145,7 @@
       "variant": "dry",
       "path": "audio/qwen3-tts-12hz-1.7b/chinatown-chat/mahjong-inkyo-003-dry.opus",
       "duration_sec": 3.7665,
-      "sha256": "0c7f2bd74714bb073c20119d2c3d6e29ee92d4c3cafb2206f89923eadf548d1d",
+      "sha256": "5237164f29508a43f78ad1051a3ca1042f1792c64634eefe47cd046b86f879ff",
       "gen_params": {
         "requested": {
           "qwen_tts_version": "0.1.1",
@@ -5813,15 +6185,15 @@
               "reserved_mib": 4134.0
             },
             "voice_clone_generate": {
-              "allocated_mib": 4236.093,
-              "reserved_mib": 4452.0
+              "allocated_mib": 4236.224,
+              "reserved_mib": 4400.0
             }
           },
           "seed": 0,
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 7.02719,
+      "rtf": 5.096842,
       "loudness": {
         "i_lufs": -18.01,
         "tp_dbtp": -2.68,
@@ -5835,7 +6207,7 @@
       "variant": "dry",
       "path": "audio/qwen3-tts-12hz-1.7b/chinatown-chat/wakate-tenin-001-dry.opus",
       "duration_sec": 3.9265,
-      "sha256": "1f33858b12e436909529633ac32925a213ab55fa0d983df7c4bd71c86dfd8917",
+      "sha256": "6cd486921faaf3e17b9270082f8d5e11f51401c856a34a465960fdb637258b68",
       "gen_params": {
         "requested": {
           "qwen_tts_version": "0.1.1",
@@ -5875,15 +6247,15 @@
               "reserved_mib": 4134.0
             },
             "voice_clone_generate": {
-              "allocated_mib": 4203.163,
-              "reserved_mib": 4496.0
+              "allocated_mib": 4204.247,
+              "reserved_mib": 4444.0
             }
           },
           "seed": 0,
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 5.727911,
+      "rtf": 5.284802,
       "loudness": {
         "i_lufs": -18.0,
         "tp_dbtp": -3.35,
@@ -5897,7 +6269,7 @@
       "variant": "dry",
       "path": "audio/qwen3-tts-12hz-1.7b/chinatown-chat/wakate-tenin-002-dry.opus",
       "duration_sec": 2.8065,
-      "sha256": "58cd428efcb2c843d9789cc411be6b536c884daf4d4a74ede0505ef375bdddf3",
+      "sha256": "f43b2cf3341a81fdacb5ca15e4b5e68125ca0baf68ef07899da56340d2106f35",
       "gen_params": {
         "requested": {
           "qwen_tts_version": "0.1.1",
@@ -5937,15 +6309,15 @@
               "reserved_mib": 4134.0
             },
             "voice_clone_generate": {
-              "allocated_mib": 4180.022,
-              "reserved_mib": 4496.0
+              "allocated_mib": 4180.653,
+              "reserved_mib": 4444.0
             }
           },
           "seed": 0,
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 5.40909,
+      "rtf": 5.320984,
       "loudness": {
         "i_lufs": -17.99,
         "tp_dbtp": -1.2,
@@ -5959,7 +6331,7 @@
       "variant": "dry",
       "path": "audio/qwen3-tts-12hz-1.7b/chinatown-street/kaimono-musume-001-dry.opus",
       "duration_sec": 3.206542,
-      "sha256": "4977733c710a2fe0406ded621600c6f26bda41d6e1c70e8c1da17167cf1ccb2e",
+      "sha256": "d59e4b6fbe2b9086be583a4517e60ff38b7bd66393cbba9ee6f0ec451fd6d328",
       "gen_params": {
         "requested": {
           "qwen_tts_version": "0.1.1",
@@ -5999,15 +6371,15 @@
               "reserved_mib": 4134.0
             },
             "voice_clone_generate": {
-              "allocated_mib": 4200.256,
-              "reserved_mib": 4344.0
+              "allocated_mib": 4200.028,
+              "reserved_mib": 4444.0
             }
           },
           "seed": 0,
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 5.567818,
+      "rtf": 5.843662,
       "loudness": {
         "i_lufs": -18.0,
         "tp_dbtp": -4.38,
@@ -6021,7 +6393,7 @@
       "variant": "dry",
       "path": "audio/qwen3-tts-12hz-1.7b/chinatown-street/kaimono-musume-002-dry.opus",
       "duration_sec": 2.0865,
-      "sha256": "5e5b2a735bafe2670a7bc56db3cb436368d9c58ae9b2992287aa6e55c2d8d1ec",
+      "sha256": "f37910d0cf4ddd6ef8aeb2834d47b82f1f7884ba415edb985ad8d9057b01dd5a",
       "gen_params": {
         "requested": {
           "qwen_tts_version": "0.1.1",
@@ -6061,15 +6433,15 @@
               "reserved_mib": 4134.0
             },
             "voice_clone_generate": {
-              "allocated_mib": 4176.7,
-              "reserved_mib": 4344.0
+              "allocated_mib": 4177.467,
+              "reserved_mib": 4444.0
             }
           },
           "seed": 0,
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 5.632535,
+      "rtf": 6.117528,
       "loudness": {
         "i_lufs": -17.99,
         "tp_dbtp": -4.28,
@@ -6083,7 +6455,7 @@
       "variant": "dry",
       "path": "audio/qwen3-tts-12hz-1.7b/chinatown-street/nimotsu-ani-001-dry.opus",
       "duration_sec": 2.9665,
-      "sha256": "27e106c15e5e622315a0faa2aa5287198d0d7483c85b67a80ee7818020051175",
+      "sha256": "cdb3f523fc88ae8468e653de871f797188fc5334b31b6b2325710d11d6a3b0f0",
       "gen_params": {
         "requested": {
           "qwen_tts_version": "0.1.1",
@@ -6123,15 +6495,15 @@
               "reserved_mib": 4134.0
             },
             "voice_clone_generate": {
-              "allocated_mib": 4173.46,
-              "reserved_mib": 4344.0
+              "allocated_mib": 4173.649,
+              "reserved_mib": 4444.0
             }
           },
           "seed": 0,
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 8.70144,
+      "rtf": 6.537859,
       "loudness": {
         "i_lufs": -17.99,
         "tp_dbtp": -2.0,
@@ -6145,7 +6517,7 @@
       "variant": "dry",
       "path": "audio/qwen3-tts-12hz-1.7b/chinatown-street/nimotsu-ani-002-dry.opus",
       "duration_sec": 2.9665,
-      "sha256": "1c57d85493940b2b4b28025c50371599985fc49e299d9f7a6e4ec55f2a1f8190",
+      "sha256": "93f58a680f54b287f880fbebedf286be6cc2e2c9dca7fe75fb7d06850c59c87f",
       "gen_params": {
         "requested": {
           "qwen_tts_version": "0.1.1",
@@ -6185,15 +6557,15 @@
               "reserved_mib": 4134.0
             },
             "voice_clone_generate": {
-              "allocated_mib": 4173.46,
-              "reserved_mib": 4344.0
+              "allocated_mib": 4173.649,
+              "reserved_mib": 4444.0
             }
           },
           "seed": 0,
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 5.253942,
+      "rtf": 5.697182,
       "loudness": {
         "i_lufs": -18.0,
         "tp_dbtp": -0.99,
@@ -6207,7 +6579,7 @@
       "variant": "dry",
       "path": "audio/qwen3-tts-12hz-1.7b/chinatown-street/shokudo-oyaji-001-dry.opus",
       "duration_sec": 2.0865,
-      "sha256": "d8df8d0552d081227be683b42778b713f0abdae5a99815ba1d8898543a4051cd",
+      "sha256": "d7dfb6fc53ebfdbadae5daba0fa64bba89bdc799005706496eef3bf1cf44a785",
       "gen_params": {
         "requested": {
           "qwen_tts_version": "0.1.1",
@@ -6247,15 +6619,15 @@
               "reserved_mib": 4134.0
             },
             "voice_clone_generate": {
-              "allocated_mib": 4179.98,
-              "reserved_mib": 4342.0
+              "allocated_mib": 4180.669,
+              "reserved_mib": 4444.0
             }
           },
           "seed": 0,
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 5.846405,
+      "rtf": 5.558633,
       "loudness": {
         "i_lufs": -18.0,
         "tp_dbtp": -4.74,
@@ -6269,7 +6641,7 @@
       "variant": "dry",
       "path": "audio/qwen3-tts-12hz-1.7b/chinatown-street/shokudo-oyaji-002-dry.opus",
       "duration_sec": 2.8865,
-      "sha256": "8541d00adc9a7450df3692d0011a042dfb11257e84f10d7eb3fb6c5ec27ac28c",
+      "sha256": "cd5cdd6e48a4def1e8c7bd76e03132beef7385e0a2244a1878d6627b284d8ee1",
       "gen_params": {
         "requested": {
           "qwen_tts_version": "0.1.1",
@@ -6309,15 +6681,15 @@
               "reserved_mib": 4134.0
             },
             "voice_clone_generate": {
-              "allocated_mib": 4197.228,
-              "reserved_mib": 4344.0
+              "allocated_mib": 4196.698,
+              "reserved_mib": 4444.0
             }
           },
           "seed": 0,
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 5.690637,
+      "rtf": 4.974967,
       "loudness": {
         "i_lufs": -18.0,
         "tp_dbtp": -3.01,
@@ -6331,7 +6703,7 @@
       "variant": "dry",
       "path": "audio/qwen3-tts-12hz-1.7b/chinatown-street/shokudo-oyaji-003-dry.opus",
       "duration_sec": 2.5665,
-      "sha256": "cd2a78465b2155beb01e3fd0166faf1b6a0d996eea95ea5e7f7a1decc8d2a496",
+      "sha256": "455f993aae68ff84c3a056e9d1ffccc9952544f7fd07b80aac04648aa9cf3e51",
       "gen_params": {
         "requested": {
           "qwen_tts_version": "0.1.1",
@@ -6371,15 +6743,15 @@
               "reserved_mib": 4134.0
             },
             "voice_clone_generate": {
-              "allocated_mib": 4189.898,
-              "reserved_mib": 4344.0
+              "allocated_mib": 4190.087,
+              "reserved_mib": 4444.0
             }
           },
           "seed": 0,
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 6.098726,
+      "rtf": 5.51541,
       "loudness": {
         "i_lufs": -18.0,
         "tp_dbtp": -2.81,
@@ -6393,7 +6765,7 @@
       "variant": "dry",
       "path": "audio/qwen3-tts-12hz-1.7b/chinatown-street/tenshin-okami-001-dry.opus",
       "duration_sec": 3.1265,
-      "sha256": "3504991f1eb8e22b8d86e34698b6f8ed8406851452d2a97a3ec07d2ceba34388",
+      "sha256": "5557150d07a47ebcdfce60bc89aa096ac017caee759c5546c69b8af95eb95ff5",
       "gen_params": {
         "requested": {
           "qwen_tts_version": "0.1.1",
@@ -6433,15 +6805,15 @@
               "reserved_mib": 4134.0
             },
             "voice_clone_generate": {
-              "allocated_mib": 4197.205,
-              "reserved_mib": 4342.0
+              "allocated_mib": 4196.693,
+              "reserved_mib": 4444.0
             }
           },
           "seed": 0,
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 8.801994,
+      "rtf": 5.259931,
       "loudness": {
         "i_lufs": -18.01,
         "tp_dbtp": -5.49,
@@ -6455,7 +6827,7 @@
       "variant": "dry",
       "path": "audio/qwen3-tts-12hz-1.7b/chinatown-street/tenshin-okami-002-dry.opus",
       "duration_sec": 2.886542,
-      "sha256": "17e8ff75bfc65413d45c6e67b14ad428848ef1fb0d479c70a55aa553ab72855f",
+      "sha256": "cfa170f358e954ec848e3748b09a4c68e3f598724db3f0822925baf692184f97",
       "gen_params": {
         "requested": {
           "qwen_tts_version": "0.1.1",
@@ -6495,15 +6867,15 @@
               "reserved_mib": 4134.0
             },
             "voice_clone_generate": {
-              "allocated_mib": 4191.545,
-              "reserved_mib": 4342.0
+              "allocated_mib": 4191.734,
+              "reserved_mib": 4444.0
             }
           },
           "seed": 0,
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 5.71112,
+      "rtf": 4.650569,
       "loudness": {
         "i_lufs": -18.0,
         "tp_dbtp": -5.35,
@@ -6517,7 +6889,7 @@
       "variant": "dry",
       "path": "audio/qwen3-tts-12hz-1.7b/chinatown-street/tenshin-okami-003-dry.opus",
       "duration_sec": 2.886542,
-      "sha256": "edca414e4d5d80849011855c81c64593f3d546b005b9973b6605f0b55ebed257",
+      "sha256": "24bf4fc6fa652582ef4113b66726d0e4aa17e13f983de57be67d14f45734aa22",
       "gen_params": {
         "requested": {
           "qwen_tts_version": "0.1.1",
@@ -6557,15 +6929,15 @@
               "reserved_mib": 4134.0
             },
             "voice_clone_generate": {
-              "allocated_mib": 4191.545,
-              "reserved_mib": 4342.0
+              "allocated_mib": 4191.734,
+              "reserved_mib": 4444.0
             }
           },
           "seed": 0,
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 5.578339,
+      "rtf": 4.940838,
       "loudness": {
         "i_lufs": -17.99,
         "tp_dbtp": -2.71,
@@ -6579,7 +6951,7 @@
       "variant": "dry",
       "path": "audio/qwen3-tts-12hz-1.7b/clockwork-plaza/fortune-doll-001-dry.opus",
       "duration_sec": 3.2865,
-      "sha256": "4dac01535a070a15f0b7a758aac929498ae27cc27480cbe1290d30fcd0e8983c",
+      "sha256": "c7c2d75d801ebd7fba11a9a9fd38187cc1296ad518090bc3800d12552c37789f",
       "gen_params": {
         "requested": {
           "qwen_tts_version": "0.1.1",
@@ -6619,15 +6991,15 @@
               "reserved_mib": 4134.0
             },
             "voice_clone_generate": {
-              "allocated_mib": 4193.245,
-              "reserved_mib": 4318.0
+              "allocated_mib": 4193.517,
+              "reserved_mib": 4444.0
             }
           },
           "seed": 0,
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 11.359763,
+      "rtf": 5.000199,
       "loudness": {
         "i_lufs": -18.0,
         "tp_dbtp": -2.78,
@@ -6641,7 +7013,7 @@
       "variant": "dry",
       "path": "audio/qwen3-tts-12hz-1.7b/clockwork-plaza/fortune-doll-002-dry.opus",
       "duration_sec": 4.5665,
-      "sha256": "70e4148b0f138b85777d408773fdb30a6c93268384018c24c783d78060971e26",
+      "sha256": "16201e5e9a58e353008516d3bc584291cb0adcb57bac05a06b93f8de414eeb59",
       "gen_params": {
         "requested": {
           "qwen_tts_version": "0.1.1",
@@ -6681,15 +7053,15 @@
               "reserved_mib": 4134.0
             },
             "voice_clone_generate": {
-              "allocated_mib": 4219.693,
-              "reserved_mib": 4358.0
+              "allocated_mib": 4219.962,
+              "reserved_mib": 4444.0
             }
           },
           "seed": 0,
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 6.697688,
+      "rtf": 4.665681,
       "loudness": {
         "i_lufs": -18.1,
         "tp_dbtp": -0.98,
@@ -6703,7 +7075,7 @@
       "variant": "dry",
       "path": "audio/qwen3-tts-12hz-1.7b/clockwork-plaza/fortune-doll-003-dry.opus",
       "duration_sec": 4.8065,
-      "sha256": "94d67194d98426682d52310012690bca574bc550a2bb688b7bcf95a0592b6cb8",
+      "sha256": "73e709b019f0a5830c9a8065296a805b77e11487f9b491256537d477a9ac9e2c",
       "gen_params": {
         "requested": {
           "qwen_tts_version": "0.1.1",
@@ -6743,15 +7115,15 @@
               "reserved_mib": 4134.0
             },
             "voice_clone_generate": {
-              "allocated_mib": 4225.408,
-              "reserved_mib": 4398.0
+              "allocated_mib": 4225.303,
+              "reserved_mib": 4444.0
             }
           },
           "seed": 0,
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 6.437863,
+      "rtf": 4.654534,
       "loudness": {
         "i_lufs": -18.0,
         "tp_dbtp": -2.57,
@@ -6765,7 +7137,7 @@
       "variant": "dry",
       "path": "audio/qwen3-tts-12hz-1.7b/clockwork-plaza/guide-automaton-001-dry.opus",
       "duration_sec": 2.246542,
-      "sha256": "dee4a9326bd33ac73f0b5d4e210d744fe526ed06ac5b94afa211cf7cb5adafcc",
+      "sha256": "6e285071c642883f5b034c6541a9125d50145e55c4960840dbc5ef75c89fb62e",
       "gen_params": {
         "requested": {
           "qwen_tts_version": "0.1.1",
@@ -6805,15 +7177,15 @@
               "reserved_mib": 4134.0
             },
             "voice_clone_generate": {
-              "allocated_mib": 4188.315,
-              "reserved_mib": 4282.0
+              "allocated_mib": 4188.471,
+              "reserved_mib": 4444.0
             }
           },
           "seed": 0,
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 9.518456,
+      "rtf": 5.93266,
       "loudness": {
         "i_lufs": -18.03,
         "tp_dbtp": -0.99,
@@ -6827,7 +7199,7 @@
       "variant": "dry",
       "path": "audio/qwen3-tts-12hz-1.7b/clockwork-plaza/guide-automaton-002-dry.opus",
       "duration_sec": 2.6465,
-      "sha256": "513717e3acfc569569e97d50649717d9036ccc57b6ae1f6bf848edfad541cb45",
+      "sha256": "2abc1a0ea3a559117c130a881d0826c7fff93d4e07d374eecc2a94f0a1366ddb",
       "gen_params": {
         "requested": {
           "qwen_tts_version": "0.1.1",
@@ -6867,15 +7239,15 @@
               "reserved_mib": 4134.0
             },
             "voice_clone_generate": {
-              "allocated_mib": 4196.463,
-              "reserved_mib": 4286.0
+              "allocated_mib": 4196.735,
+              "reserved_mib": 4444.0
             }
           },
           "seed": 0,
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 5.829643,
+      "rtf": 6.181191,
       "loudness": {
         "i_lufs": -18.09,
         "tp_dbtp": -0.9,
@@ -6889,7 +7261,7 @@
       "variant": "dry",
       "path": "audio/qwen3-tts-12hz-1.7b/clockwork-plaza/guide-automaton-003-dry.opus",
       "duration_sec": 1.6865,
-      "sha256": "3789cf9ce0c5b5299a252f7bcddad46495568769cf0813021368b02173876428",
+      "sha256": "23d29699fa65888440357ca43b53807b81b394c00a6f4c5017a1f817b5220c2f",
       "gen_params": {
         "requested": {
           "qwen_tts_version": "0.1.1",
@@ -6929,15 +7301,15 @@
               "reserved_mib": 4134.0
             },
             "voice_clone_generate": {
-              "allocated_mib": 4176.671,
-              "reserved_mib": 4286.0
+              "allocated_mib": 4177.479,
+              "reserved_mib": 4444.0
             }
           },
           "seed": 0,
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 5.102613,
+      "rtf": 5.190273,
       "loudness": {
         "i_lufs": -18.0,
         "tp_dbtp": -3.39,
@@ -6951,7 +7323,7 @@
       "variant": "dry",
       "path": "audio/qwen3-tts-12hz-1.7b/clockwork-plaza/sentry-unit-001-dry.opus",
       "duration_sec": 2.4065,
-      "sha256": "090ea76aba8098bed22204d518eff370677f2cb6c9e68cde95ceafdb7f8b9057",
+      "sha256": "3582b73153b36645cd8365bc7e46d9b61e66b478ea7af6896ec40219a7bbf4d6",
       "gen_params": {
         "requested": {
           "qwen_tts_version": "0.1.1",
@@ -6991,15 +7363,15 @@
               "reserved_mib": 4134.0
             },
             "voice_clone_generate": {
-              "allocated_mib": 4181.67,
-              "reserved_mib": 4286.0
+              "allocated_mib": 4181.932,
+              "reserved_mib": 4444.0
             }
           },
           "seed": 0,
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 9.779455,
+      "rtf": 5.750083,
       "loudness": {
         "i_lufs": -18.0,
         "tp_dbtp": -1.17,
@@ -7013,7 +7385,7 @@
       "variant": "dry",
       "path": "audio/qwen3-tts-12hz-1.7b/clockwork-plaza/sentry-unit-002-dry.opus",
       "duration_sec": 3.1265,
-      "sha256": "a63efef1734f0af54133be2bf76ccbcaf0ba16326d7674186d62c8f6da9cb677",
+      "sha256": "be1dc3965f9b9d68cf9bf9601a6fdbce531f4597d19895ebbd498832c33572aa",
       "gen_params": {
         "requested": {
           "qwen_tts_version": "0.1.1",
@@ -7053,15 +7425,15 @@
               "reserved_mib": 4134.0
             },
             "voice_clone_generate": {
-              "allocated_mib": 4196.503,
-              "reserved_mib": 4286.0
+              "allocated_mib": 4196.775,
+              "reserved_mib": 4444.0
             }
           },
           "seed": 0,
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 9.020174,
+      "rtf": 5.28127,
       "loudness": {
         "i_lufs": -18.0,
         "tp_dbtp": -2.13,
@@ -7075,7 +7447,7 @@
       "variant": "dry",
       "path": "audio/qwen3-tts-12hz-1.7b/clockwork-plaza/sentry-unit-003-dry.opus",
       "duration_sec": 2.5665,
-      "sha256": "c4b92bf3cf754cb6d1679bdf7114b9d55d8043983876a3b14b83ffd7979e417b",
+      "sha256": "31c62f673ef2cc033e2d77311f2abc91a42acca084bffadb38228f007e67d5f4",
       "gen_params": {
         "requested": {
           "qwen_tts_version": "0.1.1",
@@ -7115,15 +7487,15 @@
               "reserved_mib": 4134.0
             },
             "voice_clone_generate": {
-              "allocated_mib": 4185.787,
-              "reserved_mib": 4286.0
+              "allocated_mib": 4185.205,
+              "reserved_mib": 4444.0
             }
           },
           "seed": 0,
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 7.87019,
+      "rtf": 5.331815,
       "loudness": {
         "i_lufs": -18.0,
         "tp_dbtp": -3.22,
@@ -7137,7 +7509,7 @@
       "variant": "dry",
       "path": "audio/qwen3-tts-12hz-1.7b/clockwork-plaza/vendor-doll-001-dry.opus",
       "duration_sec": 2.3265,
-      "sha256": "ad67ae2a8c74dd87336e9fcfe5d23302260c584c26c03efc71aa1d306f655610",
+      "sha256": "9095641385f62bf5f45d20c5fa98e4971d6604bab6e1f9d771943701e9884e2a",
       "gen_params": {
         "requested": {
           "qwen_tts_version": "0.1.1",
@@ -7177,15 +7549,15 @@
               "reserved_mib": 4134.0
             },
             "voice_clone_generate": {
-              "allocated_mib": 4175.087,
-              "reserved_mib": 4286.0
+              "allocated_mib": 4176.247,
+              "reserved_mib": 4444.0
             }
           },
           "seed": 0,
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 7.107763,
+      "rtf": 5.341342,
       "loudness": {
         "i_lufs": -18.01,
         "tp_dbtp": -3.57,
@@ -7199,7 +7571,7 @@
       "variant": "dry",
       "path": "audio/qwen3-tts-12hz-1.7b/clockwork-plaza/vendor-doll-002-dry.opus",
       "duration_sec": 3.0465,
-      "sha256": "405d3684e7648452d4fba44ed1cfd525935af04ccd4a93f5536b67ff0ec412a5",
+      "sha256": "4c20ca40736b21789f995cbf6fe2f2c0f7b06339a72f4bf172c7c0f8b6e1bd3e",
       "gen_params": {
         "requested": {
           "qwen_tts_version": "0.1.1",
@@ -7239,15 +7611,15 @@
               "reserved_mib": 4134.0
             },
             "voice_clone_generate": {
-              "allocated_mib": 4189.925,
-              "reserved_mib": 4318.0
+              "allocated_mib": 4190.192,
+              "reserved_mib": 4444.0
             }
           },
           "seed": 0,
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 7.168261,
+      "rtf": 5.528673,
       "loudness": {
         "i_lufs": -18.04,
         "tp_dbtp": -1.0,
@@ -7261,7 +7633,7 @@
       "variant": "dry",
       "path": "audio/qwen3-tts-12hz-1.7b/clockwork-plaza/vendor-doll-003-dry.opus",
       "duration_sec": 2.8065,
-      "sha256": "5c07094ad689c354edb039f84d4a19c04bb33c1a5f9b829bee62d3b3b9159a6f",
+      "sha256": "8fc4bb842d96320c17a5b557ff85892c0d2e152fb237e6f69e2747023b7a09be",
       "gen_params": {
         "requested": {
           "qwen_tts_version": "0.1.1",
@@ -7301,15 +7673,15 @@
               "reserved_mib": 4134.0
             },
             "voice_clone_generate": {
-              "allocated_mib": 4185.784,
-              "reserved_mib": 4318.0
+              "allocated_mib": 4185.233,
+              "reserved_mib": 4444.0
             }
           },
           "seed": 0,
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 9.288044,
+      "rtf": 5.049818,
       "loudness": {
         "i_lufs": -18.05,
         "tp_dbtp": -0.97,
@@ -7323,7 +7695,7 @@
       "variant": "dry",
       "path": "audio/qwen3-tts-12hz-1.7b/dungeon-entrance/old-guide-001-dry.opus",
       "duration_sec": 2.0865,
-      "sha256": "7e1c3ce21349cfc0be6262ffa39e1c01c7f70f12a2a152273b00ddd0d99f0969",
+      "sha256": "7c50af430c9a68418126e0430631ff5b122513575f01b8931e1cd071ceebdc17",
       "gen_params": {
         "requested": {
           "qwen_tts_version": "0.1.1",
@@ -7363,15 +7735,15 @@
               "reserved_mib": 4134.0
             },
             "voice_clone_generate": {
-              "allocated_mib": 4170.111,
-              "reserved_mib": 4422.0
+              "allocated_mib": 4170.45,
+              "reserved_mib": 4446.0
             }
           },
           "seed": 0,
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 5.656352,
+      "rtf": 7.064604,
       "loudness": {
         "i_lufs": -18.0,
         "tp_dbtp": -1.88,
@@ -7385,7 +7757,7 @@
       "variant": "dry",
       "path": "audio/qwen3-tts-12hz-1.7b/dungeon-entrance/old-guide-002-dry.opus",
       "duration_sec": 3.2065,
-      "sha256": "8827bc191c1098ea6d1c5b215127865e422c0449c945fdb9b930cc11fc0976a9",
+      "sha256": "eb390ff73d7c9be3c56a77297d8a5803211b04ede7cf7c8acb4a6bd1087cfe6f",
       "gen_params": {
         "requested": {
           "qwen_tts_version": "0.1.1",
@@ -7425,15 +7797,15 @@
               "reserved_mib": 4134.0
             },
             "voice_clone_generate": {
-              "allocated_mib": 4194.0,
-              "reserved_mib": 4422.0
+              "allocated_mib": 4193.588,
+              "reserved_mib": 4446.0
             }
           },
           "seed": 0,
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 6.420504,
+      "rtf": 6.891559,
       "loudness": {
         "i_lufs": -18.0,
         "tp_dbtp": -2.69,
@@ -7447,7 +7819,7 @@
       "variant": "dry",
       "path": "audio/qwen3-tts-12hz-1.7b/dungeon-entrance/old-guide-003-dry.opus",
       "duration_sec": 3.2065,
-      "sha256": "0f6d8918e907ce65f1da5eddb52100480311425f5e3a03a369c863e7135a74d7",
+      "sha256": "52485e6ce31e421619f8cd4650b2d7e66796fb8d64ef407e9d13f1ec8046a869",
       "gen_params": {
         "requested": {
           "qwen_tts_version": "0.1.1",
@@ -7487,15 +7859,15 @@
               "reserved_mib": 4134.0
             },
             "voice_clone_generate": {
-              "allocated_mib": 4194.0,
-              "reserved_mib": 4422.0
+              "allocated_mib": 4193.588,
+              "reserved_mib": 4446.0
             }
           },
           "seed": 0,
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 6.344111,
+      "rtf": 8.052657,
       "loudness": {
         "i_lufs": -17.99,
         "tp_dbtp": -3.93,
@@ -7509,7 +7881,7 @@
       "variant": "dry",
       "path": "audio/qwen3-tts-12hz-1.7b/dungeon-entrance/rookie-archer-001-dry.opus",
       "duration_sec": 3.9265,
-      "sha256": "296ea75a193c817ea1507cfb1d62124f06c9bccd5c9b0186719c39997719621a",
+      "sha256": "89fc7db6e3563b95367a84353b10f8b453b95de9eab5632c9e2a0d913511552b",
       "gen_params": {
         "requested": {
           "qwen_tts_version": "0.1.1",
@@ -7549,15 +7921,15 @@
               "reserved_mib": 4134.0
             },
             "voice_clone_generate": {
-              "allocated_mib": 4209.738,
-              "reserved_mib": 4422.0
+              "allocated_mib": 4210.077,
+              "reserved_mib": 4444.0
             }
           },
           "seed": 0,
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 5.989417,
+      "rtf": 5.388022,
       "loudness": {
         "i_lufs": -18.0,
         "tp_dbtp": -2.77,
@@ -7571,7 +7943,7 @@
       "variant": "dry",
       "path": "audio/qwen3-tts-12hz-1.7b/dungeon-entrance/rookie-archer-002-dry.opus",
       "duration_sec": 3.6065,
-      "sha256": "91dee03e2aa22654103524227d993855e30cb6f916eeea0e308ded104360e733",
+      "sha256": "b2d2ef44da9c698fe49b1edea4ce698e0796a8736a36369d3fa83e24f43e300d",
       "gen_params": {
         "requested": {
           "qwen_tts_version": "0.1.1",
@@ -7611,15 +7983,15 @@
               "reserved_mib": 4134.0
             },
             "voice_clone_generate": {
-              "allocated_mib": 4203.127,
-              "reserved_mib": 4422.0
+              "allocated_mib": 4204.419,
+              "reserved_mib": 4444.0
             }
           },
           "seed": 0,
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 6.670806,
+      "rtf": 5.984864,
       "loudness": {
         "i_lufs": -18.0,
         "tp_dbtp": -3.51,
@@ -7633,7 +8005,7 @@
       "variant": "dry",
       "path": "audio/qwen3-tts-12hz-1.7b/dungeon-entrance/rookie-archer-003-dry.opus",
       "duration_sec": 4.8865,
-      "sha256": "bb9f9c408f9596446f4c52bac81869d96bb3a3a0355d4776a78ae6effc4c0e71",
+      "sha256": "64b02546eb6789cef834b535a0a345e655de28c5cfcf48ce53c0d5e15a65d77b",
       "gen_params": {
         "requested": {
           "qwen_tts_version": "0.1.1",
@@ -7673,15 +8045,15 @@
               "reserved_mib": 4134.0
             },
             "voice_clone_generate": {
-              "allocated_mib": 4229.572,
-              "reserved_mib": 4422.0
+              "allocated_mib": 4229.911,
+              "reserved_mib": 4444.0
             }
           },
           "seed": 0,
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 7.447386,
+      "rtf": 5.220886,
       "loudness": {
         "i_lufs": -18.0,
         "tp_dbtp": -3.21,
@@ -7695,7 +8067,7 @@
       "variant": "dry",
       "path": "audio/qwen3-tts-12hz-1.7b/dungeon-entrance/scout-001-dry.opus",
       "duration_sec": 3.6065,
-      "sha256": "0c8a39fb783827ac12387b2364409e90b2186b53dea7a14f99f8907b040de201",
+      "sha256": "67ba441c3b0e8e1c7e50013c7fdd065016c07aeaa1c09ab97b073cc524f963c3",
       "gen_params": {
         "requested": {
           "qwen_tts_version": "0.1.1",
@@ -7735,15 +8107,15 @@
               "reserved_mib": 4134.0
             },
             "voice_clone_generate": {
-              "allocated_mib": 4236.124,
-              "reserved_mib": 4422.0
+              "allocated_mib": 4236.463,
+              "reserved_mib": 4446.0
             }
           },
           "seed": 0,
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 6.373354,
+      "rtf": 5.49941,
       "loudness": {
         "i_lufs": -17.99,
         "tp_dbtp": -2.14,
@@ -7757,7 +8129,7 @@
       "variant": "dry",
       "path": "audio/qwen3-tts-12hz-1.7b/dungeon-entrance/scout-002-dry.opus",
       "duration_sec": 2.5665,
-      "sha256": "3a7698365a009224f18ca1b1181edcbe3651a82179cf4178f7c1459e3879ab65",
+      "sha256": "26fe894db7e0183407fbf86e73b4062c001e95703c9559a41b2eb077779540f9",
       "gen_params": {
         "requested": {
           "qwen_tts_version": "0.1.1",
@@ -7797,15 +8169,15 @@
               "reserved_mib": 4134.0
             },
             "voice_clone_generate": {
-              "allocated_mib": 4214.637,
-              "reserved_mib": 4422.0
+              "allocated_mib": 4214.976,
+              "reserved_mib": 4446.0
             }
           },
           "seed": 0,
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 6.570506,
+      "rtf": 5.892531,
       "loudness": {
         "i_lufs": -18.01,
         "tp_dbtp": -2.84,
@@ -7819,7 +8191,7 @@
       "variant": "dry",
       "path": "audio/qwen3-tts-12hz-1.7b/dungeon-entrance/scout-003-dry.opus",
       "duration_sec": 3.6065,
-      "sha256": "5226e4d36a167e6348244bcc364eee525275dbac268d145da8337eb6a56409d2",
+      "sha256": "3228512fe9764d7386ce1edb1d8a6a364f4c60f97646f8210bf1db38b71d56c7",
       "gen_params": {
         "requested": {
           "qwen_tts_version": "0.1.1",
@@ -7859,15 +8231,15 @@
               "reserved_mib": 4134.0
             },
             "voice_clone_generate": {
-              "allocated_mib": 4236.124,
-              "reserved_mib": 4422.0
+              "allocated_mib": 4236.463,
+              "reserved_mib": 4446.0
             }
           },
           "seed": 0,
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 5.762268,
+      "rtf": 7.537344,
       "loudness": {
         "i_lufs": -18.01,
         "tp_dbtp": -1.01,
@@ -7881,7 +8253,7 @@
       "variant": "dry",
       "path": "audio/qwen3-tts-12hz-1.7b/dungeon-entrance/vanguard-001-dry.opus",
       "duration_sec": 2.8865,
-      "sha256": "2b662bb6459e7e7878c496fa225e18a9a48d6eab9621e47b92ce1343f831816a",
+      "sha256": "af2a4225e05e5032b9392d5d358ad7d19f5fc40f5a6ba35cb3a2926929a42427",
       "gen_params": {
         "requested": {
           "qwen_tts_version": "0.1.1",
@@ -7921,15 +8293,15 @@
               "reserved_mib": 4134.0
             },
             "voice_clone_generate": {
-              "allocated_mib": 4239.367,
-              "reserved_mib": 4420.0
+              "allocated_mib": 4240.499,
+              "reserved_mib": 4444.0
             }
           },
           "seed": 0,
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 9.622084,
+      "rtf": 4.758479,
       "loudness": {
         "i_lufs": -18.0,
         "tp_dbtp": -4.89,
@@ -7943,7 +8315,7 @@
       "variant": "dry",
       "path": "audio/qwen3-tts-12hz-1.7b/dungeon-entrance/vanguard-002-dry.opus",
       "duration_sec": 2.6465,
-      "sha256": "7f9d6d32bee34c2446673c0e14a2e0f04eb1396df24a1da54626a9c667215e4a",
+      "sha256": "98c0a65cc11f7ea1516891eeff2548f170400a8d4ca9a67a182cbbd8b3bfdff4",
       "gen_params": {
         "requested": {
           "qwen_tts_version": "0.1.1",
@@ -7983,15 +8355,15 @@
               "reserved_mib": 4134.0
             },
             "voice_clone_generate": {
-              "allocated_mib": 4234.39,
-              "reserved_mib": 4420.0
+              "allocated_mib": 4234.729,
+              "reserved_mib": 4444.0
             }
           },
           "seed": 0,
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 5.894706,
+      "rtf": 4.744362,
       "loudness": {
         "i_lufs": -18.0,
         "tp_dbtp": -6.68,
@@ -8005,7 +8377,7 @@
       "variant": "dry",
       "path": "audio/qwen3-tts-12hz-1.7b/dungeon-entrance/vanguard-003-dry.opus",
       "duration_sec": 2.8865,
-      "sha256": "2f730378fd9239df5458f4da216da57be196f76ac047ee60382e72e272721534",
+      "sha256": "d4d7b5c13ab161a6f90e6d4f3f8d72b31db1f4e0dcd506097ac25b7fc0e97dd6",
       "gen_params": {
         "requested": {
           "qwen_tts_version": "0.1.1",
@@ -8045,15 +8417,15 @@
               "reserved_mib": 4134.0
             },
             "voice_clone_generate": {
-              "allocated_mib": 4240.16,
-              "reserved_mib": 4422.0
+              "allocated_mib": 4240.499,
+              "reserved_mib": 4444.0
             }
           },
           "seed": 0,
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 5.954271,
+      "rtf": 4.57677,
       "loudness": {
         "i_lufs": -18.0,
         "tp_dbtp": -4.39,
@@ -8067,7 +8439,7 @@
       "variant": "dry",
       "path": "audio/qwen3-tts-12hz-1.7b/festival-night/matsuri-kid-001-dry.opus",
       "duration_sec": 2.9665,
-      "sha256": "c8d4abb5ef97f3e31b27366f2b3d465af573ae6889b9f238266b1c16f7733215",
+      "sha256": "40bc6a4415cd8a2b391b9eb806a7c6fde71172999a90477f584c3bfcbd9031bf",
       "gen_params": {
         "requested": {
           "qwen_tts_version": "0.1.1",
@@ -8107,15 +8479,15 @@
               "reserved_mib": 4134.0
             },
             "voice_clone_generate": {
-              "allocated_mib": 4185.794,
-              "reserved_mib": 4452.0
+              "allocated_mib": 4185.389,
+              "reserved_mib": 4494.0
             }
           },
           "seed": 0,
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 6.625641,
+      "rtf": 6.399999,
       "loudness": {
         "i_lufs": -18.0,
         "tp_dbtp": -1.87,
@@ -8129,7 +8501,7 @@
       "variant": "dry",
       "path": "audio/qwen3-tts-12hz-1.7b/festival-night/matsuri-kid-002-dry.opus",
       "duration_sec": 2.8065,
-      "sha256": "82e69e9baf1ec91e6652d814e9311b28b1f224108af0896a13c5156895a4335c",
+      "sha256": "4b4163e5b2bab418d5c50ff82a8937104d3c0b4d692473fd1ddda41956b1a872",
       "gen_params": {
         "requested": {
           "qwen_tts_version": "0.1.1",
@@ -8169,15 +8541,15 @@
               "reserved_mib": 4134.0
             },
             "voice_clone_generate": {
-              "allocated_mib": 4181.668,
-              "reserved_mib": 4452.0
+              "allocated_mib": 4182.115,
+              "reserved_mib": 4494.0
             }
           },
           "seed": 0,
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 7.551646,
+      "rtf": 5.383059,
       "loudness": {
         "i_lufs": -18.0,
         "tp_dbtp": -3.8,
@@ -8191,7 +8563,7 @@
       "variant": "dry",
       "path": "audio/qwen3-tts-12hz-1.7b/festival-night/matsuri-kid-003-dry.opus",
       "duration_sec": 2.5665,
-      "sha256": "db0b275933be1f0423fd15088b53eee88dd9356045e3f940013e58d9fc86f4ff",
+      "sha256": "29fd5e4160aab15bb8d935186fba2617379396f9c1bf5844dd95687192000c77",
       "gen_params": {
         "requested": {
           "qwen_tts_version": "0.1.1",
@@ -8231,15 +8603,15 @@
               "reserved_mib": 4134.0
             },
             "voice_clone_generate": {
-              "allocated_mib": 4177.006,
-              "reserved_mib": 4452.0
+              "allocated_mib": 4177.703,
+              "reserved_mib": 4494.0
             }
           },
           "seed": 0,
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 6.883602,
+      "rtf": 5.223519,
       "loudness": {
         "i_lufs": -17.98,
         "tp_dbtp": -4.43,
@@ -8253,7 +8625,7 @@
       "variant": "dry",
       "path": "audio/qwen3-tts-12hz-1.7b/festival-night/matsuri-wakamono-001-dry.opus",
       "duration_sec": 2.0065,
-      "sha256": "a1e4a049e1e8d0edc0723218ce71a6462492b9e8c0d060143da009c7da1cdd59",
+      "sha256": "4350ad724f636e0dfc6a4c7b40b106d508df6f29b9f3ef4a30ed15f6c8e4d560",
       "gen_params": {
         "requested": {
           "qwen_tts_version": "0.1.1",
@@ -8293,15 +8665,15 @@
               "reserved_mib": 4134.0
             },
             "voice_clone_generate": {
-              "allocated_mib": 4173.368,
-              "reserved_mib": 4452.0
+              "allocated_mib": 4173.783,
+              "reserved_mib": 4494.0
             }
           },
           "seed": 0,
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 8.895312,
+      "rtf": 7.126339,
       "loudness": {
         "i_lufs": -18.0,
         "tp_dbtp": -3.13,
@@ -8315,7 +8687,7 @@
       "variant": "dry",
       "path": "audio/qwen3-tts-12hz-1.7b/festival-night/matsuri-wakamono-002-dry.opus",
       "duration_sec": 2.9665,
-      "sha256": "2588f03b62705440b65db60ae6aedd4750d8b327a6c47ff5e083f5ccf80e8cc9",
+      "sha256": "d69d2d4df73d68106fd32e8d80d63f9ff30c465a8d6819ab230575849eb1d7d2",
       "gen_params": {
         "requested": {
           "qwen_tts_version": "0.1.1",
@@ -8355,15 +8727,15 @@
               "reserved_mib": 4134.0
             },
             "voice_clone_generate": {
-              "allocated_mib": 4193.202,
-              "reserved_mib": 4452.0
+              "allocated_mib": 4193.617,
+              "reserved_mib": 4494.0
             }
           },
           "seed": 0,
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 7.80039,
+      "rtf": 6.309106,
       "loudness": {
         "i_lufs": -17.98,
         "tp_dbtp": -1.67,
@@ -8377,7 +8749,7 @@
       "variant": "dry",
       "path": "audio/qwen3-tts-12hz-1.7b/festival-night/matsuri-wakamono-003-dry.opus",
       "duration_sec": 3.2065,
-      "sha256": "87dfea47b2e988bced0668e9bd00238e0aa779d80f5cb59885f783b810b0979e",
+      "sha256": "7d8305cc29090c6a88a7445768d45945eb7c56c2e0d2edd3233f7f7a2e62f9f9",
       "gen_params": {
         "requested": {
           "qwen_tts_version": "0.1.1",
@@ -8417,15 +8789,15 @@
               "reserved_mib": 4134.0
             },
             "voice_clone_generate": {
-              "allocated_mib": 4198.161,
-              "reserved_mib": 4452.0
+              "allocated_mib": 4198.576,
+              "reserved_mib": 4494.0
             }
           },
           "seed": 0,
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 6.600591,
+      "rtf": 6.867389,
       "loudness": {
         "i_lufs": -17.98,
         "tp_dbtp": -1.0,
@@ -8439,7 +8811,7 @@
       "variant": "dry",
       "path": "audio/qwen3-tts-12hz-1.7b/festival-night/mikoshi-katsugite-001-dry.opus",
       "duration_sec": 1.6065,
-      "sha256": "7f24086df5c987b0e8b1f8324b02ceac812a8ff6f6c115490600886e2907d185",
+      "sha256": "ca812a4b8af649c66025b350607f7d6b18f5f7544a7f62e2f0471e7c60f4bd1d",
       "gen_params": {
         "requested": {
           "qwen_tts_version": "0.1.1",
@@ -8479,15 +8851,15 @@
               "reserved_mib": 4134.0
             },
             "voice_clone_generate": {
-              "allocated_mib": 4175.914,
-              "reserved_mib": 4452.0
+              "allocated_mib": 4176.375,
+              "reserved_mib": 4494.0
             }
           },
           "seed": 0,
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 7.348393,
+      "rtf": 6.220811,
       "loudness": {
         "i_lufs": -18.02,
         "tp_dbtp": -3.82,
@@ -8501,7 +8873,7 @@
       "variant": "dry",
       "path": "audio/qwen3-tts-12hz-1.7b/festival-night/mikoshi-katsugite-002-dry.opus",
       "duration_sec": 2.6465,
-      "sha256": "fe5cbac33d7d25fbaab657bfb01fad84c3f0a74892611cfc59f012c59639c797",
+      "sha256": "e09a6da571b1f519e64058e333dbac0e991e10c39922cacd5d83822de186a922",
       "gen_params": {
         "requested": {
           "qwen_tts_version": "0.1.1",
@@ -8541,15 +8913,15 @@
               "reserved_mib": 4134.0
             },
             "voice_clone_generate": {
-              "allocated_mib": 4196.518,
-              "reserved_mib": 4452.0
+              "allocated_mib": 4196.933,
+              "reserved_mib": 4494.0
             }
           },
           "seed": 0,
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 7.20875,
+      "rtf": 5.782615,
       "loudness": {
         "i_lufs": -18.01,
         "tp_dbtp": -2.82,
@@ -8563,7 +8935,7 @@
       "variant": "dry",
       "path": "audio/qwen3-tts-12hz-1.7b/festival-night/mikoshi-katsugite-003-dry.opus",
       "duration_sec": 2.5665,
-      "sha256": "4f88d86e65ca0f4c9f28a8bab11240837366c38d352802d75db376cb36583195",
+      "sha256": "8393e2ffaf06ded928a12e945fcbfafafd48081a64244b30a9ddc080ead7ef17",
       "gen_params": {
         "requested": {
           "qwen_tts_version": "0.1.1",
@@ -8603,15 +8975,15 @@
               "reserved_mib": 4134.0
             },
             "voice_clone_generate": {
-              "allocated_mib": 4194.865,
-              "reserved_mib": 4452.0
+              "allocated_mib": 4195.28,
+              "reserved_mib": 4494.0
             }
           },
           "seed": 0,
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 7.428006,
+      "rtf": 5.725974,
       "loudness": {
         "i_lufs": -17.99,
         "tp_dbtp": -2.57,
@@ -8625,7 +8997,7 @@
       "variant": "dry",
       "path": "audio/qwen3-tts-12hz-1.7b/festival-night/yatai-obasan-001-dry.opus",
       "duration_sec": 3.2065,
-      "sha256": "8a53d22538d3f5763db9eb4b9c0b94622a59cba803c92292ed289dc09fb3b709",
+      "sha256": "f1d9b151d9b5d517f82d6651d2a978e473f9f36d2ec5364a48f0dd2497b027ab",
       "gen_params": {
         "requested": {
           "qwen_tts_version": "0.1.1",
@@ -8665,15 +9037,15 @@
               "reserved_mib": 4134.0
             },
             "voice_clone_generate": {
-              "allocated_mib": 4250.242,
-              "reserved_mib": 4404.0
+              "allocated_mib": 4249.674,
+              "reserved_mib": 4446.0
             }
           },
           "seed": 0,
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 11.60646,
+      "rtf": 6.678719,
       "loudness": {
         "i_lufs": -18.02,
         "tp_dbtp": -3.05,
@@ -8687,7 +9059,7 @@
       "variant": "dry",
       "path": "audio/qwen3-tts-12hz-1.7b/festival-night/yatai-obasan-002-dry.opus",
       "duration_sec": 3.6865,
-      "sha256": "edae2bc90b26bcb2c84f610a473bdb95d9564c438bd56f2a8cf63a534aeae889",
+      "sha256": "c55117f595d730fa26a9ebffbd4a0d88ccbc49498d0148257ebd6c92baffde3d",
       "gen_params": {
         "requested": {
           "qwen_tts_version": "0.1.1",
@@ -8727,15 +9099,15 @@
               "reserved_mib": 4134.0
             },
             "voice_clone_generate": {
-              "allocated_mib": 4261.168,
-              "reserved_mib": 4452.0
+              "allocated_mib": 4261.583,
+              "reserved_mib": 4494.0
             }
           },
           "seed": 0,
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 6.524598,
+      "rtf": 6.674808,
       "loudness": {
         "i_lufs": -18.01,
         "tp_dbtp": -4.62,
@@ -8749,7 +9121,7 @@
       "variant": "dry",
       "path": "audio/qwen3-tts-12hz-1.7b/festival-night/yatai-obasan-003-dry.opus",
       "duration_sec": 1.6865,
-      "sha256": "4ba874c8b7c43dfb8b0b310c21cb21161e90cc58e0a43a251d8ac2d0e5e894ba",
+      "sha256": "4f6a5c1ff7d6260ba7ab02014ab6461d91b2473166c33a8fdd95881763b939db",
       "gen_params": {
         "requested": {
           "qwen_tts_version": "0.1.1",
@@ -8789,15 +9161,15 @@
               "reserved_mib": 4134.0
             },
             "voice_clone_generate": {
-              "allocated_mib": 4217.854,
-              "reserved_mib": 4452.0
+              "allocated_mib": 4218.269,
+              "reserved_mib": 4494.0
             }
           },
           "seed": 0,
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 7.659245,
+      "rtf": 6.791642,
       "loudness": {
         "i_lufs": -18.0,
         "tp_dbtp": -6.64,
@@ -8811,7 +9183,7 @@
       "variant": "dry",
       "path": "audio/qwen3-tts-12hz-1.7b/goblin-camp/goblin-cook-001-dry.opus",
       "duration_sec": 2.8065,
-      "sha256": "96454981c6c381eda695598ebb8d989fea4bd0afbe7c50ebaa7545afb5a0e4b5",
+      "sha256": "9e4a51abc43c01c4414e99f0d102c1289c3f935542a714db5b73a5c864d0b045",
       "gen_params": {
         "requested": {
           "qwen_tts_version": "0.1.1",
@@ -8851,15 +9223,15 @@
               "reserved_mib": 4134.0
             },
             "voice_clone_generate": {
-              "allocated_mib": 4191.542,
-              "reserved_mib": 4284.0
+              "allocated_mib": 4192.027,
+              "reserved_mib": 4494.0
             }
           },
           "seed": 0,
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 7.843818,
+      "rtf": 6.87762,
       "loudness": {
         "i_lufs": -18.0,
         "tp_dbtp": -5.51,
@@ -8873,7 +9245,7 @@
       "variant": "dry",
       "path": "audio/qwen3-tts-12hz-1.7b/goblin-camp/goblin-cook-002-dry.opus",
       "duration_sec": 2.4065,
-      "sha256": "e12f2cf016b755fcef5c307e405761598005a75dbe99f54aa9c0c29e08b4edc7",
+      "sha256": "61e3694f8aaf91e2330e1176a11b8f76a3370cec965b55d1f622dc0eae70b84f",
       "gen_params": {
         "requested": {
           "qwen_tts_version": "0.1.1",
@@ -8913,15 +9285,15 @@
               "reserved_mib": 4134.0
             },
             "voice_clone_generate": {
-              "allocated_mib": 4183.317,
-              "reserved_mib": 4284.0
+              "allocated_mib": 4183.763,
+              "reserved_mib": 4494.0
             }
           },
           "seed": 0,
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 7.404033,
+      "rtf": 6.859844,
       "loudness": {
         "i_lufs": -18.02,
         "tp_dbtp": -2.91,
@@ -8935,7 +9307,7 @@
       "variant": "dry",
       "path": "audio/qwen3-tts-12hz-1.7b/goblin-camp/goblin-cook-003-dry.opus",
       "duration_sec": 2.8065,
-      "sha256": "3b18188c5f22650a3d15f4be6bb6aa4708b119ad761a7b8c5d13e0fba5f8dc5c",
+      "sha256": "f90809cba4598826fa1ab2121bd9a3986066a6c5c509bed63bc054ff5954bcff",
       "gen_params": {
         "requested": {
           "qwen_tts_version": "0.1.1",
@@ -8975,15 +9347,15 @@
               "reserved_mib": 4134.0
             },
             "voice_clone_generate": {
-              "allocated_mib": 4191.542,
-              "reserved_mib": 4284.0
+              "allocated_mib": 4192.027,
+              "reserved_mib": 4494.0
             }
           },
           "seed": 0,
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 7.766987,
+      "rtf": 6.274769,
       "loudness": {
         "i_lufs": -17.99,
         "tp_dbtp": -6.63,
@@ -8997,7 +9369,7 @@
       "variant": "dry",
       "path": "audio/qwen3-tts-12hz-1.7b/goblin-camp/goblin-lookout-001-dry.opus",
       "duration_sec": 2.5665,
-      "sha256": "937e5e17c6a38cd20a89c5c183c1f69efc3720ce08f326994d01809a59f0dd0a",
+      "sha256": "23ceb7fbe5d26f027ce0b00db98ef9522a05c77c7c627a7855edf04e07119e98",
       "gen_params": {
         "requested": {
           "qwen_tts_version": "0.1.1",
@@ -9037,15 +9409,15 @@
               "reserved_mib": 4134.0
             },
             "voice_clone_generate": {
-              "allocated_mib": 4185.734,
-              "reserved_mib": 4280.0
+              "allocated_mib": 4185.403,
+              "reserved_mib": 4494.0
             }
           },
           "seed": 0,
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 11.036112,
+      "rtf": 5.500269,
       "loudness": {
         "i_lufs": -17.99,
         "tp_dbtp": -3.7,
@@ -9059,7 +9431,7 @@
       "variant": "dry",
       "path": "audio/qwen3-tts-12hz-1.7b/goblin-camp/goblin-lookout-002-dry.opus",
       "duration_sec": 3.2065,
-      "sha256": "0b7106ce29b74ae5ca2e42fa09646205317a82d54f355db7f9753f7d56a27e19",
+      "sha256": "d25ffa8376329056af2dec4c06976c93e003b8b7b490f297929872b108c241f2",
       "gen_params": {
         "requested": {
           "qwen_tts_version": "0.1.1",
@@ -9099,15 +9471,15 @@
               "reserved_mib": 4134.0
             },
             "voice_clone_generate": {
-              "allocated_mib": 4198.138,
-              "reserved_mib": 4284.0
+              "allocated_mib": 4198.625,
+              "reserved_mib": 4494.0
             }
           },
           "seed": 0,
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 6.463503,
+      "rtf": 5.396383,
       "loudness": {
         "i_lufs": -17.99,
         "tp_dbtp": -1.0,
@@ -9121,7 +9493,7 @@
       "variant": "dry",
       "path": "audio/qwen3-tts-12hz-1.7b/goblin-camp/goblin-lookout-003-dry.opus",
       "duration_sec": 2.4065,
-      "sha256": "0e913ececf923a54de93089974bdf9daaddd7445d058d5aa05ac276e2f2c7b25",
+      "sha256": "f217f156b071142208806a5b0bd0a8c95ea77be1258f9ea9bcdc121c53406e9d",
       "gen_params": {
         "requested": {
           "qwen_tts_version": "0.1.1",
@@ -9161,15 +9533,15 @@
               "reserved_mib": 4134.0
             },
             "voice_clone_generate": {
-              "allocated_mib": 4181.652,
-              "reserved_mib": 4284.0
+              "allocated_mib": 4182.129,
+              "reserved_mib": 4494.0
             }
           },
           "seed": 0,
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 6.657979,
+      "rtf": 6.251152,
       "loudness": {
         "i_lufs": -18.12,
         "tp_dbtp": -1.0,
@@ -9183,7 +9555,7 @@
       "variant": "dry",
       "path": "audio/qwen3-tts-12hz-1.7b/goblin-camp/goblin-shaman-001-dry.opus",
       "duration_sec": 2.7265,
-      "sha256": "7cb0fe55caac5dcf356c96555eef64cd41cd764fef02833e79d9bdb61f427d96",
+      "sha256": "48e7ec043bc1fe939f7ca8996b80f6107b08cc81fb7252d5c2306aa77b80e948",
       "gen_params": {
         "requested": {
           "qwen_tts_version": "0.1.1",
@@ -9223,15 +9595,15 @@
               "reserved_mib": 4134.0
             },
             "voice_clone_generate": {
-              "allocated_mib": 4185.827,
-              "reserved_mib": 4284.0
+              "allocated_mib": 4185.461,
+              "reserved_mib": 4494.0
             }
           },
           "seed": 0,
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 9.59829,
+      "rtf": 5.554842,
       "loudness": {
         "i_lufs": -18.02,
         "tp_dbtp": -4.94,
@@ -9245,7 +9617,7 @@
       "variant": "dry",
       "path": "audio/qwen3-tts-12hz-1.7b/goblin-camp/goblin-shaman-002-dry.opus",
       "duration_sec": 3.4465,
-      "sha256": "c6e9d3bcfc62e70946193fdeb07a300e2c1fd92d223a2ac50a5cfb5a8dd7012f",
+      "sha256": "4e5dc1e3cea210567d32d88be90cc0220ad1403c0bb8be3238f9b21c77a7e1b1",
       "gen_params": {
         "requested": {
           "qwen_tts_version": "0.1.1",
@@ -9285,15 +9657,15 @@
               "reserved_mib": 4134.0
             },
             "voice_clone_generate": {
-              "allocated_mib": 4199.869,
-              "reserved_mib": 4318.0
+              "allocated_mib": 4200.336,
+              "reserved_mib": 4494.0
             }
           },
           "seed": 0,
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 7.967749,
+      "rtf": 5.864789,
       "loudness": {
         "i_lufs": -18.0,
         "tp_dbtp": -3.57,
@@ -9307,7 +9679,7 @@
       "variant": "dry",
       "path": "audio/qwen3-tts-12hz-1.7b/goblin-camp/goblin-shaman-003-dry.opus",
       "duration_sec": 2.2465,
-      "sha256": "d478e7b1eed01b36541e47fbe876ca2dd45a83ac2a9622ca7d90bf44201d4628",
+      "sha256": "1daf555e23febc3bd4c2953b248ef516436ec688c15edbd0c7cc7ad07f1535e8",
       "gen_params": {
         "requested": {
           "qwen_tts_version": "0.1.1",
@@ -9347,15 +9719,15 @@
               "reserved_mib": 4134.0
             },
             "voice_clone_generate": {
-              "allocated_mib": 4175.058,
-              "reserved_mib": 4318.0
+              "allocated_mib": 4176.475,
+              "reserved_mib": 4494.0
             }
           },
           "seed": 0,
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 9.803573,
+      "rtf": 6.283244,
       "loudness": {
         "i_lufs": -18.01,
         "tp_dbtp": -1.57,
@@ -9369,7 +9741,7 @@
       "variant": "dry",
       "path": "audio/qwen3-tts-12hz-1.7b/goblin-camp/orc-brother-001-dry.opus",
       "duration_sec": 1.606542,
-      "sha256": "d559b498ffd3939d3c2224abace312049c829abcbcf3bd0096e9e68931feadad",
+      "sha256": "fb25cde5f0f0a32bc3f9d37ab13cd25b2d7d21fe770c764b621d772cdee66525",
       "gen_params": {
         "requested": {
           "qwen_tts_version": "0.1.1",
@@ -9409,15 +9781,15 @@
               "reserved_mib": 4134.0
             },
             "voice_clone_generate": {
-              "allocated_mib": 4171.752,
-              "reserved_mib": 4284.0
+              "allocated_mib": 4172.198,
+              "reserved_mib": 4494.0
             }
           },
           "seed": 0,
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 7.909009,
+      "rtf": 6.612963,
       "loudness": {
         "i_lufs": -18.0,
         "tp_dbtp": -1.37,
@@ -9431,7 +9803,7 @@
       "variant": "dry",
       "path": "audio/qwen3-tts-12hz-1.7b/goblin-camp/orc-brother-002-dry.opus",
       "duration_sec": 1.7665,
-      "sha256": "edd2b8d9de978731722260940067d50daa53e0d42c8a464592c16c38ed513793",
+      "sha256": "8d4478d997d78d272b0a9c3f9929a2d5c0de13abeaad77e56a44b6d9b67145c6",
       "gen_params": {
         "requested": {
           "qwen_tts_version": "0.1.1",
@@ -9471,15 +9843,15 @@
               "reserved_mib": 4134.0
             },
             "voice_clone_generate": {
-              "allocated_mib": 4175.059,
-              "reserved_mib": 4284.0
+              "allocated_mib": 4176.435,
+              "reserved_mib": 4494.0
             }
           },
           "seed": 0,
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 6.976517,
+      "rtf": 6.25977,
       "loudness": {
         "i_lufs": -17.98,
         "tp_dbtp": -6.25,
@@ -9493,7 +9865,7 @@
       "variant": "dry",
       "path": "audio/qwen3-tts-12hz-1.7b/goblin-camp/orc-brother-003-dry.opus",
       "duration_sec": 2.0065,
-      "sha256": "318cc9987a788bde5c93b33e6e172f75bc36e96a5eecbbbe62ca7d5778403c6e",
+      "sha256": "815fdd20ada5d6520d3fc993935495f9a5863cb6771382fa2b71fab66b622754",
       "gen_params": {
         "requested": {
           "qwen_tts_version": "0.1.1",
@@ -9533,15 +9905,15 @@
               "reserved_mib": 4134.0
             },
             "voice_clone_generate": {
-              "allocated_mib": 4180.017,
-              "reserved_mib": 4284.0
+              "allocated_mib": 4180.962,
+              "reserved_mib": 4494.0
             }
           },
           "seed": 0,
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 6.334333,
+      "rtf": 6.971269,
       "loudness": {
         "i_lufs": -18.02,
         "tp_dbtp": -1.54,
@@ -9555,7 +9927,7 @@
       "variant": "dry",
       "path": "audio/qwen3-tts-12hz-1.7b/guild-hall/receptionist-001-dry.opus",
       "duration_sec": 3.1265,
-      "sha256": "aa902ac8d8a57edd7b073937d3aeb672244a6a6b746dd953463e7a2192b44edc",
+      "sha256": "2be4e41fe54642eebb7c4010cb8df58eceff405dada416167ef719bb90c6686c",
       "gen_params": {
         "requested": {
           "qwen_tts_version": "0.1.1",
@@ -9595,15 +9967,15 @@
               "reserved_mib": 4134.0
             },
             "voice_clone_generate": {
-              "allocated_mib": 4204.988,
-              "reserved_mib": 4352.0
+              "allocated_mib": 4204.589,
+              "reserved_mib": 4494.0
             }
           },
           "seed": 0,
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 12.90354,
+      "rtf": 5.96606,
       "loudness": {
         "i_lufs": -18.0,
         "tp_dbtp": -1.0,
@@ -9617,7 +9989,7 @@
       "variant": "dry",
       "path": "audio/qwen3-tts-12hz-1.7b/guild-hall/receptionist-002-dry.opus",
       "duration_sec": 2.726542,
-      "sha256": "bf21898ddeb1e5a6afd65579421c76270c13c0466a29d41aa4e619ffddc54896",
+      "sha256": "c076406c0c646f786f045e31c86efb2a1e87199642b370755e8318eb1f77f80d",
       "gen_params": {
         "requested": {
           "qwen_tts_version": "0.1.1",
@@ -9657,15 +10029,15 @@
               "reserved_mib": 4134.0
             },
             "voice_clone_generate": {
-              "allocated_mib": 4194.837,
-              "reserved_mib": 4352.0
+              "allocated_mib": 4195.373,
+              "reserved_mib": 4494.0
             }
           },
           "seed": 0,
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 8.639164,
+      "rtf": 5.674067,
       "loudness": {
         "i_lufs": -18.02,
         "tp_dbtp": -1.0,
@@ -9679,7 +10051,7 @@
       "variant": "dry",
       "path": "audio/qwen3-tts-12hz-1.7b/guild-hall/receptionist-003-dry.opus",
       "duration_sec": 3.2065,
-      "sha256": "4c4a552f6f517160841f7bbd77b04ce0aa608c0dc39e8161aec40902400d8a5b",
+      "sha256": "d8745d5b9297c726741466bbb8498322f97b6f8e7e8eb3d16893a1ed60ca213b",
       "gen_params": {
         "requested": {
           "qwen_tts_version": "0.1.1",
@@ -9719,15 +10091,15 @@
               "reserved_mib": 4134.0
             },
             "voice_clone_generate": {
-              "allocated_mib": 4206.263,
-              "reserved_mib": 4352.0
+              "allocated_mib": 4205.89,
+              "reserved_mib": 4494.0
             }
           },
           "seed": 0,
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 7.368671,
+      "rtf": 6.230968,
       "loudness": {
         "i_lufs": -17.97,
         "tp_dbtp": -1.0,
@@ -9741,7 +10113,7 @@
       "variant": "dry",
       "path": "audio/qwen3-tts-12hz-1.7b/guild-hall/rookie-001-dry.opus",
       "duration_sec": 2.806542,
-      "sha256": "37671b7948ecdd2d31f9f0cacde082b877a4100c932ba73ae7ff5277fcfeaa49",
+      "sha256": "0eb71e84e87c7aa327a762202e9f64f454c3380710c5ad33a2e906596b4d101b",
       "gen_params": {
         "requested": {
           "qwen_tts_version": "0.1.1",
@@ -9781,15 +10153,15 @@
               "reserved_mib": 4134.0
             },
             "voice_clone_generate": {
-              "allocated_mib": 4170.141,
-              "reserved_mib": 4354.0
+              "allocated_mib": 4170.676,
+              "reserved_mib": 4494.0
             }
           },
           "seed": 0,
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 8.001365,
+      "rtf": 6.212187,
       "loudness": {
         "i_lufs": -17.99,
         "tp_dbtp": -3.4,
@@ -9803,7 +10175,7 @@
       "variant": "dry",
       "path": "audio/qwen3-tts-12hz-1.7b/guild-hall/rookie-002-dry.opus",
       "duration_sec": 3.1265,
-      "sha256": "5ed6521f55a3050183886749c2972d6c8fb3e1bc28aa2e1a7b155e61428e9d45",
+      "sha256": "ba47bc9c97e058cd6ecdf8fca860999353ba3dda0671db06cbbcc57bdeca70bf",
       "gen_params": {
         "requested": {
           "qwen_tts_version": "0.1.1",
@@ -9843,15 +10215,15 @@
               "reserved_mib": 4134.0
             },
             "voice_clone_generate": {
-              "allocated_mib": 4176.752,
-              "reserved_mib": 4354.0
+              "allocated_mib": 4177.866,
+              "reserved_mib": 4494.0
             }
           },
           "seed": 0,
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 7.572773,
+      "rtf": 6.288495,
       "loudness": {
         "i_lufs": -18.0,
         "tp_dbtp": -1.42,
@@ -9865,7 +10237,7 @@
       "variant": "dry",
       "path": "audio/qwen3-tts-12hz-1.7b/guild-hall/rookie-003-dry.opus",
       "duration_sec": 3.046542,
-      "sha256": "8de3d162de6c010d111a9f217d010177f6139970b7bd8b41557f5089b95aaff4",
+      "sha256": "751d3675c5766dba16b0dc33c7e4910bbf51e126b169ad6b9e178f52b0ccf7ef",
       "gen_params": {
         "requested": {
           "qwen_tts_version": "0.1.1",
@@ -9905,15 +10277,15 @@
               "reserved_mib": 4134.0
             },
             "voice_clone_generate": {
-              "allocated_mib": 4175.1,
-              "reserved_mib": 4354.0
+              "allocated_mib": 4176.565,
+              "reserved_mib": 4494.0
             }
           },
           "seed": 0,
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 7.047145,
+      "rtf": 6.13778,
       "loudness": {
         "i_lufs": -18.0,
         "tp_dbtp": -3.8,
@@ -9927,7 +10299,7 @@
       "variant": "dry",
       "path": "audio/qwen3-tts-12hz-1.7b/guild-hall/veteran-001-dry.opus",
       "duration_sec": 3.2865,
-      "sha256": "a07e94b8fa03523327f3afcafa8388569cb3e28d4f612045fec9346260dae672",
+      "sha256": "9dd03af59a74e22fc0fee75dacf8843ae59544c4d1d9388365dea3e7876b26f1",
       "gen_params": {
         "requested": {
           "qwen_tts_version": "0.1.1",
@@ -9967,15 +10339,15 @@
               "reserved_mib": 4134.0
             },
             "voice_clone_generate": {
-              "allocated_mib": 4213.562,
-              "reserved_mib": 4354.0
+              "allocated_mib": 4213.555,
+              "reserved_mib": 4494.0
             }
           },
           "seed": 0,
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 7.218697,
+      "rtf": 6.103803,
       "loudness": {
         "i_lufs": -18.13,
         "tp_dbtp": -1.0,
@@ -9989,7 +10361,7 @@
       "variant": "dry",
       "path": "audio/qwen3-tts-12hz-1.7b/guild-hall/veteran-002-dry.opus",
       "duration_sec": 3.2865,
-      "sha256": "a5f95c8e273406b6c0c6e3748d6457a934f476eb0d32b60f95e4e3a7c4153228",
+      "sha256": "16065b58a6112597993d808c0e77c5edf2af2b19236067aa70bdcbb163612c60",
       "gen_params": {
         "requested": {
           "qwen_tts_version": "0.1.1",
@@ -10029,15 +10401,15 @@
               "reserved_mib": 4134.0
             },
             "voice_clone_generate": {
-              "allocated_mib": 4213.562,
-              "reserved_mib": 4354.0
+              "allocated_mib": 4213.555,
+              "reserved_mib": 4494.0
             }
           },
           "seed": 0,
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 9.619021,
+      "rtf": 6.405311,
       "loudness": {
         "i_lufs": -17.89,
         "tp_dbtp": -1.0,
@@ -10051,7 +10423,7 @@
       "variant": "dry",
       "path": "audio/qwen3-tts-12hz-1.7b/guild-hall/veteran-003-dry.opus",
       "duration_sec": 2.6465,
-      "sha256": "5428633d0bf293a86903ac8d14c9f3f676c764f646330819492880b85fa045e8",
+      "sha256": "602c33e9e4110cae47154e64402c39d3e55a1fd52b61cc2a7a1f21a7a6072188",
       "gen_params": {
         "requested": {
           "qwen_tts_version": "0.1.1",
@@ -10091,15 +10463,15 @@
               "reserved_mib": 4134.0
             },
             "voice_clone_generate": {
-              "allocated_mib": 4199.797,
-              "reserved_mib": 4354.0
+              "allocated_mib": 4200.333,
+              "reserved_mib": 4494.0
             }
           },
           "seed": 0,
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 9.765398,
+      "rtf": 6.323045,
       "loudness": {
         "i_lufs": -18.13,
         "tp_dbtp": -1.0,
@@ -10113,7 +10485,7 @@
       "variant": "dry",
       "path": "audio/qwen3-tts-12hz-1.7b/guild-hall/weary-001-dry.opus",
       "duration_sec": 4.3265,
-      "sha256": "9ae98fc7ef23b9c24fbabfa8c538cc418d0755ec92d717c2f22262dd46dad4df",
+      "sha256": "999ae25adc0f12d27ca6313a284f69b3efba400a5da64ceaece785b8bf4a723c",
       "gen_params": {
         "requested": {
           "qwen_tts_version": "0.1.1",
@@ -10153,15 +10525,15 @@
               "reserved_mib": 4134.0
             },
             "voice_clone_generate": {
-              "allocated_mib": 4208.135,
-              "reserved_mib": 4354.0
+              "allocated_mib": 4208.69,
+              "reserved_mib": 4494.0
             }
           },
           "seed": 0,
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 7.289945,
+      "rtf": 5.911689,
       "loudness": {
         "i_lufs": -18.01,
         "tp_dbtp": -1.19,
@@ -10175,7 +10547,7 @@
       "variant": "dry",
       "path": "audio/qwen3-tts-12hz-1.7b/guild-hall/weary-002-dry.opus",
       "duration_sec": 3.1265,
-      "sha256": "aae20e5ee099148b9e900d63655eaebf371cd937df7a757010e57f580e518dab",
+      "sha256": "4ff059c8f5b4ecb6653dbeca7d99f717e19d9d802612dd3bd141fb284f1270e7",
       "gen_params": {
         "requested": {
           "qwen_tts_version": "0.1.1",
@@ -10215,15 +10587,15 @@
               "reserved_mib": 4134.0
             },
             "voice_clone_generate": {
-              "allocated_mib": 4183.362,
-              "reserved_mib": 4354.0
+              "allocated_mib": 4183.897,
+              "reserved_mib": 4494.0
             }
           },
           "seed": 0,
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 7.253969,
+      "rtf": 6.207792,
       "loudness": {
         "i_lufs": -18.0,
         "tp_dbtp": -1.79,
@@ -10237,7 +10609,7 @@
       "variant": "dry",
       "path": "audio/qwen3-tts-12hz-1.7b/guild-hall/weary-003-dry.opus",
       "duration_sec": 3.2065,
-      "sha256": "9baf9b678eaf626e69fcfa87976d7c16c8ac2d8c7a142f54615272b8587ec875",
+      "sha256": "61ad8ebf62903437a0eaf17ac78580d6e8c7ab9cee340a86bc846c859a43d6e5",
       "gen_params": {
         "requested": {
           "qwen_tts_version": "0.1.1",
@@ -10277,15 +10649,15 @@
               "reserved_mib": 4134.0
             },
             "voice_clone_generate": {
-              "allocated_mib": 4185.014,
-              "reserved_mib": 4354.0
+              "allocated_mib": 4185.55,
+              "reserved_mib": 4494.0
             }
           },
           "seed": 0,
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 7.587947,
+      "rtf": 6.61167,
       "loudness": {
         "i_lufs": -18.03,
         "tp_dbtp": -1.7,
@@ -10299,7 +10671,7 @@
       "variant": "dry",
       "path": "audio/qwen3-tts-12hz-1.7b/market-day/fruit-vendor-001-dry.opus",
       "duration_sec": 3.6865,
-      "sha256": "3d4e2fe2e23b8a6fe7402a0aa6edca4f5078e719d105d5434fe4b71a30bc5635",
+      "sha256": "4f31ffb82185fe84ad67f39b1d35cda0a7adea7728827e26387031625d8f53c7",
       "gen_params": {
         "requested": {
           "qwen_tts_version": "0.1.1",
@@ -10339,15 +10711,15 @@
               "reserved_mib": 4134.0
             },
             "voice_clone_generate": {
-              "allocated_mib": 4187.084,
-              "reserved_mib": 4280.0
+              "allocated_mib": 4187.236,
+              "reserved_mib": 4494.0
             }
           },
           "seed": 0,
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 10.858212,
+      "rtf": 6.008519,
       "loudness": {
         "i_lufs": -18.02,
         "tp_dbtp": -2.82,
@@ -10361,7 +10733,7 @@
       "variant": "dry",
       "path": "audio/qwen3-tts-12hz-1.7b/market-day/fruit-vendor-002-dry.opus",
       "duration_sec": 2.6465,
-      "sha256": "fa36fea8df7f87e1ed60287d25506ccae86e14b8b4c7cf40954561d3363ed0aa",
+      "sha256": "f6b02a3f2ba6fa0773daefba9a94701efc8b1570c0f515f3cb2071c079f9ad67",
       "gen_params": {
         "requested": {
           "qwen_tts_version": "0.1.1",
@@ -10401,15 +10773,15 @@
               "reserved_mib": 4134.0
             },
             "voice_clone_generate": {
-              "allocated_mib": 4165.172,
-              "reserved_mib": 4280.0
+              "allocated_mib": 4165.75,
+              "reserved_mib": 4494.0
             }
           },
           "seed": 0,
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 7.013408,
+      "rtf": 6.047986,
       "loudness": {
         "i_lufs": -18.0,
         "tp_dbtp": -3.4,
@@ -10423,7 +10795,7 @@
       "variant": "dry",
       "path": "audio/qwen3-tts-12hz-1.7b/market-day/shopper-001-dry.opus",
       "duration_sec": 3.1265,
-      "sha256": "03de8014fceca669bf79084a56343666a803a7847cdc7b56fdf5d907e6032df7",
+      "sha256": "e7b6975d8649d3ab34d6b32a5172d42766b9de4012b6024922efc976abf62774",
       "gen_params": {
         "requested": {
           "qwen_tts_version": "0.1.1",
@@ -10463,15 +10835,15 @@
               "reserved_mib": 4134.0
             },
             "voice_clone_generate": {
-              "allocated_mib": 4187.847,
-              "reserved_mib": 4280.0
+              "allocated_mib": 4187.223,
+              "reserved_mib": 4494.0
             }
           },
           "seed": 0,
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 16.256738,
+      "rtf": 6.193664,
       "loudness": {
         "i_lufs": -18.0,
         "tp_dbtp": -2.04,
@@ -10485,7 +10857,7 @@
       "variant": "dry",
       "path": "audio/qwen3-tts-12hz-1.7b/market-day/shopper-002-dry.opus",
       "duration_sec": 2.3265,
-      "sha256": "a679c19b518d4a97dd5281d2388182e0a45a4720a435728600474480f5f8a9ac",
+      "sha256": "16570ab2078552613024b78a705522b5a051c6c9491167b249ce2c1e421a9fb1",
       "gen_params": {
         "requested": {
           "qwen_tts_version": "0.1.1",
@@ -10525,15 +10897,15 @@
               "reserved_mib": 4134.0
             },
             "voice_clone_generate": {
-              "allocated_mib": 4170.118,
-              "reserved_mib": 4280.0
+              "allocated_mib": 4170.695,
+              "reserved_mib": 4494.0
             }
           },
           "seed": 0,
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 12.610334,
+      "rtf": 5.501973,
       "loudness": {
         "i_lufs": -18.0,
         "tp_dbtp": -3.58,
@@ -10547,7 +10919,7 @@
       "variant": "dry",
       "path": "audio/qwen3-tts-12hz-1.7b/market-day/street-kid-001-dry.opus",
       "duration_sec": 2.6465,
-      "sha256": "6f0da360f8f9a6e44771818b76f2810f74e351ee12bc861f196b5351d2415c8d",
+      "sha256": "faf014e5e505a8cb822b5351ecc1d35425aa39110c84bad7756b311110f33334",
       "gen_params": {
         "requested": {
           "qwen_tts_version": "0.1.1",
@@ -10587,15 +10959,15 @@
               "reserved_mib": 4134.0
             },
             "voice_clone_generate": {
-              "allocated_mib": 4191.547,
-              "reserved_mib": 4282.0
+              "allocated_mib": 4192.163,
+              "reserved_mib": 4494.0
             }
           },
           "seed": 0,
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 9.160458,
+      "rtf": 6.301443,
       "loudness": {
         "i_lufs": -18.01,
         "tp_dbtp": -3.91,
@@ -10609,7 +10981,7 @@
       "variant": "dry",
       "path": "audio/qwen3-tts-12hz-1.7b/market-day/street-kid-002-dry.opus",
       "duration_sec": 2.3265,
-      "sha256": "26a9aaa99f6b2c35b4a352fd9012edf311f0b75744f7dfea3a95fd9e8728ec65",
+      "sha256": "00c733b65bd1f45cb97941eebba03d2cc986dfd3960eb691ec089b6210c32377",
       "gen_params": {
         "requested": {
           "qwen_tts_version": "0.1.1",
@@ -10649,15 +11021,15 @@
               "reserved_mib": 4134.0
             },
             "voice_clone_generate": {
-              "allocated_mib": 4185.786,
-              "reserved_mib": 4282.0
+              "allocated_mib": 4185.551,
+              "reserved_mib": 4494.0
             }
           },
           "seed": 0,
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 6.996464,
+      "rtf": 6.293536,
       "loudness": {
         "i_lufs": -18.02,
         "tp_dbtp": -3.45,
@@ -10671,7 +11043,7 @@
       "variant": "dry",
       "path": "audio/qwen3-tts-12hz-1.7b/spirit-forest/elder-tree-001-dry.opus",
       "duration_sec": 2.5665,
-      "sha256": "c021e47a4d087779732a635abc79b790b9fc7ca3a4082866c297eb1c83c1df71",
+      "sha256": "13c6a2b2861715d35053f89e0329e8280d3fe8022eb007a905e3f412dbf07152",
       "gen_params": {
         "requested": {
           "qwen_tts_version": "0.1.1",
@@ -10711,15 +11083,15 @@
               "reserved_mib": 4134.0
             },
             "voice_clone_generate": {
-              "allocated_mib": 4189.901,
-              "reserved_mib": 4354.0
+              "allocated_mib": 4190.547,
+              "reserved_mib": 4494.0
             }
           },
           "seed": 0,
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 6.722903,
+      "rtf": 6.395701,
       "loudness": {
         "i_lufs": -18.0,
         "tp_dbtp": -1.87,
@@ -10733,7 +11105,7 @@
       "variant": "dry",
       "path": "audio/qwen3-tts-12hz-1.7b/spirit-forest/elder-tree-002-dry.opus",
       "duration_sec": 2.2465,
-      "sha256": "014c6c25465de27a4f9041c2040062430e6f5b4ec5e95c442c4daa1c8a6b249e",
+      "sha256": "9639f8ad40a6b4c7208d7da9d7aab57a34bcf7cc87028ef7384a4f78522452b0",
       "gen_params": {
         "requested": {
           "qwen_tts_version": "0.1.1",
@@ -10773,15 +11145,15 @@
               "reserved_mib": 4134.0
             },
             "voice_clone_generate": {
-              "allocated_mib": 4183.29,
-              "reserved_mib": 4354.0
+              "allocated_mib": 4183.936,
+              "reserved_mib": 4494.0
             }
           },
           "seed": 0,
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 7.360655,
+      "rtf": 6.026924,
       "loudness": {
         "i_lufs": -18.19,
         "tp_dbtp": -0.98,
@@ -10795,7 +11167,7 @@
       "variant": "dry",
       "path": "audio/qwen3-tts-12hz-1.7b/spirit-forest/elder-tree-003-dry.opus",
       "duration_sec": 1.7665,
-      "sha256": "3eee17a39e20619de899c41c095b3df2d152321a9ae78e8e67b4e1be6594c84e",
+      "sha256": "64182ff7e97e2cd1d3dec80f0ad4591b6a1f4a81e03b4662d3109d5f055882e5",
       "gen_params": {
         "requested": {
           "qwen_tts_version": "0.1.1",
@@ -10835,15 +11207,15 @@
               "reserved_mib": 4134.0
             },
             "voice_clone_generate": {
-              "allocated_mib": 4173.373,
-              "reserved_mib": 4354.0
+              "allocated_mib": 4174.018,
+              "reserved_mib": 4494.0
             }
           },
           "seed": 0,
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 6.434118,
+      "rtf": 6.029982,
       "loudness": {
         "i_lufs": -18.0,
         "tp_dbtp": -2.84,
@@ -10857,7 +11229,7 @@
       "variant": "dry",
       "path": "audio/qwen3-tts-12hz-1.7b/spirit-forest/pixie-001-dry.opus",
       "duration_sec": 2.4865,
-      "sha256": "f9a9815756e3e5984d3ab6b008aec5d8859755e640c5256fa6345fa3c8115f9b",
+      "sha256": "d1c5111c50b5e86e5d5d76897e1f730f624c0c85c3366eabb3a044e273523b40",
       "gen_params": {
         "requested": {
           "qwen_tts_version": "0.1.1",
@@ -10897,15 +11269,15 @@
               "reserved_mib": 4134.0
             },
             "voice_clone_generate": {
-              "allocated_mib": 4206.849,
-              "reserved_mib": 4354.0
+              "allocated_mib": 4207.263,
+              "reserved_mib": 4494.0
             }
           },
           "seed": 0,
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 9.739164,
+      "rtf": 6.092276,
       "loudness": {
         "i_lufs": -18.01,
         "tp_dbtp": -4.93,
@@ -10919,7 +11291,7 @@
       "variant": "dry",
       "path": "audio/qwen3-tts-12hz-1.7b/spirit-forest/pixie-002-dry.opus",
       "duration_sec": 2.2465,
-      "sha256": "6a509bc1f96d160218f004f7582654e17014075a4727ca15744e430b02d4422d",
+      "sha256": "a4323446e87cdfbd3ac94bdbd8b071b68414082a2c82d0c6bdee67a352bf5c56",
       "gen_params": {
         "requested": {
           "qwen_tts_version": "0.1.1",
@@ -10959,15 +11331,15 @@
               "reserved_mib": 4134.0
             },
             "voice_clone_generate": {
-              "allocated_mib": 4201.41,
-              "reserved_mib": 4354.0
+              "allocated_mib": 4202.056,
+              "reserved_mib": 4494.0
             }
           },
           "seed": 0,
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 6.763162,
+      "rtf": 6.245996,
       "loudness": {
         "i_lufs": -17.99,
         "tp_dbtp": -5.28,
@@ -10981,7 +11353,7 @@
       "variant": "dry",
       "path": "audio/qwen3-tts-12hz-1.7b/spirit-forest/pixie-003-dry.opus",
       "duration_sec": 1.606542,
-      "sha256": "994ea83442f1438f03d3447af65c9fda2203625705c921666ce92b06d9f41a8d",
+      "sha256": "41df1895581cb146e281e42c76f443d9d9fdbfc8dbdd3f8c0e62fbe65bbfa161",
       "gen_params": {
         "requested": {
           "qwen_tts_version": "0.1.1",
@@ -11021,15 +11393,15 @@
               "reserved_mib": 4134.0
             },
             "voice_clone_generate": {
-              "allocated_mib": 4188.188,
-              "reserved_mib": 4354.0
+              "allocated_mib": 4188.833,
+              "reserved_mib": 4494.0
             }
           },
           "seed": 0,
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 6.482822,
+      "rtf": 5.931248,
       "loudness": {
         "i_lufs": -18.01,
         "tp_dbtp": -2.6,
@@ -11043,7 +11415,7 @@
       "variant": "dry",
       "path": "audio/qwen3-tts-12hz-1.7b/spirit-forest/spring-sprite-001-dry.opus",
       "duration_sec": 2.0065,
-      "sha256": "acb1cc419d36a3c037cb682b2032801f3229b551aa9eb8221e7831e934ab16a0",
+      "sha256": "29ab0c1b02c92df096874b99eade48475b5e1014a2286c872b4d28cb1dd8f9f8",
       "gen_params": {
         "requested": {
           "qwen_tts_version": "0.1.1",
@@ -11083,18 +11455,80 @@
               "reserved_mib": 4134.0
             },
             "voice_clone_generate": {
-              "allocated_mib": 4212.123,
-              "reserved_mib": 4354.0
+              "allocated_mib": 4211.992,
+              "reserved_mib": 4494.0
             }
           },
           "seed": 0,
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 6.433184,
+      "rtf": 6.362655,
       "loudness": {
         "i_lufs": -17.99,
         "tp_dbtp": -2.29,
+        "shortfall": false
+      }
+    },
+    {
+      "model": "qwen3-tts-12hz-1.7b",
+      "scenario": "spirit-forest",
+      "line": "spring-sprite-003",
+      "variant": "dry",
+      "path": "audio/qwen3-tts-12hz-1.7b/spirit-forest/spring-sprite-003-dry.opus",
+      "duration_sec": 2.3265,
+      "sha256": "dff84427ebbf21e73e29d7d7871ec90d0ea8850ad5252b6fe446481dfb08f111",
+      "gen_params": {
+        "requested": {
+          "qwen_tts_version": "0.1.1",
+          "base_model": "Qwen/Qwen3-TTS-12Hz-1.7B-Base",
+          "base_revision": "fd4b254389122332181a7c3db7f27e918eec64e3",
+          "voice_design_model": "Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign",
+          "voice_design_revision": "5ecdb67327fd37bb2e042aab12ff7391903235d3",
+          "device": "cuda:0",
+          "dtype": "bfloat16",
+          "attention_backend": "sdpa",
+          "sampling": {
+            "do_sample": true,
+            "repetition_penalty": 1.05,
+            "temperature": 0.9,
+            "top_p": 1.0,
+            "top_k": 50,
+            "subtalker_dosample": true,
+            "subtalker_temperature": 0.9,
+            "subtalker_top_p": 1.0,
+            "subtalker_top_k": 50,
+            "max_new_tokens": 2048
+          },
+          "reference_text": "こんにちは。今日はとても良い天気ですね。"
+        },
+        "realized": {
+          "phase_peak_vram_mib": {
+            "voice_design_load": {
+              "allocated_mib": 3986.726,
+              "reserved_mib": 4112.0
+            },
+            "voice_design_generate": {
+              "allocated_mib": 4116.489,
+              "reserved_mib": 4284.0
+            },
+            "base_load": {
+              "allocated_mib": 4008.5,
+              "reserved_mib": 4134.0
+            },
+            "voice_clone_generate": {
+              "allocated_mib": 4218.603,
+              "reserved_mib": 4494.0
+            }
+          },
+          "seed": 0,
+          "sample_rate_hz": 24000
+        }
+      },
+      "rtf": 6.023407,
+      "loudness": {
+        "i_lufs": -18.01,
+        "tp_dbtp": -1.44,
         "shortfall": false
       }
     },
@@ -11105,7 +11539,7 @@
       "variant": "dry",
       "path": "audio/qwen3-tts-12hz-1.7b/spirit-forest/wisp-001-dry.opus",
       "duration_sec": 1.9265,
-      "sha256": "920b32e7ebac4f144af2b21a6fe79bfd31dbaa8a0e041cc7ef24cceaf0214954",
+      "sha256": "5076ceef4f69c8b657324997f27452ace018069ef258d08f4c93ac87a2a4d4c4",
       "gen_params": {
         "requested": {
           "qwen_tts_version": "0.1.1",
@@ -11145,15 +11579,15 @@
               "reserved_mib": 4134.0
             },
             "voice_clone_generate": {
-              "allocated_mib": 4171.749,
-              "reserved_mib": 4354.0
+              "allocated_mib": 4172.394,
+              "reserved_mib": 4494.0
             }
           },
           "seed": 0,
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 6.554956,
+      "rtf": 5.79848,
       "loudness": {
         "i_lufs": -18.02,
         "tp_dbtp": -3.85,
@@ -11167,7 +11601,7 @@
       "variant": "dry",
       "path": "audio/qwen3-tts-12hz-1.7b/spirit-forest/wisp-002-dry.opus",
       "duration_sec": 2.4065,
-      "sha256": "a44879fbd069ecde0d273fb0e74f9cff05e33e669a9b5b5059faafc44bfd93ff",
+      "sha256": "e246b091e60c67f95520524dba05fd80c603fecf0f02fb678ec1509ff0441e32",
       "gen_params": {
         "requested": {
           "qwen_tts_version": "0.1.1",
@@ -11207,15 +11641,15 @@
               "reserved_mib": 4134.0
             },
             "voice_clone_generate": {
-              "allocated_mib": 4181.667,
-              "reserved_mib": 4354.0
+              "allocated_mib": 4182.343,
+              "reserved_mib": 4494.0
             }
           },
           "seed": 0,
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 6.263255,
+      "rtf": 6.176121,
       "loudness": {
         "i_lufs": -18.02,
         "tp_dbtp": -2.98,
@@ -11229,7 +11663,7 @@
       "variant": "dry",
       "path": "audio/qwen3-tts-12hz-1.7b/spirit-forest/wisp-003-dry.opus",
       "duration_sec": 2.0865,
-      "sha256": "d33003bd434a0c7d392ce7f2d1888eb284b5233f4213292547965d2329bd14ce",
+      "sha256": "6399ef964c24cb4f87f6cdb5b8dc3ef55e49d29c7642b3c057873181bb1300bd",
       "gen_params": {
         "requested": {
           "qwen_tts_version": "0.1.1",
@@ -11269,15 +11703,15 @@
               "reserved_mib": 4134.0
             },
             "voice_clone_generate": {
-              "allocated_mib": 4175.055,
-              "reserved_mib": 4354.0
+              "allocated_mib": 4176.63,
+              "reserved_mib": 4494.0
             }
           },
           "seed": 0,
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 7.165864,
+      "rtf": 6.159252,
       "loudness": {
         "i_lufs": -18.01,
         "tp_dbtp": -6.27,
@@ -11291,7 +11725,7 @@
       "variant": "dry",
       "path": "audio/qwen3-tts-12hz-1.7b/tavern-night/barmaid-001-dry.opus",
       "duration_sec": 2.8865,
-      "sha256": "f692c5def9341e67ac875694110221693fae4834b6964d71b41cfa075157d0db",
+      "sha256": "12bf05a17348aab69fdb41827eb50af3d5e00eb3710979e1d73cbca6f17a1205",
       "gen_params": {
         "requested": {
           "qwen_tts_version": "0.1.1",
@@ -11327,19 +11761,19 @@
               "reserved_mib": 4168.0
             },
             "base_load": {
-              "allocated_mib": 4019.218,
-              "reserved_mib": 4146.0
+              "allocated_mib": 4008.5,
+              "reserved_mib": 4134.0
             },
             "voice_clone_generate": {
-              "allocated_mib": 4184.874,
-              "reserved_mib": 4290.0
+              "allocated_mib": 4184.021,
+              "reserved_mib": 4494.0
             }
           },
           "seed": 0,
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 16.911262,
+      "rtf": 6.122103,
       "loudness": {
         "i_lufs": -18.0,
         "tp_dbtp": -5.0,
@@ -11353,7 +11787,7 @@
       "variant": "dry",
       "path": "audio/qwen3-tts-12hz-1.7b/tavern-night/barmaid-002-dry.opus",
       "duration_sec": 3.206542,
-      "sha256": "7950578cfb0f027841747e03524e75cbca873672df105d294f3570faba8d6a92",
+      "sha256": "44956be88f9983d53d6c3e5ea76de1fe0df2b045c6d3f647db98e393ae1fff45",
       "gen_params": {
         "requested": {
           "qwen_tts_version": "0.1.1",
@@ -11393,15 +11827,15 @@
               "reserved_mib": 4134.0
             },
             "voice_clone_generate": {
-              "allocated_mib": 4189.892,
-              "reserved_mib": 4284.0
+              "allocated_mib": 4190.633,
+              "reserved_mib": 4494.0
             }
           },
           "seed": 0,
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 9.070462,
+      "rtf": 5.684752,
       "loudness": {
         "i_lufs": -17.99,
         "tp_dbtp": -2.4,
@@ -11415,7 +11849,7 @@
       "variant": "dry",
       "path": "audio/qwen3-tts-12hz-1.7b/tavern-night/drunkard-001-dry.opus",
       "duration_sec": 2.9665,
-      "sha256": "63645c0456babd770b284c5cac37a2c44fb95e68b0b706269633361650739249",
+      "sha256": "0252626e406a5fb1551d0807c71be4629f6c35cefc2851b2952d107dc8564008",
       "gen_params": {
         "requested": {
           "qwen_tts_version": "0.1.1",
@@ -11455,15 +11889,15 @@
               "reserved_mib": 4134.0
             },
             "voice_clone_generate": {
-              "allocated_mib": 4180.044,
-              "reserved_mib": 4284.0
+              "allocated_mib": 4181.242,
+              "reserved_mib": 4494.0
             }
           },
           "seed": 0,
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 6.456036,
+      "rtf": 6.011668,
       "loudness": {
         "i_lufs": -18.0,
         "tp_dbtp": -5.09,
@@ -11477,7 +11911,7 @@
       "variant": "dry",
       "path": "audio/qwen3-tts-12hz-1.7b/tavern-night/drunkard-002-dry.opus",
       "duration_sec": 2.8065,
-      "sha256": "97b0c1321d04e0942ae05a7d31a8c59fd1c6d0042bcda5e572ed1745e24fc891",
+      "sha256": "baf2e687fd65913d9cf5037fa620d190cb2151187aa079f25a3faf9a5e477ed5",
       "gen_params": {
         "requested": {
           "qwen_tts_version": "0.1.1",
@@ -11517,15 +11951,15 @@
               "reserved_mib": 4134.0
             },
             "voice_clone_generate": {
-              "allocated_mib": 4176.739,
-              "reserved_mib": 4284.0
+              "allocated_mib": 4178.015,
+              "reserved_mib": 4494.0
             }
           },
           "seed": 0,
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 7.199352,
+      "rtf": 6.35812,
       "loudness": {
         "i_lufs": -18.0,
         "tp_dbtp": -3.01,
@@ -11539,7 +11973,7 @@
       "variant": "dry",
       "path": "audio/qwen3-tts-12hz-1.7b/tavern-night/old-regular-001-dry.opus",
       "duration_sec": 2.6465,
-      "sha256": "45ab22025123111e59d39f738920e97abe6a4721458c15961d625ce21c4c883b",
+      "sha256": "4434a71260ef788afb0b771075741aec224f7aefa76fdf9cedb5ede6bdbb6dcd",
       "gen_params": {
         "requested": {
           "qwen_tts_version": "0.1.1",
@@ -11579,15 +12013,15 @@
               "reserved_mib": 4134.0
             },
             "voice_clone_generate": {
-              "allocated_mib": 4173.447,
-              "reserved_mib": 4284.0
+              "allocated_mib": 4174.146,
+              "reserved_mib": 4494.0
             }
           },
           "seed": 0,
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 6.239664,
+      "rtf": 6.219125,
       "loudness": {
         "i_lufs": -17.99,
         "tp_dbtp": -1.22,
@@ -11601,7 +12035,7 @@
       "variant": "dry",
       "path": "audio/qwen3-tts-12hz-1.7b/tavern-night/old-regular-002-dry.opus",
       "duration_sec": 2.9665,
-      "sha256": "0d84a8b84af8b6d9fd2322e65e773c14aca55a2206d9137619fbb06bb1f6ad03",
+      "sha256": "3704c32c878b75dded0b1ef152c083c5031cfc59bcd0be0496d60c8d74030654",
       "gen_params": {
         "requested": {
           "qwen_tts_version": "0.1.1",
@@ -11641,15 +12075,15 @@
               "reserved_mib": 4134.0
             },
             "voice_clone_generate": {
-              "allocated_mib": 4180.059,
-              "reserved_mib": 4284.0
+              "allocated_mib": 4181.257,
+              "reserved_mib": 4494.0
             }
           },
           "seed": 0,
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 7.361585,
+      "rtf": 5.936834,
       "loudness": {
         "i_lufs": -18.14,
         "tp_dbtp": -0.99,
@@ -11663,7 +12097,7 @@
       "variant": "dry",
       "path": "audio/qwen3-tts-12hz-1.7b/village-morning/farm-wife-001-dry.opus",
       "duration_sec": 2.2465,
-      "sha256": "d99632a168cde1697930d3071a22d1e1257767fc71a8859e294c4c02c24b268f",
+      "sha256": "587bd1b19669ae20eaa8e56a16e5c6e73c92809d532ac17eb291ca9289219dd4",
       "gen_params": {
         "requested": {
           "qwen_tts_version": "0.1.1",
@@ -11703,15 +12137,15 @@
               "reserved_mib": 4134.0
             },
             "voice_clone_generate": {
-              "allocated_mib": 4186.619,
-              "reserved_mib": 4284.0
+              "allocated_mib": 4187.361,
+              "reserved_mib": 4494.0
             }
           },
           "seed": 0,
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 7.790341,
+      "rtf": 6.660688,
       "loudness": {
         "i_lufs": -17.99,
         "tp_dbtp": -3.09,
@@ -11725,7 +12159,7 @@
       "variant": "dry",
       "path": "audio/qwen3-tts-12hz-1.7b/village-morning/farm-wife-002-dry.opus",
       "duration_sec": 2.4865,
-      "sha256": "2a526ab51afa27375cfa81de98f921aed849946f07401295febca0aeb32a76d4",
+      "sha256": "c91903f8c9529976e338637f9d5849e8f0fc1003e3b7e620c1cebf3c446de065",
       "gen_params": {
         "requested": {
           "qwen_tts_version": "0.1.1",
@@ -11765,15 +12199,15 @@
               "reserved_mib": 4134.0
             },
             "voice_clone_generate": {
-              "allocated_mib": 4192.562,
-              "reserved_mib": 4286.0
+              "allocated_mib": 4192.32,
+              "reserved_mib": 4494.0
             }
           },
           "seed": 0,
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 7.865319,
+      "rtf": 6.581027,
       "loudness": {
         "i_lufs": -18.16,
         "tp_dbtp": -1.0,
@@ -11787,7 +12221,7 @@
       "variant": "dry",
       "path": "audio/qwen3-tts-12hz-1.7b/village-morning/farmer-man-001-dry.opus",
       "duration_sec": 2.5665,
-      "sha256": "f9e3098bb2374dde0a09ab0f5cbefc8b50340ba55ecb8f18e0093943d3a32626",
+      "sha256": "88f657268fe3840ea8ecdd8bc8079d25e1da144454ad9bcea73de37dc12e3ed9",
       "gen_params": {
         "requested": {
           "qwen_tts_version": "0.1.1",
@@ -11827,15 +12261,15 @@
               "reserved_mib": 4134.0
             },
             "voice_clone_generate": {
-              "allocated_mib": 4213.013,
-              "reserved_mib": 4350.0
+              "allocated_mib": 4213.779,
+              "reserved_mib": 4494.0
             }
           },
           "seed": 0,
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 8.25105,
+      "rtf": 6.439846,
       "loudness": {
         "i_lufs": -18.0,
         "tp_dbtp": -3.71,
@@ -11849,7 +12283,7 @@
       "variant": "dry",
       "path": "audio/qwen3-tts-12hz-1.7b/village-morning/farmer-man-002-dry.opus",
       "duration_sec": 2.6465,
-      "sha256": "fd2c3f9759e8676b25397d0da2edecc32d0fe4c4ce5bd33f4d44a334f2d1aa9b",
+      "sha256": "feceafe48de7ad6c9f6b292f67aa03164a770395ec81a7bf85dae57b23aa9caa",
       "gen_params": {
         "requested": {
           "qwen_tts_version": "0.1.1",
@@ -11889,15 +12323,15 @@
               "reserved_mib": 4134.0
             },
             "voice_clone_generate": {
-              "allocated_mib": 4215.469,
-              "reserved_mib": 4350.0
+              "allocated_mib": 4215.433,
+              "reserved_mib": 4494.0
             }
           },
           "seed": 0,
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 7.449071,
+      "rtf": 6.407334,
       "loudness": {
         "i_lufs": -18.12,
         "tp_dbtp": -1.0,
@@ -11911,7 +12345,7 @@
       "variant": "dry",
       "path": "audio/qwen3-tts-12hz-1.7b/village-morning/granny-001-dry.opus",
       "duration_sec": 3.6065,
-      "sha256": "57c4b33d3f8f1c4713622696707578b8b84cbff4bad5e1b5755c01c0fa0744f0",
+      "sha256": "2f96e5b752640e7b1e8696774d9d53595b082dcb62b9b00460ba9b619222d3d7",
       "gen_params": {
         "requested": {
           "qwen_tts_version": "0.1.1",
@@ -11951,15 +12385,15 @@
               "reserved_mib": 4134.0
             },
             "voice_clone_generate": {
-              "allocated_mib": 4189.911,
-              "reserved_mib": 4284.0
+              "allocated_mib": 4190.697,
+              "reserved_mib": 4494.0
             }
           },
           "seed": 0,
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 9.065183,
+      "rtf": 6.228751,
       "loudness": {
         "i_lufs": -18.01,
         "tp_dbtp": -1.49,
@@ -11973,7 +12407,7 @@
       "variant": "dry",
       "path": "audio/qwen3-tts-12hz-1.7b/village-morning/granny-002-dry.opus",
       "duration_sec": 2.2465,
-      "sha256": "9dbdcaf9da8857ce3b4c88f9ec76bcf0f98e4c52467e641373fb88329f14d6f8",
+      "sha256": "ec1046ac55a9207d6fd757d14e300eaa1c9d2ebf6357915463e296ea32c12875",
       "gen_params": {
         "requested": {
           "qwen_tts_version": "0.1.1",
@@ -12013,15 +12447,15 @@
               "reserved_mib": 4134.0
             },
             "voice_clone_generate": {
-              "allocated_mib": 4161.818,
-              "reserved_mib": 4284.0
+              "allocated_mib": 4162.599,
+              "reserved_mib": 4494.0
             }
           },
           "seed": 0,
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 6.887865,
+      "rtf": 6.664062,
       "loudness": {
         "i_lufs": -18.0,
         "tp_dbtp": -1.55,
@@ -12035,7 +12469,7 @@
       "variant": "dry",
       "path": "audio/qwen3-tts-12hz-1.7b/village-morning/granny-003-dry.opus",
       "duration_sec": 2.9665,
-      "sha256": "b6aa7e552e89f9d7cc0452f2e9c57a990691c8ca6597fb53119fcf6a160be315",
+      "sha256": "efaae02f1efd83ce4452dbd2ab6905477aceb0c2c6ce8eeb4eec80f9a62a0ab9",
       "gen_params": {
         "requested": {
           "qwen_tts_version": "0.1.1",
@@ -12075,15 +12509,15 @@
               "reserved_mib": 4134.0
             },
             "voice_clone_generate": {
-              "allocated_mib": 4176.731,
-              "reserved_mib": 4284.0
+              "allocated_mib": 4178.052,
+              "reserved_mib": 4494.0
             }
           },
           "seed": 0,
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 6.177883,
+      "rtf": 6.389823,
       "loudness": {
         "i_lufs": -18.07,
         "tp_dbtp": -1.0,
@@ -12097,7 +12531,7 @@
       "variant": "dry",
       "path": "audio/qwen3-tts-12hz-1.7b/village-morning/granny-004-dry.opus",
       "duration_sec": 2.4865,
-      "sha256": "ffefa202c2171bd4925206632d0e49e0285057d9e5f261a7019467b960ea654a",
+      "sha256": "120b9ccad92b3c88397af45601126c52c32b89be526817e847b7efd6073ee188",
       "gen_params": {
         "requested": {
           "qwen_tts_version": "0.1.1",
@@ -12137,15 +12571,15 @@
               "reserved_mib": 4134.0
             },
             "voice_clone_generate": {
-              "allocated_mib": 4166.813,
-              "reserved_mib": 4284.0
+              "allocated_mib": 4167.556,
+              "reserved_mib": 4494.0
             }
           },
           "seed": 0,
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 6.319974,
+      "rtf": 7.423703,
       "loudness": {
         "i_lufs": -18.03,
         "tp_dbtp": -0.97,
@@ -12159,7 +12593,7 @@
       "variant": "dry",
       "path": "audio/qwen3-tts-12hz-1.7b/village-morning/teen-boy-001-dry.opus",
       "duration_sec": 2.2465,
-      "sha256": "8e801c7e2488df6f96cbe7acf3a33e1bf58a1dc4d9d65eb933847e14cae7d726",
+      "sha256": "738a7e039a8892e6156007220ba58665c02ec975bf740dc1188df330c862a0b4",
       "gen_params": {
         "requested": {
           "qwen_tts_version": "0.1.1",
@@ -12199,15 +12633,15 @@
               "reserved_mib": 4134.0
             },
             "voice_clone_generate": {
-              "allocated_mib": 4161.832,
-              "reserved_mib": 4284.0
+              "allocated_mib": 4162.613,
+              "reserved_mib": 4494.0
             }
           },
           "seed": 0,
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 6.625543,
+      "rtf": 7.14307,
       "loudness": {
         "i_lufs": -18.0,
         "tp_dbtp": -2.54,
@@ -12221,7 +12655,7 @@
       "variant": "dry",
       "path": "audio/qwen3-tts-12hz-1.7b/village-morning/teen-boy-002-dry.opus",
       "duration_sec": 2.5665,
-      "sha256": "1ddc7beb87b074a2f21246b6cc0890115997c96ef3a87f1aa6b2d2935123b697",
+      "sha256": "fd0c23395760c9379a11cfdaf69444c8361fe812b5d467023dca74b0dea73c77",
       "gen_params": {
         "requested": {
           "qwen_tts_version": "0.1.1",
@@ -12261,15 +12695,15 @@
               "reserved_mib": 4134.0
             },
             "voice_clone_generate": {
-              "allocated_mib": 4168.481,
-              "reserved_mib": 4284.0
+              "allocated_mib": 4169.224,
+              "reserved_mib": 4494.0
             }
           },
           "seed": 0,
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 6.829014,
+      "rtf": 6.11326,
       "loudness": {
         "i_lufs": -18.0,
         "tp_dbtp": -1.06,
@@ -12283,7 +12717,7 @@
       "variant": "dry",
       "path": "audio/qwen3-tts-12hz-1.7b/village-morning/teen-boy-003-dry.opus",
       "duration_sec": 2.3265,
-      "sha256": "213d325afbbc86b29c121cd5dcc85ae08906d4a2be612efb904e0c1b3043d170",
+      "sha256": "082fe1184e66f9567dd62ea0d736d8a65bf6b02c4c5bd9649788cf5b0b36ad06",
       "gen_params": {
         "requested": {
           "qwen_tts_version": "0.1.1",
@@ -12323,15 +12757,15 @@
               "reserved_mib": 4134.0
             },
             "voice_clone_generate": {
-              "allocated_mib": 4163.485,
-              "reserved_mib": 4284.0
+              "allocated_mib": 4164.266,
+              "reserved_mib": 4494.0
             }
           },
           "seed": 0,
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 8.334986,
+      "rtf": 6.480411,
       "loudness": {
         "i_lufs": -18.0,
         "tp_dbtp": -2.04,
@@ -12345,7 +12779,7 @@
       "variant": "dry",
       "path": "audio/qwen3-tts-12hz-1.7b/village-morning/teen-boy-004-dry.opus",
       "duration_sec": 1.6865,
-      "sha256": "935f6adda893cd6fa9bf6988993519413bd8740e2b95ebd067e237c2cdb3c5a4",
+      "sha256": "e726c312160c3a398d86e80ce0139b313b9215c575d00b358534c308778aa8a1",
       "gen_params": {
         "requested": {
           "qwen_tts_version": "0.1.1",
@@ -12385,15 +12819,15 @@
               "reserved_mib": 4134.0
             },
             "voice_clone_generate": {
-              "allocated_mib": 4150.262,
-              "reserved_mib": 4284.0
+              "allocated_mib": 4151.44,
+              "reserved_mib": 4494.0
             }
           },
           "seed": 0,
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 8.488394,
+      "rtf": 6.350902,
       "loudness": {
         "i_lufs": -18.05,
         "tp_dbtp": -0.94,
@@ -12407,7 +12841,7 @@
       "variant": "dry",
       "path": "audio/qwen3-tts-12hz-1.7b/west-crowd/isogi-shinshi-001-dry.opus",
       "duration_sec": 2.6465,
-      "sha256": "79676d41694137e0a025a7f37a15d95276e754eacb32e8fec2087e880d3a9394",
+      "sha256": "c2621f9a34d224716a65085c61c48b546596741f52e34ce2dde9cfbbcf8bd630",
       "gen_params": {
         "requested": {
           "qwen_tts_version": "0.1.1",
@@ -12447,15 +12881,15 @@
               "reserved_mib": 4134.0
             },
             "voice_clone_generate": {
-              "allocated_mib": 4234.01,
-              "reserved_mib": 4412.0
+              "allocated_mib": 4233.592,
+              "reserved_mib": 4494.0
             }
           },
           "seed": 0,
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 11.615915,
+      "rtf": 6.571723,
       "loudness": {
         "i_lufs": -18.01,
         "tp_dbtp": -5.53,
@@ -12469,7 +12903,7 @@
       "variant": "dry",
       "path": "audio/qwen3-tts-12hz-1.7b/west-crowd/isogi-shinshi-002-dry.opus",
       "duration_sec": 1.3665,
-      "sha256": "626f5119fc83676dd93339cd908115b0529567bf6ae022998350fb87b9d908be",
+      "sha256": "e455a7c9440646fea2f8a9fd0e6402e2caaf5117229514f50b123f9c23dc407e",
       "gen_params": {
         "requested": {
           "qwen_tts_version": "0.1.1",
@@ -12509,15 +12943,15 @@
               "reserved_mib": 4134.0
             },
             "voice_clone_generate": {
-              "allocated_mib": 4206.295,
-              "reserved_mib": 4412.0
+              "allocated_mib": 4207.397,
+              "reserved_mib": 4494.0
             }
           },
           "seed": 0,
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 7.665265,
+      "rtf": 6.358073,
       "loudness": {
         "i_lufs": -18.02,
         "tp_dbtp": -1.04,
@@ -12531,7 +12965,7 @@
       "variant": "dry",
       "path": "audio/qwen3-tts-12hz-1.7b/west-crowd/isogi-shinshi-003-dry.opus",
       "duration_sec": 4.0065,
-      "sha256": "8aab6fe02370ef92d383a36792e00c521516ca9562b499b80a91e270399260cb",
+      "sha256": "8787b243784c4adef3739e05b828f251de909bcb3b4efffef29ff46048e11c05",
       "gen_params": {
         "requested": {
           "qwen_tts_version": "0.1.1",
@@ -12571,15 +13005,15 @@
               "reserved_mib": 4134.0
             },
             "voice_clone_generate": {
-              "allocated_mib": 4261.488,
-              "reserved_mib": 4536.0
+              "allocated_mib": 4262.99,
+              "reserved_mib": 4494.0
             }
           },
           "seed": 0,
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 7.649572,
+      "rtf": 6.385456,
       "loudness": {
         "i_lufs": -18.0,
         "tp_dbtp": -4.61,
@@ -12593,7 +13027,7 @@
       "variant": "dry",
       "path": "audio/qwen3-tts-12hz-1.7b/west-crowd/machibouke-seinen-001-dry.opus",
       "duration_sec": 3.9265,
-      "sha256": "0649b993c9512ab0ca3273bdc2ce988c5be975d3f3d8e6d9b8d4fde61caf0498",
+      "sha256": "86cd23f63b4dbcf2f301f48dd28e093d9ac40bb30d88d420bdc8ed4aa0f37abe",
       "gen_params": {
         "requested": {
           "qwen_tts_version": "0.1.1",
@@ -12633,15 +13067,15 @@
               "reserved_mib": 4134.0
             },
             "voice_clone_generate": {
-              "allocated_mib": 4240.265,
-              "reserved_mib": 4536.0
+              "allocated_mib": 4241.117,
+              "reserved_mib": 4494.0
             }
           },
           "seed": 0,
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 7.113735,
+      "rtf": 6.361046,
       "loudness": {
         "i_lufs": -17.99,
         "tp_dbtp": -6.02,
@@ -12655,7 +13089,7 @@
       "variant": "dry",
       "path": "audio/qwen3-tts-12hz-1.7b/west-crowd/machibouke-seinen-002-dry.opus",
       "duration_sec": 4.1665,
-      "sha256": "0adf3c2d64d5dbbb454fb2e002cff1fac77cce86d29e9422e7d8ea33d176542d",
+      "sha256": "bc8fda72e4739fa3a0d4516fef05bf3323b5601943fa7a9334f6690facaf4c9b",
       "gen_params": {
         "requested": {
           "qwen_tts_version": "0.1.1",
@@ -12695,15 +13129,15 @@
               "reserved_mib": 4134.0
             },
             "voice_clone_generate": {
-              "allocated_mib": 4244.52,
-              "reserved_mib": 4536.0
+              "allocated_mib": 4245.536,
+              "reserved_mib": 4494.0
             }
           },
           "seed": 0,
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 7.334451,
+      "rtf": 5.867977,
       "loudness": {
         "i_lufs": -18.01,
         "tp_dbtp": -3.2,
@@ -12717,7 +13151,7 @@
       "variant": "dry",
       "path": "audio/qwen3-tts-12hz-1.7b/west-crowd/oshaberi-fujin-001-dry.opus",
       "duration_sec": 3.2065,
-      "sha256": "1afc1a5f6411b2ee29a436c26e45d44019045b70054f9cfcc963c058604407a2",
+      "sha256": "ef56f03ea8f23986321849932f8a61ae0ebae997f657da77d3afc45f3d1840fa",
       "gen_params": {
         "requested": {
           "qwen_tts_version": "0.1.1",
@@ -12757,15 +13191,15 @@
               "reserved_mib": 4134.0
             },
             "voice_clone_generate": {
-              "allocated_mib": 4202.068,
-              "reserved_mib": 4536.0
+              "allocated_mib": 4202.311,
+              "reserved_mib": 4494.0
             }
           },
           "seed": 0,
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 6.958838,
+      "rtf": 6.53987,
       "loudness": {
         "i_lufs": -18.0,
         "tp_dbtp": -1.61,
@@ -12779,7 +13213,7 @@
       "variant": "dry",
       "path": "audio/qwen3-tts-12hz-1.7b/west-crowd/oshaberi-fujin-002-dry.opus",
       "duration_sec": 2.8865,
-      "sha256": "7260c313383586ebef95fe266d5a29de1816eb78fbb59ac69dbe30e3ff50b4ea",
+      "sha256": "947958374e60d1731964c72be4cab0bd8c2f8e26d788ae2168ff313279a050d2",
       "gen_params": {
         "requested": {
           "qwen_tts_version": "0.1.1",
@@ -12819,15 +13253,15 @@
               "reserved_mib": 4134.0
             },
             "voice_clone_generate": {
-              "allocated_mib": 4194.848,
-              "reserved_mib": 4536.0
+              "allocated_mib": 4195.7,
+              "reserved_mib": 4494.0
             }
           },
           "seed": 0,
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 7.156454,
+      "rtf": 6.171427,
       "loudness": {
         "i_lufs": -18.01,
         "tp_dbtp": -2.26,
@@ -12841,7 +13275,7 @@
       "variant": "dry",
       "path": "audio/qwen3-tts-12hz-1.7b/west-crowd/oshaberi-fujin-003-dry.opus",
       "duration_sec": 3.4465,
-      "sha256": "5bf0aae604c3fa39b87a0cfa5717d0ba31ec6b0bc057b5afd564835fcfb470c0",
+      "sha256": "f3048664a9884d12a38277540e00ff4b819f22395a58f57fd07dd1d1c9785451",
       "gen_params": {
         "requested": {
           "qwen_tts_version": "0.1.1",
@@ -12881,15 +13315,15 @@
               "reserved_mib": 4134.0
             },
             "voice_clone_generate": {
-              "allocated_mib": 4206.417,
-              "reserved_mib": 4536.0
+              "allocated_mib": 4207.519,
+              "reserved_mib": 4494.0
             }
           },
           "seed": 0,
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 6.558464,
+      "rtf": 6.281754,
       "loudness": {
         "i_lufs": -18.01,
         "tp_dbtp": -2.53,
@@ -12903,7 +13337,7 @@
       "variant": "dry",
       "path": "audio/qwen3-tts-12hz-1.7b/west-crowd/shinbun-shounen-001-dry.opus",
       "duration_sec": 2.8065,
-      "sha256": "a445787bb306a2a81770326097081027171a3ae26a5f11418458e2ac1db72bea",
+      "sha256": "b40cb16d8a4f70106bd15a3cf5927a7e80aba7b045fa0d9186ff62a666b198a1",
       "gen_params": {
         "requested": {
           "qwen_tts_version": "0.1.1",
@@ -12943,15 +13377,15 @@
               "reserved_mib": 4134.0
             },
             "voice_clone_generate": {
-              "allocated_mib": 4178.823,
-              "reserved_mib": 4536.0
+              "allocated_mib": 4180.417,
+              "reserved_mib": 4494.0
             }
           },
           "seed": 0,
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 6.838238,
+      "rtf": 7.228193,
       "loudness": {
         "i_lufs": -18.01,
         "tp_dbtp": -3.44,
@@ -12965,7 +13399,7 @@
       "variant": "dry",
       "path": "audio/qwen3-tts-12hz-1.7b/west-crowd/shinbun-shounen-002-dry.opus",
       "duration_sec": 2.4065,
-      "sha256": "5677d6b46e83231a802a05ee2faf785a6b962e14f2e7251f252975fae3addbd1",
+      "sha256": "1f41dd7bbbe660c2bf0b81c8a31802f8474e08f55ec42d3e83528c62c440a1e7",
       "gen_params": {
         "requested": {
           "qwen_tts_version": "0.1.1",
@@ -13005,15 +13439,15 @@
               "reserved_mib": 4134.0
             },
             "voice_clone_generate": {
-              "allocated_mib": 4170.106,
-              "reserved_mib": 4536.0
+              "allocated_mib": 4170.958,
+              "reserved_mib": 4494.0
             }
           },
           "seed": 0,
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 7.898263,
+      "rtf": 6.213762,
       "loudness": {
         "i_lufs": -17.97,
         "tp_dbtp": -3.26,
@@ -13027,7 +13461,7 @@
       "variant": "dry",
       "path": "audio/qwen3-tts-12hz-1.7b/west-market/cheese-shujin-001-dry.opus",
       "duration_sec": 2.9665,
-      "sha256": "4cbda8f895d107f7915d0e3b3d57f3efb6b70619ae80afa0d76b75e5ed8d8255",
+      "sha256": "43823bd643f44c6b6365777a766fa99c89094a2f1777e01162646a5536974cc2",
       "gen_params": {
         "requested": {
           "qwen_tts_version": "0.1.1",
@@ -13067,15 +13501,15 @@
               "reserved_mib": 4134.0
             },
             "voice_clone_generate": {
-              "allocated_mib": 4193.203,
-              "reserved_mib": 4610.0
+              "allocated_mib": 4194.131,
+              "reserved_mib": 4674.0
             }
           },
           "seed": 0,
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 8.051003,
+      "rtf": 6.21201,
       "loudness": {
         "i_lufs": -17.98,
         "tp_dbtp": -4.68,
@@ -13089,7 +13523,7 @@
       "variant": "dry",
       "path": "audio/qwen3-tts-12hz-1.7b/west-market/cheese-shujin-002-dry.opus",
       "duration_sec": 2.646542,
-      "sha256": "0b4ef11dd40905f00126839e828d52e3b70b773f26f24c5b980bdddfed30e47e",
+      "sha256": "6973fa8c00f444c302ea159f61bcd3433760ca330075a0661b1eb13f4905e5fd",
       "gen_params": {
         "requested": {
           "qwen_tts_version": "0.1.1",
@@ -13129,15 +13563,15 @@
               "reserved_mib": 4134.0
             },
             "voice_clone_generate": {
-              "allocated_mib": 4186.592,
-              "reserved_mib": 4610.0
+              "allocated_mib": 4187.52,
+              "reserved_mib": 4674.0
             }
           },
           "seed": 0,
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 6.945551,
+      "rtf": 6.501251,
       "loudness": {
         "i_lufs": -17.99,
         "tp_dbtp": -6.9,
@@ -13151,7 +13585,7 @@
       "variant": "dry",
       "path": "audio/qwen3-tts-12hz-1.7b/west-market/cheese-shujin-003-dry.opus",
       "duration_sec": 3.2865,
-      "sha256": "8b80a85192f5548407b06b6cd0fc4806d39be42788f04ef25ecf176ec8c96327",
+      "sha256": "f42d2f3063b3ddf0ae2a7ee64bcb5f295588be8ce2949b24e5bce78d2a4b9e47",
       "gen_params": {
         "requested": {
           "qwen_tts_version": "0.1.1",
@@ -13191,15 +13625,15 @@
               "reserved_mib": 4134.0
             },
             "voice_clone_generate": {
-              "allocated_mib": 4199.814,
-              "reserved_mib": 4610.0
+              "allocated_mib": 4200.742,
+              "reserved_mib": 4674.0
             }
           },
           "seed": 0,
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 6.677096,
+      "rtf": 5.913363,
       "loudness": {
         "i_lufs": -18.01,
         "tp_dbtp": -4.75,
@@ -13213,7 +13647,7 @@
       "variant": "dry",
       "path": "audio/qwen3-tts-12hz-1.7b/west-market/hana-uri-001-dry.opus",
       "duration_sec": 3.6065,
-      "sha256": "7a630867a0710233c11bd3b6ac85619c14d51b5dc65eaaabe5a669edda1c7765",
+      "sha256": "1660c2d23e46b0c5fbf5bb064925c4f17254a59d54168f498eba35b4f793c4a3",
       "gen_params": {
         "requested": {
           "qwen_tts_version": "0.1.1",
@@ -13253,15 +13687,15 @@
               "reserved_mib": 4134.0
             },
             "voice_clone_generate": {
-              "allocated_mib": 4264.118,
-              "reserved_mib": 4468.0
+              "allocated_mib": 4265.045,
+              "reserved_mib": 4620.0
             }
           },
           "seed": 0,
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 16.089832,
+      "rtf": 5.972738,
       "loudness": {
         "i_lufs": -17.99,
         "tp_dbtp": -1.81,
@@ -13275,7 +13709,7 @@
       "variant": "dry",
       "path": "audio/qwen3-tts-12hz-1.7b/west-market/hana-uri-002-dry.opus",
       "duration_sec": 4.6465,
-      "sha256": "8b38d24a9c02d7af2d800381b05eb497b12329c8a66589253580590ed3097eec",
+      "sha256": "c0547561cd030dd5a2ae62aef8417c9000dd7754d99d77d3d323349037a94d60",
       "gen_params": {
         "requested": {
           "qwen_tts_version": "0.1.1",
@@ -13315,15 +13749,15 @@
               "reserved_mib": 4134.0
             },
             "voice_clone_generate": {
-              "allocated_mib": 4285.604,
-              "reserved_mib": 4610.0
+              "allocated_mib": 4286.782,
+              "reserved_mib": 4674.0
             }
           },
           "seed": 0,
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 7.804321,
+      "rtf": 6.948783,
       "loudness": {
         "i_lufs": -18.0,
         "tp_dbtp": -3.1,
@@ -13337,7 +13771,7 @@
       "variant": "dry",
       "path": "audio/qwen3-tts-12hz-1.7b/west-market/hana-uri-003-dry.opus",
       "duration_sec": 3.2865,
-      "sha256": "2b3a10f18266635322f76aff6e68116a416dec59d27dacef8f9f6cae17c4c3d8",
+      "sha256": "b3de35d758e8a059a6a1a74ae7ad5a5b8d911d0c66ec20a7e21b013ff3184992",
       "gen_params": {
         "requested": {
           "qwen_tts_version": "0.1.1",
@@ -13377,15 +13811,15 @@
               "reserved_mib": 4134.0
             },
             "voice_clone_generate": {
-              "allocated_mib": 4257.506,
-              "reserved_mib": 4610.0
+              "allocated_mib": 4258.434,
+              "reserved_mib": 4674.0
             }
           },
           "seed": 0,
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 6.880359,
+      "rtf": 6.34761,
       "loudness": {
         "i_lufs": -18.0,
         "tp_dbtp": -3.69,
@@ -13399,7 +13833,7 @@
       "variant": "dry",
       "path": "audio/qwen3-tts-12hz-1.7b/west-market/kankou-fujin-001-dry.opus",
       "duration_sec": 2.4065,
-      "sha256": "5ab66b0b97f9bad17c11c5ad1d7fbf9c002a3693cc520ad7249bdefd5c1ea606",
+      "sha256": "90464dd137f858aeff99d1bbec9fe71b9e2c1f13fcdf4a762a597aa4b8505dcf",
       "gen_params": {
         "requested": {
           "qwen_tts_version": "0.1.1",
@@ -13439,15 +13873,15 @@
               "reserved_mib": 4134.0
             },
             "voice_clone_generate": {
-              "allocated_mib": 4182.207,
-              "reserved_mib": 4610.0
+              "allocated_mib": 4182.626,
+              "reserved_mib": 4674.0
             }
           },
           "seed": 0,
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 6.651245,
+      "rtf": 7.163507,
       "loudness": {
         "i_lufs": -18.15,
         "tp_dbtp": -0.94,
@@ -13461,7 +13895,7 @@
       "variant": "dry",
       "path": "audio/qwen3-tts-12hz-1.7b/west-market/kankou-fujin-002-dry.opus",
       "duration_sec": 2.646542,
-      "sha256": "2b251ac1d441fdaad146f15536749bf27fa17fa3aedeb86747156715895c7374",
+      "sha256": "2f6f0c2c5660bc78d0127d5f4c73a71023a1ae9d26f6b7c6f82e47cfff7e904b",
       "gen_params": {
         "requested": {
           "qwen_tts_version": "0.1.1",
@@ -13501,15 +13935,15 @@
               "reserved_mib": 4134.0
             },
             "voice_clone_generate": {
-              "allocated_mib": 4186.625,
-              "reserved_mib": 4610.0
+              "allocated_mib": 4187.553,
+              "reserved_mib": 4674.0
             }
           },
           "seed": 0,
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 7.672594,
+      "rtf": 6.848843,
       "loudness": {
         "i_lufs": -18.02,
         "tp_dbtp": -0.97,
@@ -13523,7 +13957,7 @@
       "variant": "dry",
       "path": "audio/qwen3-tts-12hz-1.7b/west-market/kankou-fujin-003-dry.opus",
       "duration_sec": 3.6065,
-      "sha256": "05ea959e1d9ea0c79ef53eac23b3cd06830ce660544a2b02360a2a572b541522",
+      "sha256": "2fa845d66a1c09b36a1e03620f744967731402df8f6d41a1591aff326b8fe183",
       "gen_params": {
         "requested": {
           "qwen_tts_version": "0.1.1",
@@ -13563,15 +13997,15 @@
               "reserved_mib": 4134.0
             },
             "voice_clone_generate": {
-              "allocated_mib": 4206.459,
-              "reserved_mib": 4610.0
+              "allocated_mib": 4207.637,
+              "reserved_mib": 4674.0
             }
           },
           "seed": 0,
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 6.278088,
+      "rtf": 6.663472,
       "loudness": {
         "i_lufs": -18.01,
         "tp_dbtp": -1.89,
@@ -13585,7 +14019,7 @@
       "variant": "dry",
       "path": "audio/qwen3-tts-12hz-1.7b/west-market/kyuuji-001-dry.opus",
       "duration_sec": 2.0065,
-      "sha256": "300743195ade180024bfd645c81cb0787ab8b3d01565ad50d9edef2360626280",
+      "sha256": "b77a4cf6d7deb618868ed134bc8668b53650b649994dfcefbddc67cd33222e44",
       "gen_params": {
         "requested": {
           "qwen_tts_version": "0.1.1",
@@ -13625,15 +14059,15 @@
               "reserved_mib": 4134.0
             },
             "voice_clone_generate": {
-              "allocated_mib": 4173.425,
-              "reserved_mib": 4610.0
+              "allocated_mib": 4174.313,
+              "reserved_mib": 4674.0
             }
           },
           "seed": 0,
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 6.936385,
+      "rtf": 6.457294,
       "loudness": {
         "i_lufs": -18.13,
         "tp_dbtp": -1.0,
@@ -13647,7 +14081,7 @@
       "variant": "dry",
       "path": "audio/qwen3-tts-12hz-1.7b/west-market/kyuuji-002-dry.opus",
       "duration_sec": 2.0065,
-      "sha256": "5512999d8357b0bc6bc0adf6976410b8401b2d7891705d676a434a70df1aee44",
+      "sha256": "420d18f3d44fd70c79d9a336e8b9c88e0cc8bef5a303e4bebdf6ca3ba1cbc283",
       "gen_params": {
         "requested": {
           "qwen_tts_version": "0.1.1",
@@ -13687,15 +14121,15 @@
               "reserved_mib": 4134.0
             },
             "voice_clone_generate": {
-              "allocated_mib": 4173.425,
-              "reserved_mib": 4610.0
+              "allocated_mib": 4174.313,
+              "reserved_mib": 4674.0
             }
           },
           "seed": 0,
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 6.361313,
+      "rtf": 6.093733,
       "loudness": {
         "i_lufs": -18.03,
         "tp_dbtp": -0.93,
@@ -13704,13 +14138,6 @@
     }
   ],
   "failures": [
-    {
-      "model": "qwen3-tts-12hz-1.7b",
-      "scenario": "castle-gate",
-      "line": "guard-onna-003",
-      "variant": "dry",
-      "reason": "generation_failed"
-    },
     {
       "model": "qwen3-tts-12hz-1.7b",
       "scenario": "spirit-forest",
