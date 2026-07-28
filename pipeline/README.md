@@ -234,3 +234,83 @@ uv run --project pipeline --locked gaya gen --model aivisspeech-kohaku --scenari
 2026-07-28 に Windows 11 / AivisSpeech Engine 1.2.0 / コハク 1.1.0 を `--no-use_gpu` で起動し、process command line と Engine log の `Using CPU for inference.` を照合して上記2シナリオ（12行）を実測した。失敗0件、RTF 0.426〜0.786（平均0.502）、Engine process の GPU 使用なし（peak VRAM 0 MiB）だった。Engine process の peak working set は 2,459 MiB で、検証時は初回導入された「まお」も同時ロードしているため保守側の値である。12出力はすべて native 44.1kHz PCM16 mono で、共通後処理後の48kHz Opusは -18.02〜-17.92 LUFS、shortfall 0件だった。
 
 Engine は LGPL-3.0、公式コハク 1.1.0 は [ACML-1.0](https://github.com/Aivis-Project/ACML/blob/master/ACML-1.0.md)。営利利用とクレジットなしの利用は許諾されるが、なりすまし、攻撃・中傷、虚偽情報、特定の政治・宗教などへの賛否を呼びかける活動を含むライセンスの禁止用途には利用しない。クレジットは任意で、モデルページの推奨表記は `AivisSpeech: コハク` である。
+
+## GPT-SoVITS v2ProPlus
+
+`gpt-sovits-v2-pro-plus` は、権利確認済みの参照 WAV から5秒を切り出し、prompt text を使わないゼロショット clone で日本語を生成する。HTTP API は generator の最初の結果だけを返し得るため使わず、固定した上流の `TTS` を同一プロセス内で最後まで消費する。
+
+検証経路は Windows 11 / Python 3.12 / NVIDIA CUDA:0 / FP16 / PyTorch 2.7.0 cu128 のみ。GPT-SoVITS 専用 extra は Qwen / Irodori の PyTorch と相互排他的である。
+
+```console
+uv sync --project pipeline --locked --extra gpt-sovits
+```
+
+上流 code と推論に必要な weight を固定 revision で取得する。`hf` は Hugging Face 公式 CLI を使う。
+
+```powershell
+git clone https://github.com/RVC-Boss/GPT-SoVITS.git models/gpt-sovits/upstream
+git -C models/gpt-sovits/upstream checkout --detach d523079fc05d9a8028d6085bffe4a2757c32abb6
+
+hf download lj1995/GPT-SoVITS `
+  s1v3.ckpt `
+  v2Pro/s2Gv2ProPlus.pth `
+  sv/pretrained_eres2netv2w24s4ep4.ckpt `
+  chinese-hubert-base/config.json `
+  chinese-hubert-base/preprocessor_config.json `
+  chinese-hubert-base/pytorch_model.bin `
+  chinese-roberta-wwm-ext-large/config.json `
+  chinese-roberta-wwm-ext-large/pytorch_model.bin `
+  chinese-roberta-wwm-ext-large/tokenizer.json `
+  --revision 336b2ec4e8d4ac74740798dd40af44e74659ecaf `
+  --local-dir models/gpt-sovits/upstream/GPT_SoVITS/pretrained_models
+
+$fastTextDir = "models/gpt-sovits/upstream/GPT_SoVITS/pretrained_models/fast_langdetect"
+New-Item -ItemType Directory -Force -Path $fastTextDir | Out-Null
+Invoke-WebRequest `
+  -Uri "https://dl.fbaipublicfiles.com/fasttext/supervised-models/lid.176.bin" `
+  -OutFile "$fastTextDir/lid.176.bin"
+```
+
+adapter は code commit、tracked file の clean 状態、上記10ファイルの SHA-256、Python distribution、cu128 wheel、CUDA:0、model identity を生成前に照合する。通常の未追跡ファイルは日語辞書から生成される `user.dict` / `userdict.md5` だけを許可し、CSV の MD5 と固定 binary の SHA-256 も照合する。ignored file は上記10ファイルと `hf download` の固定 metadata path だけを許可し、import を横取りできる `.pyc` や追加の model candidate などは拒否する。実行中の bytecode 生成も無効化する。fastText model の SHA-256 は `7e69ec5451bc261cc7844e49e4792a85d7f09c06789ec800fc4a44aec362764e`。欠落時にネットワーク取得や別 weight へ切り替えない。
+
+参照音声キットを検証し、上流 root を明示する。
+
+```powershell
+uv run --project pipeline --locked --extra gpt-sovits gaya voices validate-local
+$env:GAYA_GPT_SOVITS_ROOT = (Resolve-Path "models/gpt-sovits/upstream")
+```
+
+`character.reference_voice` がある場合はその ID を優先する。2つの受け入れシナリオで `null` の character は次の固定割当を使い、表にない `null` は生成前に失敗する。
+
+| scenario | character | reference voice |
+| --- | --- | --- |
+| `tavern-night` | `drunkard` | `hadou-emotion-11` |
+| `tavern-night` | `old-regular` | `hadou-emotion-11` |
+| `market-day` | `fruit-vendor` | `hadou-emotion-11` |
+| `market-day` | `shopper` | `lux-emotion-76` |
+| `market-day` | `street-kid` | `tsukuyomi-corpus-94` |
+
+現行 kit には elderly male、middle-aged female、child に一致する素材がない。上表は属性推定による fallback ではなく受け入れベンチ用の固定割当であり、男性3役は同じ成人男性声を共有する。
+
+各 source WAV の先頭から48kHz mono PCM16で正確に5秒を切り出し、source / clip の SHA-256 と frame 範囲を sidecar に記録する。prompt text と文字起こしの不一致を避けるため prompt-free mode とし、上流が未対応の semantic batch inference は明示的に無効化する。`line.reading` が non-empty string ならそれを優先し、それ以外は `line.text` を使う。
+
+構造化された感情別 alternate take が参照音声キットにないため、emotion は参照素材の演技に依存し、capability は `false` と宣言する。voice prompt と nonverbal も非対応、clone と reading は対応する。
+
+まず1行で固定 weight、CUDA、FP16、参照音声、12GB VRAM の gate を確認する。
+
+```console
+uv run --project pipeline --locked --extra gpt-sovits gaya gen --model gpt-sovits-v2-pro-plus --scenario tavern-night --line barmaid-001
+```
+
+gate 通過後、受け入れ確認用の2シナリオを生成する。
+
+```console
+uv run --project pipeline --locked --extra gpt-sovits gaya gen --model gpt-sovits-v2-pro-plus --scenario tavern-night
+uv run --project pipeline --locked --extra gpt-sovits gaya gen --model gpt-sovits-v2-pro-plus --scenario market-day
+```
+
+2026-07-28 に RTX 4070 Ti 12GB で上記2シナリオ（12行）を実測し、失敗0件、最大 1,745.761 MiB allocated / 1,796 MiB reserved、RTF 0.593〜2.191（平均0.992）だった。12出力はすべて native 32kHz PCM16 mono、共通後処理後は48kHz mono、-18.19〜-17.99 LUFS、shortfall 0件である。
+
+[GPT-SoVITS code](https://github.com/RVC-Boss/GPT-SoVITS) と [lj1995/GPT-SoVITS 公式 weight](https://huggingface.co/lj1995/GPT-SoVITS) は MIT。言語識別用 [fastText `lid.176.bin`](https://fasttext.cc/docs/en/language-identification.html) は CC BY-SA 3.0 で、Meta AI Research の model として帰属する。透かしはない。生成時は `assets/voices/metadata.yaml` の素材別ライセンス、クレジット、再配布条件にも従い、無断の声真似や誤認を招く利用を禁止する。
+
+Windows native 以外、依存や固定 file の欠落・hash 不一致、tracked upstream の変更、許可外の untracked file、CUDA unavailable、cu128 wheel 不一致、model identity の変化、不正・無音・複数結果、OOM は明示的に失敗する。CPU、別 CUDA wheel、別 weight、HTTP API、クラウドへ自動切替しない。
