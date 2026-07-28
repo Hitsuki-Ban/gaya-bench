@@ -27,7 +27,7 @@ afterEach(() => {
 
 describe("virtual:gaya-data integration", () => {
   it("実データから安定した index と selector を公開する", () => {
-    expect(benchmarkData.manifest.clips).toHaveLength(12);
+    expect(benchmarkData.manifest.clips).toHaveLength(125);
     expect(benchmarkData.manifest.format_version).toBe(2);
     expect(benchmarkData.manifest.failures).toEqual([]);
     expect(scenarioById.has("market-day")).toBe(true);
