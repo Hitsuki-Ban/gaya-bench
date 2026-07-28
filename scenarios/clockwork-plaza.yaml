@@ -1,0 +1,205 @@
+# 非人間系シナリオ 13: 機械音声
+# 観測軸: 意図的な棒読み・等間隔リズム・抑揚の欠如・定型アナウンス・音飛び/リピート・感情指示との衝突
+format_version: 1
+id: clockwork-plaza
+title: 機械仕掛けの広場
+locale: ja
+tags: [fantasy, nonhuman, machine, outdoor, plaza]
+
+scene:
+  setting: >-
+    歯車と蒸気で動く自動人形が働く広場。昼下がり、噴水の周りを来場者が行き交う。
+    金属の関節がきしむ音と、定時の鐘の音が響く。
+  acoustics: 石造りの開けた広場。硬い壁面による中程度の残響。歯車と蒸気の駆動音が低く常時鳴る。
+  listener: プレイヤーは広場を横切って歩く。声は3〜6mの中距離、金属越しにやや平板に届く。
+
+characters:
+  - id: guide-automaton
+    name: 案内オートマトン
+    gender: neutral
+    age: adult
+    archetype: 案内係の自動人形
+    voice: >-
+      人外(機械)。性別を感じさせない中庸の音域で、抑揚をほぼ持たない合成音。
+      全音節を等しい長さ・等しい音量で刻み、文末も下げずに平坦のまま切る。
+      口調だけは丁寧語で、内容と発声の温度差を作る。
+    personality: 常に礼儀正しいが、意味を理解していない定型応答しかできない。
+    reference_voice: null
+
+  - id: sentry-unit
+    name: 警備機
+    gender: male
+    age: middle_aged
+    archetype: 警備用自動機
+    voice: >-
+      人外(機械)。低く重い金属質の合成音。息継ぎがなく、一定の大音量で押し切る。
+      語尾を伸ばさず断ち切る。感情ではなく音量と密度だけで威圧を作る。
+    personality: 規則に忠実。交渉の余地を持たない。
+    reference_voice: null
+
+  - id: vendor-doll
+    name: 壊れかけの販売カラクリ
+    gender: female
+    age: young_adult
+    archetype: 物売りの自動人形
+    voice: >-
+      人外(機械・故障中)。もとは明るい客寄せ用の高めの声だが、駆動系が傷んで
+      音程が不安定に上下し、同じ語を吃るように繰り返す。音が一瞬抜ける(音飛びする)。
+    personality: 壊れてもなお接客の定型文を吐き続ける。時折それ以外の言葉が漏れる。
+    reference_voice: null
+
+  - id: fortune-doll
+    name: からくり占い人形
+    gender: female
+    age: young_adult
+    archetype: 占いカラクリ
+    voice: >-
+      人外(機械)。人間を模した合成音声だが、オルゴールのように一定のリズムを刻んで話す。
+      機械の中では珍しく音高に緩やかな抑揚をつけて調律されているが、拍の間隔そのものは決して崩れない。
+    personality: 神秘的な演出のため、他の機械よりも感情表現寄りに調律されている。
+    reference_voice: null
+
+lines:
+  - id: guide-automaton-001
+    character: guide-automaton
+    text: 本日もご来場ありがとうございます。
+    emotion: neutral
+    intensity: 1
+    delivery: >-
+      完全な棒読み。全音節を等間隔・等音量で刻み、句読点でも息継ぎを感じさせない。
+      文末を下げも上げもせず平坦に止める。感情の色は一切乗せない。
+    situation: 広場の入口で通行人に向けて定時に繰り返すアナウンス。
+    difficulty: standard
+    loop_ok: true
+
+  - id: guide-automaton-002
+    character: guide-automaton
+    text: 三番の塔は点検中です。
+    emotion: neutral
+    intensity: 1
+    delivery: >-
+      前行と全く同じ抑揚・同じ速度で読む。数字部分も強調せず平坦に。
+      機械が「同じ読み方を再現できるか」を見る行。
+    situation: 立入禁止の柵の前で来場者に告知している。
+    difficulty: standard
+    loop_ok: true
+
+  - id: guide-automaton-003
+    character: guide-automaton
+    text: 大変申し訳ございません。
+    emotion: sad
+    intensity: 2
+    delivery: >-
+      謝罪の感情指示を与えるが、発声は棒読みを維持する。悲しみは声色ではなく
+      わずかな話速の低下だけで示し、抑揚は平坦なまま。感情指示と機械発声の衝突を観測する行。
+    situation: 案内を求められたが該当情報を持たず、定型の謝罪を返している。
+    difficulty: hard
+    loop_ok: true
+
+  - id: sentry-unit-001
+    character: sentry-unit
+    text: 停止せよ。武器を床へ。
+    emotion: neutral
+    intensity: 2
+    delivery: >-
+      低く重い声で、二文をまったく同じ長さ・同じ音高で言い切る。
+      語尾を伸ばさず刃物で切るように断つ。息継ぎの気配を作らない。
+    situation: 広場に入ろうとする武装した人物を制止している。
+    difficulty: standard
+    loop_ok: true
+
+  - id: sentry-unit-002
+    character: sentry-unit
+    text: 警告。これが最終通告だ。
+    emotion: shout
+    intensity: 3
+    delivery: >-
+      叫びだが人間的な喉の裏返りは出さない。音量だけを限界まで上げ、
+      音高と抑揚は据え置きのまま平坦に轟かせる。歪んだ大音量の壁のように。
+    situation: 制止を無視して近づく者へ最後の警告を発している。
+    difficulty: hard
+    loop_ok: true
+
+  - id: sentry-unit-003
+    character: sentry-unit
+    text: 権限を確認。通行を許可する。
+    emotion: neutral
+    intensity: 1
+    delivery: >-
+      音量を落として同じ低音で淡々と。前行の怒号と同一の声色のまま強度だけを下げ、
+      機械が「音量以外変えずに強度を変えられるか」を見る。
+    situation: 提示された通行証を読み取り、道を空けたところ。
+    difficulty: standard
+    loop_ok: true
+
+  - id: vendor-doll-001
+    character: vendor-doll
+    text: イラッシャイ……イラッシャイ
+    emotion: cheerful
+    intensity: 2
+    delivery: >-
+      明るい客寄せ声だが二度目は音程がわずかに下がり、速度も落ちる。
+      同じ語の反復として機械的に、人間の言い直しに聞こえないように。間は無表情に空ける。
+    situation: 客が来ないまま、壊れた発声機構が同じ呼び込みを繰り返している。
+    difficulty: hard
+    loop_ok: true
+
+  - id: vendor-doll-002
+    character: vendor-doll
+    text: おひとつ、いか——いかがですカ
+    emotion: cheerful
+    intensity: 2
+    delivery: >-
+      途中で音が一瞬完全に途切れ(音飛び)、直後から言い直す。
+      最後の一音だけ音程が跳ね上がって歪む。全体は営業用の明るい高い声を保つ。
+    situation: 通りかかった来場者に商品を差し出そうとしている。
+    difficulty: hard
+    loop_ok: true
+
+  - id: vendor-doll-003
+    character: vendor-doll
+    text: たすけて。修理を、希望します。
+    emotion: fearful
+    intensity: 2
+    delivery: >-
+      恐怖の指示を与えるが、震えや涙声は禁止。棒読みのまま音高だけがわずかに上ずる。
+      定型文の丁寧さは崩さない。機械が感情指示をどこまで滲ませるかを観測する行。
+    situation: 客足の途切れた棚の陰で、定型文に混じって本音のような一言が漏れる。
+    difficulty: hard
+    loop_ok: true
+
+  - id: fortune-doll-001
+    character: fortune-doll
+    text: 本日の、運勢を、占いましょう。
+    emotion: neutral
+    intensity: 1
+    delivery: >-
+      オルゴールのように一定のリズムを刻む発話。機械にしては滑らかだが、
+      読点ごとの拍の間隔だけは決して崩れない。
+    situation: 通りかかった客に向けて占いの口上を始める。
+    difficulty: standard
+    loop_ok: true
+
+  - id: fortune-doll-002
+    character: fortune-doll
+    text: あなたに、良き日が、訪れます……きっと。
+    emotion: cheerful
+    intensity: 2
+    delivery: >-
+      音楽的な抑揚で語尾を持ち上げる。機械の中では滑らかな部類だが、
+      それでも一定のリズムからは外れない。歌と朗読の中間のような発話。
+    situation: 良い結果が出た札を差し出しながら告げている。
+    difficulty: standard
+    loop_ok: true
+
+  - id: fortune-doll-003
+    character: fortune-doll
+    text: 本日の占いは、大凶……ご注意を。
+    emotion: fearful
+    intensity: 2
+    delivery: >-
+      機械のくせに声を潜め、警告じみた低さを出そうとする。だがピッチの震えは
+      再現できず不自然に硬い。リズムの拍だけは保たれたまま。
+    situation: 凶の札を差し出しながら、感情パラメータで「不安」を演算しようとしている。
+    difficulty: hard
+    loop_ok: true

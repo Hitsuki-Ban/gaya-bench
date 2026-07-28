@@ -1,0 +1,204 @@
+# 非人間系シナリオ 14: 魔物
+# 観測軸: 片言(カタカナ表記)・甲高いダミ声と野太い低音の両極・唸り等の非言語混じり・詠唱の節回し
+format_version: 1
+id: goblin-camp
+title: ゴブリンの野営
+locale: ja
+tags: [fantasy, nonhuman, creature, outdoor, camp]
+
+scene:
+  setting: >-
+    岩場のくぼみに張られた小鬼どもの野営。夜、焚き火を囲んで骨と鍋が転がっている。
+    見張りが崖の縁を行き来し、奥では大柄な一体が寝そべっている。
+  acoustics: 屋外の岩壁に囲まれた窪地。岩に跳ね返る短い反響がある。焚き火のはぜる音が近い。
+  listener: プレイヤーは崖上の茂みから見下ろしている。声は5〜10mの遠距離、下から反響して届く。
+
+characters:
+  - id: goblin-lookout
+    name: ゴブリンの見張り
+    gender: male
+    age: teen
+    archetype: 小鬼の斥候
+    voice: >-
+      人外(魔物)。人間の少年より一段高い、耳を刺す甲高いダミ声。喉を潰したような
+      ざらつきを常に含む。語をぶつ切りにし、一語ごとに息を吸う。片言。
+    personality: 臆病でよく騒ぐ。何か見つけると真っ先に叫ぶ。
+    reference_voice: null
+
+  - id: goblin-cook
+    name: ゴブリンの料理番
+    gender: female
+    age: child
+    archetype: 小鬼の炊事係
+    voice: >-
+      人外(魔物)。幼児のように高く細い声に、鼻にかかった濁りが混じる。
+      舌足らずで語尾が跳ねる。笑うと「キシシ」と歯の隙間から音が漏れる。片言。
+    personality: 食うことしか頭にない。機嫌の上下が激しい。
+    reference_voice: null
+
+  - id: orc-brother
+    name: オークの兄貴分
+    gender: male
+    age: middle_aged
+    archetype: 群れの頭
+    voice: >-
+      人外(魔物)。腹の底から出る野太い超低音。話す前に必ず低い唸りが漏れる。
+      話速は遅く、語尾を重く落とす。小鬼どもと違い言葉は流暢。
+    personality: 短気だが群れは仕切る。無駄口を嫌う。
+    reference_voice: null
+
+  - id: goblin-shaman
+    name: 老いた小鬼の呪い師
+    gender: neutral
+    age: elderly
+    archetype: 小鬼の祈祷師
+    voice: >-
+      人外(魔物)。かすれて息の抜ける枯れ声。性別の判別がつかない。
+      詠唱の癖で同じ節を二度繰り返し、語尾を歌のように揺らす。片言と人語が混ざる。
+    personality: 何を見ているのか分からない。急に笑い、急に泣く。
+    reference_voice: null
+
+lines:
+  - id: goblin-lookout-001
+    character: goblin-lookout
+    text: ニンゲン、クルナ！
+    emotion: angry
+    intensity: 3
+    delivery: >-
+      裏返る寸前の甲高い叫び。一語ずつ短く断ち切り、間に鋭く息を吸う音を挟む。
+      喉が潰れたざらつきを保ったまま音量を出す。威嚇だが芯には怯えがある。
+    situation: 崖の縁から茂みの方へ石を投げつけながら叫んでいる。
+    difficulty: hard
+    loop_ok: true
+
+  - id: goblin-lookout-002
+    character: goblin-lookout
+    text: アッチ、ヒカリ、ミエタゾ。
+    emotion: neutral
+    intensity: 2
+    delivery: >-
+      音量を落とした早口の片言。三語を等しく短く区切る。
+      高い声のまま抑揚は少なく、報告として平坦に。
+    situation: 焚き火のそばまで駆け戻り、仲間に指を差して伝えている。
+    difficulty: standard
+    loop_ok: true
+
+  - id: goblin-lookout-003
+    character: goblin-lookout
+    text: ギャッ！ ミツカッタ！
+    emotion: fearful
+    intensity: 3
+    delivery: >-
+      冒頭は言葉でない悲鳴。裏返った最高音から一気に落とし、後半は震える早口。
+      息が足りずに語尾が掠れて切れる。
+    situation: 見つかったと勘違いして跳び上がり、逃げ出そうとしている。
+    difficulty: hard
+    loop_ok: true
+
+  - id: goblin-cook-001
+    character: goblin-cook
+    text: ナベ、グツグツ、ウマイ！
+    emotion: cheerful
+    intensity: 2
+    delivery: >-
+      甲高く舌足らずに。擬音部分だけ弾ませ、語尾を跳ね上げる。
+      鼻にかかった濁りを保ったまま明るく。
+    situation: 鍋をかき混ぜながら中身を覗き込んでいる。
+    difficulty: standard
+    loop_ok: true
+
+  - id: goblin-cook-002
+    character: goblin-cook
+    text: ホネ、マダ、カタイ……
+    emotion: tired
+    intensity: 1
+    delivery: >-
+      同じ高い声のまま力を抜き、語尾を下げて息に溶かす。
+      不満げに口を尖らせた鼻声。話速はゆっくり。
+    situation: 煮えない骨を箸でつつきながらぼやいている。
+    difficulty: standard
+    loop_ok: true
+
+  - id: goblin-cook-003
+    character: goblin-cook
+    text: キシシッ、ミンナ、クエ！
+    emotion: laughing
+    intensity: 2
+    delivery: >-
+      歯の隙間から漏れるような笑い声から始め、笑いを引きずったまま言葉に移る。
+      高音で早口、最後だけ声を張る。笑いと発話の境目を作らない。
+    situation: 鍋を火から下ろし、仲間へ器を放り投げている。
+    difficulty: hard
+    loop_ok: true
+
+  - id: orc-brother-001
+    character: orc-brother
+    text: グルル……騒ぐな。
+    emotion: angry
+    intensity: 2
+    delivery: >-
+      言葉の前に喉を鳴らす低い唸りを二拍分。唸りから発話へ音高を変えずに繋げる。
+      野太い超低音、話速は遅く、語尾を重く落として黙る。
+    situation: 寝そべったまま、騒ぐ小鬼どもの方へ顔を向けもせず言う。
+    difficulty: hard
+    loop_ok: true
+
+  - id: orc-brother-002
+    character: orc-brother
+    text: ウオオッ、戦だァ！
+    emotion: shout
+    intensity: 3
+    delivery: >-
+      腹から吐き出す咆哮。冒頭は言葉でない吼え声、そのまま語へ雪崩れ込む。
+      低音域を保ったまま音量だけを爆発させ、語尾を長く伸ばして割れさせる。
+    situation: 立ち上がり、斧を掲げて群れを煽っている。
+    difficulty: hard
+    loop_ok: true
+
+  - id: orc-brother-003
+    character: orc-brother
+    text: ……フン、使えん奴だ。
+    emotion: angry
+    intensity: 1
+    delivery: >-
+      鼻から抜く短い息のあと、ごく低い声で吐き捨てる。音量は最小限。
+      咆哮と同じ声の持ち主だと分かる音色のまま強度だけを落とす。
+    situation: 逃げ帰ってきた見張りを一瞥して背を向ける。
+    difficulty: standard
+    loop_ok: true
+
+  - id: goblin-shaman-001
+    character: goblin-shaman
+    text: ヒヒ……骨ガ、笑ッテル。
+    emotion: laughing
+    intensity: 1
+    delivery: >-
+      息だけの掠れた含み笑いから入る。枯れた声で、話速は非常に遅い。
+      片言の部分だけ音高が不自然に上がり、人語部分は普通に戻る。
+    situation: 焚き火に投げ込まれた骨を覗き込んで一人で笑っている。
+    difficulty: hard
+    loop_ok: true
+
+  - id: goblin-shaman-002
+    character: goblin-shaman
+    text: 火ヲ絶ヤスナ、絶ヤスナ。
+    emotion: neutral
+    intensity: 2
+    delivery: >-
+      詠唱の節回しで、同じ句を二度、二度目は音高を一段下げて繰り返す。
+      語尾を歌のように長く揺らす。声はかすれたまま。
+    situation: 焚き火の周りをゆっくり回りながら唱えている。
+    difficulty: hard
+    loop_ok: true
+
+  - id: goblin-shaman-003
+    character: goblin-shaman
+    text: イタイ、イタイヨォ……
+    emotion: pain
+    intensity: 2
+    delivery: >-
+      老いた高い泣き声。息が漏れて音が続かず、語尾が震えて消える。
+      直前の笑い声と同一人物と分かる枯れた音色を保つ。
+    situation: 関節を押さえてうずくまり、誰にともなく訴えている。
+    difficulty: hard
+    loop_ok: true

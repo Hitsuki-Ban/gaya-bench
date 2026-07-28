@@ -1,0 +1,204 @@
+# 非人間系シナリオ 15: 精霊
+# 観測軸: 極端な声域(超高音/超低音)と速度(超早口/超スロー)・息だけの囁き・歌うような発話と急転
+format_version: 1
+id: spirit-forest
+title: 精霊の森
+locale: ja
+tags: [fantasy, nonhuman, spirit, outdoor, forest]
+
+scene:
+  setting: >-
+    霧の薄く漂う古い森。夕暮れと夜の境目で、木の間を光の粒がゆっくり漂っている。
+    苔むした巨木の幹に顔のような節があり、泉のほとりで水音が絶えない。
+  acoustics: 屋外だが木々に囲まれ、遠くの音が吸われる。近くの声だけが妙に鮮明に立つ。虫と葉擦れの音。
+  listener: プレイヤーは獣道を歩いている。声は近くから、あるいは方向の定まらない距離から届く。
+
+characters:
+  - id: pixie
+    name: 悪戯な妖精
+    gender: neutral
+    age: child
+    archetype: 森の小妖精
+    voice: >-
+      人外(精霊)。人間の子供より一段上、鈴を弾くような超高音。極端な早口で、
+      音節を飛ばしながら喋る。息継ぎが聞こえない。声量は小さいのに音が鋭く抜ける。
+    personality: 気まぐれで飽きっぽい。人を驚かせて笑う。
+    reference_voice: null
+
+  - id: elder-tree
+    name: 老樹の精
+    gender: male
+    age: elderly
+    archetype: 森の古木
+    voice: >-
+      人外(精霊)。地鳴りのような超低音。話速は極端に遅く、一音ごとに長い間が入る。
+      木がきしむような軋みを声に混ぜる。抑揚はほとんどなく、音量は常に一定。
+    personality: 何百年も同じ場所にいる。急ぐという概念がない。
+    reference_voice: null
+
+  - id: wisp
+    name: 鬼火
+    gender: neutral
+    age: young_adult
+    archetype: さまよう火の霊
+    voice: >-
+      人外(精霊)。声帯をほとんど鳴らさない息だけの囁き。子音の摩擦音だけが際立ち、
+      母音は輪郭を失う。音高は判別できないほど低く均される。距離感がつかめない鳴り方。
+    personality: 生者に執着している。近づけたいのか遠ざけたいのか自分でも分からない。
+    reference_voice: null
+
+  - id: spring-sprite
+    name: 泉の精
+    gender: female
+    age: young_adult
+    archetype: 水の精霊
+    voice: >-
+      人外(精霊)。澄んだ中高音で、語尾が自然に歌へ溶ける。常に一定のゆらぎを持ち、
+      話しているのに旋律が聞こえるような発話。息が長く、途切れない。
+    personality: 穏やかだが、泉を汚す者には態度が一変する。
+    reference_voice: null
+
+lines:
+  - id: pixie-001
+    character: pixie
+    text: みぃつけた、みぃつけた！
+    emotion: cheerful
+    intensity: 3
+    delivery: >-
+      通常の子供声より明らかに高い音域で、限界まで早口。二度の繰り返しを一息で、
+      間を空けずに繋げる。音量は小さいまま音の鋭さだけで届かせる。
+    situation: 木の枝の上から、歩いてきたプレイヤーを指差している。
+    difficulty: hard
+    loop_ok: true
+
+  - id: pixie-002
+    character: pixie
+    text: ねえねえ、こっちこっち！
+    emotion: cheerful
+    intensity: 2
+    delivery: >-
+      同じ超高音を保ったまま、速度をわずかに落として誘う調子に。
+      語尾を跳ね上げる。喋りながら移動しているように音の位置が定まらない。
+    situation: 道の外れへ導こうとして、前を飛びながら振り返る。
+    difficulty: standard
+    loop_ok: true
+
+  - id: pixie-003
+    character: pixie
+    text: きゃはっ、ころんだ！
+    emotion: laughing
+    intensity: 2
+    delivery: >-
+      超高音の短い笑い声から言葉へ切れ目なく雪崩れ込む。笑いを引きずったまま早口で。
+      笑いと発話の音域を同じに保ち、人間的な喉の緩みを出さない。
+    situation: 蔓に足を取られたプレイヤーを見て、宙返りしながら笑っている。
+    difficulty: hard
+    loop_ok: true
+
+  - id: elder-tree-001
+    character: elder-tree
+    text: 誰じゃ……そこにおるのは。
+    emotion: neutral
+    intensity: 1
+    delivery: >-
+      地を這うような超低音。一音ごとに間を置き、通常の三分の一ほどの速度で進める。
+      抑揚はつけず、木がきしむ軋み音を声の下に薄く敷く。
+    situation: 巨木の幹の節が薄く開き、足元の気配を捉えた。
+    difficulty: hard
+    loop_ok: true
+
+  - id: elder-tree-002
+    character: elder-tree
+    text: 千年、待っておる……。
+    emotion: tired
+    intensity: 1
+    delivery: >-
+      さらに遅く。語尾を極端に長く伸ばし、息が尽きるように音量を落として消す。
+      疲れは声色ではなく持続時間の長さだけで表す。
+    situation: 誰への返事でもなく、幹の奥から漏れるように呟く。
+    difficulty: hard
+    loop_ok: true
+
+  - id: elder-tree-003
+    character: elder-tree
+    text: 行け。振り向くな。
+    emotion: neutral
+    intensity: 2
+    delivery: >-
+      前行より速度を上げ、二文を短く切る。それでも人間の平常より遅い。
+      超低音のまま音量を一段上げ、忠告の重みを作る。
+    situation: 森の奥を指すように枝を軋ませ、道を示している。
+    difficulty: standard
+    loop_ok: true
+
+  - id: wisp-001
+    character: wisp
+    text: こっちへ……おいで……
+    emotion: whisper
+    intensity: 1
+    delivery: >-
+      声帯を鳴らさず息だけで発音する。子音の摩擦だけが聞こえ、母音は霞ませる。
+      非常に遅く、語尾を息の流れに溶かして終える。耳のすぐ横で鳴るように。
+    situation: 道の脇の暗がりで、青い火がゆらりと揺れる。
+    difficulty: hard
+    loop_ok: true
+
+  - id: wisp-002
+    character: wisp
+    text: 帰れ。ここは墓場だ。
+    emotion: whisper
+    intensity: 2
+    delivery: >-
+      息だけの発声を保ったまま、勢いだけを強める。決して声を出さず、
+      吐く息の量を増やして圧を作る。二文とも短く断ち切る。
+    situation: 誘っていた火が急に色を変え、後ずさるように離れる。
+    difficulty: hard
+    loop_ok: true
+
+  - id: wisp-003
+    character: wisp
+    text: さむい……さむいよ……
+    emotion: sad
+    intensity: 1
+    delivery: >-
+      息だけの囁きに、かすかな震えだけを足す。二度の繰り返しは同じ息の長さで。
+      音高を持たせず、泣き声にも聞こえないぎりぎりの線を保つ。
+    situation: 木の根元まで沈み込み、火が小さくなっていく。
+    difficulty: hard
+    loop_ok: true
+
+  - id: spring-sprite-001
+    character: spring-sprite
+    text: 水が、澄んでいるでしょう。
+    emotion: cheerful
+    intensity: 1
+    delivery: >-
+      澄んだ中高音。話しているのに旋律が聞こえるよう、語尾を持ち上げてから
+      ゆっくり下ろす。息継ぎを感じさせず、一息で滑らかに繋げる。
+    situation: 泉のふちに腰かけ、水面を手のひらで撫でながら。
+    difficulty: standard
+    loop_ok: true
+
+  - id: spring-sprite-002
+    character: spring-sprite
+    text: ふふ、手が冷たいのね。
+    emotion: laughing
+    intensity: 1
+    delivery: >-
+      柔らかい含み笑いから歌うような発話へ繋ぐ。笑いも旋律の一部として響かせ、
+      途切れを作らない。声量は小さく、揺らぎは保つ。
+    situation: 水に手を浸したプレイヤーの指先を見て微笑む。
+    difficulty: standard
+    loop_ok: true
+
+  - id: spring-sprite-003
+    character: spring-sprite
+    text: だめ、それに触らないで！
+    emotion: shout
+    intensity: 3
+    delivery: >-
+      歌うような揺らぎが一瞬で消え、平坦な鋭い叫びに切り替わる。
+      音高は跳ね上げるが人間的な喉の裏返りは作らず、水面が張り詰めるような硬さで。
+    situation: 泉の底の石に手を伸ばされ、水が一斉に逆立つ。
+    difficulty: hard
+    loop_ok: true
