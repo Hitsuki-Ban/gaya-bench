@@ -284,8 +284,8 @@ function CandidateCard({
   onPlay: () => void;
 }) {
   const isActive = status === "loading" || status === "playing" || status === "paused";
-  const duration = progressDuration > 0 ? progressDuration : fallbackDuration;
-  const elapsed = duration > 0 ? Math.min(Math.max(currentTime, 0), duration) : 0;
+  const duration = isActive && progressDuration > 0 ? progressDuration : fallbackDuration;
+  const elapsed = isActive && duration > 0 ? Math.min(Math.max(currentTime, 0), duration) : 0;
   const ratio = duration > 0 ? elapsed / duration : 0;
   return (
     <Card
