@@ -128,7 +128,7 @@ uv run --project pipeline --locked --extra irodori gaya voices validate-local
 - SilentCipher model: `sony/silentcipher@a1c4d021905e0dc5b24be5f68db5fc4dba410ee1`
 - SilentCipher code: `SesameAILabs/silentcipher@d46d7d0893a583d8968ab3a6626e2289faec9152`
 - `torch==2.10.0` / `torchaudio==2.10.0` (`cu128`)、`torchcodec==0.10.0`
-- `pyopenjtalk-plus[onnxruntime]==0.4.1.post8`
+- `pyopenjtalk-plus==0.4.1.post8`
 
 読みは `line.reading` が non-empty string なら原文どおり優先し、それ以外は `pyopenjtalk.g2p(text, kana=True)` で片仮名化する。これはベンチの読み再現性を揃える方針であり、Irodori 作者が全入力のかな化を必須としているという意味ではない。固定 model card は通常の漢字入力を受け付け、複雑な漢字でかな変換が必要になる場合があると説明している。
 
@@ -437,3 +437,99 @@ uv run --project pipeline --locked --extra chatterbox gaya gen --model chatterbo
 [Chatterbox code と公式 weight](https://github.com/resemble-ai/chatterbox)、[PerTh](https://github.com/resemble-ai/Perth) は MIT。生成音声には PerTh 電子透かしが自動で入る。この水印の検出だけで model ID や生成元を識別することはできない。参照音声は `assets/voices/metadata.yaml` の素材別ライセンス、クレジット、再配布条件にも従い、無断の声真似、詐欺、なりすまし、誤認を招く利用を禁止する。
 
 Windows native 以外、Python / package / cu126 / CUDA version の不一致、固定 file の欠落・hash 不一致、予期しない model root file、参照 WAV 不備、model identity の変化、無効 waveform、OOM は明示的に失敗する。CPU、WSL、別 CUDA wheel、別 weight、内蔵 voice、クラウド、無透かし音声へ自動切替しない。
+
+## CosyVoice 3 0.5B
+
+`cosyvoice3-0.5b-2512` は、権利確認済みの参照 WAV と英語の自然言語 instruction を `inference_instruct2` へ明示し、片仮名化した日本語を生成する clone adapter である。検証経路は Windows 11 / Python 3.12 / NVIDIA CUDA:0 / FP32 weight + FP16 autocast / PyTorch 2.3.1 cu121 のみ。専用 extra は他 model の PyTorch extra と相互排他的である。
+
+```console
+uv sync --project pipeline --locked --extra cosyvoice3
+```
+
+code は `QwenAudio/CosyVoice@074ca6dc9e80a2f424f1f74b48bdd7d3fea531cc`、Matcha-TTS submodule は `dd9105b34bf2be2230f4aa1e4769fb586a3c824e` に固定する。上流 checkout と submodule は clean な detached revision でなければならない。
+
+```powershell
+git clone https://github.com/QwenAudio/CosyVoice.git models/cosyvoice/upstream
+git -C models/cosyvoice/upstream checkout --detach 074ca6dc9e80a2f424f1f74b48bdd7d3fea531cc
+git -C models/cosyvoice/upstream submodule update --init third_party/Matcha-TTS
+```
+
+weight は `FunAudioLLM/Fun-CosyVoice3-0.5B-2512@29e01c4e8d000f4bcd70751be16fa94bf3d85a18` の base 推論に必要な12ファイルだけを取得する。`llm.rl.pt`、batch speech tokenizer、TensorRT 用 ONNX は使わない。
+
+```powershell
+hf download FunAudioLLM/Fun-CosyVoice3-0.5B-2512 `
+  CosyVoice-BlankEN/config.json `
+  CosyVoice-BlankEN/generation_config.json `
+  CosyVoice-BlankEN/merges.txt `
+  CosyVoice-BlankEN/model.safetensors `
+  CosyVoice-BlankEN/tokenizer_config.json `
+  CosyVoice-BlankEN/vocab.json `
+  campplus.onnx `
+  cosyvoice3.yaml `
+  flow.pt `
+  hift.pt `
+  llm.pt `
+  speech_tokenizer_v3.onnx `
+  --revision 29e01c4e8d000f4bcd70751be16fa94bf3d85a18 `
+  --local-dir models/cosyvoice/weights
+
+$env:GAYA_COSYVOICE_CODE_ROOT = (Resolve-Path "models/cosyvoice/upstream")
+$env:GAYA_COSYVOICE3_MODEL_ROOT = (Resolve-Path "models/cosyvoice/weights")
+```
+
+adapter は model root の非 cache file が次の固定集合と一致することを生成前に照合する。合計は 5,427,029,103 bytes である。Hugging Face downloader の `.cache/` metadata は実行入力ではないため inventory から除外するが、そこから weight を補完することはない。表外の model candidate、symlink、size / SHA-256 不一致があればロードしない。
+
+| file | bytes | SHA-256 |
+| --- | ---: | --- |
+| `CosyVoice-BlankEN/config.json` | 659 | `168aa1bd401abc3bc262ba15ba4e499627a8b4e006e9d050b47c22de20660185` |
+| `CosyVoice-BlankEN/generation_config.json` | 242 | `e558847a8b4402616f1273797b015104dc266fe4b520056fca88823ba8f8ebe6` |
+| `CosyVoice-BlankEN/merges.txt` | 1,402,109 | `ac8ff86a72bee70828fbc1119bc4398c6f3a9a6e490d7b0dbe917be025478bd0` |
+| `CosyVoice-BlankEN/model.safetensors` | 988,097,824 | `130282af0dfa9fe5840737cc49a0d339d06075f83c5a315c3372c9a0740d0b96` |
+| `CosyVoice-BlankEN/tokenizer_config.json` | 1,287 | `482bd979881423375ca5414e4e0d94cd7c5349dbb17fffd46b4d36d71e62a1bc` |
+| `CosyVoice-BlankEN/vocab.json` | 2,776,833 | `ca10d7e9fb3ed18575dd1e277a2579c16d108e32f27439684afa0e10b1440910` |
+| `campplus.onnx` | 28,303,423 | `a6ac6a63997761ae2997373e2ee1c47040854b4b759ea41ec48e4e42df0f4d73` |
+| `cosyvoice3.yaml` | 6,934 | `f5a6b2c6f05139d0f18861a1fe506f751e787026b77c05f7e8fef9f8a4405965` |
+| `flow.pt` | 1,329,116,148 | `a6fab32a7825e5b0bc855ddd948f8db9370b0a786fbc249caa4595e95b608e4b` |
+| `hift.pt` | 83,202,622 | `b279d7641eb97ae55b3b540cfba4f953c26492a2df758328a89a4d007ab87a65` |
+| `llm.pt` | 2,024,669,519 | `69f43bd545131c30e98947fb360ea8b4dc9916d8e83dded7757c7ea4f5a24970` |
+| `speech_tokenizer_v3.onnx` | 969,451,503 | `23236a74175dbdda47afc66dbadd5bcb41303c467a57c261cb8539ad9db9208d` |
+
+Windows では上流の通常 requirements が CPU 版 ONNX Runtime を選ぶ一方、speech tokenizer は CUDA provider を要求する。本 extra は Microsoft 公式 CUDA 12 feed の `onnxruntime-gpu==1.18.0` を固定し、CPU 版 `onnxruntime` を同居させない。load 後に speech tokenizer の先頭 provider が `CUDAExecutionProvider`、CampPlus が `CPUExecutionProvider` であることを照合する。provider 作成失敗時の CPU fallback は受理しない。上流 text frontend は明示的に無効化し、`HF_HUB_OFFLINE`、`TRANSFORMERS_OFFLINE`、`MODELSCOPE_OFFLINE` を有効にして既存の絶対 model path だけを渡す。
+
+`character.reference_voice` がある場合はその素材を優先する。2つの受け入れシナリオで `null` の character は次の固定割当を使い、表にない `null` は model load 前に失敗する。
+
+| scenario | character | reference voice |
+| --- | --- | --- |
+| `tavern-night` | `drunkard` | `hadou-emotion-11` |
+| `tavern-night` | `old-regular` | `hadou-emotion-11` |
+| `market-day` | `fruit-vendor` | `hadou-emotion-11` |
+| `market-day` | `shopper` | `lux-emotion-76` |
+| `market-day` | `street-kid` | `tsukuyomi-corpus-94` |
+
+参照 WAV は登録 metadata の SHA-256 と照合し、48kHz mono PCM16、30秒以下を必須とする。裁断した派生音声、default speaker、別素材への自動切替は使わない。
+
+`line.reading` が non-empty string ならその値を優先し、それ以外は `pyopenjtalk.g2p(text, kana=True)` で片仮名化する。変換失敗時に原文へ戻さない。`pyopenjtalk-plus` の ONNX optional backend はこの読み経路で使わないため依存に含めず、CosyVoice の GPU ONNX Runtime と同一 module を競合させない。
+
+全行を `inference_instruct2`、`stream=False`、`speed=1.0`、`text_frontend=False`、`seed=1986` で生成する。instruction は英語の固定 emotion / intensity mapping と元の `line.delivery` を含み、必ず `<|endofprompt|>` で終える。delivery に sentinel 断片があれば失敗する。キャラクターの voice / personality を instruction へ追加しない。capability は emotion、clone、reading を `true`、voice prompt と nonverbal を `false` とする。
+
+まず1行で固定 code / weight、CUDA provider、片仮名入力、instruction、24kHz、決定性、12GB VRAM の gate を確認する。
+
+```console
+uv run --project pipeline --locked --extra cosyvoice3 gaya voices validate-local
+uv run --project pipeline --locked --extra cosyvoice3 gaya gen --model cosyvoice3-0.5b-2512 --scenario tavern-night --line barmaid-001
+```
+
+gate 通過後、受け入れ確認用の2シナリオを生成する。
+
+```console
+uv run --project pipeline --locked --extra cosyvoice3 gaya gen --model cosyvoice3-0.5b-2512 --scenario tavern-night
+uv run --project pipeline --locked --extra cosyvoice3 gaya gen --model cosyvoice3-0.5b-2512 --scenario market-day
+```
+
+2026-07-29 の直接 API canary では、Windows 11 / Python 3.12 / RTX 4070 Ti 12GB で CUDA speech tokenizer と CPU CampPlus を確認し、3.44秒の native 24kHz PCM16 mono 日本語を生成した。project lock の cold load は42.801秒、生成は15.485秒（RTF 4.502）、Torch peak は allocated 4,262.410 MiB / reserved 5,224 MiB、desktop process を含む GPU 全体 peak は7,927 MiBだった。同じ入力と seed の繰り返しは同一 WAV SHA-256 `d875973ae0a60a0c58bc16ff97ea2a0607c6273bdc0e4849885878bac81b3c71` になった。
+
+同日の正式生成では `tavern-night` と `market-day` の12行が失敗0件で完了し、直後の再実行は12行すべてを skip した。全出力は native 24kHz PCM16 mono、共通後処理 algorithm version 5 の48kHz mono WAV / Opus である。最終 loudness は -18.19〜-17.98 LUFS、最大 true peak は -1.00 dBTP だった。最大生成 VRAM は allocated 4,296.307 MiB / reserved 5,282 MiB。各 scenario の cold load を含む先頭行を除いた10行の warm RTF は1.387〜2.207、平均1.749だった。全行で speech tokenizer は `CUDAExecutionProvider, CPUExecutionProvider`、CampPlus は `CPUExecutionProvider` を使用した。
+
+[CosyVoice code](https://github.com/QwenAudio/CosyVoice) と [Fun-CosyVoice3-0.5B-2512 weight](https://huggingface.co/FunAudioLLM/Fun-CosyVoice3-0.5B-2512) は Apache-2.0。上流は生成音声の権利条件を別途定義しておらず、固定 code / model card / 論文には内蔵 watermark の開示がない。これは watermark が存在しないことの保証ではない。参照音声は `assets/voices/metadata.yaml` の素材別ライセンス、クレジット、再配布条件にも従い、無断の声真似、詐欺、なりすまし、誤認を招く利用を禁止する。
+
+Windows native 以外、Python / package / cu121 / ORT provider の不一致、code / submodule の revision または clean status 不一致、固定 file の欠落・hash 不一致、予期しない model candidate、参照 WAV 不備、model identity の変化、無効 waveform、OOM は明示的に失敗する。CPU TTS、WSL、別 CUDA wheel、RL / vLLM / TensorRT / JIT / 量子化 weight、ModelScope / Hugging Face download、クラウドへ自動切替しない。

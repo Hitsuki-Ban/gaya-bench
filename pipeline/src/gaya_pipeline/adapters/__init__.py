@@ -35,4 +35,8 @@ def create_adapter(model_id: str) -> Adapter:
         from gaya_pipeline.adapters.chatterbox import ChatterboxAdapter
 
         return ChatterboxAdapter()
+    if model_id == "cosyvoice3-0.5b-2512":
+        from gaya_pipeline.adapters.cosyvoice3 import CosyVoice3Adapter
+
+        return CosyVoice3Adapter()
     raise UnknownAdapterError(f"未知の model id です: {model_id}")
