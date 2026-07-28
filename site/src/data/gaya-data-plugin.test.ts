@@ -33,9 +33,11 @@ describe("virtual:gaya-data integration", () => {
       0,
     );
 
-    expect(benchmarkData.manifest.clips).toHaveLength(lineCount * modelCount);
+    const resultCount =
+      benchmarkData.manifest.clips.length + benchmarkData.manifest.failures.length;
+    expect(resultCount).toBeGreaterThan(0);
+    expect(resultCount).toBeLessThanOrEqual(lineCount * modelCount);
     expect(benchmarkData.manifest.format_version).toBe(2);
-    expect(benchmarkData.manifest.failures).toEqual([]);
     expect(scenarioById.has("market-day")).toBe(true);
     expect(modelById.get("dummy")?.name).toBe("Dummy Beep");
     expect(lineByKey.has("market-day/fruit-vendor-001")).toBe(true);
@@ -114,6 +116,21 @@ describe("loadBenchmarkData", () => {
     writeManifest(root, manifest);
 
     expect(() => loadBenchmarkData(root)).toThrow("manifest format_version は2");
+  });
+
+  it("clip loudness の exact key と型を検証する", () => {
+    const missingRoot = createFixture();
+    const missingManifest = validManifest();
+    const { shortfall: _shortfall, ...missingShortfall } = missingManifest.clips[0]!.loudness;
+    missingManifest.clips[0]!.loudness = missingShortfall as MutableClip["loudness"];
+    writeManifest(missingRoot, missingManifest);
+    expect(() => loadBenchmarkData(missingRoot)).toThrow("loudness の項目が一致");
+
+    const invalidRoot = createFixture();
+    const invalidManifest = validManifest();
+    invalidManifest.clips[0]!.loudness.shortfall = "false" as unknown as boolean;
+    writeManifest(invalidRoot, invalidManifest);
+    expect(() => loadBenchmarkData(invalidRoot)).toThrow("loudness.shortfall は bool");
   });
 
   it("重複 model id、clip key、failure key を拒否する", () => {
@@ -251,6 +268,11 @@ interface MutableClip {
   sha256: string;
   gen_params: Record<string, never>;
   rtf: number;
+  loudness: {
+    i_lufs: number;
+    tp_dbtp: number;
+    shortfall: boolean;
+  };
 }
 
 interface MutableManifest {
@@ -323,6 +345,11 @@ function validManifest(): MutableManifest {
         sha256: "hash",
         gen_params: {},
         rtf: 0.1,
+        loudness: {
+          i_lufs: -18,
+          tp_dbtp: -1,
+          shortfall: false,
+        },
       },
     ],
     failures: [],

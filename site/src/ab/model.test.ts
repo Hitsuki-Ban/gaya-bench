@@ -406,5 +406,6 @@ function clip(model: string, scenarioId: string, lineId: string): MutableClip {
     sha256: `${model}-${scenarioId}-${lineId}`,
     gen_params: {},
     rtf: 0.1,
+    loudness: { i_lufs: -18, tp_dbtp: -1, shortfall: false },
   };
 }

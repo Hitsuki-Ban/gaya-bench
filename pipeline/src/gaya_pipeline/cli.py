@@ -128,7 +128,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             print(f"ERROR: {error}", file=sys.stderr)
             return 1
         _print_generation_summary(summary)
-        return 0
+        return 1 if summary.failed_count else 0
 
     if args.command == "publish":
         repository_root = default_scenarios_dir().parent
@@ -154,9 +154,17 @@ def _print_generation_summary(summary: GenerationSummary) -> None:
             f"{action}: {record.scenario_id}/{record.line_id} "
             f"生成={record.generation_seconds:.3f}s RTF={record.rtf:.3f}",
         )
+    if summary.failures:
+        print("失敗サマリ:")
+        for failure in summary.failures:
+            print(
+                f"  - {failure.scenario_id}/{failure.line_id}: "
+                f"{failure.message}",
+            )
     print(
         f"完了: 生成 {summary.generated_count} / "
         f"スキップ {summary.skipped_count} / "
+        f"失敗 {summary.failed_count} / "
         f"所要時間 {summary.elapsed_seconds:.3f}s",
     )
 

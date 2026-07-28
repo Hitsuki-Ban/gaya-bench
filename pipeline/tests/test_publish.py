@@ -105,6 +105,11 @@ def _write_fixture(
                 "sha256": sha256 or hashlib.sha256(content).hexdigest(),
                 "gen_params": {},
                 "rtf": 0.5,
+                "loudness": {
+                    "i_lufs": -18.0,
+                    "tp_dbtp": -1.0,
+                    "shortfall": False,
+                },
             }
         ],
         "failures": [],

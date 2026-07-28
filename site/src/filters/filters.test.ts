@@ -270,5 +270,6 @@ function clip(model: string, scenario: string, lineId: string): Clip {
     sha256: `${model}-${scenario}-${lineId}`,
     gen_params: {},
     rtf: 0.1,
+    loudness: { i_lufs: -18, tp_dbtp: -1, shortfall: false },
   };
 }

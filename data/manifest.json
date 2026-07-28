@@ -49,7 +49,12 @@
           "tone_hz": 536
         }
       },
-      "rtf": 0.029403
+      "rtf": 0.029403,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -12.57,
+        "shortfall": false
+      }
     },
     {
       "model": "dummy",
@@ -70,7 +75,12 @@
           "tone_hz": 453
         }
       },
-      "rtf": 0.035876
+      "rtf": 0.035876,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -11.68,
+        "shortfall": false
+      }
     },
     {
       "model": "dummy",
@@ -91,7 +101,12 @@
           "tone_hz": 607
         }
       },
-      "rtf": 0.03411
+      "rtf": 0.03411,
+      "loudness": {
+        "i_lufs": -18.01,
+        "tp_dbtp": -12.36,
+        "shortfall": false
+      }
     },
     {
       "model": "dummy",
@@ -112,7 +127,12 @@
           "tone_hz": 512
         }
       },
-      "rtf": 0.031653
+      "rtf": 0.031653,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -12.22,
+        "shortfall": false
+      }
     },
     {
       "model": "dummy",
@@ -133,7 +153,12 @@
           "tone_hz": 537
         }
       },
-      "rtf": 0.031425
+      "rtf": 0.031425,
+      "loudness": {
+        "i_lufs": -18.01,
+        "tp_dbtp": -12.26,
+        "shortfall": false
+      }
     },
     {
       "model": "dummy",
@@ -154,7 +179,12 @@
           "tone_hz": 416
         }
       },
-      "rtf": 0.033406
+      "rtf": 0.033406,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -12.48,
+        "shortfall": false
+      }
     },
     {
       "model": "dummy",
@@ -175,7 +205,12 @@
           "tone_hz": 608
         }
       },
-      "rtf": 0.029165
+      "rtf": 0.029165,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -11.75,
+        "shortfall": false
+      }
     },
     {
       "model": "dummy",
@@ -196,7 +231,12 @@
           "tone_hz": 714
         }
       },
-      "rtf": 0.032933
+      "rtf": 0.032933,
+      "loudness": {
+        "i_lufs": -18.02,
+        "tp_dbtp": -12.71,
+        "shortfall": false
+      }
     },
     {
       "model": "dummy",
@@ -217,7 +257,12 @@
           "tone_hz": 508
         }
       },
-      "rtf": 0.031865
+      "rtf": 0.031865,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -11.71,
+        "shortfall": false
+      }
     },
     {
       "model": "dummy",
@@ -238,7 +283,12 @@
           "tone_hz": 701
         }
       },
-      "rtf": 0.039818
+      "rtf": 0.039818,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -12.68,
+        "shortfall": false
+      }
     },
     {
       "model": "dummy",
@@ -259,7 +309,12 @@
           "tone_hz": 678
         }
       },
-      "rtf": 0.037036
+      "rtf": 0.037036,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -11.78,
+        "shortfall": false
+      }
     },
     {
       "model": "dummy",
@@ -280,7 +335,12 @@
           "tone_hz": 673
         }
       },
-      "rtf": 0.033448
+      "rtf": 0.033448,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -11.78,
+        "shortfall": false
+      }
     },
     {
       "model": "dummy",
@@ -301,7 +361,12 @@
           "tone_hz": 645
         }
       },
-      "rtf": 0.033745
+      "rtf": 0.033745,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -12.66,
+        "shortfall": false
+      }
     },
     {
       "model": "dummy",
@@ -322,7 +387,12 @@
           "tone_hz": 476
         }
       },
-      "rtf": 0.031639
+      "rtf": 0.031639,
+      "loudness": {
+        "i_lufs": -18.01,
+        "tp_dbtp": -12.54,
+        "shortfall": false
+      }
     },
     {
       "model": "dummy",
@@ -343,7 +413,12 @@
           "tone_hz": 539
         }
       },
-      "rtf": 0.032839
+      "rtf": 0.032839,
+      "loudness": {
+        "i_lufs": -18.01,
+        "tp_dbtp": -12.58,
+        "shortfall": false
+      }
     },
     {
       "model": "dummy",
@@ -364,7 +439,12 @@
           "tone_hz": 430
         }
       },
-      "rtf": 0.033456
+      "rtf": 0.033456,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -12.48,
+        "shortfall": false
+      }
     },
     {
       "model": "dummy",
@@ -385,7 +465,12 @@
           "tone_hz": 668
         }
       },
-      "rtf": 0.035014
+      "rtf": 0.035014,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -11.78,
+        "shortfall": false
+      }
     },
     {
       "model": "dummy",
@@ -406,7 +491,12 @@
           "tone_hz": 432
         }
       },
-      "rtf": 0.032143
+      "rtf": 0.032143,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -12.1,
+        "shortfall": false
+      }
     },
     {
       "model": "dummy",
@@ -427,7 +517,12 @@
           "tone_hz": 697
         }
       },
-      "rtf": 0.026373
+      "rtf": 0.026373,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -12.48,
+        "shortfall": false
+      }
     },
     {
       "model": "dummy",
@@ -448,7 +543,12 @@
           "tone_hz": 672
         }
       },
-      "rtf": 0.036963
+      "rtf": 0.036963,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -12.46,
+        "shortfall": false
+      }
     },
     {
       "model": "dummy",
@@ -469,7 +569,12 @@
           "tone_hz": 513
         }
       },
-      "rtf": 0.030658
+      "rtf": 0.030658,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -11.7,
+        "shortfall": false
+      }
     },
     {
       "model": "dummy",
@@ -490,7 +595,12 @@
           "tone_hz": 719
         }
       },
-      "rtf": 0.032509
+      "rtf": 0.032509,
+      "loudness": {
+        "i_lufs": -18.02,
+        "tp_dbtp": -12.72,
+        "shortfall": false
+      }
     },
     {
       "model": "dummy",
@@ -511,7 +621,12 @@
           "tone_hz": 625
         }
       },
-      "rtf": 0.033337
+      "rtf": 0.033337,
+      "loudness": {
+        "i_lufs": -18.02,
+        "tp_dbtp": -12.65,
+        "shortfall": false
+      }
     },
     {
       "model": "dummy",
@@ -532,7 +647,12 @@
           "tone_hz": 455
         }
       },
-      "rtf": 0.028648
+      "rtf": 0.028648,
+      "loudness": {
+        "i_lufs": -18.01,
+        "tp_dbtp": -12.53,
+        "shortfall": false
+      }
     },
     {
       "model": "dummy",
@@ -553,7 +673,12 @@
           "tone_hz": 574
         }
       },
-      "rtf": 0.037819
+      "rtf": 0.037819,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -12.56,
+        "shortfall": false
+      }
     },
     {
       "model": "dummy",
@@ -574,7 +699,12 @@
           "tone_hz": 474
         }
       },
-      "rtf": 0.0296
+      "rtf": 0.0296,
+      "loudness": {
+        "i_lufs": -18.02,
+        "tp_dbtp": -12.55,
+        "shortfall": false
+      }
     },
     {
       "model": "dummy",
@@ -595,7 +725,12 @@
           "tone_hz": 707
         }
       },
-      "rtf": 0.031696
+      "rtf": 0.031696,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -12.49,
+        "shortfall": false
+      }
     },
     {
       "model": "dummy",
@@ -616,7 +751,12 @@
           "tone_hz": 445
         }
       },
-      "rtf": 0.028745
+      "rtf": 0.028745,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -12.48,
+        "shortfall": false
+      }
     },
     {
       "model": "dummy",
@@ -637,7 +777,12 @@
           "tone_hz": 632
         }
       },
-      "rtf": 0.033227
+      "rtf": 0.033227,
+      "loudness": {
+        "i_lufs": -18.02,
+        "tp_dbtp": -12.41,
+        "shortfall": false
+      }
     },
     {
       "model": "dummy",
@@ -658,7 +803,12 @@
           "tone_hz": 488
         }
       },
-      "rtf": 0.054252
+      "rtf": 0.054252,
+      "loudness": {
+        "i_lufs": -18.02,
+        "tp_dbtp": -11.71,
+        "shortfall": false
+      }
     },
     {
       "model": "dummy",
@@ -679,7 +829,12 @@
           "tone_hz": 559
         }
       },
-      "rtf": 0.035537
+      "rtf": 0.035537,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -12.57,
+        "shortfall": false
+      }
     },
     {
       "model": "dummy",
@@ -700,7 +855,12 @@
           "tone_hz": 644
         }
       },
-      "rtf": 0.035559
+      "rtf": 0.035559,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -12.65,
+        "shortfall": false
+      }
     },
     {
       "model": "dummy",
@@ -721,7 +881,12 @@
           "tone_hz": 624
         }
       },
-      "rtf": 0.032037
+      "rtf": 0.032037,
+      "loudness": {
+        "i_lufs": -18.02,
+        "tp_dbtp": -12.65,
+        "shortfall": false
+      }
     },
     {
       "model": "dummy",
@@ -742,7 +907,12 @@
           "tone_hz": 515
         }
       },
-      "rtf": 0.029112
+      "rtf": 0.029112,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -12.56,
+        "shortfall": false
+      }
     },
     {
       "model": "dummy",
@@ -763,7 +933,12 @@
           "tone_hz": 400
         }
       },
-      "rtf": 0.025522
+      "rtf": 0.025522,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -12.48,
+        "shortfall": false
+      }
     },
     {
       "model": "dummy",
@@ -784,7 +959,12 @@
           "tone_hz": 621
         }
       },
-      "rtf": 0.023874
+      "rtf": 0.023874,
+      "loudness": {
+        "i_lufs": -18.01,
+        "tp_dbtp": -12.64,
+        "shortfall": false
+      }
     },
     {
       "model": "dummy",
@@ -805,7 +985,12 @@
           "tone_hz": 559
         }
       },
-      "rtf": 0.02919
+      "rtf": 0.02919,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -12.57,
+        "shortfall": false
+      }
     },
     {
       "model": "dummy",
@@ -826,7 +1011,12 @@
           "tone_hz": 554
         }
       },
-      "rtf": 0.027449
+      "rtf": 0.027449,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -12.57,
+        "shortfall": false
+      }
     },
     {
       "model": "dummy",
@@ -847,7 +1037,12 @@
           "tone_hz": 598
         }
       },
-      "rtf": 0.031239
+      "rtf": 0.031239,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -11.7,
+        "shortfall": false
+      }
     },
     {
       "model": "dummy",
@@ -868,7 +1063,12 @@
           "tone_hz": 527
         }
       },
-      "rtf": 0.029295
+      "rtf": 0.029295,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -12.23,
+        "shortfall": false
+      }
     },
     {
       "model": "dummy",
@@ -889,7 +1089,12 @@
           "tone_hz": 659
         }
       },
-      "rtf": 0.02966
+      "rtf": 0.02966,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -12.65,
+        "shortfall": false
+      }
     },
     {
       "model": "dummy",
@@ -910,7 +1115,12 @@
           "tone_hz": 599
         }
       },
-      "rtf": 0.035322
+      "rtf": 0.035322,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -12.56,
+        "shortfall": false
+      }
     },
     {
       "model": "dummy",
@@ -931,7 +1141,12 @@
           "tone_hz": 656
         }
       },
-      "rtf": 0.033127
+      "rtf": 0.033127,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -12.66,
+        "shortfall": false
+      }
     },
     {
       "model": "dummy",
@@ -952,7 +1167,12 @@
           "tone_hz": 694
         }
       },
-      "rtf": 0.030328
+      "rtf": 0.030328,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -12.65,
+        "shortfall": false
+      }
     },
     {
       "model": "dummy",
@@ -973,7 +1193,12 @@
           "tone_hz": 591
         }
       },
-      "rtf": 0.025776
+      "rtf": 0.025776,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -12.58,
+        "shortfall": false
+      }
     },
     {
       "model": "dummy",
@@ -994,7 +1219,12 @@
           "tone_hz": 514
         }
       },
-      "rtf": 0.030405
+      "rtf": 0.030405,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -12.55,
+        "shortfall": false
+      }
     },
     {
       "model": "dummy",
@@ -1015,7 +1245,12 @@
           "tone_hz": 697
         }
       },
-      "rtf": 0.024478
+      "rtf": 0.024478,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -12.48,
+        "shortfall": false
+      }
     },
     {
       "model": "dummy",
@@ -1036,7 +1271,12 @@
           "tone_hz": 402
         }
       },
-      "rtf": 0.023995
+      "rtf": 0.023995,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -12.08,
+        "shortfall": false
+      }
     },
     {
       "model": "dummy",
@@ -1057,7 +1297,12 @@
           "tone_hz": 387
         }
       },
-      "rtf": 0.029257
+      "rtf": 0.029257,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -12.07,
+        "shortfall": false
+      }
     },
     {
       "model": "dummy",
@@ -1078,7 +1323,12 @@
           "tone_hz": 578
         }
       },
-      "rtf": 0.027877
+      "rtf": 0.027877,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -11.71,
+        "shortfall": false
+      }
     },
     {
       "model": "dummy",
@@ -1099,7 +1349,12 @@
           "tone_hz": 483
         }
       },
-      "rtf": 0.032924
+      "rtf": 0.032924,
+      "loudness": {
+        "i_lufs": -18.02,
+        "tp_dbtp": -11.72,
+        "shortfall": false
+      }
     },
     {
       "model": "dummy",
@@ -1120,7 +1375,12 @@
           "tone_hz": 532
         }
       },
-      "rtf": 0.032257
+      "rtf": 0.032257,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -12.25,
+        "shortfall": false
+      }
     },
     {
       "model": "dummy",
@@ -1141,7 +1401,12 @@
           "tone_hz": 402
         }
       },
-      "rtf": 0.031089
+      "rtf": 0.031089,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -12.08,
+        "shortfall": false
+      }
     },
     {
       "model": "dummy",
@@ -1162,7 +1427,12 @@
           "tone_hz": 445
         }
       },
-      "rtf": 0.033351
+      "rtf": 0.033351,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -12.48,
+        "shortfall": false
+      }
     },
     {
       "model": "dummy",
@@ -1183,7 +1453,12 @@
           "tone_hz": 442
         }
       },
-      "rtf": 0.029913
+      "rtf": 0.029913,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -12.1,
+        "shortfall": false
+      }
     },
     {
       "model": "dummy",
@@ -1204,7 +1479,12 @@
           "tone_hz": 558
         }
       },
-      "rtf": 0.025599
+      "rtf": 0.025599,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -11.71,
+        "shortfall": false
+      }
     },
     {
       "model": "dummy",
@@ -1225,7 +1505,12 @@
           "tone_hz": 594
         }
       },
-      "rtf": 0.026646
+      "rtf": 0.026646,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -12.56,
+        "shortfall": false
+      }
     },
     {
       "model": "dummy",
@@ -1246,7 +1531,12 @@
           "tone_hz": 433
         }
       },
-      "rtf": 0.026213
+      "rtf": 0.026213,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -11.66,
+        "shortfall": false
+      }
     },
     {
       "model": "dummy",
@@ -1267,7 +1557,12 @@
           "tone_hz": 625
         }
       },
-      "rtf": 0.026874
+      "rtf": 0.026874,
+      "loudness": {
+        "i_lufs": -18.02,
+        "tp_dbtp": -12.65,
+        "shortfall": false
+      }
     },
     {
       "model": "dummy",
@@ -1288,7 +1583,12 @@
           "tone_hz": 515
         }
       },
-      "rtf": 0.028667
+      "rtf": 0.028667,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -12.56,
+        "shortfall": false
+      }
     },
     {
       "model": "dummy",
@@ -1309,7 +1609,12 @@
           "tone_hz": 366
         }
       },
-      "rtf": 0.031521
+      "rtf": 0.031521,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -12.47,
+        "shortfall": false
+      }
     },
     {
       "model": "dummy",
@@ -1330,7 +1635,12 @@
           "tone_hz": 605
         }
       },
-      "rtf": 0.027156
+      "rtf": 0.027156,
+      "loudness": {
+        "i_lufs": -18.02,
+        "tp_dbtp": -12.63,
+        "shortfall": false
+      }
     },
     {
       "model": "dummy",
@@ -1351,7 +1661,12 @@
           "tone_hz": 478
         }
       },
-      "rtf": 0.033148
+      "rtf": 0.033148,
+      "loudness": {
+        "i_lufs": -18.02,
+        "tp_dbtp": -11.72,
+        "shortfall": false
+      }
     },
     {
       "model": "dummy",
@@ -1372,7 +1687,12 @@
           "tone_hz": 405
         }
       },
-      "rtf": 0.029852
+      "rtf": 0.029852,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -12.48,
+        "shortfall": false
+      }
     },
     {
       "model": "dummy",
@@ -1393,7 +1713,12 @@
           "tone_hz": 447
         }
       },
-      "rtf": 0.026555
+      "rtf": 0.026555,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -12.12,
+        "shortfall": false
+      }
     },
     {
       "model": "dummy",
@@ -1414,7 +1739,12 @@
           "tone_hz": 518
         }
       },
-      "rtf": 0.027118
+      "rtf": 0.027118,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -11.7,
+        "shortfall": false
+      }
     },
     {
       "model": "dummy",
@@ -1435,7 +1765,12 @@
           "tone_hz": 385
         }
       },
-      "rtf": 0.025205
+      "rtf": 0.025205,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -12.48,
+        "shortfall": false
+      }
     },
     {
       "model": "dummy",
@@ -1456,7 +1791,12 @@
           "tone_hz": 683
         }
       },
-      "rtf": 0.034419
+      "rtf": 0.034419,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -11.78,
+        "shortfall": false
+      }
     },
     {
       "model": "dummy",
@@ -1477,7 +1817,12 @@
           "tone_hz": 535
         }
       },
-      "rtf": 0.031902
+      "rtf": 0.031902,
+      "loudness": {
+        "i_lufs": -18.02,
+        "tp_dbtp": -12.58,
+        "shortfall": false
+      }
     },
     {
       "model": "dummy",
@@ -1498,7 +1843,12 @@
           "tone_hz": 405
         }
       },
-      "rtf": 0.029272
+      "rtf": 0.029272,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -12.48,
+        "shortfall": false
+      }
     },
     {
       "model": "dummy",
@@ -1519,7 +1869,12 @@
           "tone_hz": 658
         }
       },
-      "rtf": 0.023748
+      "rtf": 0.023748,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -11.76,
+        "shortfall": false
+      }
     },
     {
       "model": "dummy",
@@ -1540,7 +1895,12 @@
           "tone_hz": 698
         }
       },
-      "rtf": 0.032708
+      "rtf": 0.032708,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -11.77,
+        "shortfall": false
+      }
     },
     {
       "model": "dummy",
@@ -1561,7 +1921,12 @@
           "tone_hz": 475
         }
       },
-      "rtf": 0.026694
+      "rtf": 0.026694,
+      "loudness": {
+        "i_lufs": -18.02,
+        "tp_dbtp": -12.55,
+        "shortfall": false
+      }
     },
     {
       "model": "dummy",
@@ -1582,7 +1947,12 @@
           "tone_hz": 712
         }
       },
-      "rtf": 0.026852
+      "rtf": 0.026852,
+      "loudness": {
+        "i_lufs": -18.01,
+        "tp_dbtp": -12.54,
+        "shortfall": false
+      }
     },
     {
       "model": "dummy",
@@ -1603,7 +1973,12 @@
           "tone_hz": 367
         }
       },
-      "rtf": 0.030041
+      "rtf": 0.030041,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -12.04,
+        "shortfall": false
+      }
     },
     {
       "model": "dummy",
@@ -1624,7 +1999,12 @@
           "tone_hz": 563
         }
       },
-      "rtf": 0.036639
+      "rtf": 0.036639,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -11.71,
+        "shortfall": false
+      }
     },
     {
       "model": "dummy",
@@ -1645,7 +2025,12 @@
           "tone_hz": 703
         }
       },
-      "rtf": 0.029321
+      "rtf": 0.029321,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -11.77,
+        "shortfall": false
+      }
     },
     {
       "model": "dummy",
@@ -1666,7 +2051,12 @@
           "tone_hz": 525
         }
       },
-      "rtf": 0.031732
+      "rtf": 0.031732,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -12.56,
+        "shortfall": false
+      }
     },
     {
       "model": "dummy",
@@ -1687,7 +2077,12 @@
           "tone_hz": 713
         }
       },
-      "rtf": 0.029623
+      "rtf": 0.029623,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -11.82,
+        "shortfall": false
+      }
     },
     {
       "model": "dummy",
@@ -1708,7 +2103,12 @@
           "tone_hz": 509
         }
       },
-      "rtf": 0.0327
+      "rtf": 0.0327,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -12.55,
+        "shortfall": false
+      }
     },
     {
       "model": "dummy",
@@ -1729,7 +2129,12 @@
           "tone_hz": 646
         }
       },
-      "rtf": 0.025461
+      "rtf": 0.025461,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -12.66,
+        "shortfall": false
+      }
     },
     {
       "model": "dummy",
@@ -1750,7 +2155,12 @@
           "tone_hz": 682
         }
       },
-      "rtf": 0.031777
+      "rtf": 0.031777,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -12.47,
+        "shortfall": false
+      }
     },
     {
       "model": "dummy",
@@ -1771,7 +2181,12 @@
           "tone_hz": 520
         }
       },
-      "rtf": 0.033944
+      "rtf": 0.033944,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -12.56,
+        "shortfall": false
+      }
     },
     {
       "model": "dummy",
@@ -1792,7 +2207,12 @@
           "tone_hz": 575
         }
       },
-      "rtf": 0.02959
+      "rtf": 0.02959,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -12.58,
+        "shortfall": false
+      }
     },
     {
       "model": "dummy",
@@ -1813,7 +2233,12 @@
           "tone_hz": 563
         }
       },
-      "rtf": 0.028235
+      "rtf": 0.028235,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -11.71,
+        "shortfall": false
+      }
     },
     {
       "model": "dummy",
@@ -1834,7 +2259,12 @@
           "tone_hz": 632
         }
       },
-      "rtf": 0.027253
+      "rtf": 0.027253,
+      "loudness": {
+        "i_lufs": -18.02,
+        "tp_dbtp": -12.41,
+        "shortfall": false
+      }
     },
     {
       "model": "dummy",
@@ -1855,7 +2285,12 @@
           "tone_hz": 370
         }
       },
-      "rtf": 0.033866
+      "rtf": 0.033866,
+      "loudness": {
+        "i_lufs": -18.01,
+        "tp_dbtp": -12.48,
+        "shortfall": false
+      }
     },
     {
       "model": "dummy",
@@ -1876,7 +2311,12 @@
           "tone_hz": 411
         }
       },
-      "rtf": 0.030574
+      "rtf": 0.030574,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -12.48,
+        "shortfall": false
+      }
     },
     {
       "model": "dummy",
@@ -1897,7 +2337,12 @@
           "tone_hz": 704
         }
       },
-      "rtf": 0.025633
+      "rtf": 0.025633,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -12.65,
+        "shortfall": false
+      }
     },
     {
       "model": "dummy",
@@ -1918,7 +2363,12 @@
           "tone_hz": 569
         }
       },
-      "rtf": 0.03557
+      "rtf": 0.03557,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -12.56,
+        "shortfall": false
+      }
     },
     {
       "model": "dummy",
@@ -1939,7 +2389,12 @@
           "tone_hz": 554
         }
       },
-      "rtf": 0.035128
+      "rtf": 0.035128,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -12.57,
+        "shortfall": false
+      }
     },
     {
       "model": "dummy",
@@ -1960,7 +2415,12 @@
           "tone_hz": 457
         }
       },
-      "rtf": 0.04802
+      "rtf": 0.04802,
+      "loudness": {
+        "i_lufs": -18.01,
+        "tp_dbtp": -12.16,
+        "shortfall": false
+      }
     },
     {
       "model": "dummy",
@@ -1981,7 +2441,12 @@
           "tone_hz": 652
         }
       },
-      "rtf": 0.032917
+      "rtf": 0.032917,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -12.42,
+        "shortfall": false
+      }
     },
     {
       "model": "dummy",
@@ -2002,7 +2467,12 @@
           "tone_hz": 611
         }
       },
-      "rtf": 0.024215
+      "rtf": 0.024215,
+      "loudness": {
+        "i_lufs": -18.01,
+        "tp_dbtp": -12.63,
+        "shortfall": false
+      }
     },
     {
       "model": "dummy",
@@ -2023,7 +2493,12 @@
           "tone_hz": 611
         }
       },
-      "rtf": 0.031303
+      "rtf": 0.031303,
+      "loudness": {
+        "i_lufs": -18.01,
+        "tp_dbtp": -12.63,
+        "shortfall": false
+      }
     },
     {
       "model": "dummy",
@@ -2044,7 +2519,12 @@
           "tone_hz": 676
         }
       },
-      "rtf": 0.024073
+      "rtf": 0.024073,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -12.68,
+        "shortfall": false
+      }
     },
     {
       "model": "dummy",
@@ -2065,7 +2545,12 @@
           "tone_hz": 587
         }
       },
-      "rtf": 0.028015
+      "rtf": 0.028015,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -12.3,
+        "shortfall": false
+      }
     },
     {
       "model": "dummy",
@@ -2086,7 +2571,12 @@
           "tone_hz": 360
         }
       },
-      "rtf": 0.028265
+      "rtf": 0.028265,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -12.46,
+        "shortfall": false
+      }
     },
     {
       "model": "dummy",
@@ -2107,7 +2597,12 @@
           "tone_hz": 486
         }
       },
-      "rtf": 0.026871
+      "rtf": 0.026871,
+      "loudness": {
+        "i_lufs": -18.01,
+        "tp_dbtp": -12.55,
+        "shortfall": false
+      }
     },
     {
       "model": "dummy",
@@ -2128,7 +2623,12 @@
           "tone_hz": 611
         }
       },
-      "rtf": 0.026988
+      "rtf": 0.026988,
+      "loudness": {
+        "i_lufs": -18.01,
+        "tp_dbtp": -12.63,
+        "shortfall": false
+      }
     },
     {
       "model": "dummy",
@@ -2149,7 +2649,12 @@
           "tone_hz": 653
         }
       },
-      "rtf": 0.024536
+      "rtf": 0.024536,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -11.76,
+        "shortfall": false
+      }
     },
     {
       "model": "dummy",
@@ -2170,7 +2675,12 @@
           "tone_hz": 525
         }
       },
-      "rtf": 0.029347
+      "rtf": 0.029347,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -12.56,
+        "shortfall": false
+      }
     },
     {
       "model": "dummy",
@@ -2191,7 +2701,12 @@
           "tone_hz": 645
         }
       },
-      "rtf": 0.024689
+      "rtf": 0.024689,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -12.66,
+        "shortfall": false
+      }
     },
     {
       "model": "dummy",
@@ -2212,7 +2727,12 @@
           "tone_hz": 424
         }
       },
-      "rtf": 0.045497
+      "rtf": 0.045497,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -12.48,
+        "shortfall": false
+      }
     },
     {
       "model": "dummy",
@@ -2233,7 +2753,12 @@
           "tone_hz": 628
         }
       },
-      "rtf": 0.026835
+      "rtf": 0.026835,
+      "loudness": {
+        "i_lufs": -18.02,
+        "tp_dbtp": -11.77,
+        "shortfall": false
+      }
     },
     {
       "model": "dummy",
@@ -2254,7 +2779,12 @@
           "tone_hz": 680
         }
       },
-      "rtf": 0.028357
+      "rtf": 0.028357,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -12.68,
+        "shortfall": false
+      }
     },
     {
       "model": "dummy",
@@ -2275,7 +2805,12 @@
           "tone_hz": 596
         }
       },
-      "rtf": 0.029311
+      "rtf": 0.029311,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -12.58,
+        "shortfall": false
+      }
     },
     {
       "model": "dummy",
@@ -2296,7 +2831,12 @@
           "tone_hz": 597
         }
       },
-      "rtf": 0.026667
+      "rtf": 0.026667,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -12.31,
+        "shortfall": false
+      }
     },
     {
       "model": "dummy",
@@ -2317,7 +2857,12 @@
           "tone_hz": 652
         }
       },
-      "rtf": 0.0326
+      "rtf": 0.0326,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -12.42,
+        "shortfall": false
+      }
     },
     {
       "model": "dummy",
@@ -2338,7 +2883,12 @@
           "tone_hz": 639
         }
       },
-      "rtf": 0.025995
+      "rtf": 0.025995,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -12.65,
+        "shortfall": false
+      }
     },
     {
       "model": "dummy",
@@ -2359,7 +2909,12 @@
           "tone_hz": 451
         }
       },
-      "rtf": 0.027298
+      "rtf": 0.027298,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -12.52,
+        "shortfall": false
+      }
     },
     {
       "model": "dummy",
@@ -2380,7 +2935,12 @@
           "tone_hz": 451
         }
       },
-      "rtf": 0.029039
+      "rtf": 0.029039,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -12.52,
+        "shortfall": false
+      }
     },
     {
       "model": "dummy",
@@ -2401,7 +2961,12 @@
           "tone_hz": 615
         }
       },
-      "rtf": 0.034487
+      "rtf": 0.034487,
+      "loudness": {
+        "i_lufs": -18.02,
+        "tp_dbtp": -12.64,
+        "shortfall": false
+      }
     },
     {
       "model": "dummy",
@@ -2422,7 +2987,12 @@
           "tone_hz": 626
         }
       },
-      "rtf": 0.031152
+      "rtf": 0.031152,
+      "loudness": {
+        "i_lufs": -18.02,
+        "tp_dbtp": -12.65,
+        "shortfall": false
+      }
     },
     {
       "model": "dummy",
@@ -2443,7 +3013,12 @@
           "tone_hz": 458
         }
       },
-      "rtf": 0.028069
+      "rtf": 0.028069,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -11.7,
+        "shortfall": false
+      }
     },
     {
       "model": "dummy",
@@ -2464,7 +3039,12 @@
           "tone_hz": 694
         }
       },
-      "rtf": 0.030815
+      "rtf": 0.030815,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -12.65,
+        "shortfall": false
+      }
     },
     {
       "model": "dummy",
@@ -2485,7 +3065,12 @@
           "tone_hz": 400
         }
       },
-      "rtf": 0.037377
+      "rtf": 0.037377,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -12.48,
+        "shortfall": false
+      }
     },
     {
       "model": "dummy",
@@ -2506,7 +3091,12 @@
           "tone_hz": 466
         }
       },
-      "rtf": 0.026735
+      "rtf": 0.026735,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -12.53,
+        "shortfall": false
+      }
     },
     {
       "model": "dummy",
@@ -2527,7 +3117,12 @@
           "tone_hz": 598
         }
       },
-      "rtf": 0.028337
+      "rtf": 0.028337,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -11.7,
+        "shortfall": false
+      }
     },
     {
       "model": "dummy",
@@ -2548,7 +3143,12 @@
           "tone_hz": 390
         }
       },
-      "rtf": 0.025615
+      "rtf": 0.025615,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -12.48,
+        "shortfall": false
+      }
     },
     {
       "model": "dummy",
@@ -2569,7 +3169,12 @@
           "tone_hz": 521
         }
       },
-      "rtf": 0.026714
+      "rtf": 0.026714,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -12.56,
+        "shortfall": false
+      }
     },
     {
       "model": "dummy",
@@ -2590,7 +3195,12 @@
           "tone_hz": 469
         }
       },
-      "rtf": 0.026693
+      "rtf": 0.026693,
+      "loudness": {
+        "i_lufs": -18.02,
+        "tp_dbtp": -12.55,
+        "shortfall": false
+      }
     },
     {
       "model": "dummy",
@@ -2611,7 +3221,12 @@
           "tone_hz": 397
         }
       },
-      "rtf": 0.035468
+      "rtf": 0.035468,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -12.07,
+        "shortfall": false
+      }
     },
     {
       "model": "dummy",
@@ -2632,7 +3247,12 @@
           "tone_hz": 619
         }
       },
-      "rtf": 0.03417
+      "rtf": 0.03417,
+      "loudness": {
+        "i_lufs": -18.02,
+        "tp_dbtp": -12.64,
+        "shortfall": false
+      }
     },
     {
       "model": "dummy",
@@ -2653,7 +3273,12 @@
           "tone_hz": 518
         }
       },
-      "rtf": 0.03406
+      "rtf": 0.03406,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -11.7,
+        "shortfall": false
+      }
     },
     {
       "model": "dummy",
@@ -2674,7 +3299,12 @@
           "tone_hz": 667
         }
       },
-      "rtf": 0.035307
+      "rtf": 0.035307,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -12.46,
+        "shortfall": false
+      }
     },
     {
       "model": "dummy",
@@ -2695,7 +3325,12 @@
           "tone_hz": 504
         }
       },
-      "rtf": 0.030902
+      "rtf": 0.030902,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -12.55,
+        "shortfall": false
+      }
     },
     {
       "model": "dummy",
@@ -2716,7 +3351,12 @@
           "tone_hz": 414
         }
       },
-      "rtf": 0.029337
+      "rtf": 0.029337,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -12.48,
+        "shortfall": false
+      }
     },
     {
       "model": "dummy",
@@ -2737,7 +3377,12 @@
           "tone_hz": 571
         }
       },
-      "rtf": 0.031731
+      "rtf": 0.031731,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -12.58,
+        "shortfall": false
+      }
     },
     {
       "model": "dummy",
@@ -2758,7 +3403,12 @@
           "tone_hz": 511
         }
       },
-      "rtf": 0.030402
+      "rtf": 0.030402,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -12.56,
+        "shortfall": false
+      }
     },
     {
       "model": "dummy",
@@ -2779,7 +3429,12 @@
           "tone_hz": 586
         }
       },
-      "rtf": 0.028392
+      "rtf": 0.028392,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -12.58,
+        "shortfall": false
+      }
     },
     {
       "model": "dummy",
@@ -2800,7 +3455,12 @@
           "tone_hz": 512
         }
       },
-      "rtf": 0.029775
+      "rtf": 0.029775,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -12.22,
+        "shortfall": false
+      }
     },
     {
       "model": "dummy",
@@ -2821,7 +3481,12 @@
           "tone_hz": 413
         }
       },
-      "rtf": 0.030255
+      "rtf": 0.030255,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -11.67,
+        "shortfall": false
+      }
     },
     {
       "model": "dummy",
@@ -2842,7 +3507,12 @@
           "tone_hz": 528
         }
       },
-      "rtf": 0.030606
+      "rtf": 0.030606,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -11.7,
+        "shortfall": false
+      }
     },
     {
       "model": "dummy",
@@ -2863,7 +3533,12 @@
           "tone_hz": 603
         }
       },
-      "rtf": 0.030675
+      "rtf": 0.030675,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -11.72,
+        "shortfall": false
+      }
     },
     {
       "model": "dummy",
@@ -2884,7 +3559,12 @@
           "tone_hz": 698
         }
       },
-      "rtf": 0.02971
+      "rtf": 0.02971,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -11.77,
+        "shortfall": false
+      }
     },
     {
       "model": "dummy",
@@ -2905,7 +3585,12 @@
           "tone_hz": 714
         }
       },
-      "rtf": 0.027378
+      "rtf": 0.027378,
+      "loudness": {
+        "i_lufs": -18.02,
+        "tp_dbtp": -12.71,
+        "shortfall": false
+      }
     },
     {
       "model": "dummy",
@@ -2926,7 +3611,12 @@
           "tone_hz": 666
         }
       },
-      "rtf": 0.033531
+      "rtf": 0.033531,
+      "loudness": {
+        "i_lufs": -18.01,
+        "tp_dbtp": -12.68,
+        "shortfall": false
+      }
     },
     {
       "model": "dummy",
@@ -2947,7 +3637,12 @@
           "tone_hz": 674
         }
       },
-      "rtf": 0.028729
+      "rtf": 0.028729,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -12.65,
+        "shortfall": false
+      }
     },
     {
       "model": "dummy",
@@ -2968,7 +3663,12 @@
           "tone_hz": 634
         }
       },
-      "rtf": 0.032487
+      "rtf": 0.032487,
+      "loudness": {
+        "i_lufs": -18.02,
+        "tp_dbtp": -12.66,
+        "shortfall": false
+      }
     },
     {
       "model": "dummy",
@@ -2989,7 +3689,12 @@
           "tone_hz": 461
         }
       },
-      "rtf": 0.026129
+      "rtf": 0.026129,
+      "loudness": {
+        "i_lufs": -18.01,
+        "tp_dbtp": -12.53,
+        "shortfall": false
+      }
     },
     {
       "model": "dummy",
@@ -3010,7 +3715,12 @@
           "tone_hz": 700
         }
       },
-      "rtf": 0.028211
+      "rtf": 0.028211,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -12.68,
+        "shortfall": false
+      }
     },
     {
       "model": "dummy",
@@ -3031,7 +3741,12 @@
           "tone_hz": 417
         }
       },
-      "rtf": 0.030471
+      "rtf": 0.030471,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -12.08,
+        "shortfall": false
+      }
     },
     {
       "model": "dummy",
@@ -3052,7 +3767,12 @@
           "tone_hz": 608
         }
       },
-      "rtf": 0.029968
+      "rtf": 0.029968,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -11.75,
+        "shortfall": false
+      }
     },
     {
       "model": "dummy",
@@ -3073,7 +3793,12 @@
           "tone_hz": 651
         }
       },
-      "rtf": 0.032394
+      "rtf": 0.032394,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -12.66,
+        "shortfall": false
+      }
     },
     {
       "model": "dummy",
@@ -3094,7 +3819,12 @@
           "tone_hz": 602
         }
       },
-      "rtf": 0.030222
+      "rtf": 0.030222,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -12.33,
+        "shortfall": false
+      }
     },
     {
       "model": "dummy",
@@ -3115,7 +3845,12 @@
           "tone_hz": 399
         }
       },
-      "rtf": 0.032312
+      "rtf": 0.032312,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -12.48,
+        "shortfall": false
+      }
     },
     {
       "model": "dummy",
@@ -3136,7 +3871,12 @@
           "tone_hz": 620
         }
       },
-      "rtf": 0.030816
+      "rtf": 0.030816,
+      "loudness": {
+        "i_lufs": -18.02,
+        "tp_dbtp": -12.65,
+        "shortfall": false
+      }
     },
     {
       "model": "dummy",
@@ -3157,7 +3897,12 @@
           "tone_hz": 528
         }
       },
-      "rtf": 0.038022
+      "rtf": 0.038022,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -11.7,
+        "shortfall": false
+      }
     },
     {
       "model": "dummy",
@@ -3178,7 +3923,12 @@
           "tone_hz": 435
         }
       },
-      "rtf": 0.028596
+      "rtf": 0.028596,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -12.48,
+        "shortfall": false
+      }
     },
     {
       "model": "dummy",
@@ -3199,7 +3949,12 @@
           "tone_hz": 512
         }
       },
-      "rtf": 0.028808
+      "rtf": 0.028808,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -12.22,
+        "shortfall": false
+      }
     },
     {
       "model": "dummy",
@@ -3220,7 +3975,12 @@
           "tone_hz": 697
         }
       },
-      "rtf": 0.029991
+      "rtf": 0.029991,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -12.48,
+        "shortfall": false
+      }
     },
     {
       "model": "dummy",
@@ -3241,7 +4001,12 @@
           "tone_hz": 628
         }
       },
-      "rtf": 0.030445
+      "rtf": 0.030445,
+      "loudness": {
+        "i_lufs": -18.02,
+        "tp_dbtp": -11.77,
+        "shortfall": false
+      }
     },
     {
       "model": "dummy",
@@ -3262,7 +4027,12 @@
           "tone_hz": 644
         }
       },
-      "rtf": 0.02714
+      "rtf": 0.02714,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -12.65,
+        "shortfall": false
+      }
     },
     {
       "model": "dummy",
@@ -3283,7 +4053,12 @@
           "tone_hz": 392
         }
       },
-      "rtf": 0.028328
+      "rtf": 0.028328,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -12.07,
+        "shortfall": false
+      }
     },
     {
       "model": "dummy",
@@ -3304,7 +4079,12 @@
           "tone_hz": 497
         }
       },
-      "rtf": 0.028014
+      "rtf": 0.028014,
+      "loudness": {
+        "i_lufs": -18.01,
+        "tp_dbtp": -12.21,
+        "shortfall": false
+      }
     },
     {
       "model": "dummy",
@@ -3325,7 +4105,12 @@
           "tone_hz": 628
         }
       },
-      "rtf": 0.029394
+      "rtf": 0.029394,
+      "loudness": {
+        "i_lufs": -18.02,
+        "tp_dbtp": -11.77,
+        "shortfall": false
+      }
     },
     {
       "model": "dummy",
@@ -3346,7 +4131,12 @@
           "tone_hz": 618
         }
       },
-      "rtf": 0.029524
+      "rtf": 0.029524,
+      "loudness": {
+        "i_lufs": -18.02,
+        "tp_dbtp": -11.76,
+        "shortfall": false
+      }
     },
     {
       "model": "dummy",
@@ -3367,7 +4157,12 @@
           "tone_hz": 416
         }
       },
-      "rtf": 0.025247
+      "rtf": 0.025247,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -12.48,
+        "shortfall": false
+      }
     },
     {
       "model": "dummy",
@@ -3388,7 +4183,12 @@
           "tone_hz": 527
         }
       },
-      "rtf": 0.030659
+      "rtf": 0.030659,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -12.23,
+        "shortfall": false
+      }
     },
     {
       "model": "dummy",
@@ -3409,7 +4209,12 @@
           "tone_hz": 707
         }
       },
-      "rtf": 0.034458
+      "rtf": 0.034458,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -12.49,
+        "shortfall": false
+      }
     },
     {
       "model": "qwen3-tts-12hz-1.7b",
@@ -3466,7 +4271,12 @@
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 5.659344
+      "rtf": 5.659344,
+      "loudness": {
+        "i_lufs": -18.09,
+        "tp_dbtp": -0.96,
+        "shortfall": false
+      }
     },
     {
       "model": "qwen3-tts-12hz-1.7b",
@@ -3523,7 +4333,12 @@
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 5.836135
+      "rtf": 5.836135,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -3.45,
+        "shortfall": false
+      }
     },
     {
       "model": "qwen3-tts-12hz-1.7b",
@@ -3580,7 +4395,12 @@
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 5.877553
+      "rtf": 5.877553,
+      "loudness": {
+        "i_lufs": -18.01,
+        "tp_dbtp": -1.0,
+        "shortfall": false
+      }
     },
     {
       "model": "qwen3-tts-12hz-1.7b",
@@ -3637,7 +4457,12 @@
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 6.05155
+      "rtf": 6.05155,
+      "loudness": {
+        "i_lufs": -18.07,
+        "tp_dbtp": -0.97,
+        "shortfall": false
+      }
     },
     {
       "model": "qwen3-tts-12hz-1.7b",
@@ -3694,7 +4519,12 @@
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 6.077721
+      "rtf": 6.077721,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -2.98,
+        "shortfall": false
+      }
     },
     {
       "model": "qwen3-tts-12hz-1.7b",
@@ -3751,7 +4581,12 @@
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 5.743202
+      "rtf": 5.743202,
+      "loudness": {
+        "i_lufs": -18.01,
+        "tp_dbtp": -1.13,
+        "shortfall": false
+      }
     },
     {
       "model": "qwen3-tts-12hz-1.7b",
@@ -3808,7 +4643,12 @@
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 6.089597
+      "rtf": 6.089597,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -1.21,
+        "shortfall": false
+      }
     },
     {
       "model": "qwen3-tts-12hz-1.7b",
@@ -3865,7 +4705,12 @@
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 5.604568
+      "rtf": 5.604568,
+      "loudness": {
+        "i_lufs": -17.99,
+        "tp_dbtp": -2.52,
+        "shortfall": false
+      }
     },
     {
       "model": "qwen3-tts-12hz-1.7b",
@@ -3922,7 +4767,12 @@
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 5.876843
+      "rtf": 5.876843,
+      "loudness": {
+        "i_lufs": -18.01,
+        "tp_dbtp": -2.38,
+        "shortfall": false
+      }
     },
     {
       "model": "qwen3-tts-12hz-1.7b",
@@ -3979,7 +4829,12 @@
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 10.393511
+      "rtf": 10.393511,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -1.16,
+        "shortfall": false
+      }
     },
     {
       "model": "qwen3-tts-12hz-1.7b",
@@ -4036,7 +4891,12 @@
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 5.852373
+      "rtf": 5.852373,
+      "loudness": {
+        "i_lufs": -17.98,
+        "tp_dbtp": -4.73,
+        "shortfall": false
+      }
     },
     {
       "model": "qwen3-tts-12hz-1.7b",
@@ -4093,7 +4953,12 @@
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 6.400028
+      "rtf": 6.400028,
+      "loudness": {
+        "i_lufs": -18.01,
+        "tp_dbtp": -2.1,
+        "shortfall": false
+      }
     },
     {
       "model": "qwen3-tts-12hz-1.7b",
@@ -4150,7 +5015,12 @@
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 5.386919
+      "rtf": 5.386919,
+      "loudness": {
+        "i_lufs": -17.99,
+        "tp_dbtp": -1.33,
+        "shortfall": false
+      }
     },
     {
       "model": "qwen3-tts-12hz-1.7b",
@@ -4207,7 +5077,12 @@
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 6.299752
+      "rtf": 6.299752,
+      "loudness": {
+        "i_lufs": -18.04,
+        "tp_dbtp": -1.0,
+        "shortfall": false
+      }
     },
     {
       "model": "qwen3-tts-12hz-1.7b",
@@ -4264,7 +5139,12 @@
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 6.723104
+      "rtf": 6.723104,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -2.78,
+        "shortfall": false
+      }
     },
     {
       "model": "qwen3-tts-12hz-1.7b",
@@ -4321,7 +5201,12 @@
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 6.366779
+      "rtf": 6.366779,
+      "loudness": {
+        "i_lufs": -18.01,
+        "tp_dbtp": -5.09,
+        "shortfall": false
+      }
     },
     {
       "model": "qwen3-tts-12hz-1.7b",
@@ -4378,7 +5263,12 @@
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 8.947234
+      "rtf": 8.947234,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -2.96,
+        "shortfall": false
+      }
     },
     {
       "model": "qwen3-tts-12hz-1.7b",
@@ -4435,7 +5325,12 @@
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 6.153099
+      "rtf": 6.153099,
+      "loudness": {
+        "i_lufs": -17.99,
+        "tp_dbtp": -2.21,
+        "shortfall": false
+      }
     },
     {
       "model": "qwen3-tts-12hz-1.7b",
@@ -4492,7 +5387,12 @@
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 6.14781
+      "rtf": 6.14781,
+      "loudness": {
+        "i_lufs": -17.98,
+        "tp_dbtp": -5.77,
+        "shortfall": false
+      }
     },
     {
       "model": "qwen3-tts-12hz-1.7b",
@@ -4549,7 +5449,12 @@
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 5.812074
+      "rtf": 5.812074,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -2.45,
+        "shortfall": false
+      }
     },
     {
       "model": "qwen3-tts-12hz-1.7b",
@@ -4606,7 +5511,12 @@
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 5.796062
+      "rtf": 5.796062,
+      "loudness": {
+        "i_lufs": -18.15,
+        "tp_dbtp": -4.02,
+        "shortfall": false
+      }
     },
     {
       "model": "qwen3-tts-12hz-1.7b",
@@ -4663,7 +5573,12 @@
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 5.287127
+      "rtf": 5.287127,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -2.47,
+        "shortfall": false
+      }
     },
     {
       "model": "qwen3-tts-12hz-1.7b",
@@ -4720,7 +5635,12 @@
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 5.399302
+      "rtf": 5.399302,
+      "loudness": {
+        "i_lufs": -18.18,
+        "tp_dbtp": -0.99,
+        "shortfall": false
+      }
     },
     {
       "model": "qwen3-tts-12hz-1.7b",
@@ -4777,7 +5697,12 @@
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 8.555987
+      "rtf": 8.555987,
+      "loudness": {
+        "i_lufs": -18.01,
+        "tp_dbtp": -3.13,
+        "shortfall": false
+      }
     },
     {
       "model": "qwen3-tts-12hz-1.7b",
@@ -4834,7 +5759,12 @@
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 5.620997
+      "rtf": 5.620997,
+      "loudness": {
+        "i_lufs": -18.03,
+        "tp_dbtp": -0.99,
+        "shortfall": false
+      }
     },
     {
       "model": "qwen3-tts-12hz-1.7b",
@@ -4891,7 +5821,12 @@
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 7.02719
+      "rtf": 7.02719,
+      "loudness": {
+        "i_lufs": -18.01,
+        "tp_dbtp": -2.68,
+        "shortfall": false
+      }
     },
     {
       "model": "qwen3-tts-12hz-1.7b",
@@ -4948,7 +5883,12 @@
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 5.727911
+      "rtf": 5.727911,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -3.35,
+        "shortfall": false
+      }
     },
     {
       "model": "qwen3-tts-12hz-1.7b",
@@ -5005,7 +5945,12 @@
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 5.40909
+      "rtf": 5.40909,
+      "loudness": {
+        "i_lufs": -17.99,
+        "tp_dbtp": -1.2,
+        "shortfall": false
+      }
     },
     {
       "model": "qwen3-tts-12hz-1.7b",
@@ -5062,7 +6007,12 @@
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 5.567818
+      "rtf": 5.567818,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -4.38,
+        "shortfall": false
+      }
     },
     {
       "model": "qwen3-tts-12hz-1.7b",
@@ -5119,7 +6069,12 @@
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 5.632535
+      "rtf": 5.632535,
+      "loudness": {
+        "i_lufs": -17.99,
+        "tp_dbtp": -4.28,
+        "shortfall": false
+      }
     },
     {
       "model": "qwen3-tts-12hz-1.7b",
@@ -5176,7 +6131,12 @@
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 8.70144
+      "rtf": 8.70144,
+      "loudness": {
+        "i_lufs": -17.99,
+        "tp_dbtp": -2.0,
+        "shortfall": false
+      }
     },
     {
       "model": "qwen3-tts-12hz-1.7b",
@@ -5233,7 +6193,12 @@
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 5.253942
+      "rtf": 5.253942,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -0.99,
+        "shortfall": false
+      }
     },
     {
       "model": "qwen3-tts-12hz-1.7b",
@@ -5290,7 +6255,12 @@
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 5.846405
+      "rtf": 5.846405,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -4.74,
+        "shortfall": false
+      }
     },
     {
       "model": "qwen3-tts-12hz-1.7b",
@@ -5347,7 +6317,12 @@
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 5.690637
+      "rtf": 5.690637,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -3.01,
+        "shortfall": false
+      }
     },
     {
       "model": "qwen3-tts-12hz-1.7b",
@@ -5404,7 +6379,12 @@
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 6.098726
+      "rtf": 6.098726,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -2.81,
+        "shortfall": false
+      }
     },
     {
       "model": "qwen3-tts-12hz-1.7b",
@@ -5461,7 +6441,12 @@
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 8.801994
+      "rtf": 8.801994,
+      "loudness": {
+        "i_lufs": -18.01,
+        "tp_dbtp": -5.49,
+        "shortfall": false
+      }
     },
     {
       "model": "qwen3-tts-12hz-1.7b",
@@ -5518,7 +6503,12 @@
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 5.71112
+      "rtf": 5.71112,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -5.35,
+        "shortfall": false
+      }
     },
     {
       "model": "qwen3-tts-12hz-1.7b",
@@ -5575,7 +6565,12 @@
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 5.578339
+      "rtf": 5.578339,
+      "loudness": {
+        "i_lufs": -17.99,
+        "tp_dbtp": -2.71,
+        "shortfall": false
+      }
     },
     {
       "model": "qwen3-tts-12hz-1.7b",
@@ -5632,7 +6627,12 @@
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 11.359763
+      "rtf": 11.359763,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -2.78,
+        "shortfall": false
+      }
     },
     {
       "model": "qwen3-tts-12hz-1.7b",
@@ -5689,7 +6689,12 @@
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 6.697688
+      "rtf": 6.697688,
+      "loudness": {
+        "i_lufs": -18.1,
+        "tp_dbtp": -0.98,
+        "shortfall": false
+      }
     },
     {
       "model": "qwen3-tts-12hz-1.7b",
@@ -5746,7 +6751,12 @@
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 6.437863
+      "rtf": 6.437863,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -2.57,
+        "shortfall": false
+      }
     },
     {
       "model": "qwen3-tts-12hz-1.7b",
@@ -5803,7 +6813,12 @@
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 9.518456
+      "rtf": 9.518456,
+      "loudness": {
+        "i_lufs": -18.03,
+        "tp_dbtp": -0.99,
+        "shortfall": false
+      }
     },
     {
       "model": "qwen3-tts-12hz-1.7b",
@@ -5860,7 +6875,12 @@
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 5.829643
+      "rtf": 5.829643,
+      "loudness": {
+        "i_lufs": -18.09,
+        "tp_dbtp": -0.9,
+        "shortfall": false
+      }
     },
     {
       "model": "qwen3-tts-12hz-1.7b",
@@ -5917,7 +6937,12 @@
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 5.102613
+      "rtf": 5.102613,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -3.39,
+        "shortfall": false
+      }
     },
     {
       "model": "qwen3-tts-12hz-1.7b",
@@ -5974,7 +6999,12 @@
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 9.779455
+      "rtf": 9.779455,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -1.17,
+        "shortfall": false
+      }
     },
     {
       "model": "qwen3-tts-12hz-1.7b",
@@ -6031,7 +7061,12 @@
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 9.020174
+      "rtf": 9.020174,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -2.13,
+        "shortfall": false
+      }
     },
     {
       "model": "qwen3-tts-12hz-1.7b",
@@ -6088,7 +7123,12 @@
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 7.87019
+      "rtf": 7.87019,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -3.22,
+        "shortfall": false
+      }
     },
     {
       "model": "qwen3-tts-12hz-1.7b",
@@ -6145,7 +7185,12 @@
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 7.107763
+      "rtf": 7.107763,
+      "loudness": {
+        "i_lufs": -18.01,
+        "tp_dbtp": -3.57,
+        "shortfall": false
+      }
     },
     {
       "model": "qwen3-tts-12hz-1.7b",
@@ -6202,7 +7247,12 @@
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 7.168261
+      "rtf": 7.168261,
+      "loudness": {
+        "i_lufs": -18.04,
+        "tp_dbtp": -1.0,
+        "shortfall": false
+      }
     },
     {
       "model": "qwen3-tts-12hz-1.7b",
@@ -6259,7 +7309,12 @@
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 9.288044
+      "rtf": 9.288044,
+      "loudness": {
+        "i_lufs": -18.05,
+        "tp_dbtp": -0.97,
+        "shortfall": false
+      }
     },
     {
       "model": "qwen3-tts-12hz-1.7b",
@@ -6316,7 +7371,12 @@
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 5.656352
+      "rtf": 5.656352,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -1.88,
+        "shortfall": false
+      }
     },
     {
       "model": "qwen3-tts-12hz-1.7b",
@@ -6373,7 +7433,12 @@
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 6.420504
+      "rtf": 6.420504,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -2.69,
+        "shortfall": false
+      }
     },
     {
       "model": "qwen3-tts-12hz-1.7b",
@@ -6430,7 +7495,12 @@
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 6.344111
+      "rtf": 6.344111,
+      "loudness": {
+        "i_lufs": -17.99,
+        "tp_dbtp": -3.93,
+        "shortfall": false
+      }
     },
     {
       "model": "qwen3-tts-12hz-1.7b",
@@ -6487,7 +7557,12 @@
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 5.989417
+      "rtf": 5.989417,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -2.77,
+        "shortfall": false
+      }
     },
     {
       "model": "qwen3-tts-12hz-1.7b",
@@ -6544,7 +7619,12 @@
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 6.670806
+      "rtf": 6.670806,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -3.51,
+        "shortfall": false
+      }
     },
     {
       "model": "qwen3-tts-12hz-1.7b",
@@ -6601,7 +7681,12 @@
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 7.447386
+      "rtf": 7.447386,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -3.21,
+        "shortfall": false
+      }
     },
     {
       "model": "qwen3-tts-12hz-1.7b",
@@ -6658,7 +7743,12 @@
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 6.373354
+      "rtf": 6.373354,
+      "loudness": {
+        "i_lufs": -17.99,
+        "tp_dbtp": -2.14,
+        "shortfall": false
+      }
     },
     {
       "model": "qwen3-tts-12hz-1.7b",
@@ -6715,7 +7805,12 @@
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 6.570506
+      "rtf": 6.570506,
+      "loudness": {
+        "i_lufs": -18.01,
+        "tp_dbtp": -2.84,
+        "shortfall": false
+      }
     },
     {
       "model": "qwen3-tts-12hz-1.7b",
@@ -6772,7 +7867,12 @@
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 5.762268
+      "rtf": 5.762268,
+      "loudness": {
+        "i_lufs": -18.01,
+        "tp_dbtp": -1.01,
+        "shortfall": false
+      }
     },
     {
       "model": "qwen3-tts-12hz-1.7b",
@@ -6829,7 +7929,12 @@
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 9.622084
+      "rtf": 9.622084,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -4.89,
+        "shortfall": false
+      }
     },
     {
       "model": "qwen3-tts-12hz-1.7b",
@@ -6886,7 +7991,12 @@
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 5.894706
+      "rtf": 5.894706,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -6.68,
+        "shortfall": false
+      }
     },
     {
       "model": "qwen3-tts-12hz-1.7b",
@@ -6943,7 +8053,12 @@
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 5.954271
+      "rtf": 5.954271,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -4.39,
+        "shortfall": false
+      }
     },
     {
       "model": "qwen3-tts-12hz-1.7b",
@@ -7000,7 +8115,12 @@
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 6.625641
+      "rtf": 6.625641,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -1.87,
+        "shortfall": false
+      }
     },
     {
       "model": "qwen3-tts-12hz-1.7b",
@@ -7057,7 +8177,12 @@
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 7.551646
+      "rtf": 7.551646,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -3.8,
+        "shortfall": false
+      }
     },
     {
       "model": "qwen3-tts-12hz-1.7b",
@@ -7114,7 +8239,12 @@
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 6.883602
+      "rtf": 6.883602,
+      "loudness": {
+        "i_lufs": -17.98,
+        "tp_dbtp": -4.43,
+        "shortfall": false
+      }
     },
     {
       "model": "qwen3-tts-12hz-1.7b",
@@ -7171,7 +8301,12 @@
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 8.895312
+      "rtf": 8.895312,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -3.13,
+        "shortfall": false
+      }
     },
     {
       "model": "qwen3-tts-12hz-1.7b",
@@ -7228,7 +8363,12 @@
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 7.80039
+      "rtf": 7.80039,
+      "loudness": {
+        "i_lufs": -17.98,
+        "tp_dbtp": -1.67,
+        "shortfall": false
+      }
     },
     {
       "model": "qwen3-tts-12hz-1.7b",
@@ -7285,7 +8425,12 @@
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 6.600591
+      "rtf": 6.600591,
+      "loudness": {
+        "i_lufs": -17.98,
+        "tp_dbtp": -1.0,
+        "shortfall": false
+      }
     },
     {
       "model": "qwen3-tts-12hz-1.7b",
@@ -7342,7 +8487,12 @@
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 7.348393
+      "rtf": 7.348393,
+      "loudness": {
+        "i_lufs": -18.02,
+        "tp_dbtp": -3.82,
+        "shortfall": false
+      }
     },
     {
       "model": "qwen3-tts-12hz-1.7b",
@@ -7399,7 +8549,12 @@
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 7.20875
+      "rtf": 7.20875,
+      "loudness": {
+        "i_lufs": -18.01,
+        "tp_dbtp": -2.82,
+        "shortfall": false
+      }
     },
     {
       "model": "qwen3-tts-12hz-1.7b",
@@ -7456,7 +8611,12 @@
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 7.428006
+      "rtf": 7.428006,
+      "loudness": {
+        "i_lufs": -17.99,
+        "tp_dbtp": -2.57,
+        "shortfall": false
+      }
     },
     {
       "model": "qwen3-tts-12hz-1.7b",
@@ -7513,7 +8673,12 @@
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 11.60646
+      "rtf": 11.60646,
+      "loudness": {
+        "i_lufs": -18.02,
+        "tp_dbtp": -3.05,
+        "shortfall": false
+      }
     },
     {
       "model": "qwen3-tts-12hz-1.7b",
@@ -7570,7 +8735,12 @@
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 6.524598
+      "rtf": 6.524598,
+      "loudness": {
+        "i_lufs": -18.01,
+        "tp_dbtp": -4.62,
+        "shortfall": false
+      }
     },
     {
       "model": "qwen3-tts-12hz-1.7b",
@@ -7627,7 +8797,12 @@
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 7.659245
+      "rtf": 7.659245,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -6.64,
+        "shortfall": false
+      }
     },
     {
       "model": "qwen3-tts-12hz-1.7b",
@@ -7684,7 +8859,12 @@
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 7.843818
+      "rtf": 7.843818,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -5.51,
+        "shortfall": false
+      }
     },
     {
       "model": "qwen3-tts-12hz-1.7b",
@@ -7741,7 +8921,12 @@
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 7.404033
+      "rtf": 7.404033,
+      "loudness": {
+        "i_lufs": -18.02,
+        "tp_dbtp": -2.91,
+        "shortfall": false
+      }
     },
     {
       "model": "qwen3-tts-12hz-1.7b",
@@ -7798,7 +8983,12 @@
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 7.766987
+      "rtf": 7.766987,
+      "loudness": {
+        "i_lufs": -17.99,
+        "tp_dbtp": -6.63,
+        "shortfall": false
+      }
     },
     {
       "model": "qwen3-tts-12hz-1.7b",
@@ -7855,7 +9045,12 @@
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 11.036112
+      "rtf": 11.036112,
+      "loudness": {
+        "i_lufs": -17.99,
+        "tp_dbtp": -3.7,
+        "shortfall": false
+      }
     },
     {
       "model": "qwen3-tts-12hz-1.7b",
@@ -7912,7 +9107,12 @@
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 6.463503
+      "rtf": 6.463503,
+      "loudness": {
+        "i_lufs": -17.99,
+        "tp_dbtp": -1.0,
+        "shortfall": false
+      }
     },
     {
       "model": "qwen3-tts-12hz-1.7b",
@@ -7969,7 +9169,12 @@
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 6.657979
+      "rtf": 6.657979,
+      "loudness": {
+        "i_lufs": -18.12,
+        "tp_dbtp": -1.0,
+        "shortfall": false
+      }
     },
     {
       "model": "qwen3-tts-12hz-1.7b",
@@ -8026,7 +9231,12 @@
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 9.59829
+      "rtf": 9.59829,
+      "loudness": {
+        "i_lufs": -18.02,
+        "tp_dbtp": -4.94,
+        "shortfall": false
+      }
     },
     {
       "model": "qwen3-tts-12hz-1.7b",
@@ -8083,7 +9293,12 @@
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 7.967749
+      "rtf": 7.967749,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -3.57,
+        "shortfall": false
+      }
     },
     {
       "model": "qwen3-tts-12hz-1.7b",
@@ -8140,7 +9355,12 @@
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 9.803573
+      "rtf": 9.803573,
+      "loudness": {
+        "i_lufs": -18.01,
+        "tp_dbtp": -1.57,
+        "shortfall": false
+      }
     },
     {
       "model": "qwen3-tts-12hz-1.7b",
@@ -8197,7 +9417,12 @@
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 7.909009
+      "rtf": 7.909009,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -1.37,
+        "shortfall": false
+      }
     },
     {
       "model": "qwen3-tts-12hz-1.7b",
@@ -8254,7 +9479,12 @@
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 6.976517
+      "rtf": 6.976517,
+      "loudness": {
+        "i_lufs": -17.98,
+        "tp_dbtp": -6.25,
+        "shortfall": false
+      }
     },
     {
       "model": "qwen3-tts-12hz-1.7b",
@@ -8311,7 +9541,12 @@
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 6.334333
+      "rtf": 6.334333,
+      "loudness": {
+        "i_lufs": -18.02,
+        "tp_dbtp": -1.54,
+        "shortfall": false
+      }
     },
     {
       "model": "qwen3-tts-12hz-1.7b",
@@ -8368,7 +9603,12 @@
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 12.90354
+      "rtf": 12.90354,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -1.0,
+        "shortfall": false
+      }
     },
     {
       "model": "qwen3-tts-12hz-1.7b",
@@ -8425,7 +9665,12 @@
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 8.639164
+      "rtf": 8.639164,
+      "loudness": {
+        "i_lufs": -18.02,
+        "tp_dbtp": -1.0,
+        "shortfall": false
+      }
     },
     {
       "model": "qwen3-tts-12hz-1.7b",
@@ -8482,7 +9727,12 @@
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 7.368671
+      "rtf": 7.368671,
+      "loudness": {
+        "i_lufs": -17.97,
+        "tp_dbtp": -1.0,
+        "shortfall": false
+      }
     },
     {
       "model": "qwen3-tts-12hz-1.7b",
@@ -8539,7 +9789,12 @@
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 8.001365
+      "rtf": 8.001365,
+      "loudness": {
+        "i_lufs": -17.99,
+        "tp_dbtp": -3.4,
+        "shortfall": false
+      }
     },
     {
       "model": "qwen3-tts-12hz-1.7b",
@@ -8596,7 +9851,12 @@
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 7.572773
+      "rtf": 7.572773,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -1.42,
+        "shortfall": false
+      }
     },
     {
       "model": "qwen3-tts-12hz-1.7b",
@@ -8653,7 +9913,12 @@
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 7.047145
+      "rtf": 7.047145,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -3.8,
+        "shortfall": false
+      }
     },
     {
       "model": "qwen3-tts-12hz-1.7b",
@@ -8710,7 +9975,12 @@
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 7.218697
+      "rtf": 7.218697,
+      "loudness": {
+        "i_lufs": -18.13,
+        "tp_dbtp": -1.0,
+        "shortfall": false
+      }
     },
     {
       "model": "qwen3-tts-12hz-1.7b",
@@ -8767,7 +10037,12 @@
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 9.619021
+      "rtf": 9.619021,
+      "loudness": {
+        "i_lufs": -17.89,
+        "tp_dbtp": -1.0,
+        "shortfall": false
+      }
     },
     {
       "model": "qwen3-tts-12hz-1.7b",
@@ -8824,7 +10099,12 @@
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 9.765398
+      "rtf": 9.765398,
+      "loudness": {
+        "i_lufs": -18.13,
+        "tp_dbtp": -1.0,
+        "shortfall": false
+      }
     },
     {
       "model": "qwen3-tts-12hz-1.7b",
@@ -8881,7 +10161,12 @@
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 7.289945
+      "rtf": 7.289945,
+      "loudness": {
+        "i_lufs": -18.01,
+        "tp_dbtp": -1.19,
+        "shortfall": false
+      }
     },
     {
       "model": "qwen3-tts-12hz-1.7b",
@@ -8938,7 +10223,12 @@
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 7.253969
+      "rtf": 7.253969,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -1.79,
+        "shortfall": false
+      }
     },
     {
       "model": "qwen3-tts-12hz-1.7b",
@@ -8995,7 +10285,12 @@
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 7.587947
+      "rtf": 7.587947,
+      "loudness": {
+        "i_lufs": -18.03,
+        "tp_dbtp": -1.7,
+        "shortfall": false
+      }
     },
     {
       "model": "qwen3-tts-12hz-1.7b",
@@ -9052,7 +10347,12 @@
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 10.858212
+      "rtf": 10.858212,
+      "loudness": {
+        "i_lufs": -18.02,
+        "tp_dbtp": -2.82,
+        "shortfall": false
+      }
     },
     {
       "model": "qwen3-tts-12hz-1.7b",
@@ -9109,7 +10409,12 @@
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 7.013408
+      "rtf": 7.013408,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -3.4,
+        "shortfall": false
+      }
     },
     {
       "model": "qwen3-tts-12hz-1.7b",
@@ -9166,7 +10471,12 @@
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 16.256738
+      "rtf": 16.256738,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -2.04,
+        "shortfall": false
+      }
     },
     {
       "model": "qwen3-tts-12hz-1.7b",
@@ -9223,7 +10533,12 @@
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 12.610334
+      "rtf": 12.610334,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -3.58,
+        "shortfall": false
+      }
     },
     {
       "model": "qwen3-tts-12hz-1.7b",
@@ -9280,7 +10595,12 @@
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 9.160458
+      "rtf": 9.160458,
+      "loudness": {
+        "i_lufs": -18.01,
+        "tp_dbtp": -3.91,
+        "shortfall": false
+      }
     },
     {
       "model": "qwen3-tts-12hz-1.7b",
@@ -9337,7 +10657,12 @@
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 6.996464
+      "rtf": 6.996464,
+      "loudness": {
+        "i_lufs": -18.02,
+        "tp_dbtp": -3.45,
+        "shortfall": false
+      }
     },
     {
       "model": "qwen3-tts-12hz-1.7b",
@@ -9394,7 +10719,12 @@
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 6.722903
+      "rtf": 6.722903,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -1.87,
+        "shortfall": false
+      }
     },
     {
       "model": "qwen3-tts-12hz-1.7b",
@@ -9451,7 +10781,12 @@
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 7.360655
+      "rtf": 7.360655,
+      "loudness": {
+        "i_lufs": -18.19,
+        "tp_dbtp": -0.98,
+        "shortfall": false
+      }
     },
     {
       "model": "qwen3-tts-12hz-1.7b",
@@ -9508,7 +10843,12 @@
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 6.434118
+      "rtf": 6.434118,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -2.84,
+        "shortfall": false
+      }
     },
     {
       "model": "qwen3-tts-12hz-1.7b",
@@ -9565,7 +10905,12 @@
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 9.739164
+      "rtf": 9.739164,
+      "loudness": {
+        "i_lufs": -18.01,
+        "tp_dbtp": -4.93,
+        "shortfall": false
+      }
     },
     {
       "model": "qwen3-tts-12hz-1.7b",
@@ -9622,7 +10967,12 @@
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 6.763162
+      "rtf": 6.763162,
+      "loudness": {
+        "i_lufs": -17.99,
+        "tp_dbtp": -5.28,
+        "shortfall": false
+      }
     },
     {
       "model": "qwen3-tts-12hz-1.7b",
@@ -9679,7 +11029,12 @@
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 6.482822
+      "rtf": 6.482822,
+      "loudness": {
+        "i_lufs": -18.01,
+        "tp_dbtp": -2.6,
+        "shortfall": false
+      }
     },
     {
       "model": "qwen3-tts-12hz-1.7b",
@@ -9736,7 +11091,12 @@
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 6.433184
+      "rtf": 6.433184,
+      "loudness": {
+        "i_lufs": -17.99,
+        "tp_dbtp": -2.29,
+        "shortfall": false
+      }
     },
     {
       "model": "qwen3-tts-12hz-1.7b",
@@ -9793,7 +11153,12 @@
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 6.554956
+      "rtf": 6.554956,
+      "loudness": {
+        "i_lufs": -18.02,
+        "tp_dbtp": -3.85,
+        "shortfall": false
+      }
     },
     {
       "model": "qwen3-tts-12hz-1.7b",
@@ -9850,7 +11215,12 @@
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 6.263255
+      "rtf": 6.263255,
+      "loudness": {
+        "i_lufs": -18.02,
+        "tp_dbtp": -2.98,
+        "shortfall": false
+      }
     },
     {
       "model": "qwen3-tts-12hz-1.7b",
@@ -9907,7 +11277,12 @@
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 7.165864
+      "rtf": 7.165864,
+      "loudness": {
+        "i_lufs": -18.01,
+        "tp_dbtp": -6.27,
+        "shortfall": false
+      }
     },
     {
       "model": "qwen3-tts-12hz-1.7b",
@@ -9964,7 +11339,12 @@
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 16.911262
+      "rtf": 16.911262,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -5.0,
+        "shortfall": false
+      }
     },
     {
       "model": "qwen3-tts-12hz-1.7b",
@@ -10021,7 +11401,12 @@
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 9.070462
+      "rtf": 9.070462,
+      "loudness": {
+        "i_lufs": -17.99,
+        "tp_dbtp": -2.4,
+        "shortfall": false
+      }
     },
     {
       "model": "qwen3-tts-12hz-1.7b",
@@ -10078,7 +11463,12 @@
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 6.456036
+      "rtf": 6.456036,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -5.09,
+        "shortfall": false
+      }
     },
     {
       "model": "qwen3-tts-12hz-1.7b",
@@ -10135,7 +11525,12 @@
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 7.199352
+      "rtf": 7.199352,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -3.01,
+        "shortfall": false
+      }
     },
     {
       "model": "qwen3-tts-12hz-1.7b",
@@ -10192,7 +11587,12 @@
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 6.239664
+      "rtf": 6.239664,
+      "loudness": {
+        "i_lufs": -17.99,
+        "tp_dbtp": -1.22,
+        "shortfall": false
+      }
     },
     {
       "model": "qwen3-tts-12hz-1.7b",
@@ -10249,7 +11649,12 @@
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 7.361585
+      "rtf": 7.361585,
+      "loudness": {
+        "i_lufs": -18.14,
+        "tp_dbtp": -0.99,
+        "shortfall": false
+      }
     },
     {
       "model": "qwen3-tts-12hz-1.7b",
@@ -10306,7 +11711,12 @@
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 7.790341
+      "rtf": 7.790341,
+      "loudness": {
+        "i_lufs": -17.99,
+        "tp_dbtp": -3.09,
+        "shortfall": false
+      }
     },
     {
       "model": "qwen3-tts-12hz-1.7b",
@@ -10363,7 +11773,12 @@
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 7.865319
+      "rtf": 7.865319,
+      "loudness": {
+        "i_lufs": -18.16,
+        "tp_dbtp": -1.0,
+        "shortfall": false
+      }
     },
     {
       "model": "qwen3-tts-12hz-1.7b",
@@ -10420,7 +11835,12 @@
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 8.25105
+      "rtf": 8.25105,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -3.71,
+        "shortfall": false
+      }
     },
     {
       "model": "qwen3-tts-12hz-1.7b",
@@ -10477,7 +11897,12 @@
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 7.449071
+      "rtf": 7.449071,
+      "loudness": {
+        "i_lufs": -18.12,
+        "tp_dbtp": -1.0,
+        "shortfall": false
+      }
     },
     {
       "model": "qwen3-tts-12hz-1.7b",
@@ -10534,7 +11959,12 @@
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 9.065183
+      "rtf": 9.065183,
+      "loudness": {
+        "i_lufs": -18.01,
+        "tp_dbtp": -1.49,
+        "shortfall": false
+      }
     },
     {
       "model": "qwen3-tts-12hz-1.7b",
@@ -10591,7 +12021,12 @@
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 6.887865
+      "rtf": 6.887865,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -1.55,
+        "shortfall": false
+      }
     },
     {
       "model": "qwen3-tts-12hz-1.7b",
@@ -10648,7 +12083,12 @@
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 6.177883
+      "rtf": 6.177883,
+      "loudness": {
+        "i_lufs": -18.07,
+        "tp_dbtp": -1.0,
+        "shortfall": false
+      }
     },
     {
       "model": "qwen3-tts-12hz-1.7b",
@@ -10705,7 +12145,12 @@
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 6.319974
+      "rtf": 6.319974,
+      "loudness": {
+        "i_lufs": -18.03,
+        "tp_dbtp": -0.97,
+        "shortfall": false
+      }
     },
     {
       "model": "qwen3-tts-12hz-1.7b",
@@ -10762,7 +12207,12 @@
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 6.625543
+      "rtf": 6.625543,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -2.54,
+        "shortfall": false
+      }
     },
     {
       "model": "qwen3-tts-12hz-1.7b",
@@ -10819,7 +12269,12 @@
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 6.829014
+      "rtf": 6.829014,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -1.06,
+        "shortfall": false
+      }
     },
     {
       "model": "qwen3-tts-12hz-1.7b",
@@ -10876,7 +12331,12 @@
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 8.334986
+      "rtf": 8.334986,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -2.04,
+        "shortfall": false
+      }
     },
     {
       "model": "qwen3-tts-12hz-1.7b",
@@ -10933,7 +12393,12 @@
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 8.488394
+      "rtf": 8.488394,
+      "loudness": {
+        "i_lufs": -18.05,
+        "tp_dbtp": -0.94,
+        "shortfall": false
+      }
     },
     {
       "model": "qwen3-tts-12hz-1.7b",
@@ -10990,7 +12455,12 @@
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 11.615915
+      "rtf": 11.615915,
+      "loudness": {
+        "i_lufs": -18.01,
+        "tp_dbtp": -5.53,
+        "shortfall": false
+      }
     },
     {
       "model": "qwen3-tts-12hz-1.7b",
@@ -11047,7 +12517,12 @@
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 7.665265
+      "rtf": 7.665265,
+      "loudness": {
+        "i_lufs": -18.02,
+        "tp_dbtp": -1.04,
+        "shortfall": false
+      }
     },
     {
       "model": "qwen3-tts-12hz-1.7b",
@@ -11104,7 +12579,12 @@
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 7.649572
+      "rtf": 7.649572,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -4.61,
+        "shortfall": false
+      }
     },
     {
       "model": "qwen3-tts-12hz-1.7b",
@@ -11161,7 +12641,12 @@
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 7.113735
+      "rtf": 7.113735,
+      "loudness": {
+        "i_lufs": -17.99,
+        "tp_dbtp": -6.02,
+        "shortfall": false
+      }
     },
     {
       "model": "qwen3-tts-12hz-1.7b",
@@ -11218,7 +12703,12 @@
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 7.334451
+      "rtf": 7.334451,
+      "loudness": {
+        "i_lufs": -18.01,
+        "tp_dbtp": -3.2,
+        "shortfall": false
+      }
     },
     {
       "model": "qwen3-tts-12hz-1.7b",
@@ -11275,7 +12765,12 @@
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 6.958838
+      "rtf": 6.958838,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -1.61,
+        "shortfall": false
+      }
     },
     {
       "model": "qwen3-tts-12hz-1.7b",
@@ -11332,7 +12827,12 @@
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 7.156454
+      "rtf": 7.156454,
+      "loudness": {
+        "i_lufs": -18.01,
+        "tp_dbtp": -2.26,
+        "shortfall": false
+      }
     },
     {
       "model": "qwen3-tts-12hz-1.7b",
@@ -11389,7 +12889,12 @@
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 6.558464
+      "rtf": 6.558464,
+      "loudness": {
+        "i_lufs": -18.01,
+        "tp_dbtp": -2.53,
+        "shortfall": false
+      }
     },
     {
       "model": "qwen3-tts-12hz-1.7b",
@@ -11446,7 +12951,12 @@
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 6.838238
+      "rtf": 6.838238,
+      "loudness": {
+        "i_lufs": -18.01,
+        "tp_dbtp": -3.44,
+        "shortfall": false
+      }
     },
     {
       "model": "qwen3-tts-12hz-1.7b",
@@ -11503,7 +13013,12 @@
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 7.898263
+      "rtf": 7.898263,
+      "loudness": {
+        "i_lufs": -17.97,
+        "tp_dbtp": -3.26,
+        "shortfall": false
+      }
     },
     {
       "model": "qwen3-tts-12hz-1.7b",
@@ -11560,7 +13075,12 @@
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 8.051003
+      "rtf": 8.051003,
+      "loudness": {
+        "i_lufs": -17.98,
+        "tp_dbtp": -4.68,
+        "shortfall": false
+      }
     },
     {
       "model": "qwen3-tts-12hz-1.7b",
@@ -11617,7 +13137,12 @@
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 6.945551
+      "rtf": 6.945551,
+      "loudness": {
+        "i_lufs": -17.99,
+        "tp_dbtp": -6.9,
+        "shortfall": false
+      }
     },
     {
       "model": "qwen3-tts-12hz-1.7b",
@@ -11674,7 +13199,12 @@
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 6.677096
+      "rtf": 6.677096,
+      "loudness": {
+        "i_lufs": -18.01,
+        "tp_dbtp": -4.75,
+        "shortfall": false
+      }
     },
     {
       "model": "qwen3-tts-12hz-1.7b",
@@ -11731,7 +13261,12 @@
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 16.089832
+      "rtf": 16.089832,
+      "loudness": {
+        "i_lufs": -17.99,
+        "tp_dbtp": -1.81,
+        "shortfall": false
+      }
     },
     {
       "model": "qwen3-tts-12hz-1.7b",
@@ -11788,7 +13323,12 @@
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 7.804321
+      "rtf": 7.804321,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -3.1,
+        "shortfall": false
+      }
     },
     {
       "model": "qwen3-tts-12hz-1.7b",
@@ -11845,7 +13385,12 @@
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 6.880359
+      "rtf": 6.880359,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -3.69,
+        "shortfall": false
+      }
     },
     {
       "model": "qwen3-tts-12hz-1.7b",
@@ -11902,7 +13447,12 @@
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 6.651245
+      "rtf": 6.651245,
+      "loudness": {
+        "i_lufs": -18.15,
+        "tp_dbtp": -0.94,
+        "shortfall": false
+      }
     },
     {
       "model": "qwen3-tts-12hz-1.7b",
@@ -11959,7 +13509,12 @@
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 7.672594
+      "rtf": 7.672594,
+      "loudness": {
+        "i_lufs": -18.02,
+        "tp_dbtp": -0.97,
+        "shortfall": false
+      }
     },
     {
       "model": "qwen3-tts-12hz-1.7b",
@@ -12016,7 +13571,12 @@
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 6.278088
+      "rtf": 6.278088,
+      "loudness": {
+        "i_lufs": -18.01,
+        "tp_dbtp": -1.89,
+        "shortfall": false
+      }
     },
     {
       "model": "qwen3-tts-12hz-1.7b",
@@ -12073,7 +13633,12 @@
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 6.936385
+      "rtf": 6.936385,
+      "loudness": {
+        "i_lufs": -18.13,
+        "tp_dbtp": -1.0,
+        "shortfall": false
+      }
     },
     {
       "model": "qwen3-tts-12hz-1.7b",
@@ -12130,7 +13695,12 @@
           "sample_rate_hz": 24000
         }
       },
-      "rtf": 6.361313
+      "rtf": 6.361313,
+      "loudness": {
+        "i_lufs": -18.03,
+        "tp_dbtp": -0.93,
+        "shortfall": false
+      }
     }
   ],
   "failures": [

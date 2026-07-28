@@ -84,6 +84,7 @@ def test_dynamic_correction_hits_profile_and_reports_final_pcm(
     assert report.normalization_type == "dynamic"
     assert report.integrated_lufs == measured_lufs
     assert report.true_peak_dbtp == measured_peak
+    assert report.as_manifest_dict(PostprocessProfile())["shortfall"] is False
     assert measured_lufs == pytest.approx(-18.0, abs=0.2)
     assert measured_peak <= -0.9
     assert not list(tmp_path.glob("*.limiter-correction.wav"))
@@ -96,7 +97,7 @@ def test_dynamic_correction_hits_profile_and_reports_final_pcm(
 
 @pytest.mark.parametrize(
     ("integrated_lufs", "true_peak_dbtp"),
-    [(-20.0, -1.0), (-18.0, -0.8)],
+    [(-19.6, -1.0), (-18.0, -0.8)],
 )
 def test_loudness_profile_validation_fails_fast(
     integrated_lufs: float,
@@ -115,3 +116,20 @@ def test_loudness_profile_validation_fails_fast(
             ),
             PostprocessProfile(),
         )
+
+
+def test_whisper_within_hard_gate_is_reported_as_shortfall() -> None:
+    report = LoudnessReport(
+        integrated_lufs=-18.57,
+        true_peak_dbtp=-0.94,
+        loudness_range_lu=0.0,
+        normalization_type="dynamic",
+    )
+
+    _validate_loudness_report(report, PostprocessProfile())
+
+    assert report.as_manifest_dict(PostprocessProfile()) == {
+        "i_lufs": -18.57,
+        "tp_dbtp": -0.94,
+        "shortfall": True,
+    }

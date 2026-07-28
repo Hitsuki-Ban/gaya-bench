@@ -41,6 +41,7 @@ CLIP_KEYS = {
     "sha256",
     "gen_params",
     "rtf",
+    "loudness",
 }
 FAILURE_KEYS = {"model", "scenario", "line", "variant", "reason"}
 FAILURE_REASONS = {"generation_failed"}
@@ -222,6 +223,23 @@ def _validate_clip(clip: Any) -> None:
             raise ManifestError(f"clip {key} は文字列が必要です。")
     if not isinstance(clip["gen_params"], dict):
         raise ManifestError("clip gen_params は object が必要です。")
+    loudness = clip["loudness"]
+    if not isinstance(loudness, dict) or set(loudness) != {
+        "i_lufs",
+        "tp_dbtp",
+        "shortfall",
+    }:
+        raise ManifestError("clip loudness の項目が一致しません。")
+    for key in ("i_lufs", "tp_dbtp"):
+        value = loudness[key]
+        if (
+            isinstance(value, bool)
+            or not isinstance(value, (int, float))
+            or not math.isfinite(value)
+        ):
+            raise ManifestError(f"clip loudness.{key} は数値が必要です。")
+    if not isinstance(loudness["shortfall"], bool):
+        raise ManifestError("clip loudness.shortfall は bool が必要です。")
     for key in ("duration_sec", "rtf"):
         value = clip[key]
         if (
