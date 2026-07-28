@@ -1,6 +1,6 @@
 {
   "format_version": 2,
-  "generated_at": "2026-07-28T09:30:51.780125+00:00",
+  "generated_at": "2026-07-28T11:53:23.042541+00:00",
   "models": [
     {
       "id": "dummy",
@@ -13,6 +13,19 @@
         "clone": false,
         "nonverbal": false,
         "reading": false
+      }
+    },
+    {
+      "id": "gpt-sovits-v2-pro-plus",
+      "name": "GPT-SoVITS v2ProPlus",
+      "version": "GPT-SoVITS v2ProPlus; RVC-Boss/GPT-SoVITS@d523079fc05d9a8028d6085bffe4a2757c32abb6; lj1995/GPT-SoVITS@336b2ec4e8d4ac74740798dd40af44e74659ecaf",
+      "license_note": "GPT-SoVITS コードと lj1995/GPT-SoVITS 公式重みは MIT。言語識別用 fastText lid.176.bin は CC BY-SA 3.0 (Meta AI Research)。透かしなし。生成時は各 reference_voice 素材の利用規約・クレジット・再配布条件にも従う。無断の声真似や誤認を招く利用を禁止。",
+      "capabilities": {
+        "emotion": false,
+        "voice_prompt": false,
+        "clone": true,
+        "nonverbal": false,
+        "reading": true
       }
     },
     {
@@ -4213,6 +4226,1074 @@
       "loudness": {
         "i_lufs": -18.0,
         "tp_dbtp": -12.49,
+        "shortfall": false
+      }
+    },
+    {
+      "model": "gpt-sovits-v2-pro-plus",
+      "scenario": "market-day",
+      "line": "fruit-vendor-001",
+      "variant": "dry",
+      "path": "audio/gpt-sovits-v2-pro-plus/market-day/fruit-vendor-001-dry.opus",
+      "duration_sec": 4.9465,
+      "sha256": "939e9ca7d3056943e8a72b417ef5ef216cb9df833d3ddbcd6547d64f446680dd",
+      "gen_params": {
+        "requested": {
+          "upstream_repository": "RVC-Boss/GPT-SoVITS",
+          "upstream_revision": "d523079fc05d9a8028d6085bffe4a2757c32abb6",
+          "weights_repository": "lj1995/GPT-SoVITS",
+          "weights_revision": "336b2ec4e8d4ac74740798dd40af44e74659ecaf",
+          "weight_sha256": {
+            "s1v3.ckpt": "87133414860ea14ff6620c483a3db5ed07b44be42e2c3fcdad65523a729a745a",
+            "v2Pro/s2Gv2ProPlus.pth": "d42a22bbbf65fb2bbdd45ad6a66841156977db45c7aabe0a6992ff378d9c7d3b",
+            "sv/pretrained_eres2netv2w24s4ep4.ckpt": "4f5a0bf73c61eb41b174e1bb54e7ee3c83233892be8e0af1f187024e8e581a35",
+            "chinese-hubert-base/config.json": "c3e5060a1277e0f078cc6be9da4528a605dba6ece93018981fe2c820e5c7b103",
+            "chinese-hubert-base/preprocessor_config.json": "dcd684124d06722947939d41ea6ae58dbf10968c60a11a29f23ddc602c64a29b",
+            "chinese-hubert-base/pytorch_model.bin": "24164f129c66499d1346e2aa55f183250c223161ec2770c0da3d3b08cf432d3c",
+            "chinese-roberta-wwm-ext-large/config.json": "3d57de2fd7e80d0e5c8ff194f0bbb6baa10df7e43fc262a0cc71298a78b0a3e5",
+            "chinese-roberta-wwm-ext-large/pytorch_model.bin": "e53a693acc59ace251d143d068096ae0d7b79e4b1b503fa84c9dcf576448c1d8",
+            "chinese-roberta-wwm-ext-large/tokenizer.json": "173796956820ea27bd14f76bf28162607ff4254807e2948253eb5b46f5bb643b",
+            "fast_langdetect/lid.176.bin": "7e69ec5451bc261cc7844e49e4792a85d7f09c06789ec800fc4a44aec362764e"
+          },
+          "torch_version": "2.7.0",
+          "torchaudio_version": "2.7.0",
+          "cuda_wheel_version": "12.8",
+          "device": "cuda:0",
+          "precision": "fp16",
+          "native_sample_rate_hz": 32000,
+          "language": "all_ja",
+          "seed": 42,
+          "top_k": 5,
+          "top_p": 1.0,
+          "temperature": 1.0,
+          "repetition_penalty": 1.35,
+          "text_split_method": "cut0",
+          "batch_size": 1,
+          "split_bucket": false,
+          "parallel_infer": false,
+          "reference_seconds": 5,
+          "reference_start_frames": {
+            "amitaro-countdown": 0,
+            "hadou-emotion-11": 0,
+            "lux-emotion-76": 0,
+            "sayoko-emotion-75": 0,
+            "tsukuyomi-corpus-94": 0
+          },
+          "reference_assignments": {
+            "tavern-night/drunkard": "hadou-emotion-11",
+            "tavern-night/old-regular": "hadou-emotion-11",
+            "market-day/fruit-vendor": "hadou-emotion-11",
+            "market-day/shopper": "lux-emotion-76",
+            "market-day/street-kid": "tsukuyomi-corpus-94"
+          },
+          "prompt_text_mode": "reference-free"
+        },
+        "realized": {
+          "seed": 42,
+          "sample_rate_hz": 32000,
+          "prompt_text_mode": "reference-free",
+          "phase_peak_vram_mib": {
+            "runtime_load": {
+              "allocated_mib": 1745.761,
+              "reserved_mib": 1766.0
+            },
+            "generation": {
+              "allocated_mib": 1422.624,
+              "reserved_mib": 1796.0
+            }
+          },
+          "reading_source": "line.text",
+          "reference_selection_source": "adapter.assignment:market-day/fruit-vendor",
+          "reference_voice": "hadou-emotion-11",
+          "reference_source_sha256": "e98033d63f847c4113d8b47e264bca82f38212519da8d62661133847b3d221bc",
+          "reference_clip_sha256": "8fa29db7c6341c2b7e1642e2feff512c59e09131857d0875e3976fe3ac174a8d",
+          "reference_clip_start_frame": 0,
+          "reference_clip_frame_count": 240000
+        }
+      },
+      "rtf": 1.661764,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -3.45,
+        "shortfall": false
+      }
+    },
+    {
+      "model": "gpt-sovits-v2-pro-plus",
+      "scenario": "market-day",
+      "line": "fruit-vendor-002",
+      "variant": "dry",
+      "path": "audio/gpt-sovits-v2-pro-plus/market-day/fruit-vendor-002-dry.opus",
+      "duration_sec": 2.7865,
+      "sha256": "f8e14e1675072c8a71b4c7e70998cd20f75f25d9f9395cf9ac86f71c8d07974e",
+      "gen_params": {
+        "requested": {
+          "upstream_repository": "RVC-Boss/GPT-SoVITS",
+          "upstream_revision": "d523079fc05d9a8028d6085bffe4a2757c32abb6",
+          "weights_repository": "lj1995/GPT-SoVITS",
+          "weights_revision": "336b2ec4e8d4ac74740798dd40af44e74659ecaf",
+          "weight_sha256": {
+            "s1v3.ckpt": "87133414860ea14ff6620c483a3db5ed07b44be42e2c3fcdad65523a729a745a",
+            "v2Pro/s2Gv2ProPlus.pth": "d42a22bbbf65fb2bbdd45ad6a66841156977db45c7aabe0a6992ff378d9c7d3b",
+            "sv/pretrained_eres2netv2w24s4ep4.ckpt": "4f5a0bf73c61eb41b174e1bb54e7ee3c83233892be8e0af1f187024e8e581a35",
+            "chinese-hubert-base/config.json": "c3e5060a1277e0f078cc6be9da4528a605dba6ece93018981fe2c820e5c7b103",
+            "chinese-hubert-base/preprocessor_config.json": "dcd684124d06722947939d41ea6ae58dbf10968c60a11a29f23ddc602c64a29b",
+            "chinese-hubert-base/pytorch_model.bin": "24164f129c66499d1346e2aa55f183250c223161ec2770c0da3d3b08cf432d3c",
+            "chinese-roberta-wwm-ext-large/config.json": "3d57de2fd7e80d0e5c8ff194f0bbb6baa10df7e43fc262a0cc71298a78b0a3e5",
+            "chinese-roberta-wwm-ext-large/pytorch_model.bin": "e53a693acc59ace251d143d068096ae0d7b79e4b1b503fa84c9dcf576448c1d8",
+            "chinese-roberta-wwm-ext-large/tokenizer.json": "173796956820ea27bd14f76bf28162607ff4254807e2948253eb5b46f5bb643b",
+            "fast_langdetect/lid.176.bin": "7e69ec5451bc261cc7844e49e4792a85d7f09c06789ec800fc4a44aec362764e"
+          },
+          "torch_version": "2.7.0",
+          "torchaudio_version": "2.7.0",
+          "cuda_wheel_version": "12.8",
+          "device": "cuda:0",
+          "precision": "fp16",
+          "native_sample_rate_hz": 32000,
+          "language": "all_ja",
+          "seed": 42,
+          "top_k": 5,
+          "top_p": 1.0,
+          "temperature": 1.0,
+          "repetition_penalty": 1.35,
+          "text_split_method": "cut0",
+          "batch_size": 1,
+          "split_bucket": false,
+          "parallel_infer": false,
+          "reference_seconds": 5,
+          "reference_start_frames": {
+            "amitaro-countdown": 0,
+            "hadou-emotion-11": 0,
+            "lux-emotion-76": 0,
+            "sayoko-emotion-75": 0,
+            "tsukuyomi-corpus-94": 0
+          },
+          "reference_assignments": {
+            "tavern-night/drunkard": "hadou-emotion-11",
+            "tavern-night/old-regular": "hadou-emotion-11",
+            "market-day/fruit-vendor": "hadou-emotion-11",
+            "market-day/shopper": "lux-emotion-76",
+            "market-day/street-kid": "tsukuyomi-corpus-94"
+          },
+          "prompt_text_mode": "reference-free"
+        },
+        "realized": {
+          "seed": 42,
+          "sample_rate_hz": 32000,
+          "prompt_text_mode": "reference-free",
+          "phase_peak_vram_mib": {
+            "runtime_load": {
+              "allocated_mib": 1745.761,
+              "reserved_mib": 1766.0
+            },
+            "generation": {
+              "allocated_mib": 1468.27,
+              "reserved_mib": 1594.0
+            }
+          },
+          "reading_source": "line.text",
+          "reference_selection_source": "adapter.assignment:market-day/fruit-vendor",
+          "reference_voice": "hadou-emotion-11",
+          "reference_source_sha256": "e98033d63f847c4113d8b47e264bca82f38212519da8d62661133847b3d221bc",
+          "reference_clip_sha256": "8fa29db7c6341c2b7e1642e2feff512c59e09131857d0875e3976fe3ac174a8d",
+          "reference_clip_start_frame": 0,
+          "reference_clip_frame_count": 240000
+        }
+      },
+      "rtf": 1.026377,
+      "loudness": {
+        "i_lufs": -18.02,
+        "tp_dbtp": -4.63,
+        "shortfall": false
+      }
+    },
+    {
+      "model": "gpt-sovits-v2-pro-plus",
+      "scenario": "market-day",
+      "line": "shopper-001",
+      "variant": "dry",
+      "path": "audio/gpt-sovits-v2-pro-plus/market-day/shopper-001-dry.opus",
+      "duration_sec": 3.1465,
+      "sha256": "943d7736193d4cdde7b9311015b714f31e21da825979cf33b3fa451cc9c9825f",
+      "gen_params": {
+        "requested": {
+          "upstream_repository": "RVC-Boss/GPT-SoVITS",
+          "upstream_revision": "d523079fc05d9a8028d6085bffe4a2757c32abb6",
+          "weights_repository": "lj1995/GPT-SoVITS",
+          "weights_revision": "336b2ec4e8d4ac74740798dd40af44e74659ecaf",
+          "weight_sha256": {
+            "s1v3.ckpt": "87133414860ea14ff6620c483a3db5ed07b44be42e2c3fcdad65523a729a745a",
+            "v2Pro/s2Gv2ProPlus.pth": "d42a22bbbf65fb2bbdd45ad6a66841156977db45c7aabe0a6992ff378d9c7d3b",
+            "sv/pretrained_eres2netv2w24s4ep4.ckpt": "4f5a0bf73c61eb41b174e1bb54e7ee3c83233892be8e0af1f187024e8e581a35",
+            "chinese-hubert-base/config.json": "c3e5060a1277e0f078cc6be9da4528a605dba6ece93018981fe2c820e5c7b103",
+            "chinese-hubert-base/preprocessor_config.json": "dcd684124d06722947939d41ea6ae58dbf10968c60a11a29f23ddc602c64a29b",
+            "chinese-hubert-base/pytorch_model.bin": "24164f129c66499d1346e2aa55f183250c223161ec2770c0da3d3b08cf432d3c",
+            "chinese-roberta-wwm-ext-large/config.json": "3d57de2fd7e80d0e5c8ff194f0bbb6baa10df7e43fc262a0cc71298a78b0a3e5",
+            "chinese-roberta-wwm-ext-large/pytorch_model.bin": "e53a693acc59ace251d143d068096ae0d7b79e4b1b503fa84c9dcf576448c1d8",
+            "chinese-roberta-wwm-ext-large/tokenizer.json": "173796956820ea27bd14f76bf28162607ff4254807e2948253eb5b46f5bb643b",
+            "fast_langdetect/lid.176.bin": "7e69ec5451bc261cc7844e49e4792a85d7f09c06789ec800fc4a44aec362764e"
+          },
+          "torch_version": "2.7.0",
+          "torchaudio_version": "2.7.0",
+          "cuda_wheel_version": "12.8",
+          "device": "cuda:0",
+          "precision": "fp16",
+          "native_sample_rate_hz": 32000,
+          "language": "all_ja",
+          "seed": 42,
+          "top_k": 5,
+          "top_p": 1.0,
+          "temperature": 1.0,
+          "repetition_penalty": 1.35,
+          "text_split_method": "cut0",
+          "batch_size": 1,
+          "split_bucket": false,
+          "parallel_infer": false,
+          "reference_seconds": 5,
+          "reference_start_frames": {
+            "amitaro-countdown": 0,
+            "hadou-emotion-11": 0,
+            "lux-emotion-76": 0,
+            "sayoko-emotion-75": 0,
+            "tsukuyomi-corpus-94": 0
+          },
+          "reference_assignments": {
+            "tavern-night/drunkard": "hadou-emotion-11",
+            "tavern-night/old-regular": "hadou-emotion-11",
+            "market-day/fruit-vendor": "hadou-emotion-11",
+            "market-day/shopper": "lux-emotion-76",
+            "market-day/street-kid": "tsukuyomi-corpus-94"
+          },
+          "prompt_text_mode": "reference-free"
+        },
+        "realized": {
+          "seed": 42,
+          "sample_rate_hz": 32000,
+          "prompt_text_mode": "reference-free",
+          "phase_peak_vram_mib": {
+            "runtime_load": {
+              "allocated_mib": 1745.761,
+              "reserved_mib": 1766.0
+            },
+            "generation": {
+              "allocated_mib": 1469.137,
+              "reserved_mib": 1618.0
+            }
+          },
+          "reading_source": "line.text",
+          "reference_selection_source": "adapter.assignment:market-day/shopper",
+          "reference_voice": "lux-emotion-76",
+          "reference_source_sha256": "432de3f3fb40c5838a80e5fb509977176352a8db03a10e8fb37cca1e83bcc4b5",
+          "reference_clip_sha256": "18fe617d6ad7b876be9fe4b53f710a399925441c9d6c079039fe52f1745ee1b8",
+          "reference_clip_start_frame": 0,
+          "reference_clip_frame_count": 240000
+        }
+      },
+      "rtf": 1.006883,
+      "loudness": {
+        "i_lufs": -18.14,
+        "tp_dbtp": -0.93,
+        "shortfall": false
+      }
+    },
+    {
+      "model": "gpt-sovits-v2-pro-plus",
+      "scenario": "market-day",
+      "line": "shopper-002",
+      "variant": "dry",
+      "path": "audio/gpt-sovits-v2-pro-plus/market-day/shopper-002-dry.opus",
+      "duration_sec": 1.9865,
+      "sha256": "845e2365ec7493e5621c7727ff3e3f90278fdef4a91cdafc10c5b32a12465215",
+      "gen_params": {
+        "requested": {
+          "upstream_repository": "RVC-Boss/GPT-SoVITS",
+          "upstream_revision": "d523079fc05d9a8028d6085bffe4a2757c32abb6",
+          "weights_repository": "lj1995/GPT-SoVITS",
+          "weights_revision": "336b2ec4e8d4ac74740798dd40af44e74659ecaf",
+          "weight_sha256": {
+            "s1v3.ckpt": "87133414860ea14ff6620c483a3db5ed07b44be42e2c3fcdad65523a729a745a",
+            "v2Pro/s2Gv2ProPlus.pth": "d42a22bbbf65fb2bbdd45ad6a66841156977db45c7aabe0a6992ff378d9c7d3b",
+            "sv/pretrained_eres2netv2w24s4ep4.ckpt": "4f5a0bf73c61eb41b174e1bb54e7ee3c83233892be8e0af1f187024e8e581a35",
+            "chinese-hubert-base/config.json": "c3e5060a1277e0f078cc6be9da4528a605dba6ece93018981fe2c820e5c7b103",
+            "chinese-hubert-base/preprocessor_config.json": "dcd684124d06722947939d41ea6ae58dbf10968c60a11a29f23ddc602c64a29b",
+            "chinese-hubert-base/pytorch_model.bin": "24164f129c66499d1346e2aa55f183250c223161ec2770c0da3d3b08cf432d3c",
+            "chinese-roberta-wwm-ext-large/config.json": "3d57de2fd7e80d0e5c8ff194f0bbb6baa10df7e43fc262a0cc71298a78b0a3e5",
+            "chinese-roberta-wwm-ext-large/pytorch_model.bin": "e53a693acc59ace251d143d068096ae0d7b79e4b1b503fa84c9dcf576448c1d8",
+            "chinese-roberta-wwm-ext-large/tokenizer.json": "173796956820ea27bd14f76bf28162607ff4254807e2948253eb5b46f5bb643b",
+            "fast_langdetect/lid.176.bin": "7e69ec5451bc261cc7844e49e4792a85d7f09c06789ec800fc4a44aec362764e"
+          },
+          "torch_version": "2.7.0",
+          "torchaudio_version": "2.7.0",
+          "cuda_wheel_version": "12.8",
+          "device": "cuda:0",
+          "precision": "fp16",
+          "native_sample_rate_hz": 32000,
+          "language": "all_ja",
+          "seed": 42,
+          "top_k": 5,
+          "top_p": 1.0,
+          "temperature": 1.0,
+          "repetition_penalty": 1.35,
+          "text_split_method": "cut0",
+          "batch_size": 1,
+          "split_bucket": false,
+          "parallel_infer": false,
+          "reference_seconds": 5,
+          "reference_start_frames": {
+            "amitaro-countdown": 0,
+            "hadou-emotion-11": 0,
+            "lux-emotion-76": 0,
+            "sayoko-emotion-75": 0,
+            "tsukuyomi-corpus-94": 0
+          },
+          "reference_assignments": {
+            "tavern-night/drunkard": "hadou-emotion-11",
+            "tavern-night/old-regular": "hadou-emotion-11",
+            "market-day/fruit-vendor": "hadou-emotion-11",
+            "market-day/shopper": "lux-emotion-76",
+            "market-day/street-kid": "tsukuyomi-corpus-94"
+          },
+          "prompt_text_mode": "reference-free"
+        },
+        "realized": {
+          "seed": 42,
+          "sample_rate_hz": 32000,
+          "prompt_text_mode": "reference-free",
+          "phase_peak_vram_mib": {
+            "runtime_load": {
+              "allocated_mib": 1745.761,
+              "reserved_mib": 1766.0
+            },
+            "generation": {
+              "allocated_mib": 1470.371,
+              "reserved_mib": 1594.0
+            }
+          },
+          "reading_source": "line.text",
+          "reference_selection_source": "adapter.assignment:market-day/shopper",
+          "reference_voice": "lux-emotion-76",
+          "reference_source_sha256": "432de3f3fb40c5838a80e5fb509977176352a8db03a10e8fb37cca1e83bcc4b5",
+          "reference_clip_sha256": "18fe617d6ad7b876be9fe4b53f710a399925441c9d6c079039fe52f1745ee1b8",
+          "reference_clip_start_frame": 0,
+          "reference_clip_frame_count": 240000
+        }
+      },
+      "rtf": 0.809297,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -1.56,
+        "shortfall": false
+      }
+    },
+    {
+      "model": "gpt-sovits-v2-pro-plus",
+      "scenario": "market-day",
+      "line": "street-kid-001",
+      "variant": "dry",
+      "path": "audio/gpt-sovits-v2-pro-plus/market-day/street-kid-001-dry.opus",
+      "duration_sec": 3.7865,
+      "sha256": "d8def91904732a1ee2058dba51031cba3c6a337168e38955339f3c6f28244162",
+      "gen_params": {
+        "requested": {
+          "upstream_repository": "RVC-Boss/GPT-SoVITS",
+          "upstream_revision": "d523079fc05d9a8028d6085bffe4a2757c32abb6",
+          "weights_repository": "lj1995/GPT-SoVITS",
+          "weights_revision": "336b2ec4e8d4ac74740798dd40af44e74659ecaf",
+          "weight_sha256": {
+            "s1v3.ckpt": "87133414860ea14ff6620c483a3db5ed07b44be42e2c3fcdad65523a729a745a",
+            "v2Pro/s2Gv2ProPlus.pth": "d42a22bbbf65fb2bbdd45ad6a66841156977db45c7aabe0a6992ff378d9c7d3b",
+            "sv/pretrained_eres2netv2w24s4ep4.ckpt": "4f5a0bf73c61eb41b174e1bb54e7ee3c83233892be8e0af1f187024e8e581a35",
+            "chinese-hubert-base/config.json": "c3e5060a1277e0f078cc6be9da4528a605dba6ece93018981fe2c820e5c7b103",
+            "chinese-hubert-base/preprocessor_config.json": "dcd684124d06722947939d41ea6ae58dbf10968c60a11a29f23ddc602c64a29b",
+            "chinese-hubert-base/pytorch_model.bin": "24164f129c66499d1346e2aa55f183250c223161ec2770c0da3d3b08cf432d3c",
+            "chinese-roberta-wwm-ext-large/config.json": "3d57de2fd7e80d0e5c8ff194f0bbb6baa10df7e43fc262a0cc71298a78b0a3e5",
+            "chinese-roberta-wwm-ext-large/pytorch_model.bin": "e53a693acc59ace251d143d068096ae0d7b79e4b1b503fa84c9dcf576448c1d8",
+            "chinese-roberta-wwm-ext-large/tokenizer.json": "173796956820ea27bd14f76bf28162607ff4254807e2948253eb5b46f5bb643b",
+            "fast_langdetect/lid.176.bin": "7e69ec5451bc261cc7844e49e4792a85d7f09c06789ec800fc4a44aec362764e"
+          },
+          "torch_version": "2.7.0",
+          "torchaudio_version": "2.7.0",
+          "cuda_wheel_version": "12.8",
+          "device": "cuda:0",
+          "precision": "fp16",
+          "native_sample_rate_hz": 32000,
+          "language": "all_ja",
+          "seed": 42,
+          "top_k": 5,
+          "top_p": 1.0,
+          "temperature": 1.0,
+          "repetition_penalty": 1.35,
+          "text_split_method": "cut0",
+          "batch_size": 1,
+          "split_bucket": false,
+          "parallel_infer": false,
+          "reference_seconds": 5,
+          "reference_start_frames": {
+            "amitaro-countdown": 0,
+            "hadou-emotion-11": 0,
+            "lux-emotion-76": 0,
+            "sayoko-emotion-75": 0,
+            "tsukuyomi-corpus-94": 0
+          },
+          "reference_assignments": {
+            "tavern-night/drunkard": "hadou-emotion-11",
+            "tavern-night/old-regular": "hadou-emotion-11",
+            "market-day/fruit-vendor": "hadou-emotion-11",
+            "market-day/shopper": "lux-emotion-76",
+            "market-day/street-kid": "tsukuyomi-corpus-94"
+          },
+          "prompt_text_mode": "reference-free"
+        },
+        "realized": {
+          "seed": 42,
+          "sample_rate_hz": 32000,
+          "prompt_text_mode": "reference-free",
+          "phase_peak_vram_mib": {
+            "runtime_load": {
+              "allocated_mib": 1745.761,
+              "reserved_mib": 1766.0
+            },
+            "generation": {
+              "allocated_mib": 1466.334,
+              "reserved_mib": 1618.0
+            }
+          },
+          "reading_source": "line.text",
+          "reference_selection_source": "adapter.assignment:market-day/street-kid",
+          "reference_voice": "tsukuyomi-corpus-94",
+          "reference_source_sha256": "06547a71a939b3355985d32c59dc703bad06e4ea044550342bb8b4e6513d4777",
+          "reference_clip_sha256": "52c69a15c7e20d3cd83a5ecc006d88e4e14678b4ab68e4ccb277784c87682fe5",
+          "reference_clip_start_frame": 0,
+          "reference_clip_frame_count": 240000
+        }
+      },
+      "rtf": 0.671195,
+      "loudness": {
+        "i_lufs": -18.18,
+        "tp_dbtp": -2.09,
+        "shortfall": false
+      }
+    },
+    {
+      "model": "gpt-sovits-v2-pro-plus",
+      "scenario": "market-day",
+      "line": "street-kid-002",
+      "variant": "dry",
+      "path": "audio/gpt-sovits-v2-pro-plus/market-day/street-kid-002-dry.opus",
+      "duration_sec": 5.2265,
+      "sha256": "a5b05848570fa3b3c88996b31c2530b896ee5e20901bb5f8c5e6109f5bc75ecd",
+      "gen_params": {
+        "requested": {
+          "upstream_repository": "RVC-Boss/GPT-SoVITS",
+          "upstream_revision": "d523079fc05d9a8028d6085bffe4a2757c32abb6",
+          "weights_repository": "lj1995/GPT-SoVITS",
+          "weights_revision": "336b2ec4e8d4ac74740798dd40af44e74659ecaf",
+          "weight_sha256": {
+            "s1v3.ckpt": "87133414860ea14ff6620c483a3db5ed07b44be42e2c3fcdad65523a729a745a",
+            "v2Pro/s2Gv2ProPlus.pth": "d42a22bbbf65fb2bbdd45ad6a66841156977db45c7aabe0a6992ff378d9c7d3b",
+            "sv/pretrained_eres2netv2w24s4ep4.ckpt": "4f5a0bf73c61eb41b174e1bb54e7ee3c83233892be8e0af1f187024e8e581a35",
+            "chinese-hubert-base/config.json": "c3e5060a1277e0f078cc6be9da4528a605dba6ece93018981fe2c820e5c7b103",
+            "chinese-hubert-base/preprocessor_config.json": "dcd684124d06722947939d41ea6ae58dbf10968c60a11a29f23ddc602c64a29b",
+            "chinese-hubert-base/pytorch_model.bin": "24164f129c66499d1346e2aa55f183250c223161ec2770c0da3d3b08cf432d3c",
+            "chinese-roberta-wwm-ext-large/config.json": "3d57de2fd7e80d0e5c8ff194f0bbb6baa10df7e43fc262a0cc71298a78b0a3e5",
+            "chinese-roberta-wwm-ext-large/pytorch_model.bin": "e53a693acc59ace251d143d068096ae0d7b79e4b1b503fa84c9dcf576448c1d8",
+            "chinese-roberta-wwm-ext-large/tokenizer.json": "173796956820ea27bd14f76bf28162607ff4254807e2948253eb5b46f5bb643b",
+            "fast_langdetect/lid.176.bin": "7e69ec5451bc261cc7844e49e4792a85d7f09c06789ec800fc4a44aec362764e"
+          },
+          "torch_version": "2.7.0",
+          "torchaudio_version": "2.7.0",
+          "cuda_wheel_version": "12.8",
+          "device": "cuda:0",
+          "precision": "fp16",
+          "native_sample_rate_hz": 32000,
+          "language": "all_ja",
+          "seed": 42,
+          "top_k": 5,
+          "top_p": 1.0,
+          "temperature": 1.0,
+          "repetition_penalty": 1.35,
+          "text_split_method": "cut0",
+          "batch_size": 1,
+          "split_bucket": false,
+          "parallel_infer": false,
+          "reference_seconds": 5,
+          "reference_start_frames": {
+            "amitaro-countdown": 0,
+            "hadou-emotion-11": 0,
+            "lux-emotion-76": 0,
+            "sayoko-emotion-75": 0,
+            "tsukuyomi-corpus-94": 0
+          },
+          "reference_assignments": {
+            "tavern-night/drunkard": "hadou-emotion-11",
+            "tavern-night/old-regular": "hadou-emotion-11",
+            "market-day/fruit-vendor": "hadou-emotion-11",
+            "market-day/shopper": "lux-emotion-76",
+            "market-day/street-kid": "tsukuyomi-corpus-94"
+          },
+          "prompt_text_mode": "reference-free"
+        },
+        "realized": {
+          "seed": 42,
+          "sample_rate_hz": 32000,
+          "prompt_text_mode": "reference-free",
+          "phase_peak_vram_mib": {
+            "runtime_load": {
+              "allocated_mib": 1745.761,
+              "reserved_mib": 1766.0
+            },
+            "generation": {
+              "allocated_mib": 1470.381,
+              "reserved_mib": 1596.0
+            }
+          },
+          "reading_source": "line.text",
+          "reference_selection_source": "adapter.assignment:market-day/street-kid",
+          "reference_voice": "tsukuyomi-corpus-94",
+          "reference_source_sha256": "06547a71a939b3355985d32c59dc703bad06e4ea044550342bb8b4e6513d4777",
+          "reference_clip_sha256": "52c69a15c7e20d3cd83a5ecc006d88e4e14678b4ab68e4ccb277784c87682fe5",
+          "reference_clip_start_frame": 0,
+          "reference_clip_frame_count": 240000
+        }
+      },
+      "rtf": 0.593387,
+      "loudness": {
+        "i_lufs": -18.01,
+        "tp_dbtp": -1.43,
+        "shortfall": false
+      }
+    },
+    {
+      "model": "gpt-sovits-v2-pro-plus",
+      "scenario": "tavern-night",
+      "line": "barmaid-001",
+      "variant": "dry",
+      "path": "audio/gpt-sovits-v2-pro-plus/tavern-night/barmaid-001-dry.opus",
+      "duration_sec": 2.7465,
+      "sha256": "567893f14c0706e301abe57a515c81b8c8e8081d5dab15aea17a920a17a25c4e",
+      "gen_params": {
+        "requested": {
+          "upstream_repository": "RVC-Boss/GPT-SoVITS",
+          "upstream_revision": "d523079fc05d9a8028d6085bffe4a2757c32abb6",
+          "weights_repository": "lj1995/GPT-SoVITS",
+          "weights_revision": "336b2ec4e8d4ac74740798dd40af44e74659ecaf",
+          "weight_sha256": {
+            "s1v3.ckpt": "87133414860ea14ff6620c483a3db5ed07b44be42e2c3fcdad65523a729a745a",
+            "v2Pro/s2Gv2ProPlus.pth": "d42a22bbbf65fb2bbdd45ad6a66841156977db45c7aabe0a6992ff378d9c7d3b",
+            "sv/pretrained_eres2netv2w24s4ep4.ckpt": "4f5a0bf73c61eb41b174e1bb54e7ee3c83233892be8e0af1f187024e8e581a35",
+            "chinese-hubert-base/config.json": "c3e5060a1277e0f078cc6be9da4528a605dba6ece93018981fe2c820e5c7b103",
+            "chinese-hubert-base/preprocessor_config.json": "dcd684124d06722947939d41ea6ae58dbf10968c60a11a29f23ddc602c64a29b",
+            "chinese-hubert-base/pytorch_model.bin": "24164f129c66499d1346e2aa55f183250c223161ec2770c0da3d3b08cf432d3c",
+            "chinese-roberta-wwm-ext-large/config.json": "3d57de2fd7e80d0e5c8ff194f0bbb6baa10df7e43fc262a0cc71298a78b0a3e5",
+            "chinese-roberta-wwm-ext-large/pytorch_model.bin": "e53a693acc59ace251d143d068096ae0d7b79e4b1b503fa84c9dcf576448c1d8",
+            "chinese-roberta-wwm-ext-large/tokenizer.json": "173796956820ea27bd14f76bf28162607ff4254807e2948253eb5b46f5bb643b",
+            "fast_langdetect/lid.176.bin": "7e69ec5451bc261cc7844e49e4792a85d7f09c06789ec800fc4a44aec362764e"
+          },
+          "torch_version": "2.7.0",
+          "torchaudio_version": "2.7.0",
+          "cuda_wheel_version": "12.8",
+          "device": "cuda:0",
+          "precision": "fp16",
+          "native_sample_rate_hz": 32000,
+          "language": "all_ja",
+          "seed": 42,
+          "top_k": 5,
+          "top_p": 1.0,
+          "temperature": 1.0,
+          "repetition_penalty": 1.35,
+          "text_split_method": "cut0",
+          "batch_size": 1,
+          "split_bucket": false,
+          "parallel_infer": false,
+          "reference_seconds": 5,
+          "reference_start_frames": {
+            "amitaro-countdown": 0,
+            "hadou-emotion-11": 0,
+            "lux-emotion-76": 0,
+            "sayoko-emotion-75": 0,
+            "tsukuyomi-corpus-94": 0
+          },
+          "reference_assignments": {
+            "tavern-night/drunkard": "hadou-emotion-11",
+            "tavern-night/old-regular": "hadou-emotion-11",
+            "market-day/fruit-vendor": "hadou-emotion-11",
+            "market-day/shopper": "lux-emotion-76",
+            "market-day/street-kid": "tsukuyomi-corpus-94"
+          },
+          "prompt_text_mode": "reference-free"
+        },
+        "realized": {
+          "seed": 42,
+          "sample_rate_hz": 32000,
+          "prompt_text_mode": "reference-free",
+          "phase_peak_vram_mib": {
+            "runtime_load": {
+              "allocated_mib": 1745.761,
+              "reserved_mib": 1766.0
+            },
+            "generation": {
+              "allocated_mib": 1399.782,
+              "reserved_mib": 1796.0
+            }
+          },
+          "reading_source": "line.text",
+          "reference_selection_source": "character.reference_voice",
+          "reference_voice": "amitaro-countdown",
+          "reference_source_sha256": "fdc3ffc571a329250168b9b228e9ebfa660d885677e19bc5547b9a6dbe7509eb",
+          "reference_clip_sha256": "32bcc3574533e5797342180406e50fa1fd694ffd63bf5e458c81ee1dc69fa678",
+          "reference_clip_start_frame": 0,
+          "reference_clip_frame_count": 240000
+        }
+      },
+      "rtf": 2.191237,
+      "loudness": {
+        "i_lufs": -17.99,
+        "tp_dbtp": -4.2,
+        "shortfall": false
+      }
+    },
+    {
+      "model": "gpt-sovits-v2-pro-plus",
+      "scenario": "tavern-night",
+      "line": "barmaid-002",
+      "variant": "dry",
+      "path": "audio/gpt-sovits-v2-pro-plus/tavern-night/barmaid-002-dry.opus",
+      "duration_sec": 3.1865,
+      "sha256": "4ff9540b177f00922406eea6d44ef34f286081c1dd1735309e024529b6cf1cc5",
+      "gen_params": {
+        "requested": {
+          "upstream_repository": "RVC-Boss/GPT-SoVITS",
+          "upstream_revision": "d523079fc05d9a8028d6085bffe4a2757c32abb6",
+          "weights_repository": "lj1995/GPT-SoVITS",
+          "weights_revision": "336b2ec4e8d4ac74740798dd40af44e74659ecaf",
+          "weight_sha256": {
+            "s1v3.ckpt": "87133414860ea14ff6620c483a3db5ed07b44be42e2c3fcdad65523a729a745a",
+            "v2Pro/s2Gv2ProPlus.pth": "d42a22bbbf65fb2bbdd45ad6a66841156977db45c7aabe0a6992ff378d9c7d3b",
+            "sv/pretrained_eres2netv2w24s4ep4.ckpt": "4f5a0bf73c61eb41b174e1bb54e7ee3c83233892be8e0af1f187024e8e581a35",
+            "chinese-hubert-base/config.json": "c3e5060a1277e0f078cc6be9da4528a605dba6ece93018981fe2c820e5c7b103",
+            "chinese-hubert-base/preprocessor_config.json": "dcd684124d06722947939d41ea6ae58dbf10968c60a11a29f23ddc602c64a29b",
+            "chinese-hubert-base/pytorch_model.bin": "24164f129c66499d1346e2aa55f183250c223161ec2770c0da3d3b08cf432d3c",
+            "chinese-roberta-wwm-ext-large/config.json": "3d57de2fd7e80d0e5c8ff194f0bbb6baa10df7e43fc262a0cc71298a78b0a3e5",
+            "chinese-roberta-wwm-ext-large/pytorch_model.bin": "e53a693acc59ace251d143d068096ae0d7b79e4b1b503fa84c9dcf576448c1d8",
+            "chinese-roberta-wwm-ext-large/tokenizer.json": "173796956820ea27bd14f76bf28162607ff4254807e2948253eb5b46f5bb643b",
+            "fast_langdetect/lid.176.bin": "7e69ec5451bc261cc7844e49e4792a85d7f09c06789ec800fc4a44aec362764e"
+          },
+          "torch_version": "2.7.0",
+          "torchaudio_version": "2.7.0",
+          "cuda_wheel_version": "12.8",
+          "device": "cuda:0",
+          "precision": "fp16",
+          "native_sample_rate_hz": 32000,
+          "language": "all_ja",
+          "seed": 42,
+          "top_k": 5,
+          "top_p": 1.0,
+          "temperature": 1.0,
+          "repetition_penalty": 1.35,
+          "text_split_method": "cut0",
+          "batch_size": 1,
+          "split_bucket": false,
+          "parallel_infer": false,
+          "reference_seconds": 5,
+          "reference_start_frames": {
+            "amitaro-countdown": 0,
+            "hadou-emotion-11": 0,
+            "lux-emotion-76": 0,
+            "sayoko-emotion-75": 0,
+            "tsukuyomi-corpus-94": 0
+          },
+          "reference_assignments": {
+            "tavern-night/drunkard": "hadou-emotion-11",
+            "tavern-night/old-regular": "hadou-emotion-11",
+            "market-day/fruit-vendor": "hadou-emotion-11",
+            "market-day/shopper": "lux-emotion-76",
+            "market-day/street-kid": "tsukuyomi-corpus-94"
+          },
+          "prompt_text_mode": "reference-free"
+        },
+        "realized": {
+          "seed": 42,
+          "sample_rate_hz": 32000,
+          "prompt_text_mode": "reference-free",
+          "phase_peak_vram_mib": {
+            "runtime_load": {
+              "allocated_mib": 1745.761,
+              "reserved_mib": 1766.0
+            },
+            "generation": {
+              "allocated_mib": 1466.537,
+              "reserved_mib": 1594.0
+            }
+          },
+          "reading_source": "line.text",
+          "reference_selection_source": "character.reference_voice",
+          "reference_voice": "amitaro-countdown",
+          "reference_source_sha256": "fdc3ffc571a329250168b9b228e9ebfa660d885677e19bc5547b9a6dbe7509eb",
+          "reference_clip_sha256": "32bcc3574533e5797342180406e50fa1fd694ffd63bf5e458c81ee1dc69fa678",
+          "reference_clip_start_frame": 0,
+          "reference_clip_frame_count": 240000
+        }
+      },
+      "rtf": 0.727707,
+      "loudness": {
+        "i_lufs": -18.01,
+        "tp_dbtp": -1.78,
+        "shortfall": false
+      }
+    },
+    {
+      "model": "gpt-sovits-v2-pro-plus",
+      "scenario": "tavern-night",
+      "line": "drunkard-001",
+      "variant": "dry",
+      "path": "audio/gpt-sovits-v2-pro-plus/tavern-night/drunkard-001-dry.opus",
+      "duration_sec": 4.0665,
+      "sha256": "a2481458ba047a496f90e3a1998e3d9cf08b15cf9640c3d48b1cbb22ea7904b8",
+      "gen_params": {
+        "requested": {
+          "upstream_repository": "RVC-Boss/GPT-SoVITS",
+          "upstream_revision": "d523079fc05d9a8028d6085bffe4a2757c32abb6",
+          "weights_repository": "lj1995/GPT-SoVITS",
+          "weights_revision": "336b2ec4e8d4ac74740798dd40af44e74659ecaf",
+          "weight_sha256": {
+            "s1v3.ckpt": "87133414860ea14ff6620c483a3db5ed07b44be42e2c3fcdad65523a729a745a",
+            "v2Pro/s2Gv2ProPlus.pth": "d42a22bbbf65fb2bbdd45ad6a66841156977db45c7aabe0a6992ff378d9c7d3b",
+            "sv/pretrained_eres2netv2w24s4ep4.ckpt": "4f5a0bf73c61eb41b174e1bb54e7ee3c83233892be8e0af1f187024e8e581a35",
+            "chinese-hubert-base/config.json": "c3e5060a1277e0f078cc6be9da4528a605dba6ece93018981fe2c820e5c7b103",
+            "chinese-hubert-base/preprocessor_config.json": "dcd684124d06722947939d41ea6ae58dbf10968c60a11a29f23ddc602c64a29b",
+            "chinese-hubert-base/pytorch_model.bin": "24164f129c66499d1346e2aa55f183250c223161ec2770c0da3d3b08cf432d3c",
+            "chinese-roberta-wwm-ext-large/config.json": "3d57de2fd7e80d0e5c8ff194f0bbb6baa10df7e43fc262a0cc71298a78b0a3e5",
+            "chinese-roberta-wwm-ext-large/pytorch_model.bin": "e53a693acc59ace251d143d068096ae0d7b79e4b1b503fa84c9dcf576448c1d8",
+            "chinese-roberta-wwm-ext-large/tokenizer.json": "173796956820ea27bd14f76bf28162607ff4254807e2948253eb5b46f5bb643b",
+            "fast_langdetect/lid.176.bin": "7e69ec5451bc261cc7844e49e4792a85d7f09c06789ec800fc4a44aec362764e"
+          },
+          "torch_version": "2.7.0",
+          "torchaudio_version": "2.7.0",
+          "cuda_wheel_version": "12.8",
+          "device": "cuda:0",
+          "precision": "fp16",
+          "native_sample_rate_hz": 32000,
+          "language": "all_ja",
+          "seed": 42,
+          "top_k": 5,
+          "top_p": 1.0,
+          "temperature": 1.0,
+          "repetition_penalty": 1.35,
+          "text_split_method": "cut0",
+          "batch_size": 1,
+          "split_bucket": false,
+          "parallel_infer": false,
+          "reference_seconds": 5,
+          "reference_start_frames": {
+            "amitaro-countdown": 0,
+            "hadou-emotion-11": 0,
+            "lux-emotion-76": 0,
+            "sayoko-emotion-75": 0,
+            "tsukuyomi-corpus-94": 0
+          },
+          "reference_assignments": {
+            "tavern-night/drunkard": "hadou-emotion-11",
+            "tavern-night/old-regular": "hadou-emotion-11",
+            "market-day/fruit-vendor": "hadou-emotion-11",
+            "market-day/shopper": "lux-emotion-76",
+            "market-day/street-kid": "tsukuyomi-corpus-94"
+          },
+          "prompt_text_mode": "reference-free"
+        },
+        "realized": {
+          "seed": 42,
+          "sample_rate_hz": 32000,
+          "prompt_text_mode": "reference-free",
+          "phase_peak_vram_mib": {
+            "runtime_load": {
+              "allocated_mib": 1745.761,
+              "reserved_mib": 1766.0
+            },
+            "generation": {
+              "allocated_mib": 1467.424,
+              "reserved_mib": 1620.0
+            }
+          },
+          "reading_source": "line.text",
+          "reference_selection_source": "adapter.assignment:tavern-night/drunkard",
+          "reference_voice": "hadou-emotion-11",
+          "reference_source_sha256": "e98033d63f847c4113d8b47e264bca82f38212519da8d62661133847b3d221bc",
+          "reference_clip_sha256": "8fa29db7c6341c2b7e1642e2feff512c59e09131857d0875e3976fe3ac174a8d",
+          "reference_clip_start_frame": 0,
+          "reference_clip_frame_count": 240000
+        }
+      },
+      "rtf": 0.829279,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -4.0,
+        "shortfall": false
+      }
+    },
+    {
+      "model": "gpt-sovits-v2-pro-plus",
+      "scenario": "tavern-night",
+      "line": "drunkard-002",
+      "variant": "dry",
+      "path": "audio/gpt-sovits-v2-pro-plus/tavern-night/drunkard-002-dry.opus",
+      "duration_sec": 3.0665,
+      "sha256": "006e4dd37ad7cb06a1c601bf82f3dafbd1c17270a6ae684c9e0b52694a998238",
+      "gen_params": {
+        "requested": {
+          "upstream_repository": "RVC-Boss/GPT-SoVITS",
+          "upstream_revision": "d523079fc05d9a8028d6085bffe4a2757c32abb6",
+          "weights_repository": "lj1995/GPT-SoVITS",
+          "weights_revision": "336b2ec4e8d4ac74740798dd40af44e74659ecaf",
+          "weight_sha256": {
+            "s1v3.ckpt": "87133414860ea14ff6620c483a3db5ed07b44be42e2c3fcdad65523a729a745a",
+            "v2Pro/s2Gv2ProPlus.pth": "d42a22bbbf65fb2bbdd45ad6a66841156977db45c7aabe0a6992ff378d9c7d3b",
+            "sv/pretrained_eres2netv2w24s4ep4.ckpt": "4f5a0bf73c61eb41b174e1bb54e7ee3c83233892be8e0af1f187024e8e581a35",
+            "chinese-hubert-base/config.json": "c3e5060a1277e0f078cc6be9da4528a605dba6ece93018981fe2c820e5c7b103",
+            "chinese-hubert-base/preprocessor_config.json": "dcd684124d06722947939d41ea6ae58dbf10968c60a11a29f23ddc602c64a29b",
+            "chinese-hubert-base/pytorch_model.bin": "24164f129c66499d1346e2aa55f183250c223161ec2770c0da3d3b08cf432d3c",
+            "chinese-roberta-wwm-ext-large/config.json": "3d57de2fd7e80d0e5c8ff194f0bbb6baa10df7e43fc262a0cc71298a78b0a3e5",
+            "chinese-roberta-wwm-ext-large/pytorch_model.bin": "e53a693acc59ace251d143d068096ae0d7b79e4b1b503fa84c9dcf576448c1d8",
+            "chinese-roberta-wwm-ext-large/tokenizer.json": "173796956820ea27bd14f76bf28162607ff4254807e2948253eb5b46f5bb643b",
+            "fast_langdetect/lid.176.bin": "7e69ec5451bc261cc7844e49e4792a85d7f09c06789ec800fc4a44aec362764e"
+          },
+          "torch_version": "2.7.0",
+          "torchaudio_version": "2.7.0",
+          "cuda_wheel_version": "12.8",
+          "device": "cuda:0",
+          "precision": "fp16",
+          "native_sample_rate_hz": 32000,
+          "language": "all_ja",
+          "seed": 42,
+          "top_k": 5,
+          "top_p": 1.0,
+          "temperature": 1.0,
+          "repetition_penalty": 1.35,
+          "text_split_method": "cut0",
+          "batch_size": 1,
+          "split_bucket": false,
+          "parallel_infer": false,
+          "reference_seconds": 5,
+          "reference_start_frames": {
+            "amitaro-countdown": 0,
+            "hadou-emotion-11": 0,
+            "lux-emotion-76": 0,
+            "sayoko-emotion-75": 0,
+            "tsukuyomi-corpus-94": 0
+          },
+          "reference_assignments": {
+            "tavern-night/drunkard": "hadou-emotion-11",
+            "tavern-night/old-regular": "hadou-emotion-11",
+            "market-day/fruit-vendor": "hadou-emotion-11",
+            "market-day/shopper": "lux-emotion-76",
+            "market-day/street-kid": "tsukuyomi-corpus-94"
+          },
+          "prompt_text_mode": "reference-free"
+        },
+        "realized": {
+          "seed": 42,
+          "sample_rate_hz": 32000,
+          "prompt_text_mode": "reference-free",
+          "phase_peak_vram_mib": {
+            "runtime_load": {
+              "allocated_mib": 1745.761,
+              "reserved_mib": 1766.0
+            },
+            "generation": {
+              "allocated_mib": 1468.181,
+              "reserved_mib": 1594.0
+            }
+          },
+          "reading_source": "line.text",
+          "reference_selection_source": "adapter.assignment:tavern-night/drunkard",
+          "reference_voice": "hadou-emotion-11",
+          "reference_source_sha256": "e98033d63f847c4113d8b47e264bca82f38212519da8d62661133847b3d221bc",
+          "reference_clip_sha256": "8fa29db7c6341c2b7e1642e2feff512c59e09131857d0875e3976fe3ac174a8d",
+          "reference_clip_start_frame": 0,
+          "reference_clip_frame_count": 240000
+        }
+      },
+      "rtf": 0.750294,
+      "loudness": {
+        "i_lufs": -18.19,
+        "tp_dbtp": -3.9,
+        "shortfall": false
+      }
+    },
+    {
+      "model": "gpt-sovits-v2-pro-plus",
+      "scenario": "tavern-night",
+      "line": "old-regular-001",
+      "variant": "dry",
+      "path": "audio/gpt-sovits-v2-pro-plus/tavern-night/old-regular-001-dry.opus",
+      "duration_sec": 3.9865,
+      "sha256": "d3ee690661943e21d7c82efa414b30e7f0afed9da892826b28de6bcffa774cd6",
+      "gen_params": {
+        "requested": {
+          "upstream_repository": "RVC-Boss/GPT-SoVITS",
+          "upstream_revision": "d523079fc05d9a8028d6085bffe4a2757c32abb6",
+          "weights_repository": "lj1995/GPT-SoVITS",
+          "weights_revision": "336b2ec4e8d4ac74740798dd40af44e74659ecaf",
+          "weight_sha256": {
+            "s1v3.ckpt": "87133414860ea14ff6620c483a3db5ed07b44be42e2c3fcdad65523a729a745a",
+            "v2Pro/s2Gv2ProPlus.pth": "d42a22bbbf65fb2bbdd45ad6a66841156977db45c7aabe0a6992ff378d9c7d3b",
+            "sv/pretrained_eres2netv2w24s4ep4.ckpt": "4f5a0bf73c61eb41b174e1bb54e7ee3c83233892be8e0af1f187024e8e581a35",
+            "chinese-hubert-base/config.json": "c3e5060a1277e0f078cc6be9da4528a605dba6ece93018981fe2c820e5c7b103",
+            "chinese-hubert-base/preprocessor_config.json": "dcd684124d06722947939d41ea6ae58dbf10968c60a11a29f23ddc602c64a29b",
+            "chinese-hubert-base/pytorch_model.bin": "24164f129c66499d1346e2aa55f183250c223161ec2770c0da3d3b08cf432d3c",
+            "chinese-roberta-wwm-ext-large/config.json": "3d57de2fd7e80d0e5c8ff194f0bbb6baa10df7e43fc262a0cc71298a78b0a3e5",
+            "chinese-roberta-wwm-ext-large/pytorch_model.bin": "e53a693acc59ace251d143d068096ae0d7b79e4b1b503fa84c9dcf576448c1d8",
+            "chinese-roberta-wwm-ext-large/tokenizer.json": "173796956820ea27bd14f76bf28162607ff4254807e2948253eb5b46f5bb643b",
+            "fast_langdetect/lid.176.bin": "7e69ec5451bc261cc7844e49e4792a85d7f09c06789ec800fc4a44aec362764e"
+          },
+          "torch_version": "2.7.0",
+          "torchaudio_version": "2.7.0",
+          "cuda_wheel_version": "12.8",
+          "device": "cuda:0",
+          "precision": "fp16",
+          "native_sample_rate_hz": 32000,
+          "language": "all_ja",
+          "seed": 42,
+          "top_k": 5,
+          "top_p": 1.0,
+          "temperature": 1.0,
+          "repetition_penalty": 1.35,
+          "text_split_method": "cut0",
+          "batch_size": 1,
+          "split_bucket": false,
+          "parallel_infer": false,
+          "reference_seconds": 5,
+          "reference_start_frames": {
+            "amitaro-countdown": 0,
+            "hadou-emotion-11": 0,
+            "lux-emotion-76": 0,
+            "sayoko-emotion-75": 0,
+            "tsukuyomi-corpus-94": 0
+          },
+          "reference_assignments": {
+            "tavern-night/drunkard": "hadou-emotion-11",
+            "tavern-night/old-regular": "hadou-emotion-11",
+            "market-day/fruit-vendor": "hadou-emotion-11",
+            "market-day/shopper": "lux-emotion-76",
+            "market-day/street-kid": "tsukuyomi-corpus-94"
+          },
+          "prompt_text_mode": "reference-free"
+        },
+        "realized": {
+          "seed": 42,
+          "sample_rate_hz": 32000,
+          "prompt_text_mode": "reference-free",
+          "phase_peak_vram_mib": {
+            "runtime_load": {
+              "allocated_mib": 1745.761,
+              "reserved_mib": 1766.0
+            },
+            "generation": {
+              "allocated_mib": 1470.432,
+              "reserved_mib": 1594.0
+            }
+          },
+          "reading_source": "line.text",
+          "reference_selection_source": "adapter.assignment:tavern-night/old-regular",
+          "reference_voice": "hadou-emotion-11",
+          "reference_source_sha256": "e98033d63f847c4113d8b47e264bca82f38212519da8d62661133847b3d221bc",
+          "reference_clip_sha256": "8fa29db7c6341c2b7e1642e2feff512c59e09131857d0875e3976fe3ac174a8d",
+          "reference_clip_start_frame": 0,
+          "reference_clip_frame_count": 240000
+        }
+      },
+      "rtf": 0.718993,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -2.52,
+        "shortfall": false
+      }
+    },
+    {
+      "model": "gpt-sovits-v2-pro-plus",
+      "scenario": "tavern-night",
+      "line": "old-regular-002",
+      "variant": "dry",
+      "path": "audio/gpt-sovits-v2-pro-plus/tavern-night/old-regular-002-dry.opus",
+      "duration_sec": 3.5865,
+      "sha256": "9980d8cf1a5a36622f7cc94945987332fb07b36ec57585ceec2e37e3b2c6ad25",
+      "gen_params": {
+        "requested": {
+          "upstream_repository": "RVC-Boss/GPT-SoVITS",
+          "upstream_revision": "d523079fc05d9a8028d6085bffe4a2757c32abb6",
+          "weights_repository": "lj1995/GPT-SoVITS",
+          "weights_revision": "336b2ec4e8d4ac74740798dd40af44e74659ecaf",
+          "weight_sha256": {
+            "s1v3.ckpt": "87133414860ea14ff6620c483a3db5ed07b44be42e2c3fcdad65523a729a745a",
+            "v2Pro/s2Gv2ProPlus.pth": "d42a22bbbf65fb2bbdd45ad6a66841156977db45c7aabe0a6992ff378d9c7d3b",
+            "sv/pretrained_eres2netv2w24s4ep4.ckpt": "4f5a0bf73c61eb41b174e1bb54e7ee3c83233892be8e0af1f187024e8e581a35",
+            "chinese-hubert-base/config.json": "c3e5060a1277e0f078cc6be9da4528a605dba6ece93018981fe2c820e5c7b103",
+            "chinese-hubert-base/preprocessor_config.json": "dcd684124d06722947939d41ea6ae58dbf10968c60a11a29f23ddc602c64a29b",
+            "chinese-hubert-base/pytorch_model.bin": "24164f129c66499d1346e2aa55f183250c223161ec2770c0da3d3b08cf432d3c",
+            "chinese-roberta-wwm-ext-large/config.json": "3d57de2fd7e80d0e5c8ff194f0bbb6baa10df7e43fc262a0cc71298a78b0a3e5",
+            "chinese-roberta-wwm-ext-large/pytorch_model.bin": "e53a693acc59ace251d143d068096ae0d7b79e4b1b503fa84c9dcf576448c1d8",
+            "chinese-roberta-wwm-ext-large/tokenizer.json": "173796956820ea27bd14f76bf28162607ff4254807e2948253eb5b46f5bb643b",
+            "fast_langdetect/lid.176.bin": "7e69ec5451bc261cc7844e49e4792a85d7f09c06789ec800fc4a44aec362764e"
+          },
+          "torch_version": "2.7.0",
+          "torchaudio_version": "2.7.0",
+          "cuda_wheel_version": "12.8",
+          "device": "cuda:0",
+          "precision": "fp16",
+          "native_sample_rate_hz": 32000,
+          "language": "all_ja",
+          "seed": 42,
+          "top_k": 5,
+          "top_p": 1.0,
+          "temperature": 1.0,
+          "repetition_penalty": 1.35,
+          "text_split_method": "cut0",
+          "batch_size": 1,
+          "split_bucket": false,
+          "parallel_infer": false,
+          "reference_seconds": 5,
+          "reference_start_frames": {
+            "amitaro-countdown": 0,
+            "hadou-emotion-11": 0,
+            "lux-emotion-76": 0,
+            "sayoko-emotion-75": 0,
+            "tsukuyomi-corpus-94": 0
+          },
+          "reference_assignments": {
+            "tavern-night/drunkard": "hadou-emotion-11",
+            "tavern-night/old-regular": "hadou-emotion-11",
+            "market-day/fruit-vendor": "hadou-emotion-11",
+            "market-day/shopper": "lux-emotion-76",
+            "market-day/street-kid": "tsukuyomi-corpus-94"
+          },
+          "prompt_text_mode": "reference-free"
+        },
+        "realized": {
+          "seed": 42,
+          "sample_rate_hz": 32000,
+          "prompt_text_mode": "reference-free",
+          "phase_peak_vram_mib": {
+            "runtime_load": {
+              "allocated_mib": 1745.761,
+              "reserved_mib": 1766.0
+            },
+            "generation": {
+              "allocated_mib": 1468.087,
+              "reserved_mib": 1594.0
+            }
+          },
+          "reading_source": "line.text",
+          "reference_selection_source": "adapter.assignment:tavern-night/old-regular",
+          "reference_voice": "hadou-emotion-11",
+          "reference_source_sha256": "e98033d63f847c4113d8b47e264bca82f38212519da8d62661133847b3d221bc",
+          "reference_clip_sha256": "8fa29db7c6341c2b7e1642e2feff512c59e09131857d0875e3976fe3ac174a8d",
+          "reference_clip_start_frame": 0,
+          "reference_clip_frame_count": 240000
+        }
+      },
+      "rtf": 0.91759,
+      "loudness": {
+        "i_lufs": -18.1,
+        "tp_dbtp": -1.8,
         "shortfall": false
       }
     },

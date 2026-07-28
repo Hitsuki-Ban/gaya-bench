@@ -23,4 +23,8 @@ def create_adapter(model_id: str) -> Adapter:
         from gaya_pipeline.adapters.aivisspeech import AivisSpeechAdapter
 
         return AivisSpeechAdapter()
+    if model_id == "gpt-sovits-v2-pro-plus":
+        from gaya_pipeline.adapters.gpt_sovits import GPTSoVITSAdapter
+
+        return GPTSoVITSAdapter()
     raise UnknownAdapterError(f"未知の model id です: {model_id}")
