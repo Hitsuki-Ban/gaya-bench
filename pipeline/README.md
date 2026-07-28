@@ -162,7 +162,7 @@ uv run --project pipeline --locked --extra irodori gaya gen --model irodori-tts-
 uv run --project pipeline --locked --extra irodori gaya gen --model irodori-tts-600m-v3-voicedesign --scenario market-day
 ```
 
-2026-07-28 に Windows 11 / RTX 4070 Ti 12GB で上記2シナリオ（12行）を BF16 / 40 steps / seed 0 で実測し、失敗0件、最大 2,493 MiB allocated / 3,696 MiB reserved、warm RTF 0.552〜1.093（平均 0.800）だった。12出力はすべて48kHz monoで、固定 SilentCipher snapshot による payload `IRDTS` の埋め込み stage を実行した。最終 Opus の独立 decode では 8/12 が payload と完全一致し、1件は不一致、3件は未検出だったため、後処理後の検出可能性は保証しない。段階別の残存率調査は [#65](https://github.com/Hitsuki-Ban/gaya-bench/issues/65) で扱う。
+2026-07-28 に Windows 11 / RTX 4070 Ti 12GB で上記2シナリオ（12行）を BF16 / 40 steps / seed 0 で実測し、失敗0件、最大 2,493 MiB allocated / 3,696 MiB reserved、warm RTF 0.552〜1.093（平均 0.800）だった。12出力はすべて48kHz monoで、固定 SilentCipher snapshot による payload `IRDTS` の埋め込み stage を実行した。段階別の独立 decode では source PCM16 と loudnorm 後 WAV が各12/12完全一致、最終64kbps Opusが通常 decode で8/12完全一致、phase-shift decodeでも9/12完全一致だった。したがって `silentcipher_watermark_stage_executed` は埋め込み stage の実行事実だけを表し、最終 Opus からの検出可能性は保証しない。測定方法と全12件の結果は [SilentCipher 最終 Opus 残存率](../docs/research/silentcipher-survival.md) に記録する。
 
 Code、model weight、codec は MIT。学習データの詳細と生成物の独立ライセンスは公開されていない。参照音声は `assets/voices/metadata.yaml` の権利条件に従う。実在人物・声優の無断模倣、誤認を招く deepfake は禁止する。上流 SilentCipher は model load 失敗時に未透かし音声へ進むが、この adapter は固定 snapshot、`watermarker.ready`、埋め込み stage の実行を必須とする。manifest には stage の実行事実を記録し、最終 Opus からの検出成功とは区別する。
 

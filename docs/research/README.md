@@ -7,5 +7,7 @@
 | `models-codex.md` | Codex独立検証 (上記との対照) | Codex |
 | `models-final.md` | 統合レポート + 確定推薦マトリクス | Codex → Director承認 |
 | `ux-survey.md` | ベンチ/アリーナ系サイトUX調査 | Codex |
+| `silentcipher-survival.md` | Irodori出力の後処理段階別SilentCipher残存率 | Codex |
+| `generation-log.md` | モデル別の全量生成・公開ログ | Codex |
 
 ルール: 主張には出典URLを付ける。ライセンスは一次情報 (LICENSE/モデルカード/公式規約) で確認。不確実な点は「要確認」と明記。
