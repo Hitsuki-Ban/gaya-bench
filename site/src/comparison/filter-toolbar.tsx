@@ -73,7 +73,7 @@ export function FilterToolbar({
             {filteredRows}/{totalRows} セリフを表示。選択状態は URL で共有できます。
           </span>
         </span>
-        <span className="flex items-center gap-1 text-xs text-muted-foreground">
+        <span className="flex shrink-0 items-center gap-1 whitespace-nowrap text-xs text-muted-foreground">
           詳細
           <ChevronDown
             aria-hidden="true"
