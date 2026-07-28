@@ -1,6 +1,6 @@
 {
   "format_version": 2,
-  "generated_at": "2026-07-28T11:53:23.042541+00:00",
+  "generated_at": "2026-07-28T13:04:26.521426+00:00",
   "models": [
     {
       "id": "dummy",
@@ -39,6 +39,19 @@
         "clone": true,
         "nonverbal": false,
         "reading": false
+      }
+    },
+    {
+      "id": "voxcpm2",
+      "name": "VoxCPM 2",
+      "version": "VoxCPM 616d3d3e630a9c96c2853250eef91b0f39dcd5fa; openbmb/VoxCPM2 bffb3df5a29440629464e5e839f4d214c8714c3d",
+      "license_note": "コード・重みは Apache-2.0。内蔵透かしなし。生成音声はAI生成と明示し、clone素材のライセンス・クレジット・再配布条件に従う。",
+      "capabilities": {
+        "emotion": true,
+        "voice_prompt": true,
+        "clone": true,
+        "nonverbal": false,
+        "reading": true
       }
     }
   ],
@@ -15214,6 +15227,1474 @@
       "loudness": {
         "i_lufs": -18.03,
         "tp_dbtp": -0.93,
+        "shortfall": false
+      }
+    },
+    {
+      "model": "voxcpm2",
+      "scenario": "market-day",
+      "line": "fruit-vendor-001",
+      "variant": "dry",
+      "path": "audio/voxcpm2/market-day/fruit-vendor-001-dry.opus",
+      "duration_sec": 3.6865,
+      "sha256": "f0483ef2dd63d3b83aa9c33876e7bb384cf365f615ab9a71e207272114439329",
+      "gen_params": {
+        "requested": {
+          "upstream_repository": "OpenBMB/VoxCPM",
+          "upstream_revision": "616d3d3e630a9c96c2853250eef91b0f39dcd5fa",
+          "weights_repository": "openbmb/VoxCPM2",
+          "weights_revision": "bffb3df5a29440629464e5e839f4d214c8714c3d",
+          "model_root_environment": "GAYA_VOXCPM2_ROOT",
+          "model_files": {
+            ".gitattributes": {
+              "size": 1519,
+              "sha256": "11ad7efa24975ee4b0c3c3a38ed18737f0658a5f75a0a96787b576a78a023361"
+            },
+            "README.md": {
+              "size": 7776,
+              "sha256": "7384fad93ce2d98f47d5c3170597f3b31d414c12c92e7fdf3121fa90f19fe29d"
+            },
+            "audiovae.pth": {
+              "size": 376951122,
+              "sha256": "94b5d51e107e0507d4acc976cfdadb64edd6fd06d1f751dadbf2fd1594274bf1"
+            },
+            "config.json": {
+              "size": 4336,
+              "sha256": "405f0dcd92f7feba6011ed4eac5c8d4f74cba9712f07fd5cfa3063bbdd95402c"
+            },
+            "model.safetensors": {
+              "size": 4580080592,
+              "sha256": "f7f964cfa9da23653baec6e6f7750719977ad944ed9f95fe52fe3a620506891d"
+            },
+            "special_tokens_map.json": {
+              "size": 1632,
+              "sha256": "068594063e37662c02b21acf42ebb334ef6a74fb810e68a2368f88f08351de76"
+            },
+            "tokenization_voxcpm2.py": {
+              "size": 2895,
+              "sha256": "84489ea32b6ee0cae22ed5480cacb6df85c46624c3119be9a2021c3649a12729"
+            },
+            "tokenizer.json": {
+              "size": 3676772,
+              "sha256": "f8984687e4a92a3503d521396d454b7d68e9fdaab2a0288eb3536c7c1aa4bc20"
+            },
+            "tokenizer_config.json": {
+              "size": 5059,
+              "sha256": "e78a3ebb48a0b9437efd1823b6b726c823da89e49dd8bcc90c02419d9baa772b"
+            }
+          },
+          "architecture": "voxcpm2",
+          "device": "cuda:0",
+          "dtype": "bfloat16",
+          "sample_rate_hz": 48000,
+          "voxcpm_version": "2.0.3.post22+g616d3d3e6",
+          "torch_version": "2.10.0+cu130",
+          "torchaudio_version": "2.10.0+cu130",
+          "cuda_version": "13.0",
+          "transformers_version": "5.3.0",
+          "load_denoiser": false,
+          "optimize": false,
+          "normalize": false,
+          "denoise": false,
+          "retry_badcase": false,
+          "cfg_value": 2.0,
+          "inference_timesteps": 10,
+          "seed": 42,
+          "reference_text": "こんにちは。今日はとても良い天気ですね。",
+          "emotion_instructions": {
+            "neutral": "neutral and natural",
+            "cheerful": "cheerful and upbeat",
+            "angry": "angry and forceful",
+            "sad": "sad and subdued",
+            "fearful": "fearful and tense",
+            "surprised": "surprised and startled",
+            "tired": "tired and low-energy",
+            "drunk": "drunken and unsteady",
+            "whisper": "whispering and quiet",
+            "shout": "shouting and loud",
+            "laughing": "laughing and amused",
+            "pain": "in pain and strained"
+          },
+          "intensity_instructions": {
+            "1": "slightly",
+            "2": "clearly",
+            "3": "strongly"
+          }
+        },
+        "realized": {
+          "phase_peak_vram_mib": {
+            "runtime_load": {
+              "allocated_mib": 5064.253,
+              "reserved_mib": 5124.0
+            },
+            "voice_design_generate": {
+              "allocated_mib": 5412.453,
+              "reserved_mib": 5634.0
+            },
+            "controllable_clone_generate": {
+              "allocated_mib": 5648.786,
+              "reserved_mib": 5920.0
+            }
+          },
+          "seed": 42,
+          "sample_rate_hz": 48000,
+          "reading_source": "pyopenjtalk.g2p(kana=True)",
+          "reference_kind": "voice_design",
+          "reference_selection_source": "adapter.voice_design",
+          "reference_voice": null,
+          "reference_sha256": "252981e948b2a0291a800a34698b5560ca3fb8553220a8094a7e6a6b52962b86",
+          "control": "Speak strongly shouting and loud. Delivery: 通り全体に届く呼び込み。リズムがあり、張っているが濁らない。"
+        }
+      },
+      "rtf": 3.328868,
+      "loudness": {
+        "i_lufs": -17.99,
+        "tp_dbtp": -5.63,
+        "shortfall": false
+      }
+    },
+    {
+      "model": "voxcpm2",
+      "scenario": "market-day",
+      "line": "fruit-vendor-002",
+      "variant": "dry",
+      "path": "audio/voxcpm2/market-day/fruit-vendor-002-dry.opus",
+      "duration_sec": 2.5665,
+      "sha256": "4458170e73a25e35009c054861b8f74fc2249ba774ae6c758d73e80a7b45e311",
+      "gen_params": {
+        "requested": {
+          "upstream_repository": "OpenBMB/VoxCPM",
+          "upstream_revision": "616d3d3e630a9c96c2853250eef91b0f39dcd5fa",
+          "weights_repository": "openbmb/VoxCPM2",
+          "weights_revision": "bffb3df5a29440629464e5e839f4d214c8714c3d",
+          "model_root_environment": "GAYA_VOXCPM2_ROOT",
+          "model_files": {
+            ".gitattributes": {
+              "size": 1519,
+              "sha256": "11ad7efa24975ee4b0c3c3a38ed18737f0658a5f75a0a96787b576a78a023361"
+            },
+            "README.md": {
+              "size": 7776,
+              "sha256": "7384fad93ce2d98f47d5c3170597f3b31d414c12c92e7fdf3121fa90f19fe29d"
+            },
+            "audiovae.pth": {
+              "size": 376951122,
+              "sha256": "94b5d51e107e0507d4acc976cfdadb64edd6fd06d1f751dadbf2fd1594274bf1"
+            },
+            "config.json": {
+              "size": 4336,
+              "sha256": "405f0dcd92f7feba6011ed4eac5c8d4f74cba9712f07fd5cfa3063bbdd95402c"
+            },
+            "model.safetensors": {
+              "size": 4580080592,
+              "sha256": "f7f964cfa9da23653baec6e6f7750719977ad944ed9f95fe52fe3a620506891d"
+            },
+            "special_tokens_map.json": {
+              "size": 1632,
+              "sha256": "068594063e37662c02b21acf42ebb334ef6a74fb810e68a2368f88f08351de76"
+            },
+            "tokenization_voxcpm2.py": {
+              "size": 2895,
+              "sha256": "84489ea32b6ee0cae22ed5480cacb6df85c46624c3119be9a2021c3649a12729"
+            },
+            "tokenizer.json": {
+              "size": 3676772,
+              "sha256": "f8984687e4a92a3503d521396d454b7d68e9fdaab2a0288eb3536c7c1aa4bc20"
+            },
+            "tokenizer_config.json": {
+              "size": 5059,
+              "sha256": "e78a3ebb48a0b9437efd1823b6b726c823da89e49dd8bcc90c02419d9baa772b"
+            }
+          },
+          "architecture": "voxcpm2",
+          "device": "cuda:0",
+          "dtype": "bfloat16",
+          "sample_rate_hz": 48000,
+          "voxcpm_version": "2.0.3.post22+g616d3d3e6",
+          "torch_version": "2.10.0+cu130",
+          "torchaudio_version": "2.10.0+cu130",
+          "cuda_version": "13.0",
+          "transformers_version": "5.3.0",
+          "load_denoiser": false,
+          "optimize": false,
+          "normalize": false,
+          "denoise": false,
+          "retry_badcase": false,
+          "cfg_value": 2.0,
+          "inference_timesteps": 10,
+          "seed": 42,
+          "reference_text": "こんにちは。今日はとても良い天気ですね。",
+          "emotion_instructions": {
+            "neutral": "neutral and natural",
+            "cheerful": "cheerful and upbeat",
+            "angry": "angry and forceful",
+            "sad": "sad and subdued",
+            "fearful": "fearful and tense",
+            "surprised": "surprised and startled",
+            "tired": "tired and low-energy",
+            "drunk": "drunken and unsteady",
+            "whisper": "whispering and quiet",
+            "shout": "shouting and loud",
+            "laughing": "laughing and amused",
+            "pain": "in pain and strained"
+          },
+          "intensity_instructions": {
+            "1": "slightly",
+            "2": "clearly",
+            "3": "strongly"
+          }
+        },
+        "realized": {
+          "phase_peak_vram_mib": {
+            "runtime_load": {
+              "allocated_mib": 5064.253,
+              "reserved_mib": 5124.0
+            },
+            "voice_design_generate": {
+              "allocated_mib": 5412.453,
+              "reserved_mib": 5634.0
+            },
+            "controllable_clone_generate": {
+              "allocated_mib": 5652.76,
+              "reserved_mib": 6066.0
+            }
+          },
+          "seed": 42,
+          "sample_rate_hz": 48000,
+          "reading_source": "pyopenjtalk.g2p(kana=True)",
+          "reference_kind": "voice_design",
+          "reference_selection_source": "adapter.voice_design",
+          "reference_voice": null,
+          "reference_sha256": "252981e948b2a0291a800a34698b5560ca3fb8553220a8094a7e6a6b52962b86",
+          "control": "Speak clearly cheerful and upbeat. Delivery: 客への軽口。呼び込みより一段落とした商売声。"
+        }
+      },
+      "rtf": 2.733468,
+      "loudness": {
+        "i_lufs": -18.02,
+        "tp_dbtp": -0.98,
+        "shortfall": false
+      }
+    },
+    {
+      "model": "voxcpm2",
+      "scenario": "market-day",
+      "line": "shopper-001",
+      "variant": "dry",
+      "path": "audio/voxcpm2/market-day/shopper-001-dry.opus",
+      "duration_sec": 3.2065,
+      "sha256": "9ed6919b6c985ff6242aad8e4524ca1dd6012fe74edf847b4493f84e91ad9861",
+      "gen_params": {
+        "requested": {
+          "upstream_repository": "OpenBMB/VoxCPM",
+          "upstream_revision": "616d3d3e630a9c96c2853250eef91b0f39dcd5fa",
+          "weights_repository": "openbmb/VoxCPM2",
+          "weights_revision": "bffb3df5a29440629464e5e839f4d214c8714c3d",
+          "model_root_environment": "GAYA_VOXCPM2_ROOT",
+          "model_files": {
+            ".gitattributes": {
+              "size": 1519,
+              "sha256": "11ad7efa24975ee4b0c3c3a38ed18737f0658a5f75a0a96787b576a78a023361"
+            },
+            "README.md": {
+              "size": 7776,
+              "sha256": "7384fad93ce2d98f47d5c3170597f3b31d414c12c92e7fdf3121fa90f19fe29d"
+            },
+            "audiovae.pth": {
+              "size": 376951122,
+              "sha256": "94b5d51e107e0507d4acc976cfdadb64edd6fd06d1f751dadbf2fd1594274bf1"
+            },
+            "config.json": {
+              "size": 4336,
+              "sha256": "405f0dcd92f7feba6011ed4eac5c8d4f74cba9712f07fd5cfa3063bbdd95402c"
+            },
+            "model.safetensors": {
+              "size": 4580080592,
+              "sha256": "f7f964cfa9da23653baec6e6f7750719977ad944ed9f95fe52fe3a620506891d"
+            },
+            "special_tokens_map.json": {
+              "size": 1632,
+              "sha256": "068594063e37662c02b21acf42ebb334ef6a74fb810e68a2368f88f08351de76"
+            },
+            "tokenization_voxcpm2.py": {
+              "size": 2895,
+              "sha256": "84489ea32b6ee0cae22ed5480cacb6df85c46624c3119be9a2021c3649a12729"
+            },
+            "tokenizer.json": {
+              "size": 3676772,
+              "sha256": "f8984687e4a92a3503d521396d454b7d68e9fdaab2a0288eb3536c7c1aa4bc20"
+            },
+            "tokenizer_config.json": {
+              "size": 5059,
+              "sha256": "e78a3ebb48a0b9437efd1823b6b726c823da89e49dd8bcc90c02419d9baa772b"
+            }
+          },
+          "architecture": "voxcpm2",
+          "device": "cuda:0",
+          "dtype": "bfloat16",
+          "sample_rate_hz": 48000,
+          "voxcpm_version": "2.0.3.post22+g616d3d3e6",
+          "torch_version": "2.10.0+cu130",
+          "torchaudio_version": "2.10.0+cu130",
+          "cuda_version": "13.0",
+          "transformers_version": "5.3.0",
+          "load_denoiser": false,
+          "optimize": false,
+          "normalize": false,
+          "denoise": false,
+          "retry_badcase": false,
+          "cfg_value": 2.0,
+          "inference_timesteps": 10,
+          "seed": 42,
+          "reference_text": "こんにちは。今日はとても良い天気ですね。",
+          "emotion_instructions": {
+            "neutral": "neutral and natural",
+            "cheerful": "cheerful and upbeat",
+            "angry": "angry and forceful",
+            "sad": "sad and subdued",
+            "fearful": "fearful and tense",
+            "surprised": "surprised and startled",
+            "tired": "tired and low-energy",
+            "drunk": "drunken and unsteady",
+            "whisper": "whispering and quiet",
+            "shout": "shouting and loud",
+            "laughing": "laughing and amused",
+            "pain": "in pain and strained"
+          },
+          "intensity_instructions": {
+            "1": "slightly",
+            "2": "clearly",
+            "3": "strongly"
+          }
+        },
+        "realized": {
+          "phase_peak_vram_mib": {
+            "runtime_load": {
+              "allocated_mib": 5064.253,
+              "reserved_mib": 5124.0
+            },
+            "voice_design_generate": {
+              "allocated_mib": 5462.08,
+              "reserved_mib": 5768.0
+            },
+            "controllable_clone_generate": {
+              "allocated_mib": 5646.985,
+              "reserved_mib": 6066.0
+            }
+          },
+          "seed": 42,
+          "sample_rate_hz": 48000,
+          "reading_source": "pyopenjtalk.g2p(kana=True)",
+          "reference_kind": "voice_design",
+          "reference_selection_source": "adapter.voice_design",
+          "reference_voice": null,
+          "reference_sha256": "fa85fb2637f6672c2a3678fa2cd99e54e13c0176c84fc54c2c271f52ede4fd67",
+          "control": "Speak clearly neutral and natural. Delivery: 独り言まじりの品定め。語尾に少し得意げな色。"
+        }
+      },
+      "rtf": 2.481976,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -2.7,
+        "shortfall": false
+      }
+    },
+    {
+      "model": "voxcpm2",
+      "scenario": "market-day",
+      "line": "shopper-002",
+      "variant": "dry",
+      "path": "audio/voxcpm2/market-day/shopper-002-dry.opus",
+      "duration_sec": 4.1665,
+      "sha256": "04c661ad1d60b138b2b0a043ebfd31031b182c8c20667e945506b3b05be94311",
+      "gen_params": {
+        "requested": {
+          "upstream_repository": "OpenBMB/VoxCPM",
+          "upstream_revision": "616d3d3e630a9c96c2853250eef91b0f39dcd5fa",
+          "weights_repository": "openbmb/VoxCPM2",
+          "weights_revision": "bffb3df5a29440629464e5e839f4d214c8714c3d",
+          "model_root_environment": "GAYA_VOXCPM2_ROOT",
+          "model_files": {
+            ".gitattributes": {
+              "size": 1519,
+              "sha256": "11ad7efa24975ee4b0c3c3a38ed18737f0658a5f75a0a96787b576a78a023361"
+            },
+            "README.md": {
+              "size": 7776,
+              "sha256": "7384fad93ce2d98f47d5c3170597f3b31d414c12c92e7fdf3121fa90f19fe29d"
+            },
+            "audiovae.pth": {
+              "size": 376951122,
+              "sha256": "94b5d51e107e0507d4acc976cfdadb64edd6fd06d1f751dadbf2fd1594274bf1"
+            },
+            "config.json": {
+              "size": 4336,
+              "sha256": "405f0dcd92f7feba6011ed4eac5c8d4f74cba9712f07fd5cfa3063bbdd95402c"
+            },
+            "model.safetensors": {
+              "size": 4580080592,
+              "sha256": "f7f964cfa9da23653baec6e6f7750719977ad944ed9f95fe52fe3a620506891d"
+            },
+            "special_tokens_map.json": {
+              "size": 1632,
+              "sha256": "068594063e37662c02b21acf42ebb334ef6a74fb810e68a2368f88f08351de76"
+            },
+            "tokenization_voxcpm2.py": {
+              "size": 2895,
+              "sha256": "84489ea32b6ee0cae22ed5480cacb6df85c46624c3119be9a2021c3649a12729"
+            },
+            "tokenizer.json": {
+              "size": 3676772,
+              "sha256": "f8984687e4a92a3503d521396d454b7d68e9fdaab2a0288eb3536c7c1aa4bc20"
+            },
+            "tokenizer_config.json": {
+              "size": 5059,
+              "sha256": "e78a3ebb48a0b9437efd1823b6b726c823da89e49dd8bcc90c02419d9baa772b"
+            }
+          },
+          "architecture": "voxcpm2",
+          "device": "cuda:0",
+          "dtype": "bfloat16",
+          "sample_rate_hz": 48000,
+          "voxcpm_version": "2.0.3.post22+g616d3d3e6",
+          "torch_version": "2.10.0+cu130",
+          "torchaudio_version": "2.10.0+cu130",
+          "cuda_version": "13.0",
+          "transformers_version": "5.3.0",
+          "load_denoiser": false,
+          "optimize": false,
+          "normalize": false,
+          "denoise": false,
+          "retry_badcase": false,
+          "cfg_value": 2.0,
+          "inference_timesteps": 10,
+          "seed": 42,
+          "reference_text": "こんにちは。今日はとても良い天気ですね。",
+          "emotion_instructions": {
+            "neutral": "neutral and natural",
+            "cheerful": "cheerful and upbeat",
+            "angry": "angry and forceful",
+            "sad": "sad and subdued",
+            "fearful": "fearful and tense",
+            "surprised": "surprised and startled",
+            "tired": "tired and low-energy",
+            "drunk": "drunken and unsteady",
+            "whisper": "whispering and quiet",
+            "shout": "shouting and loud",
+            "laughing": "laughing and amused",
+            "pain": "in pain and strained"
+          },
+          "intensity_instructions": {
+            "1": "slightly",
+            "2": "clearly",
+            "3": "strongly"
+          }
+        },
+        "realized": {
+          "phase_peak_vram_mib": {
+            "runtime_load": {
+              "allocated_mib": 5064.253,
+              "reserved_mib": 5124.0
+            },
+            "voice_design_generate": {
+              "allocated_mib": 5462.08,
+              "reserved_mib": 5768.0
+            },
+            "controllable_clone_generate": {
+              "allocated_mib": 5646.758,
+              "reserved_mib": 6066.0
+            }
+          },
+          "seed": 42,
+          "sample_rate_hz": 48000,
+          "reading_source": "pyopenjtalk.g2p(kana=True)",
+          "reference_kind": "voice_design",
+          "reference_selection_source": "adapter.voice_design",
+          "reference_voice": null,
+          "reference_sha256": "fa85fb2637f6672c2a3678fa2cd99e54e13c0176c84fc54c2c271f52ede4fd67",
+          "control": "Speak slightly cheerful and upbeat. Delivery: 冗談めかした値切り。上目遣いの甘え声だが本気。"
+        }
+      },
+      "rtf": 2.408495,
+      "loudness": {
+        "i_lufs": -17.99,
+        "tp_dbtp": -2.18,
+        "shortfall": false
+      }
+    },
+    {
+      "model": "voxcpm2",
+      "scenario": "market-day",
+      "line": "street-kid-001",
+      "variant": "dry",
+      "path": "audio/voxcpm2/market-day/street-kid-001-dry.opus",
+      "duration_sec": 3.8465,
+      "sha256": "203abf670e395ac012ff5aa66ac811bdbaf60ac31ac48bee3ef9a57f976fd332",
+      "gen_params": {
+        "requested": {
+          "upstream_repository": "OpenBMB/VoxCPM",
+          "upstream_revision": "616d3d3e630a9c96c2853250eef91b0f39dcd5fa",
+          "weights_repository": "openbmb/VoxCPM2",
+          "weights_revision": "bffb3df5a29440629464e5e839f4d214c8714c3d",
+          "model_root_environment": "GAYA_VOXCPM2_ROOT",
+          "model_files": {
+            ".gitattributes": {
+              "size": 1519,
+              "sha256": "11ad7efa24975ee4b0c3c3a38ed18737f0658a5f75a0a96787b576a78a023361"
+            },
+            "README.md": {
+              "size": 7776,
+              "sha256": "7384fad93ce2d98f47d5c3170597f3b31d414c12c92e7fdf3121fa90f19fe29d"
+            },
+            "audiovae.pth": {
+              "size": 376951122,
+              "sha256": "94b5d51e107e0507d4acc976cfdadb64edd6fd06d1f751dadbf2fd1594274bf1"
+            },
+            "config.json": {
+              "size": 4336,
+              "sha256": "405f0dcd92f7feba6011ed4eac5c8d4f74cba9712f07fd5cfa3063bbdd95402c"
+            },
+            "model.safetensors": {
+              "size": 4580080592,
+              "sha256": "f7f964cfa9da23653baec6e6f7750719977ad944ed9f95fe52fe3a620506891d"
+            },
+            "special_tokens_map.json": {
+              "size": 1632,
+              "sha256": "068594063e37662c02b21acf42ebb334ef6a74fb810e68a2368f88f08351de76"
+            },
+            "tokenization_voxcpm2.py": {
+              "size": 2895,
+              "sha256": "84489ea32b6ee0cae22ed5480cacb6df85c46624c3119be9a2021c3649a12729"
+            },
+            "tokenizer.json": {
+              "size": 3676772,
+              "sha256": "f8984687e4a92a3503d521396d454b7d68e9fdaab2a0288eb3536c7c1aa4bc20"
+            },
+            "tokenizer_config.json": {
+              "size": 5059,
+              "sha256": "e78a3ebb48a0b9437efd1823b6b726c823da89e49dd8bcc90c02419d9baa772b"
+            }
+          },
+          "architecture": "voxcpm2",
+          "device": "cuda:0",
+          "dtype": "bfloat16",
+          "sample_rate_hz": 48000,
+          "voxcpm_version": "2.0.3.post22+g616d3d3e6",
+          "torch_version": "2.10.0+cu130",
+          "torchaudio_version": "2.10.0+cu130",
+          "cuda_version": "13.0",
+          "transformers_version": "5.3.0",
+          "load_denoiser": false,
+          "optimize": false,
+          "normalize": false,
+          "denoise": false,
+          "retry_badcase": false,
+          "cfg_value": 2.0,
+          "inference_timesteps": 10,
+          "seed": 42,
+          "reference_text": "こんにちは。今日はとても良い天気ですね。",
+          "emotion_instructions": {
+            "neutral": "neutral and natural",
+            "cheerful": "cheerful and upbeat",
+            "angry": "angry and forceful",
+            "sad": "sad and subdued",
+            "fearful": "fearful and tense",
+            "surprised": "surprised and startled",
+            "tired": "tired and low-energy",
+            "drunk": "drunken and unsteady",
+            "whisper": "whispering and quiet",
+            "shout": "shouting and loud",
+            "laughing": "laughing and amused",
+            "pain": "in pain and strained"
+          },
+          "intensity_instructions": {
+            "1": "slightly",
+            "2": "clearly",
+            "3": "strongly"
+          }
+        },
+        "realized": {
+          "phase_peak_vram_mib": {
+            "runtime_load": {
+              "allocated_mib": 5064.253,
+              "reserved_mib": 5124.0
+            },
+            "voice_design_generate": {
+              "allocated_mib": 5501.453,
+              "reserved_mib": 5768.0
+            },
+            "controllable_clone_generate": {
+              "allocated_mib": 5771.871,
+              "reserved_mib": 6134.0
+            }
+          },
+          "seed": 42,
+          "sample_rate_hz": 48000,
+          "reading_source": "pyopenjtalk.g2p(kana=True)",
+          "reference_kind": "voice_design",
+          "reference_selection_source": "adapter.voice_design",
+          "reference_voice": null,
+          "reference_sha256": "2c99a9eee30b24ba83ec3768e8000d3524b0945284c95f5648cf5e112e86f8c9",
+          "control": "Speak strongly surprised and startled. Delivery: 走りながら叫ぶ。悪びれない明るい謝罪。"
+        }
+      },
+      "rtf": 2.382255,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -4.21,
+        "shortfall": false
+      }
+    },
+    {
+      "model": "voxcpm2",
+      "scenario": "market-day",
+      "line": "street-kid-002",
+      "variant": "dry",
+      "path": "audio/voxcpm2/market-day/street-kid-002-dry.opus",
+      "duration_sec": 5.9265,
+      "sha256": "2788012b7761b259ba9abe1a5036b1b820bb0416a1cc296432b416cb6e848947",
+      "gen_params": {
+        "requested": {
+          "upstream_repository": "OpenBMB/VoxCPM",
+          "upstream_revision": "616d3d3e630a9c96c2853250eef91b0f39dcd5fa",
+          "weights_repository": "openbmb/VoxCPM2",
+          "weights_revision": "bffb3df5a29440629464e5e839f4d214c8714c3d",
+          "model_root_environment": "GAYA_VOXCPM2_ROOT",
+          "model_files": {
+            ".gitattributes": {
+              "size": 1519,
+              "sha256": "11ad7efa24975ee4b0c3c3a38ed18737f0658a5f75a0a96787b576a78a023361"
+            },
+            "README.md": {
+              "size": 7776,
+              "sha256": "7384fad93ce2d98f47d5c3170597f3b31d414c12c92e7fdf3121fa90f19fe29d"
+            },
+            "audiovae.pth": {
+              "size": 376951122,
+              "sha256": "94b5d51e107e0507d4acc976cfdadb64edd6fd06d1f751dadbf2fd1594274bf1"
+            },
+            "config.json": {
+              "size": 4336,
+              "sha256": "405f0dcd92f7feba6011ed4eac5c8d4f74cba9712f07fd5cfa3063bbdd95402c"
+            },
+            "model.safetensors": {
+              "size": 4580080592,
+              "sha256": "f7f964cfa9da23653baec6e6f7750719977ad944ed9f95fe52fe3a620506891d"
+            },
+            "special_tokens_map.json": {
+              "size": 1632,
+              "sha256": "068594063e37662c02b21acf42ebb334ef6a74fb810e68a2368f88f08351de76"
+            },
+            "tokenization_voxcpm2.py": {
+              "size": 2895,
+              "sha256": "84489ea32b6ee0cae22ed5480cacb6df85c46624c3119be9a2021c3649a12729"
+            },
+            "tokenizer.json": {
+              "size": 3676772,
+              "sha256": "f8984687e4a92a3503d521396d454b7d68e9fdaab2a0288eb3536c7c1aa4bc20"
+            },
+            "tokenizer_config.json": {
+              "size": 5059,
+              "sha256": "e78a3ebb48a0b9437efd1823b6b726c823da89e49dd8bcc90c02419d9baa772b"
+            }
+          },
+          "architecture": "voxcpm2",
+          "device": "cuda:0",
+          "dtype": "bfloat16",
+          "sample_rate_hz": 48000,
+          "voxcpm_version": "2.0.3.post22+g616d3d3e6",
+          "torch_version": "2.10.0+cu130",
+          "torchaudio_version": "2.10.0+cu130",
+          "cuda_version": "13.0",
+          "transformers_version": "5.3.0",
+          "load_denoiser": false,
+          "optimize": false,
+          "normalize": false,
+          "denoise": false,
+          "retry_badcase": false,
+          "cfg_value": 2.0,
+          "inference_timesteps": 10,
+          "seed": 42,
+          "reference_text": "こんにちは。今日はとても良い天気ですね。",
+          "emotion_instructions": {
+            "neutral": "neutral and natural",
+            "cheerful": "cheerful and upbeat",
+            "angry": "angry and forceful",
+            "sad": "sad and subdued",
+            "fearful": "fearful and tense",
+            "surprised": "surprised and startled",
+            "tired": "tired and low-energy",
+            "drunk": "drunken and unsteady",
+            "whisper": "whispering and quiet",
+            "shout": "shouting and loud",
+            "laughing": "laughing and amused",
+            "pain": "in pain and strained"
+          },
+          "intensity_instructions": {
+            "1": "slightly",
+            "2": "clearly",
+            "3": "strongly"
+          }
+        },
+        "realized": {
+          "phase_peak_vram_mib": {
+            "runtime_load": {
+              "allocated_mib": 5064.253,
+              "reserved_mib": 5124.0
+            },
+            "voice_design_generate": {
+              "allocated_mib": 5501.453,
+              "reserved_mib": 5768.0
+            },
+            "controllable_clone_generate": {
+              "allocated_mib": 5772.845,
+              "reserved_mib": 6134.0
+            }
+          },
+          "seed": 42,
+          "sample_rate_hz": 48000,
+          "reading_source": "pyopenjtalk.g2p(kana=True)",
+          "reference_kind": "voice_design",
+          "reference_selection_source": "adapter.voice_design",
+          "reference_voice": null,
+          "reference_sha256": "2c99a9eee30b24ba83ec3768e8000d3524b0945284c95f5648cf5e112e86f8c9",
+          "control": "Speak strongly cheerful and upbeat. Delivery: 興奮した早口。「すごーい」で音程が跳ね上がる。"
+        }
+      },
+      "rtf": 2.456161,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -3.13,
+        "shortfall": false
+      }
+    },
+    {
+      "model": "voxcpm2",
+      "scenario": "tavern-night",
+      "line": "barmaid-001",
+      "variant": "dry",
+      "path": "audio/voxcpm2/tavern-night/barmaid-001-dry.opus",
+      "duration_sec": 4.4865,
+      "sha256": "d70479e03ab298cef572c559005e3cc26ee499aa71086b65a82c41461ebf6ec5",
+      "gen_params": {
+        "requested": {
+          "upstream_repository": "OpenBMB/VoxCPM",
+          "upstream_revision": "616d3d3e630a9c96c2853250eef91b0f39dcd5fa",
+          "weights_repository": "openbmb/VoxCPM2",
+          "weights_revision": "bffb3df5a29440629464e5e839f4d214c8714c3d",
+          "model_root_environment": "GAYA_VOXCPM2_ROOT",
+          "model_files": {
+            ".gitattributes": {
+              "size": 1519,
+              "sha256": "11ad7efa24975ee4b0c3c3a38ed18737f0658a5f75a0a96787b576a78a023361"
+            },
+            "README.md": {
+              "size": 7776,
+              "sha256": "7384fad93ce2d98f47d5c3170597f3b31d414c12c92e7fdf3121fa90f19fe29d"
+            },
+            "audiovae.pth": {
+              "size": 376951122,
+              "sha256": "94b5d51e107e0507d4acc976cfdadb64edd6fd06d1f751dadbf2fd1594274bf1"
+            },
+            "config.json": {
+              "size": 4336,
+              "sha256": "405f0dcd92f7feba6011ed4eac5c8d4f74cba9712f07fd5cfa3063bbdd95402c"
+            },
+            "model.safetensors": {
+              "size": 4580080592,
+              "sha256": "f7f964cfa9da23653baec6e6f7750719977ad944ed9f95fe52fe3a620506891d"
+            },
+            "special_tokens_map.json": {
+              "size": 1632,
+              "sha256": "068594063e37662c02b21acf42ebb334ef6a74fb810e68a2368f88f08351de76"
+            },
+            "tokenization_voxcpm2.py": {
+              "size": 2895,
+              "sha256": "84489ea32b6ee0cae22ed5480cacb6df85c46624c3119be9a2021c3649a12729"
+            },
+            "tokenizer.json": {
+              "size": 3676772,
+              "sha256": "f8984687e4a92a3503d521396d454b7d68e9fdaab2a0288eb3536c7c1aa4bc20"
+            },
+            "tokenizer_config.json": {
+              "size": 5059,
+              "sha256": "e78a3ebb48a0b9437efd1823b6b726c823da89e49dd8bcc90c02419d9baa772b"
+            }
+          },
+          "architecture": "voxcpm2",
+          "device": "cuda:0",
+          "dtype": "bfloat16",
+          "sample_rate_hz": 48000,
+          "voxcpm_version": "2.0.3.post22+g616d3d3e6",
+          "torch_version": "2.10.0+cu130",
+          "torchaudio_version": "2.10.0+cu130",
+          "cuda_version": "13.0",
+          "transformers_version": "5.3.0",
+          "load_denoiser": false,
+          "optimize": false,
+          "normalize": false,
+          "denoise": false,
+          "retry_badcase": false,
+          "cfg_value": 2.0,
+          "inference_timesteps": 10,
+          "seed": 42,
+          "reference_text": "こんにちは。今日はとても良い天気ですね。",
+          "emotion_instructions": {
+            "neutral": "neutral and natural",
+            "cheerful": "cheerful and upbeat",
+            "angry": "angry and forceful",
+            "sad": "sad and subdued",
+            "fearful": "fearful and tense",
+            "surprised": "surprised and startled",
+            "tired": "tired and low-energy",
+            "drunk": "drunken and unsteady",
+            "whisper": "whispering and quiet",
+            "shout": "shouting and loud",
+            "laughing": "laughing and amused",
+            "pain": "in pain and strained"
+          },
+          "intensity_instructions": {
+            "1": "slightly",
+            "2": "clearly",
+            "3": "strongly"
+          }
+        },
+        "realized": {
+          "phase_peak_vram_mib": {
+            "runtime_load": {
+              "allocated_mib": 5064.253,
+              "reserved_mib": 5124.0
+            },
+            "controllable_clone_generate": {
+              "allocated_mib": 5564.988,
+              "reserved_mib": 5942.0
+            }
+          },
+          "seed": 42,
+          "sample_rate_hz": 48000,
+          "reading_source": "pyopenjtalk.g2p(kana=True)",
+          "reference_kind": "asset",
+          "reference_selection_source": "character.reference_voice",
+          "reference_voice": "amitaro-countdown",
+          "reference_sha256": "fdc3ffc571a329250168b9b228e9ebfa660d885677e19bc5547b9a6dbe7509eb",
+          "control": "Speak clearly cheerful and upbeat. Delivery: 客へ呼びかける。喧騒に負けないやや大きめの声。語尾が弾む。"
+        }
+      },
+      "rtf": 11.828529,
+      "loudness": {
+        "i_lufs": -17.99,
+        "tp_dbtp": -5.02,
+        "shortfall": false
+      }
+    },
+    {
+      "model": "voxcpm2",
+      "scenario": "tavern-night",
+      "line": "barmaid-002",
+      "variant": "dry",
+      "path": "audio/voxcpm2/tavern-night/barmaid-002-dry.opus",
+      "duration_sec": 5.2865,
+      "sha256": "38c22ef47d1d6292b3b06b8a9ea1971745997327556c395939e555bc3bc8af84",
+      "gen_params": {
+        "requested": {
+          "upstream_repository": "OpenBMB/VoxCPM",
+          "upstream_revision": "616d3d3e630a9c96c2853250eef91b0f39dcd5fa",
+          "weights_repository": "openbmb/VoxCPM2",
+          "weights_revision": "bffb3df5a29440629464e5e839f4d214c8714c3d",
+          "model_root_environment": "GAYA_VOXCPM2_ROOT",
+          "model_files": {
+            ".gitattributes": {
+              "size": 1519,
+              "sha256": "11ad7efa24975ee4b0c3c3a38ed18737f0658a5f75a0a96787b576a78a023361"
+            },
+            "README.md": {
+              "size": 7776,
+              "sha256": "7384fad93ce2d98f47d5c3170597f3b31d414c12c92e7fdf3121fa90f19fe29d"
+            },
+            "audiovae.pth": {
+              "size": 376951122,
+              "sha256": "94b5d51e107e0507d4acc976cfdadb64edd6fd06d1f751dadbf2fd1594274bf1"
+            },
+            "config.json": {
+              "size": 4336,
+              "sha256": "405f0dcd92f7feba6011ed4eac5c8d4f74cba9712f07fd5cfa3063bbdd95402c"
+            },
+            "model.safetensors": {
+              "size": 4580080592,
+              "sha256": "f7f964cfa9da23653baec6e6f7750719977ad944ed9f95fe52fe3a620506891d"
+            },
+            "special_tokens_map.json": {
+              "size": 1632,
+              "sha256": "068594063e37662c02b21acf42ebb334ef6a74fb810e68a2368f88f08351de76"
+            },
+            "tokenization_voxcpm2.py": {
+              "size": 2895,
+              "sha256": "84489ea32b6ee0cae22ed5480cacb6df85c46624c3119be9a2021c3649a12729"
+            },
+            "tokenizer.json": {
+              "size": 3676772,
+              "sha256": "f8984687e4a92a3503d521396d454b7d68e9fdaab2a0288eb3536c7c1aa4bc20"
+            },
+            "tokenizer_config.json": {
+              "size": 5059,
+              "sha256": "e78a3ebb48a0b9437efd1823b6b726c823da89e49dd8bcc90c02419d9baa772b"
+            }
+          },
+          "architecture": "voxcpm2",
+          "device": "cuda:0",
+          "dtype": "bfloat16",
+          "sample_rate_hz": 48000,
+          "voxcpm_version": "2.0.3.post22+g616d3d3e6",
+          "torch_version": "2.10.0+cu130",
+          "torchaudio_version": "2.10.0+cu130",
+          "cuda_version": "13.0",
+          "transformers_version": "5.3.0",
+          "load_denoiser": false,
+          "optimize": false,
+          "normalize": false,
+          "denoise": false,
+          "retry_badcase": false,
+          "cfg_value": 2.0,
+          "inference_timesteps": 10,
+          "seed": 42,
+          "reference_text": "こんにちは。今日はとても良い天気ですね。",
+          "emotion_instructions": {
+            "neutral": "neutral and natural",
+            "cheerful": "cheerful and upbeat",
+            "angry": "angry and forceful",
+            "sad": "sad and subdued",
+            "fearful": "fearful and tense",
+            "surprised": "surprised and startled",
+            "tired": "tired and low-energy",
+            "drunk": "drunken and unsteady",
+            "whisper": "whispering and quiet",
+            "shout": "shouting and loud",
+            "laughing": "laughing and amused",
+            "pain": "in pain and strained"
+          },
+          "intensity_instructions": {
+            "1": "slightly",
+            "2": "clearly",
+            "3": "strongly"
+          }
+        },
+        "realized": {
+          "phase_peak_vram_mib": {
+            "runtime_load": {
+              "allocated_mib": 5064.253,
+              "reserved_mib": 5124.0
+            },
+            "controllable_clone_generate": {
+              "allocated_mib": 5681.098,
+              "reserved_mib": 6370.0
+            }
+          },
+          "seed": 42,
+          "sample_rate_hz": 48000,
+          "reading_source": "pyopenjtalk.g2p(kana=True)",
+          "reference_kind": "asset",
+          "reference_selection_source": "character.reference_voice",
+          "reference_voice": "amitaro-countdown",
+          "reference_sha256": "fdc3ffc571a329250168b9b228e9ebfa660d885677e19bc5547b9a6dbe7509eb",
+          "control": "Speak clearly angry and forceful. Delivery: 怒っているが本気ではない。呆れ半分の叱り口調。"
+        }
+      },
+      "rtf": 2.965945,
+      "loudness": {
+        "i_lufs": -17.99,
+        "tp_dbtp": -1.94,
+        "shortfall": false
+      }
+    },
+    {
+      "model": "voxcpm2",
+      "scenario": "tavern-night",
+      "line": "drunkard-001",
+      "variant": "dry",
+      "path": "audio/voxcpm2/tavern-night/drunkard-001-dry.opus",
+      "duration_sec": 4.8065,
+      "sha256": "7f0275ce1565de57588ef8207ab2b895d5c04ff023ae66d7853d7ec08dfa4695",
+      "gen_params": {
+        "requested": {
+          "upstream_repository": "OpenBMB/VoxCPM",
+          "upstream_revision": "616d3d3e630a9c96c2853250eef91b0f39dcd5fa",
+          "weights_repository": "openbmb/VoxCPM2",
+          "weights_revision": "bffb3df5a29440629464e5e839f4d214c8714c3d",
+          "model_root_environment": "GAYA_VOXCPM2_ROOT",
+          "model_files": {
+            ".gitattributes": {
+              "size": 1519,
+              "sha256": "11ad7efa24975ee4b0c3c3a38ed18737f0658a5f75a0a96787b576a78a023361"
+            },
+            "README.md": {
+              "size": 7776,
+              "sha256": "7384fad93ce2d98f47d5c3170597f3b31d414c12c92e7fdf3121fa90f19fe29d"
+            },
+            "audiovae.pth": {
+              "size": 376951122,
+              "sha256": "94b5d51e107e0507d4acc976cfdadb64edd6fd06d1f751dadbf2fd1594274bf1"
+            },
+            "config.json": {
+              "size": 4336,
+              "sha256": "405f0dcd92f7feba6011ed4eac5c8d4f74cba9712f07fd5cfa3063bbdd95402c"
+            },
+            "model.safetensors": {
+              "size": 4580080592,
+              "sha256": "f7f964cfa9da23653baec6e6f7750719977ad944ed9f95fe52fe3a620506891d"
+            },
+            "special_tokens_map.json": {
+              "size": 1632,
+              "sha256": "068594063e37662c02b21acf42ebb334ef6a74fb810e68a2368f88f08351de76"
+            },
+            "tokenization_voxcpm2.py": {
+              "size": 2895,
+              "sha256": "84489ea32b6ee0cae22ed5480cacb6df85c46624c3119be9a2021c3649a12729"
+            },
+            "tokenizer.json": {
+              "size": 3676772,
+              "sha256": "f8984687e4a92a3503d521396d454b7d68e9fdaab2a0288eb3536c7c1aa4bc20"
+            },
+            "tokenizer_config.json": {
+              "size": 5059,
+              "sha256": "e78a3ebb48a0b9437efd1823b6b726c823da89e49dd8bcc90c02419d9baa772b"
+            }
+          },
+          "architecture": "voxcpm2",
+          "device": "cuda:0",
+          "dtype": "bfloat16",
+          "sample_rate_hz": 48000,
+          "voxcpm_version": "2.0.3.post22+g616d3d3e6",
+          "torch_version": "2.10.0+cu130",
+          "torchaudio_version": "2.10.0+cu130",
+          "cuda_version": "13.0",
+          "transformers_version": "5.3.0",
+          "load_denoiser": false,
+          "optimize": false,
+          "normalize": false,
+          "denoise": false,
+          "retry_badcase": false,
+          "cfg_value": 2.0,
+          "inference_timesteps": 10,
+          "seed": 42,
+          "reference_text": "こんにちは。今日はとても良い天気ですね。",
+          "emotion_instructions": {
+            "neutral": "neutral and natural",
+            "cheerful": "cheerful and upbeat",
+            "angry": "angry and forceful",
+            "sad": "sad and subdued",
+            "fearful": "fearful and tense",
+            "surprised": "surprised and startled",
+            "tired": "tired and low-energy",
+            "drunk": "drunken and unsteady",
+            "whisper": "whispering and quiet",
+            "shout": "shouting and loud",
+            "laughing": "laughing and amused",
+            "pain": "in pain and strained"
+          },
+          "intensity_instructions": {
+            "1": "slightly",
+            "2": "clearly",
+            "3": "strongly"
+          }
+        },
+        "realized": {
+          "phase_peak_vram_mib": {
+            "runtime_load": {
+              "allocated_mib": 5064.253,
+              "reserved_mib": 5124.0
+            },
+            "voice_design_generate": {
+              "allocated_mib": 5398.34,
+              "reserved_mib": 5496.0
+            },
+            "controllable_clone_generate": {
+              "allocated_mib": 5647.969,
+              "reserved_mib": 6214.0
+            }
+          },
+          "seed": 42,
+          "sample_rate_hz": 48000,
+          "reading_source": "pyopenjtalk.g2p(kana=True)",
+          "reference_kind": "voice_design",
+          "reference_selection_source": "adapter.voice_design",
+          "reference_voice": null,
+          "reference_sha256": "df4e2dcb88aa1599f895e3c42f4e65ff053fc9bd3a7e3a88a3c216a074030f16",
+          "control": "Speak clearly drunken and unsteady. Delivery: 呂律が回らず、語尾が伸びて沈む。愚痴っぽい。"
+        }
+      },
+      "rtf": 2.547183,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -1.81,
+        "shortfall": false
+      }
+    },
+    {
+      "model": "voxcpm2",
+      "scenario": "tavern-night",
+      "line": "drunkard-002",
+      "variant": "dry",
+      "path": "audio/voxcpm2/tavern-night/drunkard-002-dry.opus",
+      "duration_sec": 4.3265,
+      "sha256": "8756fe7fa130d05752db8d379a119575f433b1a12fcce42028e0e3f010d04642",
+      "gen_params": {
+        "requested": {
+          "upstream_repository": "OpenBMB/VoxCPM",
+          "upstream_revision": "616d3d3e630a9c96c2853250eef91b0f39dcd5fa",
+          "weights_repository": "openbmb/VoxCPM2",
+          "weights_revision": "bffb3df5a29440629464e5e839f4d214c8714c3d",
+          "model_root_environment": "GAYA_VOXCPM2_ROOT",
+          "model_files": {
+            ".gitattributes": {
+              "size": 1519,
+              "sha256": "11ad7efa24975ee4b0c3c3a38ed18737f0658a5f75a0a96787b576a78a023361"
+            },
+            "README.md": {
+              "size": 7776,
+              "sha256": "7384fad93ce2d98f47d5c3170597f3b31d414c12c92e7fdf3121fa90f19fe29d"
+            },
+            "audiovae.pth": {
+              "size": 376951122,
+              "sha256": "94b5d51e107e0507d4acc976cfdadb64edd6fd06d1f751dadbf2fd1594274bf1"
+            },
+            "config.json": {
+              "size": 4336,
+              "sha256": "405f0dcd92f7feba6011ed4eac5c8d4f74cba9712f07fd5cfa3063bbdd95402c"
+            },
+            "model.safetensors": {
+              "size": 4580080592,
+              "sha256": "f7f964cfa9da23653baec6e6f7750719977ad944ed9f95fe52fe3a620506891d"
+            },
+            "special_tokens_map.json": {
+              "size": 1632,
+              "sha256": "068594063e37662c02b21acf42ebb334ef6a74fb810e68a2368f88f08351de76"
+            },
+            "tokenization_voxcpm2.py": {
+              "size": 2895,
+              "sha256": "84489ea32b6ee0cae22ed5480cacb6df85c46624c3119be9a2021c3649a12729"
+            },
+            "tokenizer.json": {
+              "size": 3676772,
+              "sha256": "f8984687e4a92a3503d521396d454b7d68e9fdaab2a0288eb3536c7c1aa4bc20"
+            },
+            "tokenizer_config.json": {
+              "size": 5059,
+              "sha256": "e78a3ebb48a0b9437efd1823b6b726c823da89e49dd8bcc90c02419d9baa772b"
+            }
+          },
+          "architecture": "voxcpm2",
+          "device": "cuda:0",
+          "dtype": "bfloat16",
+          "sample_rate_hz": 48000,
+          "voxcpm_version": "2.0.3.post22+g616d3d3e6",
+          "torch_version": "2.10.0+cu130",
+          "torchaudio_version": "2.10.0+cu130",
+          "cuda_version": "13.0",
+          "transformers_version": "5.3.0",
+          "load_denoiser": false,
+          "optimize": false,
+          "normalize": false,
+          "denoise": false,
+          "retry_badcase": false,
+          "cfg_value": 2.0,
+          "inference_timesteps": 10,
+          "seed": 42,
+          "reference_text": "こんにちは。今日はとても良い天気ですね。",
+          "emotion_instructions": {
+            "neutral": "neutral and natural",
+            "cheerful": "cheerful and upbeat",
+            "angry": "angry and forceful",
+            "sad": "sad and subdued",
+            "fearful": "fearful and tense",
+            "surprised": "surprised and startled",
+            "tired": "tired and low-energy",
+            "drunk": "drunken and unsteady",
+            "whisper": "whispering and quiet",
+            "shout": "shouting and loud",
+            "laughing": "laughing and amused",
+            "pain": "in pain and strained"
+          },
+          "intensity_instructions": {
+            "1": "slightly",
+            "2": "clearly",
+            "3": "strongly"
+          }
+        },
+        "realized": {
+          "phase_peak_vram_mib": {
+            "runtime_load": {
+              "allocated_mib": 5064.253,
+              "reserved_mib": 5124.0
+            },
+            "voice_design_generate": {
+              "allocated_mib": 5398.34,
+              "reserved_mib": 5496.0
+            },
+            "controllable_clone_generate": {
+              "allocated_mib": 5646.141,
+              "reserved_mib": 6510.0
+            }
+          },
+          "seed": 42,
+          "sample_rate_hz": 48000,
+          "reading_source": "pyopenjtalk.g2p(kana=True)",
+          "reference_kind": "voice_design",
+          "reference_selection_source": "adapter.voice_design",
+          "reference_voice": null,
+          "reference_sha256": "df4e2dcb88aa1599f895e3c42f4e65ff053fc9bd3a7e3a88a3c216a074030f16",
+          "control": "Speak strongly drunken and unsteady. Delivery: しゃっくり混じり。哀願するような上ずった声。"
+        }
+      },
+      "rtf": 2.721138,
+      "loudness": {
+        "i_lufs": -18.01,
+        "tp_dbtp": -1.75,
+        "shortfall": false
+      }
+    },
+    {
+      "model": "voxcpm2",
+      "scenario": "tavern-night",
+      "line": "old-regular-001",
+      "variant": "dry",
+      "path": "audio/voxcpm2/tavern-night/old-regular-001-dry.opus",
+      "duration_sec": 3.2065,
+      "sha256": "e096b16222164f82f9b131c0ffc448196336e4dbc5a2b099af8603982d62ddd7",
+      "gen_params": {
+        "requested": {
+          "upstream_repository": "OpenBMB/VoxCPM",
+          "upstream_revision": "616d3d3e630a9c96c2853250eef91b0f39dcd5fa",
+          "weights_repository": "openbmb/VoxCPM2",
+          "weights_revision": "bffb3df5a29440629464e5e839f4d214c8714c3d",
+          "model_root_environment": "GAYA_VOXCPM2_ROOT",
+          "model_files": {
+            ".gitattributes": {
+              "size": 1519,
+              "sha256": "11ad7efa24975ee4b0c3c3a38ed18737f0658a5f75a0a96787b576a78a023361"
+            },
+            "README.md": {
+              "size": 7776,
+              "sha256": "7384fad93ce2d98f47d5c3170597f3b31d414c12c92e7fdf3121fa90f19fe29d"
+            },
+            "audiovae.pth": {
+              "size": 376951122,
+              "sha256": "94b5d51e107e0507d4acc976cfdadb64edd6fd06d1f751dadbf2fd1594274bf1"
+            },
+            "config.json": {
+              "size": 4336,
+              "sha256": "405f0dcd92f7feba6011ed4eac5c8d4f74cba9712f07fd5cfa3063bbdd95402c"
+            },
+            "model.safetensors": {
+              "size": 4580080592,
+              "sha256": "f7f964cfa9da23653baec6e6f7750719977ad944ed9f95fe52fe3a620506891d"
+            },
+            "special_tokens_map.json": {
+              "size": 1632,
+              "sha256": "068594063e37662c02b21acf42ebb334ef6a74fb810e68a2368f88f08351de76"
+            },
+            "tokenization_voxcpm2.py": {
+              "size": 2895,
+              "sha256": "84489ea32b6ee0cae22ed5480cacb6df85c46624c3119be9a2021c3649a12729"
+            },
+            "tokenizer.json": {
+              "size": 3676772,
+              "sha256": "f8984687e4a92a3503d521396d454b7d68e9fdaab2a0288eb3536c7c1aa4bc20"
+            },
+            "tokenizer_config.json": {
+              "size": 5059,
+              "sha256": "e78a3ebb48a0b9437efd1823b6b726c823da89e49dd8bcc90c02419d9baa772b"
+            }
+          },
+          "architecture": "voxcpm2",
+          "device": "cuda:0",
+          "dtype": "bfloat16",
+          "sample_rate_hz": 48000,
+          "voxcpm_version": "2.0.3.post22+g616d3d3e6",
+          "torch_version": "2.10.0+cu130",
+          "torchaudio_version": "2.10.0+cu130",
+          "cuda_version": "13.0",
+          "transformers_version": "5.3.0",
+          "load_denoiser": false,
+          "optimize": false,
+          "normalize": false,
+          "denoise": false,
+          "retry_badcase": false,
+          "cfg_value": 2.0,
+          "inference_timesteps": 10,
+          "seed": 42,
+          "reference_text": "こんにちは。今日はとても良い天気ですね。",
+          "emotion_instructions": {
+            "neutral": "neutral and natural",
+            "cheerful": "cheerful and upbeat",
+            "angry": "angry and forceful",
+            "sad": "sad and subdued",
+            "fearful": "fearful and tense",
+            "surprised": "surprised and startled",
+            "tired": "tired and low-energy",
+            "drunk": "drunken and unsteady",
+            "whisper": "whispering and quiet",
+            "shout": "shouting and loud",
+            "laughing": "laughing and amused",
+            "pain": "in pain and strained"
+          },
+          "intensity_instructions": {
+            "1": "slightly",
+            "2": "clearly",
+            "3": "strongly"
+          }
+        },
+        "realized": {
+          "phase_peak_vram_mib": {
+            "runtime_load": {
+              "allocated_mib": 5064.253,
+              "reserved_mib": 5124.0
+            },
+            "voice_design_generate": {
+              "allocated_mib": 5407.997,
+              "reserved_mib": 5562.0
+            },
+            "controllable_clone_generate": {
+              "allocated_mib": 5648.419,
+              "reserved_mib": 6658.0
+            }
+          },
+          "seed": 42,
+          "sample_rate_hz": 48000,
+          "reading_source": "pyopenjtalk.g2p(kana=True)",
+          "reference_kind": "voice_design",
+          "reference_selection_source": "adapter.voice_design",
+          "reference_voice": null,
+          "reference_sha256": "66138a3f436b8265e40f4ada760ff31bf0876230433a8af5046ca9d770d0f2ee",
+          "control": "Speak slightly tired and low-energy. Delivery: ため息まじり。独り言と話しかけの中間くらいの声量。"
+        }
+      },
+      "rtf": 2.558819,
+      "loudness": {
+        "i_lufs": -18.01,
+        "tp_dbtp": -2.84,
+        "shortfall": false
+      }
+    },
+    {
+      "model": "voxcpm2",
+      "scenario": "tavern-night",
+      "line": "old-regular-002",
+      "variant": "dry",
+      "path": "audio/voxcpm2/tavern-night/old-regular-002-dry.opus",
+      "duration_sec": 2.7265,
+      "sha256": "e8cc8ea1b3ec63778c8108929ea63bf756e69172e8b02ea3999eb41423ea8573",
+      "gen_params": {
+        "requested": {
+          "upstream_repository": "OpenBMB/VoxCPM",
+          "upstream_revision": "616d3d3e630a9c96c2853250eef91b0f39dcd5fa",
+          "weights_repository": "openbmb/VoxCPM2",
+          "weights_revision": "bffb3df5a29440629464e5e839f4d214c8714c3d",
+          "model_root_environment": "GAYA_VOXCPM2_ROOT",
+          "model_files": {
+            ".gitattributes": {
+              "size": 1519,
+              "sha256": "11ad7efa24975ee4b0c3c3a38ed18737f0658a5f75a0a96787b576a78a023361"
+            },
+            "README.md": {
+              "size": 7776,
+              "sha256": "7384fad93ce2d98f47d5c3170597f3b31d414c12c92e7fdf3121fa90f19fe29d"
+            },
+            "audiovae.pth": {
+              "size": 376951122,
+              "sha256": "94b5d51e107e0507d4acc976cfdadb64edd6fd06d1f751dadbf2fd1594274bf1"
+            },
+            "config.json": {
+              "size": 4336,
+              "sha256": "405f0dcd92f7feba6011ed4eac5c8d4f74cba9712f07fd5cfa3063bbdd95402c"
+            },
+            "model.safetensors": {
+              "size": 4580080592,
+              "sha256": "f7f964cfa9da23653baec6e6f7750719977ad944ed9f95fe52fe3a620506891d"
+            },
+            "special_tokens_map.json": {
+              "size": 1632,
+              "sha256": "068594063e37662c02b21acf42ebb334ef6a74fb810e68a2368f88f08351de76"
+            },
+            "tokenization_voxcpm2.py": {
+              "size": 2895,
+              "sha256": "84489ea32b6ee0cae22ed5480cacb6df85c46624c3119be9a2021c3649a12729"
+            },
+            "tokenizer.json": {
+              "size": 3676772,
+              "sha256": "f8984687e4a92a3503d521396d454b7d68e9fdaab2a0288eb3536c7c1aa4bc20"
+            },
+            "tokenizer_config.json": {
+              "size": 5059,
+              "sha256": "e78a3ebb48a0b9437efd1823b6b726c823da89e49dd8bcc90c02419d9baa772b"
+            }
+          },
+          "architecture": "voxcpm2",
+          "device": "cuda:0",
+          "dtype": "bfloat16",
+          "sample_rate_hz": 48000,
+          "voxcpm_version": "2.0.3.post22+g616d3d3e6",
+          "torch_version": "2.10.0+cu130",
+          "torchaudio_version": "2.10.0+cu130",
+          "cuda_version": "13.0",
+          "transformers_version": "5.3.0",
+          "load_denoiser": false,
+          "optimize": false,
+          "normalize": false,
+          "denoise": false,
+          "retry_badcase": false,
+          "cfg_value": 2.0,
+          "inference_timesteps": 10,
+          "seed": 42,
+          "reference_text": "こんにちは。今日はとても良い天気ですね。",
+          "emotion_instructions": {
+            "neutral": "neutral and natural",
+            "cheerful": "cheerful and upbeat",
+            "angry": "angry and forceful",
+            "sad": "sad and subdued",
+            "fearful": "fearful and tense",
+            "surprised": "surprised and startled",
+            "tired": "tired and low-energy",
+            "drunk": "drunken and unsteady",
+            "whisper": "whispering and quiet",
+            "shout": "shouting and loud",
+            "laughing": "laughing and amused",
+            "pain": "in pain and strained"
+          },
+          "intensity_instructions": {
+            "1": "slightly",
+            "2": "clearly",
+            "3": "strongly"
+          }
+        },
+        "realized": {
+          "phase_peak_vram_mib": {
+            "runtime_load": {
+              "allocated_mib": 5064.253,
+              "reserved_mib": 5124.0
+            },
+            "voice_design_generate": {
+              "allocated_mib": 5407.997,
+              "reserved_mib": 5562.0
+            },
+            "controllable_clone_generate": {
+              "allocated_mib": 5646.727,
+              "reserved_mib": 6658.0
+            }
+          },
+          "seed": 42,
+          "sample_rate_hz": 48000,
+          "reading_source": "pyopenjtalk.g2p(kana=True)",
+          "reference_kind": "voice_design",
+          "reference_selection_source": "adapter.voice_design",
+          "reference_voice": null,
+          "reference_sha256": "66138a3f436b8265e40f4ada760ff31bf0876230433a8af5046ca9d770d0f2ee",
+          "control": "Speak slightly laughing and amused. Delivery: 静かな含み笑いから始まる。目を細めて言う感じ。"
+        }
+      },
+      "rtf": 2.49484,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -1.89,
         "shortfall": false
       }
     }
