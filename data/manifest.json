@@ -1,7 +1,20 @@
 {
   "format_version": 2,
-  "generated_at": "2026-07-28T13:04:26.521426+00:00",
+  "generated_at": "2026-07-28T14:22:56.649254+00:00",
   "models": [
+    {
+      "id": "chatterbox-multilingual-v3",
+      "name": "Chatterbox Multilingual V3",
+      "version": "Chatterbox 65b18437192794391a0308a8f705b1e33e633948; ResembleAI/chatterbox 5bb1f6ee58e50c3b8d408bc82a6d3740c2db6e18; PerTh ce86c49d029f42272c1902eccb675556b9ed2330",
+      "license_note": "Chatterbox コード・公式重み・PerTh は MIT。生成音声には PerTh 電子透かしが自動で入る。参照音声の利用規約・クレジット・再配布条件にも従い、無断の声真似や誤認を招く利用を禁止する。",
+      "capabilities": {
+        "emotion": true,
+        "voice_prompt": false,
+        "clone": true,
+        "nonverbal": false,
+        "reading": false
+      }
+    },
     {
       "id": "dummy",
       "name": "Dummy Beep",
@@ -56,6 +69,1254 @@
     }
   ],
   "clips": [
+    {
+      "model": "chatterbox-multilingual-v3",
+      "scenario": "market-day",
+      "line": "fruit-vendor-001",
+      "variant": "dry",
+      "path": "audio/chatterbox-multilingual-v3/market-day/fruit-vendor-001-dry.opus",
+      "duration_sec": 3.7665,
+      "sha256": "152d7a5a943cc93d6a3d43aa32c37e670e8e4fa83467c03657360fcd7858d6ef",
+      "gen_params": {
+        "requested": {
+          "upstream_repository": "resemble-ai/chatterbox",
+          "upstream_revision": "65b18437192794391a0308a8f705b1e33e633948",
+          "weights_repository": "ResembleAI/chatterbox",
+          "weights_revision": "5bb1f6ee58e50c3b8d408bc82a6d3740c2db6e18",
+          "perth_repository": "resemble-ai/Perth",
+          "perth_revision": "ce86c49d029f42272c1902eccb675556b9ed2330",
+          "model_root_environment": "GAYA_CHATTERBOX_ROOT",
+          "model_files": {
+            "Cangjie5_TC.json": {
+              "size": 1920163,
+              "sha256": "7073fd9de919443ae88e0bd2449917a65fe54898a4413ed1edcc4b67f28bce8c"
+            },
+            "grapheme_mtl_merged_expanded_v1.json": {
+              "size": 69989,
+              "sha256": "69632f47220a788a52ce2661d096453c5655e9bf25289d89a8d832c46ee07dbf"
+            },
+            "s3gen.pt": {
+              "size": 1057165844,
+              "sha256": "9b9ff07e60b20c136e2b1b3d7563a24604e8d2c4c267888d1ee929dd0151d2a3"
+            },
+            "t3_mtl23ls_v3.safetensors": {
+              "size": 2143989928,
+              "sha256": "5abca8321ede76f8e61f1cc0d19aea6c946b28871017ce8726f8a69203f05953"
+            },
+            "ve.pt": {
+              "size": 5698626,
+              "sha256": "4b16d836bc598509860f6fa068165a8bb5e9ac84f05582dfcf278a5a372879f1"
+            }
+          },
+          "perth_checkpoint": {
+            "path": "perth_net/pretrained/implicit/perth_net_250000.pth.tar",
+            "size": 37429684,
+            "sha256": "a15bce457ebc53ce5e6c9c3f11df78cf7ee2bf9cdab0a798902135b4c4027670"
+          },
+          "architecture": "chatterbox-multilingual-v3",
+          "t3_model": "v3",
+          "language_id": "ja",
+          "device": "cuda:0",
+          "dtype": "float32",
+          "sample_rate_hz": 24000,
+          "chatterbox_version": "0.1.7",
+          "perth_version": "1.0.1",
+          "torch_version": "2.6.0+cu126",
+          "torchaudio_version": "2.6.0+cu126",
+          "cuda_version": "12.6",
+          "transformers_version": "5.2.0",
+          "diffusers_version": "0.29.0",
+          "pykakasi_version": "2.3.0",
+          "safetensors_version": "0.5.3",
+          "s3tokenizer_version": "0.3.0",
+          "seed": 42,
+          "cfg_weight": 0.5,
+          "temperature": 0.8,
+          "repetition_penalty": 1.2,
+          "min_p": 0.05,
+          "top_p": 1.0,
+          "exaggeration_by_intensity": {
+            "1": 0.3,
+            "2": 0.5,
+            "3": 0.8
+          },
+          "emotion_control": "exaggeration_only",
+          "perth_watermark": true
+        },
+        "realized": {
+          "phase_peak_vram_mib": {
+            "runtime_load": {
+              "allocated_mib": 3074.6845703125,
+              "reserved_mib": 3094.0
+            },
+            "generation": {
+              "allocated_mib": 3518.00927734375,
+              "reserved_mib": 3622.0
+            }
+          },
+          "seed": 42,
+          "sample_rate_hz": 24000,
+          "language_id": "ja",
+          "line_emotion_audit": "shout",
+          "intensity": 3,
+          "exaggeration": 0.8,
+          "reference_selection_source": "adapter.assignment:market-day/fruit-vendor",
+          "reference_voice": "hadou-emotion-11",
+          "reference_sha256": "e98033d63f847c4113d8b47e264bca82f38212519da8d62661133847b3d221bc",
+          "perth_watermark_stage_executed": true
+        }
+      },
+      "rtf": 12.073376,
+      "loudness": {
+        "i_lufs": -17.99,
+        "tp_dbtp": -1.31,
+        "shortfall": false
+      }
+    },
+    {
+      "model": "chatterbox-multilingual-v3",
+      "scenario": "market-day",
+      "line": "fruit-vendor-002",
+      "variant": "dry",
+      "path": "audio/chatterbox-multilingual-v3/market-day/fruit-vendor-002-dry.opus",
+      "duration_sec": 2.9265,
+      "sha256": "91b9e6978613e0e7819f6294b02c3140b0ca5725f465cd4a1d02109afe616e79",
+      "gen_params": {
+        "requested": {
+          "upstream_repository": "resemble-ai/chatterbox",
+          "upstream_revision": "65b18437192794391a0308a8f705b1e33e633948",
+          "weights_repository": "ResembleAI/chatterbox",
+          "weights_revision": "5bb1f6ee58e50c3b8d408bc82a6d3740c2db6e18",
+          "perth_repository": "resemble-ai/Perth",
+          "perth_revision": "ce86c49d029f42272c1902eccb675556b9ed2330",
+          "model_root_environment": "GAYA_CHATTERBOX_ROOT",
+          "model_files": {
+            "Cangjie5_TC.json": {
+              "size": 1920163,
+              "sha256": "7073fd9de919443ae88e0bd2449917a65fe54898a4413ed1edcc4b67f28bce8c"
+            },
+            "grapheme_mtl_merged_expanded_v1.json": {
+              "size": 69989,
+              "sha256": "69632f47220a788a52ce2661d096453c5655e9bf25289d89a8d832c46ee07dbf"
+            },
+            "s3gen.pt": {
+              "size": 1057165844,
+              "sha256": "9b9ff07e60b20c136e2b1b3d7563a24604e8d2c4c267888d1ee929dd0151d2a3"
+            },
+            "t3_mtl23ls_v3.safetensors": {
+              "size": 2143989928,
+              "sha256": "5abca8321ede76f8e61f1cc0d19aea6c946b28871017ce8726f8a69203f05953"
+            },
+            "ve.pt": {
+              "size": 5698626,
+              "sha256": "4b16d836bc598509860f6fa068165a8bb5e9ac84f05582dfcf278a5a372879f1"
+            }
+          },
+          "perth_checkpoint": {
+            "path": "perth_net/pretrained/implicit/perth_net_250000.pth.tar",
+            "size": 37429684,
+            "sha256": "a15bce457ebc53ce5e6c9c3f11df78cf7ee2bf9cdab0a798902135b4c4027670"
+          },
+          "architecture": "chatterbox-multilingual-v3",
+          "t3_model": "v3",
+          "language_id": "ja",
+          "device": "cuda:0",
+          "dtype": "float32",
+          "sample_rate_hz": 24000,
+          "chatterbox_version": "0.1.7",
+          "perth_version": "1.0.1",
+          "torch_version": "2.6.0+cu126",
+          "torchaudio_version": "2.6.0+cu126",
+          "cuda_version": "12.6",
+          "transformers_version": "5.2.0",
+          "diffusers_version": "0.29.0",
+          "pykakasi_version": "2.3.0",
+          "safetensors_version": "0.5.3",
+          "s3tokenizer_version": "0.3.0",
+          "seed": 42,
+          "cfg_weight": 0.5,
+          "temperature": 0.8,
+          "repetition_penalty": 1.2,
+          "min_p": 0.05,
+          "top_p": 1.0,
+          "exaggeration_by_intensity": {
+            "1": 0.3,
+            "2": 0.5,
+            "3": 0.8
+          },
+          "emotion_control": "exaggeration_only",
+          "perth_watermark": true
+        },
+        "realized": {
+          "phase_peak_vram_mib": {
+            "runtime_load": {
+              "allocated_mib": 3074.6845703125,
+              "reserved_mib": 3094.0
+            },
+            "generation": {
+              "allocated_mib": 3699.35009765625,
+              "reserved_mib": 3776.0
+            }
+          },
+          "seed": 42,
+          "sample_rate_hz": 24000,
+          "language_id": "ja",
+          "line_emotion_audit": "cheerful",
+          "intensity": 2,
+          "exaggeration": 0.5,
+          "reference_selection_source": "adapter.assignment:market-day/fruit-vendor",
+          "reference_voice": "hadou-emotion-11",
+          "reference_sha256": "e98033d63f847c4113d8b47e264bca82f38212519da8d62661133847b3d221bc",
+          "perth_watermark_stage_executed": true
+        }
+      },
+      "rtf": 1.922044,
+      "loudness": {
+        "i_lufs": -17.99,
+        "tp_dbtp": -1.34,
+        "shortfall": false
+      }
+    },
+    {
+      "model": "chatterbox-multilingual-v3",
+      "scenario": "market-day",
+      "line": "shopper-001",
+      "variant": "dry",
+      "path": "audio/chatterbox-multilingual-v3/market-day/shopper-001-dry.opus",
+      "duration_sec": 2.4065,
+      "sha256": "ad72244891d92ab4758ef9498c6de8c8e3507e389419b638aaa45f8a47d61a6b",
+      "gen_params": {
+        "requested": {
+          "upstream_repository": "resemble-ai/chatterbox",
+          "upstream_revision": "65b18437192794391a0308a8f705b1e33e633948",
+          "weights_repository": "ResembleAI/chatterbox",
+          "weights_revision": "5bb1f6ee58e50c3b8d408bc82a6d3740c2db6e18",
+          "perth_repository": "resemble-ai/Perth",
+          "perth_revision": "ce86c49d029f42272c1902eccb675556b9ed2330",
+          "model_root_environment": "GAYA_CHATTERBOX_ROOT",
+          "model_files": {
+            "Cangjie5_TC.json": {
+              "size": 1920163,
+              "sha256": "7073fd9de919443ae88e0bd2449917a65fe54898a4413ed1edcc4b67f28bce8c"
+            },
+            "grapheme_mtl_merged_expanded_v1.json": {
+              "size": 69989,
+              "sha256": "69632f47220a788a52ce2661d096453c5655e9bf25289d89a8d832c46ee07dbf"
+            },
+            "s3gen.pt": {
+              "size": 1057165844,
+              "sha256": "9b9ff07e60b20c136e2b1b3d7563a24604e8d2c4c267888d1ee929dd0151d2a3"
+            },
+            "t3_mtl23ls_v3.safetensors": {
+              "size": 2143989928,
+              "sha256": "5abca8321ede76f8e61f1cc0d19aea6c946b28871017ce8726f8a69203f05953"
+            },
+            "ve.pt": {
+              "size": 5698626,
+              "sha256": "4b16d836bc598509860f6fa068165a8bb5e9ac84f05582dfcf278a5a372879f1"
+            }
+          },
+          "perth_checkpoint": {
+            "path": "perth_net/pretrained/implicit/perth_net_250000.pth.tar",
+            "size": 37429684,
+            "sha256": "a15bce457ebc53ce5e6c9c3f11df78cf7ee2bf9cdab0a798902135b4c4027670"
+          },
+          "architecture": "chatterbox-multilingual-v3",
+          "t3_model": "v3",
+          "language_id": "ja",
+          "device": "cuda:0",
+          "dtype": "float32",
+          "sample_rate_hz": 24000,
+          "chatterbox_version": "0.1.7",
+          "perth_version": "1.0.1",
+          "torch_version": "2.6.0+cu126",
+          "torchaudio_version": "2.6.0+cu126",
+          "cuda_version": "12.6",
+          "transformers_version": "5.2.0",
+          "diffusers_version": "0.29.0",
+          "pykakasi_version": "2.3.0",
+          "safetensors_version": "0.5.3",
+          "s3tokenizer_version": "0.3.0",
+          "seed": 42,
+          "cfg_weight": 0.5,
+          "temperature": 0.8,
+          "repetition_penalty": 1.2,
+          "min_p": 0.05,
+          "top_p": 1.0,
+          "exaggeration_by_intensity": {
+            "1": 0.3,
+            "2": 0.5,
+            "3": 0.8
+          },
+          "emotion_control": "exaggeration_only",
+          "perth_watermark": true
+        },
+        "realized": {
+          "phase_peak_vram_mib": {
+            "runtime_load": {
+              "allocated_mib": 3074.6845703125,
+              "reserved_mib": 3094.0
+            },
+            "generation": {
+              "allocated_mib": 3700.57080078125,
+              "reserved_mib": 3776.0
+            }
+          },
+          "seed": 42,
+          "sample_rate_hz": 24000,
+          "language_id": "ja",
+          "line_emotion_audit": "neutral",
+          "intensity": 2,
+          "exaggeration": 0.5,
+          "reference_selection_source": "adapter.assignment:market-day/shopper",
+          "reference_voice": "lux-emotion-76",
+          "reference_sha256": "432de3f3fb40c5838a80e5fb509977176352a8db03a10e8fb37cca1e83bcc4b5",
+          "perth_watermark_stage_executed": true
+        }
+      },
+      "rtf": 2.021525,
+      "loudness": {
+        "i_lufs": -18.09,
+        "tp_dbtp": -0.98,
+        "shortfall": false
+      }
+    },
+    {
+      "model": "chatterbox-multilingual-v3",
+      "scenario": "market-day",
+      "line": "shopper-002",
+      "variant": "dry",
+      "path": "audio/chatterbox-multilingual-v3/market-day/shopper-002-dry.opus",
+      "duration_sec": 1.8065,
+      "sha256": "63e9a6af649d1a9019f4a2ed3db38b5d510e13875009cd5d6e7144c2607726ef",
+      "gen_params": {
+        "requested": {
+          "upstream_repository": "resemble-ai/chatterbox",
+          "upstream_revision": "65b18437192794391a0308a8f705b1e33e633948",
+          "weights_repository": "ResembleAI/chatterbox",
+          "weights_revision": "5bb1f6ee58e50c3b8d408bc82a6d3740c2db6e18",
+          "perth_repository": "resemble-ai/Perth",
+          "perth_revision": "ce86c49d029f42272c1902eccb675556b9ed2330",
+          "model_root_environment": "GAYA_CHATTERBOX_ROOT",
+          "model_files": {
+            "Cangjie5_TC.json": {
+              "size": 1920163,
+              "sha256": "7073fd9de919443ae88e0bd2449917a65fe54898a4413ed1edcc4b67f28bce8c"
+            },
+            "grapheme_mtl_merged_expanded_v1.json": {
+              "size": 69989,
+              "sha256": "69632f47220a788a52ce2661d096453c5655e9bf25289d89a8d832c46ee07dbf"
+            },
+            "s3gen.pt": {
+              "size": 1057165844,
+              "sha256": "9b9ff07e60b20c136e2b1b3d7563a24604e8d2c4c267888d1ee929dd0151d2a3"
+            },
+            "t3_mtl23ls_v3.safetensors": {
+              "size": 2143989928,
+              "sha256": "5abca8321ede76f8e61f1cc0d19aea6c946b28871017ce8726f8a69203f05953"
+            },
+            "ve.pt": {
+              "size": 5698626,
+              "sha256": "4b16d836bc598509860f6fa068165a8bb5e9ac84f05582dfcf278a5a372879f1"
+            }
+          },
+          "perth_checkpoint": {
+            "path": "perth_net/pretrained/implicit/perth_net_250000.pth.tar",
+            "size": 37429684,
+            "sha256": "a15bce457ebc53ce5e6c9c3f11df78cf7ee2bf9cdab0a798902135b4c4027670"
+          },
+          "architecture": "chatterbox-multilingual-v3",
+          "t3_model": "v3",
+          "language_id": "ja",
+          "device": "cuda:0",
+          "dtype": "float32",
+          "sample_rate_hz": 24000,
+          "chatterbox_version": "0.1.7",
+          "perth_version": "1.0.1",
+          "torch_version": "2.6.0+cu126",
+          "torchaudio_version": "2.6.0+cu126",
+          "cuda_version": "12.6",
+          "transformers_version": "5.2.0",
+          "diffusers_version": "0.29.0",
+          "pykakasi_version": "2.3.0",
+          "safetensors_version": "0.5.3",
+          "s3tokenizer_version": "0.3.0",
+          "seed": 42,
+          "cfg_weight": 0.5,
+          "temperature": 0.8,
+          "repetition_penalty": 1.2,
+          "min_p": 0.05,
+          "top_p": 1.0,
+          "exaggeration_by_intensity": {
+            "1": 0.3,
+            "2": 0.5,
+            "3": 0.8
+          },
+          "emotion_control": "exaggeration_only",
+          "perth_watermark": true
+        },
+        "realized": {
+          "phase_peak_vram_mib": {
+            "runtime_load": {
+              "allocated_mib": 3074.6845703125,
+              "reserved_mib": 3094.0
+            },
+            "generation": {
+              "allocated_mib": 3700.20849609375,
+              "reserved_mib": 3776.0
+            }
+          },
+          "seed": 42,
+          "sample_rate_hz": 24000,
+          "language_id": "ja",
+          "line_emotion_audit": "cheerful",
+          "intensity": 1,
+          "exaggeration": 0.3,
+          "reference_selection_source": "adapter.assignment:market-day/shopper",
+          "reference_voice": "lux-emotion-76",
+          "reference_sha256": "432de3f3fb40c5838a80e5fb509977176352a8db03a10e8fb37cca1e83bcc4b5",
+          "perth_watermark_stage_executed": true
+        }
+      },
+      "rtf": 2.194695,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -1.78,
+        "shortfall": false
+      }
+    },
+    {
+      "model": "chatterbox-multilingual-v3",
+      "scenario": "market-day",
+      "line": "street-kid-001",
+      "variant": "dry",
+      "path": "audio/chatterbox-multilingual-v3/market-day/street-kid-001-dry.opus",
+      "duration_sec": 2.8065,
+      "sha256": "a8198bd10147cdb639402d39f72066f11a748d28acf25b49f2dc3051fa75b041",
+      "gen_params": {
+        "requested": {
+          "upstream_repository": "resemble-ai/chatterbox",
+          "upstream_revision": "65b18437192794391a0308a8f705b1e33e633948",
+          "weights_repository": "ResembleAI/chatterbox",
+          "weights_revision": "5bb1f6ee58e50c3b8d408bc82a6d3740c2db6e18",
+          "perth_repository": "resemble-ai/Perth",
+          "perth_revision": "ce86c49d029f42272c1902eccb675556b9ed2330",
+          "model_root_environment": "GAYA_CHATTERBOX_ROOT",
+          "model_files": {
+            "Cangjie5_TC.json": {
+              "size": 1920163,
+              "sha256": "7073fd9de919443ae88e0bd2449917a65fe54898a4413ed1edcc4b67f28bce8c"
+            },
+            "grapheme_mtl_merged_expanded_v1.json": {
+              "size": 69989,
+              "sha256": "69632f47220a788a52ce2661d096453c5655e9bf25289d89a8d832c46ee07dbf"
+            },
+            "s3gen.pt": {
+              "size": 1057165844,
+              "sha256": "9b9ff07e60b20c136e2b1b3d7563a24604e8d2c4c267888d1ee929dd0151d2a3"
+            },
+            "t3_mtl23ls_v3.safetensors": {
+              "size": 2143989928,
+              "sha256": "5abca8321ede76f8e61f1cc0d19aea6c946b28871017ce8726f8a69203f05953"
+            },
+            "ve.pt": {
+              "size": 5698626,
+              "sha256": "4b16d836bc598509860f6fa068165a8bb5e9ac84f05582dfcf278a5a372879f1"
+            }
+          },
+          "perth_checkpoint": {
+            "path": "perth_net/pretrained/implicit/perth_net_250000.pth.tar",
+            "size": 37429684,
+            "sha256": "a15bce457ebc53ce5e6c9c3f11df78cf7ee2bf9cdab0a798902135b4c4027670"
+          },
+          "architecture": "chatterbox-multilingual-v3",
+          "t3_model": "v3",
+          "language_id": "ja",
+          "device": "cuda:0",
+          "dtype": "float32",
+          "sample_rate_hz": 24000,
+          "chatterbox_version": "0.1.7",
+          "perth_version": "1.0.1",
+          "torch_version": "2.6.0+cu126",
+          "torchaudio_version": "2.6.0+cu126",
+          "cuda_version": "12.6",
+          "transformers_version": "5.2.0",
+          "diffusers_version": "0.29.0",
+          "pykakasi_version": "2.3.0",
+          "safetensors_version": "0.5.3",
+          "s3tokenizer_version": "0.3.0",
+          "seed": 42,
+          "cfg_weight": 0.5,
+          "temperature": 0.8,
+          "repetition_penalty": 1.2,
+          "min_p": 0.05,
+          "top_p": 1.0,
+          "exaggeration_by_intensity": {
+            "1": 0.3,
+            "2": 0.5,
+            "3": 0.8
+          },
+          "emotion_control": "exaggeration_only",
+          "perth_watermark": true
+        },
+        "realized": {
+          "phase_peak_vram_mib": {
+            "runtime_load": {
+              "allocated_mib": 3074.6845703125,
+              "reserved_mib": 3094.0
+            },
+            "generation": {
+              "allocated_mib": 3502.60693359375,
+              "reserved_mib": 3584.0
+            }
+          },
+          "seed": 42,
+          "sample_rate_hz": 24000,
+          "language_id": "ja",
+          "line_emotion_audit": "surprised",
+          "intensity": 3,
+          "exaggeration": 0.8,
+          "reference_selection_source": "adapter.assignment:market-day/street-kid",
+          "reference_voice": "tsukuyomi-corpus-94",
+          "reference_sha256": "06547a71a939b3355985d32c59dc703bad06e4ea044550342bb8b4e6513d4777",
+          "perth_watermark_stage_executed": true
+        }
+      },
+      "rtf": 15.97059,
+      "loudness": {
+        "i_lufs": -17.99,
+        "tp_dbtp": -1.54,
+        "shortfall": false
+      }
+    },
+    {
+      "model": "chatterbox-multilingual-v3",
+      "scenario": "market-day",
+      "line": "street-kid-002",
+      "variant": "dry",
+      "path": "audio/chatterbox-multilingual-v3/market-day/street-kid-002-dry.opus",
+      "duration_sec": 3.3665,
+      "sha256": "8a0e8ab9a6adef79ebdba06ddba29eeadab524c7b93a819e3b6568ea8dd6db95",
+      "gen_params": {
+        "requested": {
+          "upstream_repository": "resemble-ai/chatterbox",
+          "upstream_revision": "65b18437192794391a0308a8f705b1e33e633948",
+          "weights_repository": "ResembleAI/chatterbox",
+          "weights_revision": "5bb1f6ee58e50c3b8d408bc82a6d3740c2db6e18",
+          "perth_repository": "resemble-ai/Perth",
+          "perth_revision": "ce86c49d029f42272c1902eccb675556b9ed2330",
+          "model_root_environment": "GAYA_CHATTERBOX_ROOT",
+          "model_files": {
+            "Cangjie5_TC.json": {
+              "size": 1920163,
+              "sha256": "7073fd9de919443ae88e0bd2449917a65fe54898a4413ed1edcc4b67f28bce8c"
+            },
+            "grapheme_mtl_merged_expanded_v1.json": {
+              "size": 69989,
+              "sha256": "69632f47220a788a52ce2661d096453c5655e9bf25289d89a8d832c46ee07dbf"
+            },
+            "s3gen.pt": {
+              "size": 1057165844,
+              "sha256": "9b9ff07e60b20c136e2b1b3d7563a24604e8d2c4c267888d1ee929dd0151d2a3"
+            },
+            "t3_mtl23ls_v3.safetensors": {
+              "size": 2143989928,
+              "sha256": "5abca8321ede76f8e61f1cc0d19aea6c946b28871017ce8726f8a69203f05953"
+            },
+            "ve.pt": {
+              "size": 5698626,
+              "sha256": "4b16d836bc598509860f6fa068165a8bb5e9ac84f05582dfcf278a5a372879f1"
+            }
+          },
+          "perth_checkpoint": {
+            "path": "perth_net/pretrained/implicit/perth_net_250000.pth.tar",
+            "size": 37429684,
+            "sha256": "a15bce457ebc53ce5e6c9c3f11df78cf7ee2bf9cdab0a798902135b4c4027670"
+          },
+          "architecture": "chatterbox-multilingual-v3",
+          "t3_model": "v3",
+          "language_id": "ja",
+          "device": "cuda:0",
+          "dtype": "float32",
+          "sample_rate_hz": 24000,
+          "chatterbox_version": "0.1.7",
+          "perth_version": "1.0.1",
+          "torch_version": "2.6.0+cu126",
+          "torchaudio_version": "2.6.0+cu126",
+          "cuda_version": "12.6",
+          "transformers_version": "5.2.0",
+          "diffusers_version": "0.29.0",
+          "pykakasi_version": "2.3.0",
+          "safetensors_version": "0.5.3",
+          "s3tokenizer_version": "0.3.0",
+          "seed": 42,
+          "cfg_weight": 0.5,
+          "temperature": 0.8,
+          "repetition_penalty": 1.2,
+          "min_p": 0.05,
+          "top_p": 1.0,
+          "exaggeration_by_intensity": {
+            "1": 0.3,
+            "2": 0.5,
+            "3": 0.8
+          },
+          "emotion_control": "exaggeration_only",
+          "perth_watermark": true
+        },
+        "realized": {
+          "phase_peak_vram_mib": {
+            "runtime_load": {
+              "allocated_mib": 3074.6845703125,
+              "reserved_mib": 3094.0
+            },
+            "generation": {
+              "allocated_mib": 3701.12255859375,
+              "reserved_mib": 3776.0
+            }
+          },
+          "seed": 42,
+          "sample_rate_hz": 24000,
+          "language_id": "ja",
+          "line_emotion_audit": "cheerful",
+          "intensity": 3,
+          "exaggeration": 0.8,
+          "reference_selection_source": "adapter.assignment:market-day/street-kid",
+          "reference_voice": "tsukuyomi-corpus-94",
+          "reference_sha256": "06547a71a939b3355985d32c59dc703bad06e4ea044550342bb8b4e6513d4777",
+          "perth_watermark_stage_executed": true
+        }
+      },
+      "rtf": 1.886427,
+      "loudness": {
+        "i_lufs": -17.99,
+        "tp_dbtp": -3.23,
+        "shortfall": false
+      }
+    },
+    {
+      "model": "chatterbox-multilingual-v3",
+      "scenario": "tavern-night",
+      "line": "barmaid-001",
+      "variant": "dry",
+      "path": "audio/chatterbox-multilingual-v3/tavern-night/barmaid-001-dry.opus",
+      "duration_sec": 2.5265,
+      "sha256": "9b9b02946e43d26468c6c225087d6abc0dc5b9746d5a70da28d7e473ba7e3f12",
+      "gen_params": {
+        "requested": {
+          "upstream_repository": "resemble-ai/chatterbox",
+          "upstream_revision": "65b18437192794391a0308a8f705b1e33e633948",
+          "weights_repository": "ResembleAI/chatterbox",
+          "weights_revision": "5bb1f6ee58e50c3b8d408bc82a6d3740c2db6e18",
+          "perth_repository": "resemble-ai/Perth",
+          "perth_revision": "ce86c49d029f42272c1902eccb675556b9ed2330",
+          "model_root_environment": "GAYA_CHATTERBOX_ROOT",
+          "model_files": {
+            "Cangjie5_TC.json": {
+              "size": 1920163,
+              "sha256": "7073fd9de919443ae88e0bd2449917a65fe54898a4413ed1edcc4b67f28bce8c"
+            },
+            "grapheme_mtl_merged_expanded_v1.json": {
+              "size": 69989,
+              "sha256": "69632f47220a788a52ce2661d096453c5655e9bf25289d89a8d832c46ee07dbf"
+            },
+            "s3gen.pt": {
+              "size": 1057165844,
+              "sha256": "9b9ff07e60b20c136e2b1b3d7563a24604e8d2c4c267888d1ee929dd0151d2a3"
+            },
+            "t3_mtl23ls_v3.safetensors": {
+              "size": 2143989928,
+              "sha256": "5abca8321ede76f8e61f1cc0d19aea6c946b28871017ce8726f8a69203f05953"
+            },
+            "ve.pt": {
+              "size": 5698626,
+              "sha256": "4b16d836bc598509860f6fa068165a8bb5e9ac84f05582dfcf278a5a372879f1"
+            }
+          },
+          "perth_checkpoint": {
+            "path": "perth_net/pretrained/implicit/perth_net_250000.pth.tar",
+            "size": 37429684,
+            "sha256": "a15bce457ebc53ce5e6c9c3f11df78cf7ee2bf9cdab0a798902135b4c4027670"
+          },
+          "architecture": "chatterbox-multilingual-v3",
+          "t3_model": "v3",
+          "language_id": "ja",
+          "device": "cuda:0",
+          "dtype": "float32",
+          "sample_rate_hz": 24000,
+          "chatterbox_version": "0.1.7",
+          "perth_version": "1.0.1",
+          "torch_version": "2.6.0+cu126",
+          "torchaudio_version": "2.6.0+cu126",
+          "cuda_version": "12.6",
+          "transformers_version": "5.2.0",
+          "diffusers_version": "0.29.0",
+          "pykakasi_version": "2.3.0",
+          "safetensors_version": "0.5.3",
+          "s3tokenizer_version": "0.3.0",
+          "seed": 42,
+          "cfg_weight": 0.5,
+          "temperature": 0.8,
+          "repetition_penalty": 1.2,
+          "min_p": 0.05,
+          "top_p": 1.0,
+          "exaggeration_by_intensity": {
+            "1": 0.3,
+            "2": 0.5,
+            "3": 0.8
+          },
+          "emotion_control": "exaggeration_only",
+          "perth_watermark": true
+        },
+        "realized": {
+          "phase_peak_vram_mib": {
+            "runtime_load": {
+              "allocated_mib": 3074.6845703125,
+              "reserved_mib": 3094.0
+            },
+            "generation": {
+              "allocated_mib": 3496.8232421875,
+              "reserved_mib": 3584.0
+            }
+          },
+          "seed": 42,
+          "sample_rate_hz": 24000,
+          "language_id": "ja",
+          "line_emotion_audit": "cheerful",
+          "intensity": 2,
+          "exaggeration": 0.5,
+          "reference_selection_source": "character.reference_voice",
+          "reference_voice": "amitaro-countdown",
+          "reference_sha256": "fdc3ffc571a329250168b9b228e9ebfa660d885677e19bc5547b9a6dbe7509eb",
+          "perth_watermark_stage_executed": true
+        }
+      },
+      "rtf": 17.534811,
+      "loudness": {
+        "i_lufs": -18.12,
+        "tp_dbtp": -1.0,
+        "shortfall": false
+      }
+    },
+    {
+      "model": "chatterbox-multilingual-v3",
+      "scenario": "tavern-night",
+      "line": "barmaid-002",
+      "variant": "dry",
+      "path": "audio/chatterbox-multilingual-v3/tavern-night/barmaid-002-dry.opus",
+      "duration_sec": 3.4865,
+      "sha256": "447db344a073f37a8707f1efa4fcda9e25bccbb63802c05cec945528623bda17",
+      "gen_params": {
+        "requested": {
+          "upstream_repository": "resemble-ai/chatterbox",
+          "upstream_revision": "65b18437192794391a0308a8f705b1e33e633948",
+          "weights_repository": "ResembleAI/chatterbox",
+          "weights_revision": "5bb1f6ee58e50c3b8d408bc82a6d3740c2db6e18",
+          "perth_repository": "resemble-ai/Perth",
+          "perth_revision": "ce86c49d029f42272c1902eccb675556b9ed2330",
+          "model_root_environment": "GAYA_CHATTERBOX_ROOT",
+          "model_files": {
+            "Cangjie5_TC.json": {
+              "size": 1920163,
+              "sha256": "7073fd9de919443ae88e0bd2449917a65fe54898a4413ed1edcc4b67f28bce8c"
+            },
+            "grapheme_mtl_merged_expanded_v1.json": {
+              "size": 69989,
+              "sha256": "69632f47220a788a52ce2661d096453c5655e9bf25289d89a8d832c46ee07dbf"
+            },
+            "s3gen.pt": {
+              "size": 1057165844,
+              "sha256": "9b9ff07e60b20c136e2b1b3d7563a24604e8d2c4c267888d1ee929dd0151d2a3"
+            },
+            "t3_mtl23ls_v3.safetensors": {
+              "size": 2143989928,
+              "sha256": "5abca8321ede76f8e61f1cc0d19aea6c946b28871017ce8726f8a69203f05953"
+            },
+            "ve.pt": {
+              "size": 5698626,
+              "sha256": "4b16d836bc598509860f6fa068165a8bb5e9ac84f05582dfcf278a5a372879f1"
+            }
+          },
+          "perth_checkpoint": {
+            "path": "perth_net/pretrained/implicit/perth_net_250000.pth.tar",
+            "size": 37429684,
+            "sha256": "a15bce457ebc53ce5e6c9c3f11df78cf7ee2bf9cdab0a798902135b4c4027670"
+          },
+          "architecture": "chatterbox-multilingual-v3",
+          "t3_model": "v3",
+          "language_id": "ja",
+          "device": "cuda:0",
+          "dtype": "float32",
+          "sample_rate_hz": 24000,
+          "chatterbox_version": "0.1.7",
+          "perth_version": "1.0.1",
+          "torch_version": "2.6.0+cu126",
+          "torchaudio_version": "2.6.0+cu126",
+          "cuda_version": "12.6",
+          "transformers_version": "5.2.0",
+          "diffusers_version": "0.29.0",
+          "pykakasi_version": "2.3.0",
+          "safetensors_version": "0.5.3",
+          "s3tokenizer_version": "0.3.0",
+          "seed": 42,
+          "cfg_weight": 0.5,
+          "temperature": 0.8,
+          "repetition_penalty": 1.2,
+          "min_p": 0.05,
+          "top_p": 1.0,
+          "exaggeration_by_intensity": {
+            "1": 0.3,
+            "2": 0.5,
+            "3": 0.8
+          },
+          "emotion_control": "exaggeration_only",
+          "perth_watermark": true
+        },
+        "realized": {
+          "phase_peak_vram_mib": {
+            "runtime_load": {
+              "allocated_mib": 3074.6845703125,
+              "reserved_mib": 3094.0
+            },
+            "generation": {
+              "allocated_mib": 3512.88330078125,
+              "reserved_mib": 3622.0
+            }
+          },
+          "seed": 42,
+          "sample_rate_hz": 24000,
+          "language_id": "ja",
+          "line_emotion_audit": "angry",
+          "intensity": 2,
+          "exaggeration": 0.5,
+          "reference_selection_source": "character.reference_voice",
+          "reference_voice": "amitaro-countdown",
+          "reference_sha256": "fdc3ffc571a329250168b9b228e9ebfa660d885677e19bc5547b9a6dbe7509eb",
+          "perth_watermark_stage_executed": true
+        }
+      },
+      "rtf": 12.895689,
+      "loudness": {
+        "i_lufs": -18.01,
+        "tp_dbtp": -0.99,
+        "shortfall": false
+      }
+    },
+    {
+      "model": "chatterbox-multilingual-v3",
+      "scenario": "tavern-night",
+      "line": "drunkard-001",
+      "variant": "dry",
+      "path": "audio/chatterbox-multilingual-v3/tavern-night/drunkard-001-dry.opus",
+      "duration_sec": 3.1665,
+      "sha256": "5511e4c74ba1635b6538496f000662c24266ff13212586176a92743dc6d167c7",
+      "gen_params": {
+        "requested": {
+          "upstream_repository": "resemble-ai/chatterbox",
+          "upstream_revision": "65b18437192794391a0308a8f705b1e33e633948",
+          "weights_repository": "ResembleAI/chatterbox",
+          "weights_revision": "5bb1f6ee58e50c3b8d408bc82a6d3740c2db6e18",
+          "perth_repository": "resemble-ai/Perth",
+          "perth_revision": "ce86c49d029f42272c1902eccb675556b9ed2330",
+          "model_root_environment": "GAYA_CHATTERBOX_ROOT",
+          "model_files": {
+            "Cangjie5_TC.json": {
+              "size": 1920163,
+              "sha256": "7073fd9de919443ae88e0bd2449917a65fe54898a4413ed1edcc4b67f28bce8c"
+            },
+            "grapheme_mtl_merged_expanded_v1.json": {
+              "size": 69989,
+              "sha256": "69632f47220a788a52ce2661d096453c5655e9bf25289d89a8d832c46ee07dbf"
+            },
+            "s3gen.pt": {
+              "size": 1057165844,
+              "sha256": "9b9ff07e60b20c136e2b1b3d7563a24604e8d2c4c267888d1ee929dd0151d2a3"
+            },
+            "t3_mtl23ls_v3.safetensors": {
+              "size": 2143989928,
+              "sha256": "5abca8321ede76f8e61f1cc0d19aea6c946b28871017ce8726f8a69203f05953"
+            },
+            "ve.pt": {
+              "size": 5698626,
+              "sha256": "4b16d836bc598509860f6fa068165a8bb5e9ac84f05582dfcf278a5a372879f1"
+            }
+          },
+          "perth_checkpoint": {
+            "path": "perth_net/pretrained/implicit/perth_net_250000.pth.tar",
+            "size": 37429684,
+            "sha256": "a15bce457ebc53ce5e6c9c3f11df78cf7ee2bf9cdab0a798902135b4c4027670"
+          },
+          "architecture": "chatterbox-multilingual-v3",
+          "t3_model": "v3",
+          "language_id": "ja",
+          "device": "cuda:0",
+          "dtype": "float32",
+          "sample_rate_hz": 24000,
+          "chatterbox_version": "0.1.7",
+          "perth_version": "1.0.1",
+          "torch_version": "2.6.0+cu126",
+          "torchaudio_version": "2.6.0+cu126",
+          "cuda_version": "12.6",
+          "transformers_version": "5.2.0",
+          "diffusers_version": "0.29.0",
+          "pykakasi_version": "2.3.0",
+          "safetensors_version": "0.5.3",
+          "s3tokenizer_version": "0.3.0",
+          "seed": 42,
+          "cfg_weight": 0.5,
+          "temperature": 0.8,
+          "repetition_penalty": 1.2,
+          "min_p": 0.05,
+          "top_p": 1.0,
+          "exaggeration_by_intensity": {
+            "1": 0.3,
+            "2": 0.5,
+            "3": 0.8
+          },
+          "emotion_control": "exaggeration_only",
+          "perth_watermark": true
+        },
+        "realized": {
+          "phase_peak_vram_mib": {
+            "runtime_load": {
+              "allocated_mib": 3074.6845703125,
+              "reserved_mib": 3094.0
+            },
+            "generation": {
+              "allocated_mib": 3700.1845703125,
+              "reserved_mib": 3794.0
+            }
+          },
+          "seed": 42,
+          "sample_rate_hz": 24000,
+          "language_id": "ja",
+          "line_emotion_audit": "drunk",
+          "intensity": 2,
+          "exaggeration": 0.5,
+          "reference_selection_source": "adapter.assignment:tavern-night/drunkard",
+          "reference_voice": "hadou-emotion-11",
+          "reference_sha256": "e98033d63f847c4113d8b47e264bca82f38212519da8d62661133847b3d221bc",
+          "perth_watermark_stage_executed": true
+        }
+      },
+      "rtf": 2.073097,
+      "loudness": {
+        "i_lufs": -18.03,
+        "tp_dbtp": -1.0,
+        "shortfall": false
+      }
+    },
+    {
+      "model": "chatterbox-multilingual-v3",
+      "scenario": "tavern-night",
+      "line": "drunkard-002",
+      "variant": "dry",
+      "path": "audio/chatterbox-multilingual-v3/tavern-night/drunkard-002-dry.opus",
+      "duration_sec": 3.1265,
+      "sha256": "31e626492509d817200b26932eed90086a08ca874f1d2080ccc02339c720b2fd",
+      "gen_params": {
+        "requested": {
+          "upstream_repository": "resemble-ai/chatterbox",
+          "upstream_revision": "65b18437192794391a0308a8f705b1e33e633948",
+          "weights_repository": "ResembleAI/chatterbox",
+          "weights_revision": "5bb1f6ee58e50c3b8d408bc82a6d3740c2db6e18",
+          "perth_repository": "resemble-ai/Perth",
+          "perth_revision": "ce86c49d029f42272c1902eccb675556b9ed2330",
+          "model_root_environment": "GAYA_CHATTERBOX_ROOT",
+          "model_files": {
+            "Cangjie5_TC.json": {
+              "size": 1920163,
+              "sha256": "7073fd9de919443ae88e0bd2449917a65fe54898a4413ed1edcc4b67f28bce8c"
+            },
+            "grapheme_mtl_merged_expanded_v1.json": {
+              "size": 69989,
+              "sha256": "69632f47220a788a52ce2661d096453c5655e9bf25289d89a8d832c46ee07dbf"
+            },
+            "s3gen.pt": {
+              "size": 1057165844,
+              "sha256": "9b9ff07e60b20c136e2b1b3d7563a24604e8d2c4c267888d1ee929dd0151d2a3"
+            },
+            "t3_mtl23ls_v3.safetensors": {
+              "size": 2143989928,
+              "sha256": "5abca8321ede76f8e61f1cc0d19aea6c946b28871017ce8726f8a69203f05953"
+            },
+            "ve.pt": {
+              "size": 5698626,
+              "sha256": "4b16d836bc598509860f6fa068165a8bb5e9ac84f05582dfcf278a5a372879f1"
+            }
+          },
+          "perth_checkpoint": {
+            "path": "perth_net/pretrained/implicit/perth_net_250000.pth.tar",
+            "size": 37429684,
+            "sha256": "a15bce457ebc53ce5e6c9c3f11df78cf7ee2bf9cdab0a798902135b4c4027670"
+          },
+          "architecture": "chatterbox-multilingual-v3",
+          "t3_model": "v3",
+          "language_id": "ja",
+          "device": "cuda:0",
+          "dtype": "float32",
+          "sample_rate_hz": 24000,
+          "chatterbox_version": "0.1.7",
+          "perth_version": "1.0.1",
+          "torch_version": "2.6.0+cu126",
+          "torchaudio_version": "2.6.0+cu126",
+          "cuda_version": "12.6",
+          "transformers_version": "5.2.0",
+          "diffusers_version": "0.29.0",
+          "pykakasi_version": "2.3.0",
+          "safetensors_version": "0.5.3",
+          "s3tokenizer_version": "0.3.0",
+          "seed": 42,
+          "cfg_weight": 0.5,
+          "temperature": 0.8,
+          "repetition_penalty": 1.2,
+          "min_p": 0.05,
+          "top_p": 1.0,
+          "exaggeration_by_intensity": {
+            "1": 0.3,
+            "2": 0.5,
+            "3": 0.8
+          },
+          "emotion_control": "exaggeration_only",
+          "perth_watermark": true
+        },
+        "realized": {
+          "phase_peak_vram_mib": {
+            "runtime_load": {
+              "allocated_mib": 3074.6845703125,
+              "reserved_mib": 3094.0
+            },
+            "generation": {
+              "allocated_mib": 3702.6259765625,
+              "reserved_mib": 3794.0
+            }
+          },
+          "seed": 42,
+          "sample_rate_hz": 24000,
+          "language_id": "ja",
+          "line_emotion_audit": "drunk",
+          "intensity": 3,
+          "exaggeration": 0.8,
+          "reference_selection_source": "adapter.assignment:tavern-night/drunkard",
+          "reference_voice": "hadou-emotion-11",
+          "reference_sha256": "e98033d63f847c4113d8b47e264bca82f38212519da8d62661133847b3d221bc",
+          "perth_watermark_stage_executed": true
+        }
+      },
+      "rtf": 1.92879,
+      "loudness": {
+        "i_lufs": -18.05,
+        "tp_dbtp": -0.99,
+        "shortfall": false
+      }
+    },
+    {
+      "model": "chatterbox-multilingual-v3",
+      "scenario": "tavern-night",
+      "line": "old-regular-001",
+      "variant": "dry",
+      "path": "audio/chatterbox-multilingual-v3/tavern-night/old-regular-001-dry.opus",
+      "duration_sec": 2.3665,
+      "sha256": "1e93159478a428dc4e93ca5ed41e95aedb6111094ca2703a6beee7ed1cffb791",
+      "gen_params": {
+        "requested": {
+          "upstream_repository": "resemble-ai/chatterbox",
+          "upstream_revision": "65b18437192794391a0308a8f705b1e33e633948",
+          "weights_repository": "ResembleAI/chatterbox",
+          "weights_revision": "5bb1f6ee58e50c3b8d408bc82a6d3740c2db6e18",
+          "perth_repository": "resemble-ai/Perth",
+          "perth_revision": "ce86c49d029f42272c1902eccb675556b9ed2330",
+          "model_root_environment": "GAYA_CHATTERBOX_ROOT",
+          "model_files": {
+            "Cangjie5_TC.json": {
+              "size": 1920163,
+              "sha256": "7073fd9de919443ae88e0bd2449917a65fe54898a4413ed1edcc4b67f28bce8c"
+            },
+            "grapheme_mtl_merged_expanded_v1.json": {
+              "size": 69989,
+              "sha256": "69632f47220a788a52ce2661d096453c5655e9bf25289d89a8d832c46ee07dbf"
+            },
+            "s3gen.pt": {
+              "size": 1057165844,
+              "sha256": "9b9ff07e60b20c136e2b1b3d7563a24604e8d2c4c267888d1ee929dd0151d2a3"
+            },
+            "t3_mtl23ls_v3.safetensors": {
+              "size": 2143989928,
+              "sha256": "5abca8321ede76f8e61f1cc0d19aea6c946b28871017ce8726f8a69203f05953"
+            },
+            "ve.pt": {
+              "size": 5698626,
+              "sha256": "4b16d836bc598509860f6fa068165a8bb5e9ac84f05582dfcf278a5a372879f1"
+            }
+          },
+          "perth_checkpoint": {
+            "path": "perth_net/pretrained/implicit/perth_net_250000.pth.tar",
+            "size": 37429684,
+            "sha256": "a15bce457ebc53ce5e6c9c3f11df78cf7ee2bf9cdab0a798902135b4c4027670"
+          },
+          "architecture": "chatterbox-multilingual-v3",
+          "t3_model": "v3",
+          "language_id": "ja",
+          "device": "cuda:0",
+          "dtype": "float32",
+          "sample_rate_hz": 24000,
+          "chatterbox_version": "0.1.7",
+          "perth_version": "1.0.1",
+          "torch_version": "2.6.0+cu126",
+          "torchaudio_version": "2.6.0+cu126",
+          "cuda_version": "12.6",
+          "transformers_version": "5.2.0",
+          "diffusers_version": "0.29.0",
+          "pykakasi_version": "2.3.0",
+          "safetensors_version": "0.5.3",
+          "s3tokenizer_version": "0.3.0",
+          "seed": 42,
+          "cfg_weight": 0.5,
+          "temperature": 0.8,
+          "repetition_penalty": 1.2,
+          "min_p": 0.05,
+          "top_p": 1.0,
+          "exaggeration_by_intensity": {
+            "1": 0.3,
+            "2": 0.5,
+            "3": 0.8
+          },
+          "emotion_control": "exaggeration_only",
+          "perth_watermark": true
+        },
+        "realized": {
+          "phase_peak_vram_mib": {
+            "runtime_load": {
+              "allocated_mib": 3074.6845703125,
+              "reserved_mib": 3094.0
+            },
+            "generation": {
+              "allocated_mib": 3703.35693359375,
+              "reserved_mib": 3794.0
+            }
+          },
+          "seed": 42,
+          "sample_rate_hz": 24000,
+          "language_id": "ja",
+          "line_emotion_audit": "tired",
+          "intensity": 1,
+          "exaggeration": 0.3,
+          "reference_selection_source": "adapter.assignment:tavern-night/old-regular",
+          "reference_voice": "hadou-emotion-11",
+          "reference_sha256": "e98033d63f847c4113d8b47e264bca82f38212519da8d62661133847b3d221bc",
+          "perth_watermark_stage_executed": true
+        }
+      },
+      "rtf": 2.027657,
+      "loudness": {
+        "i_lufs": -18.0,
+        "tp_dbtp": -3.45,
+        "shortfall": false
+      }
+    },
+    {
+      "model": "chatterbox-multilingual-v3",
+      "scenario": "tavern-night",
+      "line": "old-regular-002",
+      "variant": "dry",
+      "path": "audio/chatterbox-multilingual-v3/tavern-night/old-regular-002-dry.opus",
+      "duration_sec": 3.0865,
+      "sha256": "2d01632dfb035c09701c374e7ff51a41891e745ea0b129fbdb3857730c21deb0",
+      "gen_params": {
+        "requested": {
+          "upstream_repository": "resemble-ai/chatterbox",
+          "upstream_revision": "65b18437192794391a0308a8f705b1e33e633948",
+          "weights_repository": "ResembleAI/chatterbox",
+          "weights_revision": "5bb1f6ee58e50c3b8d408bc82a6d3740c2db6e18",
+          "perth_repository": "resemble-ai/Perth",
+          "perth_revision": "ce86c49d029f42272c1902eccb675556b9ed2330",
+          "model_root_environment": "GAYA_CHATTERBOX_ROOT",
+          "model_files": {
+            "Cangjie5_TC.json": {
+              "size": 1920163,
+              "sha256": "7073fd9de919443ae88e0bd2449917a65fe54898a4413ed1edcc4b67f28bce8c"
+            },
+            "grapheme_mtl_merged_expanded_v1.json": {
+              "size": 69989,
+              "sha256": "69632f47220a788a52ce2661d096453c5655e9bf25289d89a8d832c46ee07dbf"
+            },
+            "s3gen.pt": {
+              "size": 1057165844,
+              "sha256": "9b9ff07e60b20c136e2b1b3d7563a24604e8d2c4c267888d1ee929dd0151d2a3"
+            },
+            "t3_mtl23ls_v3.safetensors": {
+              "size": 2143989928,
+              "sha256": "5abca8321ede76f8e61f1cc0d19aea6c946b28871017ce8726f8a69203f05953"
+            },
+            "ve.pt": {
+              "size": 5698626,
+              "sha256": "4b16d836bc598509860f6fa068165a8bb5e9ac84f05582dfcf278a5a372879f1"
+            }
+          },
+          "perth_checkpoint": {
+            "path": "perth_net/pretrained/implicit/perth_net_250000.pth.tar",
+            "size": 37429684,
+            "sha256": "a15bce457ebc53ce5e6c9c3f11df78cf7ee2bf9cdab0a798902135b4c4027670"
+          },
+          "architecture": "chatterbox-multilingual-v3",
+          "t3_model": "v3",
+          "language_id": "ja",
+          "device": "cuda:0",
+          "dtype": "float32",
+          "sample_rate_hz": 24000,
+          "chatterbox_version": "0.1.7",
+          "perth_version": "1.0.1",
+          "torch_version": "2.6.0+cu126",
+          "torchaudio_version": "2.6.0+cu126",
+          "cuda_version": "12.6",
+          "transformers_version": "5.2.0",
+          "diffusers_version": "0.29.0",
+          "pykakasi_version": "2.3.0",
+          "safetensors_version": "0.5.3",
+          "s3tokenizer_version": "0.3.0",
+          "seed": 42,
+          "cfg_weight": 0.5,
+          "temperature": 0.8,
+          "repetition_penalty": 1.2,
+          "min_p": 0.05,
+          "top_p": 1.0,
+          "exaggeration_by_intensity": {
+            "1": 0.3,
+            "2": 0.5,
+            "3": 0.8
+          },
+          "emotion_control": "exaggeration_only",
+          "perth_watermark": true
+        },
+        "realized": {
+          "phase_peak_vram_mib": {
+            "runtime_load": {
+              "allocated_mib": 3074.6845703125,
+              "reserved_mib": 3094.0
+            },
+            "generation": {
+              "allocated_mib": 3701.77197265625,
+              "reserved_mib": 3794.0
+            }
+          },
+          "seed": 42,
+          "sample_rate_hz": 24000,
+          "language_id": "ja",
+          "line_emotion_audit": "laughing",
+          "intensity": 1,
+          "exaggeration": 0.3,
+          "reference_selection_source": "adapter.assignment:tavern-night/old-regular",
+          "reference_voice": "hadou-emotion-11",
+          "reference_sha256": "e98033d63f847c4113d8b47e264bca82f38212519da8d62661133847b3d221bc",
+          "perth_watermark_stage_executed": true
+        }
+      },
+      "rtf": 1.945701,
+      "loudness": {
+        "i_lufs": -17.94,
+        "tp_dbtp": -0.99,
+        "shortfall": false
+      }
+    },
     {
       "model": "dummy",
       "scenario": "battlefield-camp",

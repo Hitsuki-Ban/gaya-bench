@@ -16,6 +16,15 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+chatterbox = [
+    "chatterbox-tts",
+    "resemble-perth",
+    "s3tokenizer==0.3.0",
+    "torch==2.6.0; python_version < '3.14'",
+    "torch>=2.9.0; python_version >= '3.14'",
+    "torchaudio==2.6.0; python_version < '3.14'",
+    "torchaudio>=2.9.0; python_version >= '3.14'",
+]
 gpt-sovits = [
     "cn2an==0.5.24",
     "fast-langdetect==1.0.1",
@@ -71,6 +80,9 @@ dev = [
 ]
 
 [tool.uv]
+override-dependencies = [
+    "resemble-perth @ git+https://github.com/resemble-ai/Perth.git@ce86c49d029f42272c1902eccb675556b9ed2330",
+]
 conflicts = [
     [
         { extra = "gpt-sovits" },
@@ -96,25 +108,50 @@ conflicts = [
         { extra = "qwen" },
         { extra = "voxcpm2" },
     ],
+    [
+        { extra = "chatterbox" },
+        { extra = "gpt-sovits" },
+    ],
+    [
+        { extra = "chatterbox" },
+        { extra = "irodori" },
+    ],
+    [
+        { extra = "chatterbox" },
+        { extra = "qwen" },
+    ],
+    [
+        { extra = "chatterbox" },
+        { extra = "voxcpm2" },
+    ],
 ]
 extra-build-variables = { sentencepiece = { CMAKE_POLICY_VERSION_MINIMUM = "3.5" } }
 
 [tool.uv.sources]
+chatterbox-tts = { git = "https://github.com/resemble-ai/chatterbox.git", rev = "65b18437192794391a0308a8f705b1e33e633948" }
 irodori-tts = { git = "https://github.com/Aratako/Irodori-TTS.git", rev = "eaf74d6a19138f743acb5b71a445fd25a57db987" }
 dacvae = { git = "https://github.com/facebookresearch/dacvae", rev = "414c20785fc3a28373073ea8ef7a1316eeeaca6e" }
+resemble-perth = { git = "https://github.com/resemble-ai/Perth.git", rev = "ce86c49d029f42272c1902eccb675556b9ed2330" }
 voxcpm = { git = "https://github.com/OpenBMB/VoxCPM.git", rev = "616d3d3e630a9c96c2853250eef91b0f39dcd5fa" }
 torch = [
+    { index = "pytorch-cu126", extra = "chatterbox" },
     { index = "pytorch-cu128", extra = "gpt-sovits" },
     { index = "pytorch-cu128", extra = "irodori" },
     { index = "pytorch-cu130", extra = "qwen" },
     { index = "pytorch-cu130", extra = "voxcpm2" },
 ]
 torchaudio = [
+    { index = "pytorch-cu126", extra = "chatterbox" },
     { index = "pytorch-cu128", extra = "gpt-sovits" },
     { index = "pytorch-cu128", extra = "irodori" },
     { index = "pytorch-cu130", extra = "qwen" },
     { index = "pytorch-cu130", extra = "voxcpm2" },
 ]
+
+[[tool.uv.index]]
+name = "pytorch-cu126"
+url = "https://download.pytorch.org/whl/cu126"
+explicit = true
 
 [[tool.uv.index]]
 name = "pytorch-cu128"

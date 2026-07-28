@@ -367,3 +367,73 @@ RTX 4070 Ti 12GB での受け入れ実測では、2シナリオ12行を失敗0�
 capability は、構造化 emotion/intensity を control prefix へ反映するため emotion、Voice Design 参照を作るため voice prompt、全行で reference を使うため clone、解決済み reading を実入力にするため reading を `true` とする。非言語タグは本 adapter では構造化していないため nonverbal は `false` とする。
 
 [VoxCPM code](https://github.com/OpenBMB/VoxCPM) と [openbmb/VoxCPM2 weight](https://huggingface.co/openbmb/VoxCPM2) は Apache-2.0 で、公式 model card は commercial-ready と記載する。内蔵デジタル透かしはなく、生成物は AI 生成であることを明示する。clone 時は `assets/voices/metadata.yaml` の素材別ライセンス、クレジット、再配布条件にも従い、無断の声真似、詐欺、なりすまし、偽情報に利用しない。Voice Design 結果が実在人物に似ていると制作担当が認識した場合は採用しない。
+
+## Chatterbox Multilingual V3
+
+`chatterbox-multilingual-v3` は、権利確認済みの参照 WAV を全行へ明示して日本語を生成する clone adapter である。検証経路は Windows 11 / Python 3.12 / NVIDIA CUDA:0 / FP32 / PyTorch 2.6.0 cu126 のみ。専用 extra は他 model の PyTorch extra と相互排他的である。
+
+```console
+uv sync --project pipeline --locked --extra chatterbox
+```
+
+code は Chatterbox V3 release の `resemble-ai/chatterbox@65b18437192794391a0308a8f705b1e33e633948`、PerTh は `resemble-ai/Perth@ce86c49d029f42272c1902eccb675556b9ed2330` に固定する。weight は `ResembleAI/chatterbox@5bb1f6ee58e50c3b8d408bc82a6d3740c2db6e18` から、V3 multilingual 推論に必要な次の5ファイルだけをローカルへ取得する。内蔵 voice condition の `conds.pt` は取得しない。
+
+```powershell
+hf download ResembleAI/chatterbox `
+  Cangjie5_TC.json `
+  grapheme_mtl_merged_expanded_v1.json `
+  s3gen.pt `
+  t3_mtl23ls_v3.safetensors `
+  ve.pt `
+  --revision 5bb1f6ee58e50c3b8d408bc82a6d3740c2db6e18 `
+  --local-dir models/chatterbox/weights
+
+$env:GAYA_CHATTERBOX_ROOT = (Resolve-Path "models/chatterbox/weights")
+```
+
+adapter は model root が上記5ファイルだけを含むことと、各 size / SHA-256 を生成前に照合する。`ChatterboxMultilingualTTS.from_local(..., t3_model="v3")` だけを使い、Hugging Face Hub への Cangjie mapping 取得要求は検証済みローカルファイルへ限定して解決する。上流 tokenizer が日本語でも初期化する未使用の中国語 `spacy_pkuseg` segmenter は、model load 中だけ無効化する。別 cache、別 weight、内蔵 voice、ネットワーク取得へ切り替えない。
+
+PerTh の `perth_net/pretrained/implicit/` は model 初期化前に inventory を照合し、`hparams.yaml`（271 bytes、SHA-256 `6e4deab0716a5b647eba52b4df97d93f37e57e283ff67c265fb6fee025f8e2cf`）、`id.txt`（22 bytes、SHA-256 `f4129d0cce1fcd76a01c778dd46aeecc84130e38d83c98402abf2e1b9c49770d`）、`perth_net_250000.pth.tar`（37,429,684 bytes、SHA-256 `a15bce457ebc53ce5e6c9c3f11df78cf7ee2bf9cdab0a798902135b4c4027670`）の3ファイルだけを許可する。checkpoint は pickle 形式であり、PerTh は同 directory 内の最大 step を自動選択するため、追加 checkpoint、symlink、size / hash 不一致があればロードしない。
+
+`character.reference_voice` がある場合はその素材を優先する。2つの受け入れシナリオで `null` の character は次の固定割当を使い、表にない `null` は生成前に失敗する。
+
+| scenario | character | reference voice |
+| --- | --- | --- |
+| `tavern-night` | `drunkard` | `hadou-emotion-11` |
+| `tavern-night` | `old-regular` | `hadou-emotion-11` |
+| `market-day` | `fruit-vendor` | `hadou-emotion-11` |
+| `market-day` | `shopper` | `lux-emotion-76` |
+| `market-day` | `street-kid` | `tsukuyomi-corpus-94` |
+
+参照 WAV は登録 metadata の SHA-256 と照合し、48kHz mono PCM16、10秒以上を必須とする。各 line は必ず `audio_prompt_path` を渡すため、内蔵 condition や reference 欠落時の代替声は使わない。
+
+入力は元の `line.text` とし、`line.reading`、`line.delivery`、category 別の emotion 説明は model へ渡さない。構造化された intensity だけを `exaggeration` へ対応させる。
+
+| intensity | exaggeration |
+| --- | --- |
+| `1` | `0.3` |
+| `2` | `0.5` |
+| `3` | `0.8` |
+
+`line.emotion` は audit metadata に残すが、モデルへの独立した emotion 指示には使わない。固定値は `seed=42`、`cfg_weight=0.5`、`temperature=0.8`、`repetition_penalty=1.2`、`min_p=0.05`、`top_p=1.0` である。capability は intensity による `exaggeration` 制御だけを emotion 対応として `true`、clone を `true` とし、voice prompt、nonverbal、reading は `false` とする。
+
+まず1行で固定 weight、CUDA、FP32、参照音声、PerTh、12GB VRAM の gate を確認する。
+
+```console
+uv run --project pipeline --locked --extra chatterbox gaya gen --model chatterbox-multilingual-v3 --scenario tavern-night --line barmaid-001
+```
+
+gate 通過後、受け入れ確認用の2シナリオを生成する。
+
+```console
+uv run --project pipeline --locked --extra chatterbox gaya gen --model chatterbox-multilingual-v3 --scenario tavern-night
+uv run --project pipeline --locked --extra chatterbox gaya gen --model chatterbox-multilingual-v3 --scenario market-day
+```
+
+2026-07-28 に Windows 11 / RTX 4070 Ti 12GB で上記2シナリオ（12行）を実測し、失敗0件、直後の再実行は12行すべてを skip した。最大VRAMは allocated 3,703.357 MiB / reserved 3,794 MiB、model load を含む4行を除く8行の warm RTF は1.886〜2.195（平均2.000）だった。同じ text / reference / seed で intensity 1（`exaggeration=0.3`）と intensity 3（`0.8`）を比較し、native WAV の SHA-256 が異なることも確認した。
+
+12出力はすべて native 24kHz、共通後処理後は48kHz monoである。固定 PerTh checkpoint による独立 decode では、最終 WAV と最終64kbps Opus の双方で12/12を検出した。最低 raw confidence は WAV 0.95498、Opus 0.97663 だった。manifest の `perth_watermark_stage_executed` は上流 generation stage の実行事実であり、将来の別 codec や編集後の検出可能性まで保証しない。
+
+[Chatterbox code と公式 weight](https://github.com/resemble-ai/chatterbox)、[PerTh](https://github.com/resemble-ai/Perth) は MIT。生成音声には PerTh 電子透かしが自動で入る。この水印の検出だけで model ID や生成元を識別することはできない。参照音声は `assets/voices/metadata.yaml` の素材別ライセンス、クレジット、再配布条件にも従い、無断の声真似、詐欺、なりすまし、誤認を招く利用を禁止する。
+
+Windows native 以外、Python / package / cu126 / CUDA version の不一致、固定 file の欠落・hash 不一致、予期しない model root file、参照 WAV 不備、model identity の変化、無効 waveform、OOM は明示的に失敗する。CPU、WSL、別 CUDA wheel、別 weight、内蔵 voice、クラウド、無透かし音声へ自動切替しない。
