@@ -43,6 +43,38 @@ def test_candidateのtake_provenance欠落を拒否(field: str) -> None:
         validate_manifest_v4(manifest)
 
 
+@pytest.mark.parametrize(
+    "field",
+    ["seed", "recipe_version", "sampling", "requested", "realized"],
+)
+def test_candidate_gen_paramsの必須field欠落を拒否(field: str) -> None:
+    manifest = _manifest()
+    _candidate(manifest)["gen_params"].pop(field)  # type: ignore[union-attr]
+    with pytest.raises(TakeManifestError, match="gen_params"):
+        validate_manifest_v4(manifest)
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("seed", True),
+        ("recipe_version", ""),
+        ("sampling", []),
+        ("requested", None),
+        ("requested", {"temperature": math.nan}),
+        ("realized", "invalid"),
+    ],
+)
+def test_candidate_gen_paramsの基本型境界を検証(
+    field: str,
+    value: object,
+) -> None:
+    manifest = _manifest()
+    _candidate(manifest)["gen_params"][field] = value  # type: ignore[index]
+    with pytest.raises(TakeManifestError, match="gen_params"):
+        validate_manifest_v4(manifest)
+
+
 def test_duplicate_take_idとduplicate_slotを拒否() -> None:
     manifest = _manifest()
     manifest["curations"] = []
@@ -135,6 +167,7 @@ def _attempt(status: str) -> dict[str, object]:
             "wav_sha256": "f" * 64,
             "opus_path": "audio/dummy/tavern-night/barmaid-001/dry/take-0001.opus",
             "opus_sha256": audio_sha,
+            "sidecar_sha256": "0" * 64,
         },
         "gates": {
             "mechanical": "pass",
@@ -157,8 +190,12 @@ def test_eligibleだけcandidateへ構築できる() -> None:
         },
         gate_policy_version="take-gate-v1",
         recipe_version="fixed-single-v1",
+        requested_params={"temperature": 1.0},
+        realized_params={"temperature": 1.0},
     )
     assert candidate["take_index"] == 1
+    assert candidate["gen_params"]["requested"] == {"temperature": 1.0}
+    assert candidate["gen_params"]["realized"] == {"temperature": 1.0}
 
     for status in ("generated", "blocked", "hard_rejected", "generation_failed"):
         with pytest.raises(TakeLedgerError):
@@ -173,6 +210,8 @@ def test_eligibleだけcandidateへ構築できる() -> None:
                 },
                 gate_policy_version="take-gate-v1",
                 recipe_version="fixed-single-v1",
+                requested_params={"temperature": 1.0},
+                realized_params={"temperature": 1.0},
             )
 
 

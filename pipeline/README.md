@@ -22,14 +22,17 @@ uv run --project pipeline pytest pipeline/tests
 
 ## 読み・韻律 QC
 
-公開 manifest の全 clip に Kana ASR と未校正の韻律解析を実行する:
+generation run の全 take に mechanical/content gate と未校正の韻律解析を
+実行する:
 
 ```console
 uv sync --project pipeline --locked --extra qc
-uv run --project pipeline --locked --extra qc gaya qc
+uv run --project pipeline --locked --extra qc gaya qc --run-id <run-id>
 ```
 
-既定出力は `artifacts/qc/report.json`。dry 音声と
+入力は `artifacts/takes/<run-id>/ledger.json` と同 run の sidecar/audio
+だけである。結果は同 run root の `qc-report.json` に記録し、全 attempt が
+terminal のときだけ `manifest-v4.json` を原子的に確定する。公開中の
 `data/manifest.json` は変更しない。ASR は
 `sbintuitions/kana-whisper@88ecb3d79c5846cb4fcf76f4107b84c8fa2acd82`
 を CUDA/FP16 で実行し、別 device/model へ自動切替しない。多読み語の

@@ -55,6 +55,7 @@ def _generated(status: str = "generated") -> dict[str, object]:
             "wav_sha256": "3" * 64,
             "opus_path": "audio/dummy/tavern-night/barmaid-001/dry/take-0001.opus",
             "opus_sha256": "4" * 64,
+            "sidecar_sha256": "5" * 64,
         },
         "gates": gates,
         "features": {"status": "unscored"},
@@ -128,7 +129,7 @@ def test_blocked再評価はprovenanceを固定する() -> None:
         replacement=_generated(),
     )
     blocked_attempt = _generated("blocked")
-    blocked_attempt["gates"] = {"mechanical": "blocked", "content": "blocked"}
+    blocked_attempt["gates"] = {"mechanical": "blocked", "content": "not_run"}
     blocked = transition_attempt(
         generated,
         slot=("dummy", "tavern-night", "barmaid-001", "dry", 1),
@@ -180,6 +181,44 @@ def test_gateの未知値と未解決blocked_terminalを拒否(
     attempt = _generated("hard_rejected")
     attempt["gates"] = gates
     with pytest.raises(TakeLedgerError):
+        validate_ledger(_ledger(attempt))
+
+
+@pytest.mark.parametrize(
+    ("status", "gates"),
+    [
+        ("eligible", {"mechanical": "pass", "content": "pass"}),
+        ("eligible", {"mechanical": "pass", "content": "review_required"}),
+        ("hard_rejected", {"mechanical": "reject", "content": "not_run"}),
+        ("hard_rejected", {"mechanical": "pass", "content": "reject"}),
+        ("blocked", {"mechanical": "blocked", "content": "not_run"}),
+        ("blocked", {"mechanical": "pass", "content": "blocked"}),
+    ],
+)
+def test_gateとattempt_statusの合法な組み合わせだけを受理(
+    status: str,
+    gates: dict[str, str],
+) -> None:
+    attempt = _generated(status)
+    attempt["gates"] = gates
+    assert validate_ledger(_ledger(attempt))["attempts"][0]["status"] == status
+
+
+@pytest.mark.parametrize(
+    ("status", "gates"),
+    [
+        ("eligible", {"mechanical": "pass", "content": "not_run"}),
+        ("hard_rejected", {"mechanical": "reject", "content": "pass"}),
+        ("blocked", {"mechanical": "blocked", "content": "blocked"}),
+    ],
+)
+def test_gateの未実行状態を別判定へ偽装できない(
+    status: str,
+    gates: dict[str, str],
+) -> None:
+    attempt = _generated(status)
+    attempt["gates"] = gates
+    with pytest.raises(TakeLedgerError, match="一致しません"):
         validate_ledger(_ledger(attempt))
 
 

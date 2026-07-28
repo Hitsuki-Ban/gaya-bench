@@ -32,7 +32,7 @@ TRANSITIONS = {
     "blocked": {"hard_rejected", "eligible"},
 }
 MECHANICAL_GATES = {"pass", "reject", "blocked"}
-CONTENT_GATES = {"pass", "review_required", "reject", "blocked"}
+CONTENT_GATES = {"pass", "review_required", "reject", "blocked", "not_run"}
 GROUP_KEYS = {"model", "scenario", "line", "variant"}
 ROOT_KEYS = {"format_version", "run_id", "created_at", "source", "attempts"}
 SOURCE_KEYS = {
@@ -164,13 +164,20 @@ def _validate_attempt(value: Any, field: str) -> tuple[str, str, str, str, int]:
         take_id = _sha(attempt["take_id"], f"{field}.take_id")
         audio = _exact_keys(
             attempt["audio"],
-            {"wav_path", "wav_sha256", "opus_path", "opus_sha256"},
+            {
+                "wav_path",
+                "wav_sha256",
+                "opus_path",
+                "opus_sha256",
+                "sidecar_sha256",
+            },
             f"{field}.audio",
         )
         wav_path = _relative_path(audio["wav_path"], f"{field}.audio.wav_path")
         _sha(audio["wav_sha256"], f"{field}.audio.wav_sha256")
         opus_path = _relative_path(audio["opus_path"], f"{field}.audio.opus_path")
         opus_sha = _sha(audio["opus_sha256"], f"{field}.audio.opus_sha256")
+        _sha(audio["sidecar_sha256"], f"{field}.audio.sidecar_sha256")
         path_root = f"audio/{group[0]}/{group[1]}/{group[2]}/{group[3]}"
         if wav_path != f"{path_root}/take-{index:04d}.wav":
             raise TakeLedgerError(f"{field}.audio.wav_path が slot と一致しません。")
@@ -193,26 +200,24 @@ def _validate_attempt(value: Any, field: str) -> tuple[str, str, str, str, int]:
                 raise TakeLedgerError(f"{field}.gates.mechanical が不正です。")
             if content not in CONTENT_GATES:
                 raise TakeLedgerError(f"{field}.gates.content が不正です。")
-            if status == "eligible" and (
-                mechanical != "pass"
-                or content not in {"pass", "review_required"}
-            ):
-                raise TakeLedgerError(f"{field}.gates が eligible と一致しません。")
-            if status == "hard_rejected" and "reject" not in {
-                mechanical,
-                content,
-            }:
-                raise TakeLedgerError(f"{field}.gates に reject が必要です。")
-            if status == "hard_rejected" and "blocked" in {
-                mechanical,
-                content,
-            }:
-                raise TakeLedgerError(f"{field}.gates に未解決の blocked があります。")
-            if status == "blocked" and "blocked" not in {
-                mechanical,
-                content,
-            }:
-                raise TakeLedgerError(f"{field}.gates に blocked が必要です。")
+            allowed_gates = {
+                "eligible": {
+                    ("pass", "pass"),
+                    ("pass", "review_required"),
+                },
+                "hard_rejected": {
+                    ("reject", "not_run"),
+                    ("pass", "reject"),
+                },
+                "blocked": {
+                    ("blocked", "not_run"),
+                    ("pass", "blocked"),
+                },
+            }
+            if (mechanical, content) not in allowed_gates[status]:
+                raise TakeLedgerError(
+                    f"{field}.gates が {status} と一致しません。",
+                )
         _exact_keys(features, {"status"}, f"{field}.features")
         if features["status"] != "unscored":
             raise TakeLedgerError(f"{field}.features.status が不正です。")

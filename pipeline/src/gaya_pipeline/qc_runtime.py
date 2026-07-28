@@ -70,6 +70,13 @@ class KanaWhisperQCRuntime:
         assert self._numpy is not None
 
         samples = self._decode_audio(audio_path)
+        prosody = self._analyze_prosody(samples, mora_count=mora_count)
+        if not prosody["active_speech_sec"]:
+            return RuntimeInspection(
+                transcript="",
+                average_log_probability=None,
+                prosody=prosody,
+            )
         try:
             inputs = self._processor(
                 samples,
@@ -100,7 +107,7 @@ class KanaWhisperQCRuntime:
         return RuntimeInspection(
             transcript=transcript,
             average_log_probability=None,
-            prosody=self._analyze_prosody(samples, mora_count=mora_count),
+            prosody=prosody,
         )
 
     def _ensure_loaded(self) -> None:

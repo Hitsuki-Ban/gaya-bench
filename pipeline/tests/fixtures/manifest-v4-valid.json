@@ -31,7 +31,13 @@
       "gen_params": {
         "seed": null,
         "recipe_version": "fixed-single-v1",
-        "sampling": {}
+        "sampling": {},
+        "requested": {
+          "temperature": 1.0
+        },
+        "realized": {
+          "temperature": 1.0
+        }
       },
       "rtf": 0.5,
       "loudness": {

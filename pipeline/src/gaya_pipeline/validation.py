@@ -36,8 +36,6 @@ def default_scenarios_dir() -> Path:
 
 def validate_scenarios(scenarios_dir: Path) -> ValidationResult:
     scenarios_dir = scenarios_dir.resolve()
-    schema_path = scenarios_dir / "schema" / "scenario.schema.json"
-
     if not scenarios_dir.is_dir():
         return ValidationResult(
             file_count=0,
@@ -45,12 +43,47 @@ def validate_scenarios(scenarios_dir: Path) -> ValidationResult:
                 Problem(scenarios_dir, "scenarios", "ディレクトリが存在しません。"),
             ),
         )
+    scenario_files = tuple(sorted(scenarios_dir.glob("*.yaml")))
+    if not scenario_files:
+        return ValidationResult(
+            file_count=0,
+            problems=(
+                Problem(scenarios_dir, "scenarios", "YAML ファイルがありません。"),
+            ),
+        )
+
+    return _validate_scenario_files(scenarios_dir, scenario_files)
+
+
+def validate_scenario_ids(
+    scenarios_dir: Path,
+    scenario_ids: list[str],
+) -> ValidationResult:
+    scenarios_dir = scenarios_dir.resolve()
+    if not scenarios_dir.is_dir():
+        return ValidationResult(
+            file_count=0,
+            problems=(
+                Problem(scenarios_dir, "scenarios", "ディレクトリが存在しません。"),
+            ),
+        )
+    scenario_files = tuple(
+        scenarios_dir / f"{scenario_id}.yaml"
+        for scenario_id in sorted(set(scenario_ids))
+    )
+    return _validate_scenario_files(scenarios_dir, scenario_files)
+
+
+def _validate_scenario_files(
+    scenarios_dir: Path,
+    scenario_files: tuple[Path, ...],
+) -> ValidationResult:
+    schema_path = scenarios_dir / "schema" / "scenario.schema.json"
     if not schema_path.is_file():
         return ValidationResult(
             file_count=0,
             problems=(Problem(schema_path, "schema", "スキーマが存在しません。"),),
         )
-
     try:
         schema = yaml.safe_load(schema_path.read_text(encoding="utf-8"))
         Draft202012Validator.check_schema(schema)
@@ -58,15 +91,6 @@ def validate_scenarios(scenarios_dir: Path) -> ValidationResult:
         return ValidationResult(
             file_count=0,
             problems=(Problem(schema_path, "schema", str(error)),),
-        )
-
-    scenario_files = sorted(scenarios_dir.glob("*.yaml"))
-    if not scenario_files:
-        return ValidationResult(
-            file_count=0,
-            problems=(
-                Problem(scenarios_dir, "scenarios", "YAML ファイルがありません。"),
-            ),
         )
 
     validator = Draft202012Validator(schema)

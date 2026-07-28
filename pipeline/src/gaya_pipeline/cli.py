@@ -28,7 +28,6 @@ from gaya_pipeline.voice_assets import (
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="gaya")
     subparsers = parser.add_subparsers(dest="command", required=True)
-    repository_root = default_scenarios_dir().parent
 
     validate_parser = subparsers.add_parser(
         "validate",
@@ -87,37 +86,12 @@ def build_parser() -> argparse.ArgumentParser:
 
     qc_parser = subparsers.add_parser(
         "qc",
-        help="manifest の生成音声に読み・韻律 QA を実行する",
+        help="run ledger の take に品質 gate を実行する",
     )
     qc_parser.add_argument(
-        "--manifest",
-        type=Path,
-        default=repository_root / "data" / "manifest.json",
-        help="検査対象 manifest",
-    )
-    qc_parser.add_argument(
-        "--scenarios",
-        type=Path,
-        default=repository_root / "scenarios",
-        help="期待読みを取得するシナリオディレクトリ",
-    )
-    qc_parser.add_argument(
-        "--artifacts",
-        type=Path,
-        default=repository_root / "artifacts",
-        help="manifest path の基準となる artifact ディレクトリ",
-    )
-    qc_parser.add_argument(
-        "--output",
-        type=Path,
-        default=repository_root / "artifacts" / "qc" / "report.json",
-        help="QC report 出力先",
-    )
-    qc_parser.add_argument("--model", help="model id で対象を絞る")
-    qc_parser.add_argument("--scenario", help="scenario id で対象を絞る")
-    qc_parser.add_argument(
-        "--line",
-        help="scenario 内の line id で対象を絞る",
+        "--run-id",
+        required=True,
+        help="artifacts/takes 配下の generation run id",
     )
 
     subparsers.add_parser(
@@ -187,25 +161,23 @@ def main(argv: Sequence[str] | None = None) -> int:
         return 1 if summary.failed_count else 0
 
     if args.command == "qc":
-        runtime = KanaWhisperQCRuntime(
-            args.artifacts / "models" / "qc" / "sbintuitions--kana-whisper",
-        )
+        repository_root = default_scenarios_dir().parent
+        artifacts_dir = repository_root / "artifacts"
         try:
+            runtime = KanaWhisperQCRuntime(
+                artifacts_dir / "models" / "qc" / "sbintuitions--kana-whisper",
+            )
             summary = run_qc(
-                manifest_path=args.manifest,
-                scenarios_dir=args.scenarios,
-                artifacts_dir=args.artifacts,
-                output_path=args.output,
+                run_id=args.run_id,
+                scenarios_dir=repository_root / "scenarios",
+                artifacts_dir=artifacts_dir,
                 runtime=runtime,
-                model_id=args.model,
-                scenario_id=args.scenario,
-                line_id=args.line,
             )
         except QCError as error:
             print(f"ERROR: {error}", file=sys.stderr)
             return 1
         _print_qc_summary(summary)
-        return 1 if summary.analysis_error_count or summary.mismatch_count else 0
+        return 1 if summary.blocked_count or summary.pending_count else 0
 
     if args.command == "publish":
         repository_root = default_scenarios_dir().parent
@@ -261,12 +233,15 @@ def _print_publish_summary(summary: PublishSummary) -> None:
 
 
 def _print_qc_summary(summary: QCSummary) -> None:
-    print(f"QC report: {summary.output_path.as_posix()}")
+    print(f"Ledger: {summary.ledger_path.as_posix()}")
+    print(f"QC report: {summary.report_path.as_posix()}")
+    if summary.snapshot_path is not None:
+        print(f"v4 snapshot: {summary.snapshot_path.as_posix()}")
     print(
-        f"完了: clip {summary.clip_count} / "
-        f"合格 {summary.pass_count} / "
-        f"読み不一致 {summary.mismatch_count} / "
-        f"reading要確認 {summary.needs_reading_count} / "
-        f"目視確認 {summary.review_required_count} / "
-        f"解析失敗 {summary.analysis_error_count}",
+        f"完了: take {summary.attempt_count} / "
+        f"eligible {summary.eligible_count} / "
+        f"hard reject {summary.hard_rejected_count} / "
+        f"blocked {summary.blocked_count} / "
+        f"generation failure {summary.generation_failed_count} / "
+        f"未完了 {summary.pending_count}",
     )

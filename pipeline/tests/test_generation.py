@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import shutil
 from collections.abc import Mapping, Sequence
@@ -284,6 +285,9 @@ def test_n_takeは固有path_sidecar_ledgerとidentityを生成する(
         )
         assert sidecar["run_id"] == summary.run_id
         assert sidecar["take_id"] == attempt["take_id"]
+        assert attempt["audio"]["sidecar_sha256"] == hashlib.sha256(
+            sidecar_path.read_bytes(),
+        ).hexdigest()
 
 
 def test_whole_run_cacheとforceは既存provenanceを変更しない(
@@ -334,6 +338,42 @@ def test_whole_run_cacheとforceは既存provenanceを変更しない(
         for path in first.ledger_path.parent.rglob("*")
         if path.is_file()
     } == first_bytes
+
+
+def test_sidecar改ざんrunはwhole_run_cacheとして再利用しない(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    fake_audio: AudioTools,
+) -> None:
+    del fake_audio
+    first = _run_fake(
+        tmp_path=tmp_path,
+        monkeypatch=monkeypatch,
+        adapter=FakeStochasticAdapter(),
+        takes=1,
+    )
+    ledger = read_ledger(first.ledger_path)
+    sidecar_path = (
+        first.ledger_path.parent
+        / ledger["attempts"][0]["audio"]["opus_path"]
+    ).with_suffix(".json")
+    sidecar = json.loads(sidecar_path.read_text(encoding="utf-8"))
+    sidecar["gen_params"]["realized"]["tampered"] = True
+    sidecar_path.write_text(
+        json.dumps(sidecar, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+    cached_adapter = FakeStochasticAdapter()
+
+    with pytest.raises(GenerationError, match="sidecar SHA-256"):
+        _run_fake(
+            tmp_path=tmp_path,
+            monkeypatch=monkeypatch,
+            adapter=cached_adapter,
+            takes=1,
+        )
+
+    assert cached_adapter.generate_contexts == []
 
 
 def test_seed_baseとresolved_input変更は新しいrunとidentityになる(

@@ -132,10 +132,30 @@ def _validate_candidate(
         raise TakeManifestError(f"{field}.path が field から再構成できません。")
     _number(candidate["duration_sec"], f"{field}.duration_sec")
     _number(candidate["rtf"], f"{field}.rtf")
-    if not isinstance(candidate["gen_params"], dict):
-        raise TakeManifestError(f"{field}.gen_params は object が必要です。")
+    gen_params = _exact(
+        candidate["gen_params"],
+        {"seed", "recipe_version", "sampling", "requested", "realized"},
+        f"{field}.gen_params",
+    )
+    seed = gen_params["seed"]
+    if seed is not None and (
+        isinstance(seed, bool)
+        or not isinstance(seed, int)
+    ):
+        raise TakeManifestError(
+            f"{field}.gen_params.seed は整数または null が必要です。",
+        )
+    _text(
+        gen_params["recipe_version"],
+        f"{field}.gen_params.recipe_version",
+    )
+    for key in ("sampling", "requested", "realized"):
+        if not isinstance(gen_params[key], dict):
+            raise TakeManifestError(
+                f"{field}.gen_params.{key} は object が必要です。",
+            )
     try:
-        canonical_json(candidate["gen_params"])
+        canonical_json(gen_params)
     except TakeIdentityError as error:
         raise TakeManifestError(f"{field}.gen_params が JSON 契約を満たしません。") from error
     loudness = _exact(
@@ -260,6 +280,8 @@ def candidate_from_attempt(
     loudness: dict[str, Any],
     gate_policy_version: str,
     recipe_version: str,
+    requested_params: dict[str, Any],
+    realized_params: dict[str, Any],
 ) -> dict[str, Any]:
     validate_attempt(attempt)
     if attempt.get("status") != "eligible":
@@ -283,6 +305,8 @@ def candidate_from_attempt(
                 "seed": generation["seed"],
                 "recipe_version": recipe_version,
                 "sampling": generation["sampling"],
+                "requested": dict(requested_params),
+                "realized": dict(realized_params),
             },
             "rtf": generation["rtf"],
             "loudness": loudness,
