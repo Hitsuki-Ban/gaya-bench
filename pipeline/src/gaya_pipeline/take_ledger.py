@@ -228,7 +228,7 @@ def validate_ledger(document: Any) -> dict[str, Any]:
     ledger = _exact_keys(document, ROOT_KEYS, "ledger")
     if ledger["format_version"] != 1:
         raise TakeLedgerError("ledger.format_version は 1 が必要です。")
-    _string(ledger["run_id"], "ledger.run_id")
+    _path_segment(ledger["run_id"], "ledger.run_id")
     _string(ledger["created_at"], "ledger.created_at")
     source = _exact_keys(ledger["source"], SOURCE_KEYS, "ledger.source")
     _sha(source["scenario_sha256"], "ledger.source.scenario_sha256")

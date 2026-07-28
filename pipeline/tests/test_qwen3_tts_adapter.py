@@ -258,11 +258,11 @@ def test_profile_and_requested_parameters_are_canonical(tmp_path: Path) -> None:
         "reading": False,
     }
     recipe = adapter.take_recipe()
-    assert recipe.version == "fixed-single-v1"
-    assert recipe.seed_policy == "fixed"
+    assert recipe.version == "seed-only-v1"
+    assert recipe.seed_policy == "derived-sha256-v1"
     assert recipe.single_take_seed == SEED
     assert recipe.seed_range == (0, 2**32 - 1)
-    assert recipe.supports_multiple is False
+    assert recipe.supports_multiple is True
     params = adapter.generation_params()
     assert params == {
         "qwen_tts_version": QWEN_TTS_VERSION,
@@ -365,6 +365,7 @@ def test_prepare_caches_by_scenario_character_and_rebuilds_changed_input(
         "wav_sha256",
     }
     assert metadata_value["wav_sha256"] == _sha256(wav_path)
+    assert metadata_value["seed"] == SEED
     assert not list(wav_path.parent.glob("*.pending.*"))
 
     cached_runtime = FakeRuntime(tmp_path)
@@ -566,8 +567,16 @@ def test_base_is_lazy_prompt_is_reused_and_output_is_pcm16(
     assert [repo for repo, _ in runtime.loaded] == [VOICE_DESIGN_MODEL_ID]
     output_one = tmp_path / "audio" / "one.wav"
     output_two = tmp_path / "audio" / "two.wav"
-    realized_one = adapter.generate(first, _take_context(adapter), output_one)
-    realized_two = adapter.generate(second, _take_context(adapter), output_two)
+    recipe = adapter.take_recipe()
+    first_context = recipe.single_take_context()
+    second_context = TakeContext.create(
+        index=2,
+        seed=123_456,
+        recipe_version=recipe.version,
+        sampling=dict(recipe.sampling),
+    )
+    realized_one = adapter.generate(first, first_context, output_one)
+    realized_two = adapter.generate(second, second_context, output_two)
 
     assert [(repo, revision) for repo, revision, _ in runtime.snapshots] == [
         (VOICE_DESIGN_MODEL_ID, VOICE_DESIGN_REVISION),
@@ -588,7 +597,7 @@ def test_base_is_lazy_prompt_is_reused_and_output_is_pcm16(
     assert len(runtime.clone_calls) == 2
     assert runtime.clone_calls[0]["language"] == LANGUAGE
     assert runtime.clone_calls[0]["prompt"] is runtime.clone_calls[1]["prompt"]
-    assert runtime.seeds == [SEED, SEED, SEED]
+    assert runtime.seeds == [SEED, SEED, 123_456]
 
     for output_path in (output_one, output_two):
         with wave.open(str(output_path), "rb") as wav_file:
@@ -597,6 +606,9 @@ def test_base_is_lazy_prompt_is_reused_and_output_is_pcm16(
             assert wav_file.getframerate() == 24_000
 
     assert realized_one["seed"] == SEED
+    assert realized_one["sampling"] == first_context.sampling_dict()
+    assert realized_two["seed"] == 123_456
+    assert realized_two["sampling"] == second_context.sampling_dict()
     assert realized_one["sample_rate_hz"] == 24_000
     assert set(realized_one["phase_peak_vram_mib"]) == {
         "voice_design_load",

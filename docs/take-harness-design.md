@@ -679,6 +679,12 @@ Ticket G の cutover 後に旧 reader、旧 generator、変換経路を残さな
 既存公開サイトは cutover まで read-only の v3 data を使うが、旧単 take generation
 branch は残さない。
 
+`gaya gen` は run-id を自動生成する。通常実行では source、groups、N、seed-base、
+recipe、全 generation input と artifact provenance が一致する完了済み run だけを
+whole-run cache として返す。途中 run と `generation_failed` run は変更せず、新しい
+run を作る。同一 input に異なる take identity の完了 run が複数ある場合は自動選択
+しない。`--force` は cache を使わず、常に別 run へ一度ずつ生成する。
+
 ### Ticket C — Gate orchestration と v4 snapshot
 
 範囲:

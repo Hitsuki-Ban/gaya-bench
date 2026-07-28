@@ -186,6 +186,7 @@ class _Runtime(Protocol):
         text: str,
         voice_style: str,
         output_wav: Path,
+        seed: int,
     ) -> Mapping[str, Any]: ...
 
 
@@ -288,6 +289,7 @@ class _LocalRuntime:
         text: str,
         voice_style: str,
         output_wav: Path,
+        seed: int,
     ) -> Mapping[str, Any]:
         if self._tts is None or self._numpy is None or self._soundfile is None:
             raise Supertonic3AdapterError(
@@ -296,7 +298,7 @@ class _LocalRuntime:
 
         try:
             style = self._tts.get_voice_style(voice_style)
-            self._numpy.random.seed(SEED)
+            self._numpy.random.seed(seed)
             waveform, durations = self._tts.synthesize(
                 text,
                 style,
@@ -355,7 +357,7 @@ class _LocalRuntime:
             ) from error
         audio = _inspect_pcm_wav(output_wav)
         return {
-            "seed": SEED,
+            "seed": seed,
             "language_id": LANGUAGE_ID,
             "voice_style": voice_style,
             "sample_rate_hz": audio["sample_rate_hz"],
@@ -390,15 +392,15 @@ class Supertonic3Adapter:
 
     def take_recipe(self) -> TakeRecipe:
         return TakeRecipe(
-            version="fixed-single-v1",
-            seed_policy="fixed",
+            version="seed-only-v1",
+            seed_policy="derived-sha256-v1",
             single_take_seed=SEED,
             seed_range=(0, 2**32 - 1),
             sampling=(
                 ("speed", SPEED),
                 ("total_steps", TOTAL_STEPS),
             ),
-            supports_multiple=False,
+            supports_multiple=True,
         )
 
     def __init__(self, *, runtime: _Runtime | None = None) -> None:
@@ -451,7 +453,6 @@ class Supertonic3Adapter:
             "onnxruntime_version": ONNXRUNTIME_VERSION,
             "numpy_version": NUMPY_VERSION,
             "soundfile_version": SOUNDFILE_VERSION,
-            "seed": SEED,
             "total_steps": TOTAL_STEPS,
             "speed": SPEED,
             "max_chunk_length": MAX_CHUNK_LENGTH,
@@ -482,12 +483,15 @@ class Supertonic3Adapter:
         output_wav: Path,
     ) -> Mapping[str, Any]:
         require_take_context(take_context, self.take_recipe())
+        seed = take_context.seed
+        assert seed is not None
         prepared = self._prepared_input(job)
         try:
             realized = self._runtime.synthesize(
                 text=prepared.tts_text,
                 voice_style=prepared.voice_style,
                 output_wav=output_wav,
+                seed=seed,
             )
         except Exception as error:
             if isinstance(error, Supertonic3AdapterError):
@@ -502,6 +506,8 @@ class Supertonic3Adapter:
             )
         return {
             **dict(realized),
+            "seed": seed,
+            "sampling": take_context.sampling_dict(),
             "reading_source": prepared.reading_source,
             "voice_selection_source": prepared.voice_selection_source,
             "voice_style_sha256": prepared.voice_style_sha256,

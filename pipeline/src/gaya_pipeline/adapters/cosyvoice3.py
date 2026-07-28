@@ -216,6 +216,7 @@ class _Runtime(Protocol):
         tts_text: str,
         instruction: str,
         reference_wav: Path,
+        seed: int,
     ) -> Sequence[Mapping[str, Any]]: ...
 
     def concatenate_waveforms(self, waveforms: Sequence[Any]) -> Any: ...
@@ -381,10 +382,11 @@ class _NativeRuntime:
         tts_text: str,
         instruction: str,
         reference_wav: Path,
+        seed: int,
     ) -> Sequence[Mapping[str, Any]]:
         if self._torch is None or self._numpy is None:
             raise CosyVoice3AdapterError("CosyVoice runtime が初期化されていません。")
-        _seed_every_line(self._torch, self._numpy)
+        _seed_every_line(self._torch, self._numpy, seed)
         return list(
             model.inference_instruct2(
                 tts_text,
@@ -473,15 +475,15 @@ class CosyVoice3Adapter:
 
     def take_recipe(self) -> TakeRecipe:
         return TakeRecipe(
-            version="fixed-single-v1",
-            seed_policy="fixed",
+            version="seed-only-v1",
+            seed_policy="derived-sha256-v1",
             single_take_seed=SEED,
             seed_range=(0, 2**32 - 1),
             sampling=(
                 ("speed", SPEED),
                 ("stream", STREAM),
             ),
-            supports_multiple=False,
+            supports_multiple=True,
         )
 
     def __init__(self, *, runtime: _Runtime | None = None) -> None:
@@ -566,7 +568,6 @@ class CosyVoice3Adapter:
             "numpy_version": NUMPY_VERSION,
             "soundfile_version": SOUNDFILE_VERSION,
             "modelscope_version": MODELSCOPE_VERSION,
-            "seed": SEED,
             "fp16": FP16,
             "load_trt": LOAD_TRT,
             "load_vllm": LOAD_VLLM,
@@ -607,6 +608,8 @@ class CosyVoice3Adapter:
         output_wav: Path,
     ) -> Mapping[str, Any]:
         require_take_context(take_context, self.take_recipe())
+        seed = take_context.seed
+        assert seed is not None
         prepared = self._prepared_input(job)
         model = self._ensure_model()
         self._runtime.reset_peak_memory_stats()
@@ -617,6 +620,7 @@ class CosyVoice3Adapter:
                 tts_text=prepared.tts_text,
                 instruction=prepared.instruction,
                 reference_wav=prepared.reference.wav_path,
+                seed=seed,
             ),
         )
         waveforms, expected_samples = _validated_chunks(chunks)
@@ -659,7 +663,8 @@ class CosyVoice3Adapter:
                     self._model_identity["campplus_providers"],
                 ),
             },
-            "seed": SEED,
+            "seed": seed,
+            "sampling": take_context.sampling_dict(),
             "fp16": FP16,
             "stream": STREAM,
             "speed": SPEED,
@@ -1285,11 +1290,11 @@ def _validate_onnxruntime_installation(onnxruntime: Any) -> None:
         )
 
 
-def _seed_every_line(torch: Any, numpy: Any) -> None:
-    random.seed(SEED)
-    numpy.random.seed(SEED)
-    torch.manual_seed(SEED)
-    torch.cuda.manual_seed_all(SEED)
+def _seed_every_line(torch: Any, numpy: Any, seed: int) -> None:
+    random.seed(seed)
+    numpy.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
     _configure_deterministic_cuda(torch)
 
 

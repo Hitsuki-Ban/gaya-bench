@@ -61,6 +61,7 @@ class FakeRuntime:
         caption: str,
         reference_wav: Path | None,
         output_wav: Path,
+        seed: int,
     ) -> dict[str, Any]:
         if self.oom_on == "synthesize":
             raise FakeOutOfMemoryError("generate")
@@ -70,6 +71,7 @@ class FakeRuntime:
                 "caption": caption,
                 "reference_wav": reference_wav,
                 "output_wav": output_wav,
+                "seed": seed,
             },
         )
         output_wav.parent.mkdir(parents=True, exist_ok=True)
@@ -87,7 +89,7 @@ class FakeRuntime:
                     "reserved_mib": 3328.0,
                 },
             },
-            "seed": SEED,
+            "seed": seed,
             "sample_rate_hz": 48_000,
             "silentcipher_watermark_stage_executed": True,
         }
@@ -224,11 +226,11 @@ def test_profile_revisions_capabilities_and_parameters_are_canonical() -> None:
         "reading": True,
     }
     recipe = adapter.take_recipe()
-    assert recipe.version == "fixed-single-v1"
-    assert recipe.seed_policy == "fixed"
+    assert recipe.version == "seed-only-v1"
+    assert recipe.seed_policy == "derived-sha256-v1"
     assert recipe.single_take_seed == SEED
     assert recipe.seed_range == (0, 2**32 - 1)
-    assert recipe.supports_multiple is False
+    assert recipe.supports_multiple is True
     params = adapter.generation_params()
     assert params["checkpoint"] == CHECKPOINT_ID
     assert params["checkpoint_revision"] == CHECKPOINT_REVISION
@@ -241,7 +243,7 @@ def test_profile_revisions_capabilities_and_parameters_are_canonical() -> None:
     assert params["silentcipher_model_revision"] == SILENTCIPHER_MODEL_REVISION
     assert params["silentcipher_version"] == SILENTCIPHER_VERSION
     assert params["pyopenjtalk_plus_version"] == PYOPENJTALK_VERSION
-    assert params["seed"] == SEED
+    assert "seed" not in params
     assert params["emotion_emoji"] == EMOTION_EMOJI
     assert params["silentcipher_watermark_stage_required"] is True
     assert params["silentcipher_payload"] == "IRDTS"
@@ -313,6 +315,33 @@ def test_no_reference_uses_explicit_no_ref_input_and_writes_pcm16(
         assert wav_file.getnchannels() == 1
         assert wav_file.getsampwidth() == 2
         assert wav_file.getframerate() == 48_000
+
+
+def test_take_seed_reaches_runtime_and_realized_metadata(tmp_path: Path) -> None:
+    runtime = FakeRuntime()
+    adapter = IrodoriTTSAdapter(
+        runtime=runtime,
+        reading_converter=lambda text: text,
+    )
+    job = _job()
+    adapter.prepare([job], tmp_path / "artifacts", _voices_dir(tmp_path))
+    recipe = adapter.take_recipe()
+    first_context = recipe.single_take_context()
+    second_context = TakeContext.create(
+        index=2,
+        seed=123_456,
+        recipe_version=recipe.version,
+        sampling=dict(recipe.sampling),
+    )
+
+    first = adapter.generate(job, first_context, tmp_path / "first.wav")
+    second = adapter.generate(job, second_context, tmp_path / "second.wav")
+
+    assert [call["seed"] for call in runtime.synthesize_calls] == [SEED, 123_456]
+    assert first["seed"] == SEED
+    assert first["sampling"] == first_context.sampling_dict()
+    assert second["seed"] == 123_456
+    assert second["sampling"] == second_context.sampling_dict()
 
 
 def test_explicit_reading_has_priority_without_invoking_converter(
