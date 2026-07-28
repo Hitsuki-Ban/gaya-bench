@@ -9,6 +9,7 @@ import yaml
 from jsonschema import Draft202012Validator
 from jsonschema.exceptions import SchemaError
 
+from gaya_pipeline.japanese_reading import find_ambiguous_japanese_readings
 from gaya_pipeline.voice_assets import validate_voice_metadata
 
 
@@ -26,6 +27,7 @@ class Problem:
 class ValidationResult:
     file_count: int
     problems: tuple[Problem, ...]
+    warnings: tuple[Problem, ...] = ()
 
 
 def default_scenarios_dir() -> Path:
@@ -102,9 +104,11 @@ def validate_scenarios(scenarios_dir: Path) -> ValidationResult:
         valid_documents.append((scenario_file, document))
 
     problems.extend(_validate_references(valid_documents, known_voice_ids))
+    warnings = _ambiguous_reading_warnings(valid_documents)
     return ValidationResult(
         file_count=len(scenario_files),
         problems=tuple(problems),
+        warnings=tuple(warnings),
     )
 
 
@@ -233,6 +237,31 @@ def _duplicate_id_problems(
             )
         seen.add(item_id)
     return problems
+
+
+def _ambiguous_reading_warnings(
+    documents: list[tuple[Path, Mapping[str, Any]]],
+) -> list[Problem]:
+    warnings: list[Problem] = []
+    for scenario_file, document in documents:
+        scenario_id = str(document["id"])
+        for line in document["lines"]:
+            reading = line.get("reading")
+            if isinstance(reading, str) and reading.strip():
+                continue
+            for ambiguous in find_ambiguous_japanese_readings(line["text"]):
+                warnings.append(
+                    Problem(
+                        scenario_file,
+                        f"{scenario_id}/{line['id']}",
+                        (
+                            f"多読み語 '{ambiguous.surface}' の読み候補 "
+                            f"({', '.join(ambiguous.candidates)}) を判定できません。"
+                            " line.reading を明記してください。"
+                        ),
+                    ),
+                )
+    return warnings
 
 
 def _json_path(parts: Any) -> str:

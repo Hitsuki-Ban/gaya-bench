@@ -16,6 +16,8 @@ from gaya_pipeline.publish import (
     create_r2_client,
     run_publish,
 )
+from gaya_pipeline.qc import QCError, QCSummary, run_qc
+from gaya_pipeline.qc_runtime import KanaWhisperQCRuntime
 from gaya_pipeline.validation import default_scenarios_dir, validate_scenarios
 from gaya_pipeline.voice_assets import (
     default_voices_dir,
@@ -26,6 +28,7 @@ from gaya_pipeline.voice_assets import (
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="gaya")
     subparsers = parser.add_subparsers(dest="command", required=True)
+    repository_root = default_scenarios_dir().parent
 
     validate_parser = subparsers.add_parser(
         "validate",
@@ -70,6 +73,41 @@ def build_parser() -> argparse.ArgumentParser:
         help="hash 一致時も再生成する",
     )
 
+    qc_parser = subparsers.add_parser(
+        "qc",
+        help="manifest の生成音声に読み・韻律 QA を実行する",
+    )
+    qc_parser.add_argument(
+        "--manifest",
+        type=Path,
+        default=repository_root / "data" / "manifest.json",
+        help="検査対象 manifest",
+    )
+    qc_parser.add_argument(
+        "--scenarios",
+        type=Path,
+        default=repository_root / "scenarios",
+        help="期待読みを取得するシナリオディレクトリ",
+    )
+    qc_parser.add_argument(
+        "--artifacts",
+        type=Path,
+        default=repository_root / "artifacts",
+        help="manifest path の基準となる artifact ディレクトリ",
+    )
+    qc_parser.add_argument(
+        "--output",
+        type=Path,
+        default=repository_root / "artifacts" / "qc" / "report.json",
+        help="QC report 出力先",
+    )
+    qc_parser.add_argument("--model", help="model id で対象を絞る")
+    qc_parser.add_argument("--scenario", help="scenario id で対象を絞る")
+    qc_parser.add_argument(
+        "--line",
+        help="scenario 内の line id で対象を絞る",
+    )
+
     subparsers.add_parser(
         "publish",
         help="manifest と一致する Opus を R2 へ差分アップロードする",
@@ -82,6 +120,8 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     if args.command == "validate":
         result = validate_scenarios(args.scenarios)
+        for warning in result.warnings:
+            print(f"WARNING: {warning}", file=sys.stderr)
         if result.problems:
             for problem in result.problems:
                 print(f"ERROR: {problem}", file=sys.stderr)
@@ -91,7 +131,10 @@ def main(argv: Sequence[str] | None = None) -> int:
             )
             return 1
 
-        print(f"検証成功: {result.file_count} シナリオ")
+        print(
+            f"検証成功: {result.file_count} シナリオ / "
+            f"警告 {len(result.warnings)} 件",
+        )
         return 0
 
     if args.command == "voices":
@@ -129,6 +172,27 @@ def main(argv: Sequence[str] | None = None) -> int:
             return 1
         _print_generation_summary(summary)
         return 1 if summary.failed_count else 0
+
+    if args.command == "qc":
+        runtime = KanaWhisperQCRuntime(
+            args.artifacts / "models" / "qc" / "sbintuitions--kana-whisper",
+        )
+        try:
+            summary = run_qc(
+                manifest_path=args.manifest,
+                scenarios_dir=args.scenarios,
+                artifacts_dir=args.artifacts,
+                output_path=args.output,
+                runtime=runtime,
+                model_id=args.model,
+                scenario_id=args.scenario,
+                line_id=args.line,
+            )
+        except QCError as error:
+            print(f"ERROR: {error}", file=sys.stderr)
+            return 1
+        _print_qc_summary(summary)
+        return 1 if summary.analysis_error_count or summary.mismatch_count else 0
 
     if args.command == "publish":
         repository_root = default_scenarios_dir().parent
@@ -176,4 +240,16 @@ def _print_publish_summary(summary: PublishSummary) -> None:
     print(
         f"完了: アップロード {summary.uploaded_count} / "
         f"スキップ {summary.skipped_count}",
+    )
+
+
+def _print_qc_summary(summary: QCSummary) -> None:
+    print(f"QC report: {summary.output_path.as_posix()}")
+    print(
+        f"完了: clip {summary.clip_count} / "
+        f"合格 {summary.pass_count} / "
+        f"読み不一致 {summary.mismatch_count} / "
+        f"reading要確認 {summary.needs_reading_count} / "
+        f"目視確認 {summary.review_required_count} / "
+        f"解析失敗 {summary.analysis_error_count}",
     )

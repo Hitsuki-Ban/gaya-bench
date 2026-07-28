@@ -158,3 +158,59 @@ def test_cli_reports_file_target_reason_and_nonzero_exit(
     assert "broken-reference.yaml" in captured.err
     assert "broken-reference/guard-001" in captured.err
     assert "missing-character" in captured.err
+
+
+def test_ambiguous_reading_without_explicit_reading_is_warning(
+    tmp_path: Path,
+) -> None:
+    scenarios_dir = _scenarios_from_fixtures(tmp_path)
+    scenario_path = SCENARIOS_DIR / "chinatown-street.yaml"
+    document = yaml.safe_load(scenario_path.read_text(encoding="utf-8"))
+    target = next(
+        line
+        for line in document["lines"]
+        if line["id"] == "shokudo-oyaji-002"
+    )
+    target.pop("reading", None)
+    (scenarios_dir / scenario_path.name).write_text(
+        yaml.safe_dump(document, allow_unicode=True, sort_keys=False),
+        encoding="utf-8",
+    )
+
+    result = validate_scenarios(scenarios_dir)
+
+    assert result.problems == ()
+    assert len(result.warnings) == 1
+    assert result.warnings[0].target == (
+        "chinatown-street/shokudo-oyaji-002"
+    )
+    assert "辛い" in result.warnings[0].reason
+    assert "カライ" in result.warnings[0].reason
+    assert "ツライ" in result.warnings[0].reason
+
+
+def test_validate_cli_prints_warning_without_failing(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    scenarios_dir = _scenarios_from_fixtures(tmp_path)
+    scenario_path = SCENARIOS_DIR / "chinatown-street.yaml"
+    document = yaml.safe_load(scenario_path.read_text(encoding="utf-8"))
+    target = next(
+        line
+        for line in document["lines"]
+        if line["id"] == "shokudo-oyaji-002"
+    )
+    target.pop("reading", None)
+    (scenarios_dir / scenario_path.name).write_text(
+        yaml.safe_dump(document, allow_unicode=True, sort_keys=False),
+        encoding="utf-8",
+    )
+
+    exit_code = main(["validate", "--scenarios", str(scenarios_dir)])
+    captured = capsys.readouterr()
+
+    assert exit_code == 0
+    assert "WARNING:" in captured.err
+    assert "line.reading" in captured.err
+    assert "警告 1 件" in captured.out

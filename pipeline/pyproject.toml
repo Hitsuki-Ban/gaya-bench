@@ -100,6 +100,11 @@ voxcpm2 = [
     "voxcpm",
     "wetext==0.1.2",
 ]
+qc = [
+    "librosa==0.11.0",
+    "torch==2.11.0",
+    "transformers==5.3.0",
+]
 
 [project.scripts]
 gaya = "gaya_pipeline.cli:main"
@@ -118,6 +123,34 @@ override-dependencies = [
     "resemble-perth @ git+https://github.com/resemble-ai/Perth.git@ce86c49d029f42272c1902eccb675556b9ed2330",
 ]
 conflicts = [
+    [
+        { extra = "qc" },
+        { extra = "chatterbox" },
+    ],
+    [
+        { extra = "qc" },
+        { extra = "cosyvoice3" },
+    ],
+    [
+        { extra = "qc" },
+        { extra = "gpt-sovits" },
+    ],
+    [
+        { extra = "qc" },
+        { extra = "irodori" },
+    ],
+    [
+        { extra = "qc" },
+        { extra = "qwen" },
+    ],
+    [
+        { extra = "qc" },
+        { extra = "supertonic3" },
+    ],
+    [
+        { extra = "qc" },
+        { extra = "voxcpm2" },
+    ],
     [
         { extra = "gpt-sovits" },
         { extra = "irodori" },
@@ -220,6 +253,7 @@ torch = [
     { index = "pytorch-cu121", extra = "cosyvoice3" },
     { index = "pytorch-cu128", extra = "gpt-sovits" },
     { index = "pytorch-cu128", extra = "irodori" },
+    { index = "pytorch-cu130", extra = "qc" },
     { index = "pytorch-cu130", extra = "qwen" },
     { index = "pytorch-cu130", extra = "voxcpm2" },
 ]

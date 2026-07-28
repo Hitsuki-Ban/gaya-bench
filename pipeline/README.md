@@ -20,6 +20,22 @@ uv run --project pipeline gaya validate
 uv run --project pipeline pytest pipeline/tests
 ```
 
+## 読み・韻律 QC
+
+公開 manifest の全 clip に Kana ASR と未校正の韻律解析を実行する:
+
+```console
+uv sync --project pipeline --locked --extra qc
+uv run --project pipeline --locked --extra qc gaya qc
+```
+
+既定出力は `artifacts/qc/report.json`。dry 音声と
+`data/manifest.json` は変更しない。ASR は
+`sbintuitions/kana-whisper@88ecb3d79c5846cb4fcf76f4107b84c8fa2acd82`
+を CUDA/FP16 で実行し、別 device/model へ自動切替しない。多読み語の
+真値は `line.reading` で明記する。report schema、判定境界、固定 runtime、
+韻律 feature は [読み・韻律 QC](../docs/reading-qc.md) を参照。
+
 ## ダミー音声生成
 
 リポジトリルートからダミーアダプタで生成する:
