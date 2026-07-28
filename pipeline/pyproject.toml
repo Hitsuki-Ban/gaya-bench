@@ -10,11 +10,18 @@ requires-python = ">=3.12"
 dependencies = [
     "boto3>=1.43.57",
     "jsonschema>=4.26.0",
+    "pyopenjtalk-plus[onnxruntime]==0.4.1.post8",
     "python-dotenv>=1.2.2",
     "pyyaml>=6.0.3",
 ]
 
 [project.optional-dependencies]
+irodori = [
+    "irodori-tts==0.1.0",
+    "torch==2.10.0",
+    "torchaudio==2.10.0",
+    "torchcodec==0.10.0",
+]
 qwen = [
     "qwen-tts==0.1.1",
     "torch==2.11.0",
@@ -33,9 +40,31 @@ dev = [
     "pytest>=9.1.1",
 ]
 
+[tool.uv]
+conflicts = [
+    [
+        { extra = "irodori" },
+        { extra = "qwen" },
+    ],
+]
+extra-build-variables = { sentencepiece = { CMAKE_POLICY_VERSION_MINIMUM = "3.5" } }
+
 [tool.uv.sources]
-torch = { index = "pytorch-cu130" }
-torchaudio = { index = "pytorch-cu130" }
+irodori-tts = { git = "https://github.com/Aratako/Irodori-TTS.git", rev = "eaf74d6a19138f743acb5b71a445fd25a57db987" }
+dacvae = { git = "https://github.com/facebookresearch/dacvae", rev = "414c20785fc3a28373073ea8ef7a1316eeeaca6e" }
+torch = [
+    { index = "pytorch-cu128", extra = "irodori" },
+    { index = "pytorch-cu130", extra = "qwen" },
+]
+torchaudio = [
+    { index = "pytorch-cu128", extra = "irodori" },
+    { index = "pytorch-cu130", extra = "qwen" },
+]
+
+[[tool.uv.index]]
+name = "pytorch-cu128"
+url = "https://download.pytorch.org/whl/cu128"
+explicit = true
 
 [[tool.uv.index]]
 name = "pytorch-cu130"

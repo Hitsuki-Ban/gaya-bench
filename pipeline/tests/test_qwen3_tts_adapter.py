@@ -269,7 +269,7 @@ def test_prepare_caches_by_scenario_character_and_rebuilds_changed_input(
         ),
     ]
     adapter = Qwen3TTSAdapter(runtime=runtime)
-    adapter.prepare(jobs, tmp_path / "artifacts")
+    adapter.prepare(jobs, tmp_path / "artifacts", tmp_path / "voices")
 
     assert [(repo, revision) for repo, revision, _ in runtime.snapshots] == [
         (VOICE_DESIGN_MODEL_ID, VOICE_DESIGN_REVISION),
@@ -303,7 +303,7 @@ def test_prepare_caches_by_scenario_character_and_rebuilds_changed_input(
 
     cached_runtime = FakeRuntime(tmp_path)
     cached_adapter = Qwen3TTSAdapter(runtime=cached_runtime)
-    cached_adapter.prepare(jobs, tmp_path / "artifacts")
+    cached_adapter.prepare(jobs, tmp_path / "artifacts", tmp_path / "voices")
     assert cached_runtime.snapshots == []
     assert cached_runtime.loaded == []
     assert cached_runtime.design_calls == []
@@ -319,6 +319,7 @@ def test_prepare_caches_by_scenario_character_and_rebuilds_changed_input(
     changed_adapter.prepare(
         [changed_job],
         tmp_path / "artifacts",
+        tmp_path / "voices",
     )
     assert len(changed_runtime.design_calls) == 1
     changed_metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
@@ -328,12 +329,20 @@ def test_prepare_caches_by_scenario_character_and_rebuilds_changed_input(
 def test_prepare_fails_fast_on_corrupt_cache(tmp_path: Path) -> None:
     artifacts = tmp_path / "artifacts"
     job = _job()
-    Qwen3TTSAdapter(runtime=FakeRuntime(tmp_path)).prepare([job], artifacts)
+    Qwen3TTSAdapter(runtime=FakeRuntime(tmp_path)).prepare(
+        [job],
+        artifacts,
+        tmp_path / "voices",
+    )
     wav_path, metadata_path = _reference_paths(artifacts)
 
     wav_path.write_bytes(wav_path.read_bytes() + b"tampered")
     with pytest.raises(Qwen3TTSAdapterError, match="WAV SHA-256"):
-        Qwen3TTSAdapter(runtime=FakeRuntime(tmp_path)).prepare([job], artifacts)
+        Qwen3TTSAdapter(runtime=FakeRuntime(tmp_path)).prepare(
+            [job],
+            artifacts,
+            tmp_path / "voices",
+        )
 
     metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
     metadata["wav_sha256"] = _sha256(wav_path)
@@ -343,7 +352,11 @@ def test_prepare_fails_fast_on_corrupt_cache(tmp_path: Path) -> None:
         encoding="utf-8",
     )
     with pytest.raises(Qwen3TTSAdapterError, match="項目が一致"):
-        Qwen3TTSAdapter(runtime=FakeRuntime(tmp_path)).prepare([job], artifacts)
+        Qwen3TTSAdapter(runtime=FakeRuntime(tmp_path)).prepare(
+            [job],
+            artifacts,
+            tmp_path / "voices",
+        )
 
 
 def test_base_is_lazy_prompt_is_reused_and_output_is_pcm16(
@@ -354,7 +367,7 @@ def test_base_is_lazy_prompt_is_reused_and_output_is_pcm16(
     second = _job(line_id="vendor-002", text="今日は安いよ！")
     adapter = Qwen3TTSAdapter(runtime=runtime)
     artifacts = tmp_path / "artifacts"
-    adapter.prepare([first, second], artifacts)
+    adapter.prepare([first, second], artifacts, tmp_path / "voices")
 
     assert [repo for repo, _ in runtime.loaded] == [VOICE_DESIGN_MODEL_ID]
     output_one = tmp_path / "audio" / "one.wav"
@@ -444,7 +457,7 @@ def test_prepare_and_generate_fail_fast_on_invalid_environment_and_oom(
     runtime = FakeRuntime(tmp_path)
     adapter = Qwen3TTSAdapter(runtime=runtime)
     job = _job()
-    adapter.prepare([job], tmp_path / "artifacts")
+    adapter.prepare([job], tmp_path / "artifacts", tmp_path / "voices")
     runtime.oom_on = "clone"
     with pytest.raises(Qwen3TTSAdapterError, match="CUDA out of memory"):
         adapter.generate(job, tmp_path / "output.wav")
@@ -501,4 +514,8 @@ def test_adapter_rejects_unprepared_and_non_japanese_jobs(tmp_path: Path) -> Non
         locale="en",
     )
     with pytest.raises(Qwen3TTSAdapterError, match="Japanese 固定"):
-        adapter.prepare([english_job], tmp_path / "artifacts")
+        adapter.prepare(
+            [english_job],
+            tmp_path / "artifacts",
+            tmp_path / "voices",
+        )

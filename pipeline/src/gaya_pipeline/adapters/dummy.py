@@ -30,8 +30,9 @@ class DummyAdapter:
         self,
         jobs: Sequence[LineJob],
         artifacts_dir: Path,
+        voices_dir: Path,
     ) -> None:
-        del jobs, artifacts_dir
+        del jobs, artifacts_dir, voices_dir
 
     def generation_params(self) -> Mapping[str, Any]:
         return {

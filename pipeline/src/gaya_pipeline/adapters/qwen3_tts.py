@@ -291,7 +291,9 @@ class Qwen3TTSAdapter:
         self,
         jobs: Sequence[LineJob],
         artifacts_dir: Path,
+        voices_dir: Path,
     ) -> None:
+        del voices_dir
         self._prepared = False
         self._references.clear()
         self._clone_prompts.clear()
