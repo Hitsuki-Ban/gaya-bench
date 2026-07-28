@@ -46,13 +46,14 @@ const SCENARIO_OPTIONAL_KEYS = ["tags"] as const;
 const SCENE_REQUIRED_KEYS = ["setting"] as const;
 const SCENE_OPTIONAL_KEYS = ["acoustics", "listener"] as const;
 const CHARACTER_REQUIRED_KEYS = ["id", "name", "gender", "age", "voice"] as const;
-const CHARACTER_OPTIONAL_KEYS = ["archetype", "personality", "reference_voice"] as const;
+const CHARACTER_OPTIONAL_KEYS = ["kind", "archetype", "personality", "reference_voice"] as const;
 const LINE_REQUIRED_KEYS = ["id", "character", "text", "emotion", "delivery"] as const;
 const LINE_OPTIONAL_KEYS = ["reading", "intensity", "situation", "difficulty", "loop_ok"] as const;
 
 const LOCALES = new Set(["ja", "en"]);
 const GENDERS = new Set(["female", "male", "neutral"]);
 const AGES = new Set(["child", "teen", "young_adult", "adult", "middle_aged", "elderly"]);
+const CHARACTER_KINDS = new Set(["human", "machine", "creature", "spirit"]);
 const EMOTIONS = new Set([
   "neutral",
   "cheerful",
@@ -329,6 +330,9 @@ function validateCharacter(
   assertExactKeys(value, CHARACTER_REQUIRED_KEYS, CHARACTER_OPTIONAL_KEYS, label);
   assertId(value.id, `${label}.id`);
   assertString(value.name, `${label}.name`);
+  if ("kind" in value) {
+    assertEnum(value.kind, CHARACTER_KINDS, `${label}.kind`);
+  }
   assertEnum(value.gender, GENDERS, `${label}.gender`);
   assertEnum(value.age, AGES, `${label}.age`);
   assertString(value.voice, `${label}.voice`);
@@ -341,7 +345,10 @@ function validateCharacter(
     assertString(value.reference_voice, `${label}.reference_voice`);
   }
 
-  return value as unknown as Scenario["characters"][number];
+  return {
+    ...value,
+    kind: "kind" in value ? value.kind : "human",
+  } as unknown as Scenario["characters"][number];
 }
 
 function validateLine(

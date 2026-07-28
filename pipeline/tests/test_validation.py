@@ -4,6 +4,7 @@ import shutil
 from pathlib import Path
 
 import pytest
+import yaml
 from gaya_pipeline.cli import main
 from gaya_pipeline.validation import validate_scenarios
 
@@ -31,11 +32,50 @@ def _scenarios_from_fixtures(
     return scenarios_dir
 
 
+def _scenario_with_character_kind(tmp_path: Path, kind: object) -> Path:
+    scenarios_dir = _scenarios_from_fixtures(tmp_path)
+    scenario_path = SCENARIOS_DIR / "tavern-night.yaml"
+    document = yaml.safe_load(scenario_path.read_text(encoding="utf-8"))
+    document["characters"][0]["kind"] = kind
+    (scenarios_dir / scenario_path.name).write_text(
+        yaml.safe_dump(document, allow_unicode=True, sort_keys=False),
+        encoding="utf-8",
+    )
+    return scenarios_dir
+
+
 def test_current_scenarios_are_valid() -> None:
     result = validate_scenarios(SCENARIOS_DIR)
 
     assert result.file_count == len(list(SCENARIOS_DIR.glob("*.yaml")))
     assert result.problems == ()
+
+
+@pytest.mark.parametrize(
+    "kind",
+    ["human", "machine", "creature", "spirit"],
+    ids=["人間", "機械", "クリーチャー", "精霊"],
+)
+def test_有効なcharacter_kindを受理する(tmp_path: Path, kind: str) -> None:
+    result = validate_scenarios(_scenario_with_character_kind(tmp_path, kind))
+
+    assert result.file_count == 1
+    assert result.problems == ()
+
+
+@pytest.mark.parametrize(
+    "kind",
+    ["robot", None],
+    ids=["未定義の値", "null"],
+)
+def test_無効なcharacter_kindを拒否する(
+    tmp_path: Path,
+    kind: object,
+) -> None:
+    result = validate_scenarios(_scenario_with_character_kind(tmp_path, kind))
+
+    assert len(result.problems) == 1
+    assert result.problems[0].target == "$.characters[0].kind"
 
 
 def test_schema_violation_is_rejected(tmp_path: Path) -> None:

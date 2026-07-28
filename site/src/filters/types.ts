@@ -1,7 +1,8 @@
-import type { Age, Difficulty, Emotion, Gender } from "../data/types";
+import type { Age, CharacterKind, Difficulty, Emotion, Gender } from "../data/types";
 
 export const FILTER_QUERY_KEYS = [
   "scenario",
+  "kind",
   "gender",
   "age",
   "emotion",
@@ -14,6 +15,7 @@ export type MultiFilterKey = Exclude<FilterQueryKey, "scenario">;
 
 export interface FilterState {
   readonly scenario: string | null;
+  readonly kind: ReadonlySet<CharacterKind>;
   readonly gender: ReadonlySet<Gender>;
   readonly age: ReadonlySet<Age>;
   readonly emotion: ReadonlySet<Emotion>;
@@ -22,6 +24,7 @@ export interface FilterState {
 }
 
 export interface FilterValueByKey {
+  readonly kind: CharacterKind;
   readonly gender: Gender;
   readonly age: Age;
   readonly emotion: Emotion;

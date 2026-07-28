@@ -1,6 +1,7 @@
 export type Locale = "ja" | "en";
 export type Gender = "female" | "male" | "neutral";
 export type Age = "child" | "teen" | "young_adult" | "adult" | "middle_aged" | "elderly";
+export type CharacterKind = "human" | "machine" | "creature" | "spirit";
 export type Emotion =
   | "neutral"
   | "cheerful"
@@ -25,6 +26,7 @@ export interface Scene {
 export interface Character {
   readonly id: string;
   readonly name: string;
+  readonly kind: CharacterKind;
   readonly gender: Gender;
   readonly age: Age;
   readonly archetype?: string;

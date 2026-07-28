@@ -52,10 +52,14 @@ describe("virtual:gaya-data integration", () => {
 });
 
 describe("loadBenchmarkData", () => {
-  it("schema 明示の line defaults だけを補完する", () => {
+  it("schema 明示の defaults を補完する", () => {
     const root = createFixture();
     const data = loadBenchmarkData(root);
 
+    expect(data.scenarios[0]?.characters[0]).toMatchObject({
+      id: "speaker",
+      kind: "human",
+    });
     expect(data.scenarios[0]?.lines[0]).toMatchObject({
       id: "speaker-001",
       intensity: 2,
@@ -63,6 +67,33 @@ describe("loadBenchmarkData", () => {
       loop_ok: true,
     });
     expect(data.manifest.clips).toHaveLength(1);
+  });
+
+  it.each(["human", "machine", "creature", "spirit"] as const)(
+    "character kind を受け入れる: %s",
+    (kind) => {
+      const root = createFixture({
+        scenario: validScenario().replace(
+          "    gender: neutral",
+          `    kind: ${kind}
+    gender: neutral`,
+        ),
+      });
+
+      expect(loadBenchmarkData(root).scenarios[0]?.characters[0]?.kind).toBe(kind);
+    },
+  );
+
+  it.each(["other", "null"])("不正な character kind を拒否する: %s", (kind) => {
+    const root = createFixture({
+      scenario: validScenario().replace(
+        "    gender: neutral",
+        `    kind: ${kind}
+    gender: neutral`,
+      ),
+    });
+
+    expect(() => loadBenchmarkData(root)).toThrow("characters[0].kind");
   });
 
   it("manifest の未知フィールドを拒否する", () => {

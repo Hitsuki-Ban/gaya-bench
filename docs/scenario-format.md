@@ -25,8 +25,9 @@ scene:
 characters:
   - id: barmaid
     name: 給仕の女性
-    gender: female          # female / male / neutral
-    age: young_adult        # child / teen / young_adult / adult / middle_aged / elderly
+    kind: human             # human / machine / creature / spirit (任意、既定値: human)
+    gender: female          # 聞こえ方: female / male / neutral
+    age: young_adult        # 聞こえ方: child / teen / young_adult / adult / middle_aged / elderly
     archetype: 給仕
     voice: 明るく張りのある声。やや早口で、喧騒を通す接客の声。
     personality: 気さくで世話焼き。常連には遠慮がない。
@@ -50,6 +51,8 @@ lines:
 | フィールド | 用途 |
 | --- | --- |
 | `scene.setting / acoustics / listener` | スタイルプロンプト対応モデルに渡す文脈。サイトのシーン説明にも使用 |
+| `character.kind` | キャラクター種別。`human / machine / creature / spirit`。任意で、省略時は `human` として扱う |
+| `character.gender / age` | 生物学的属性ではなく、音声から受ける声質・演技上の印象。非人間キャラクターにも適用する |
 | `character.voice` | **声質のテキスト記述**。声質プロンプト対応モデルにはそのまま、非対応モデルには話者選択のヒントとして使う |
 | `character.reference_voice` | ゼロショットクローン系モデルへの参照音声。権利確認済み素材 (`assets/voices/`) のIDのみ許可 |
 | `line.emotion` + `intensity` | 機械可読な感情ラベル。感情タグ対応モデルへ直接マップ、フィルタUIにも使用 |

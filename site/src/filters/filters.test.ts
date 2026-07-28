@@ -29,7 +29,7 @@ describe("filter query codec", () => {
     const data = fixture();
     const result = decodeFilterQuery(
       new URLSearchParams(
-        "model=beta&emotion=angry&gender=male&emotion=neutral&model=beta&gender=female",
+        "model=beta&emotion=angry&kind=machine&gender=male&emotion=neutral&model=beta&gender=female",
       ),
       data,
     );
@@ -39,16 +39,19 @@ describe("filter query codec", () => {
       return;
     }
     expect(result.canonicalSearch).toBe(
-      "?gender=female&gender=male&emotion=neutral&emotion=angry&model=beta",
+      "?kind=machine&gender=female&gender=male&emotion=neutral&emotion=angry&model=beta",
     );
     expect(encodeFilterState(result.state, data)).toBe(result.canonicalSearch);
+    expect([...result.state.kind]).toEqual(["machine"]);
     expect([...result.state.emotion]).toEqual(["neutral", "angry"]);
   });
 
   it("scenario は 0/1 件だけ受け付け、unknown/empty query を明示的に拒否する", () => {
     const data = fixture();
     const result = decodeFilterQuery(
-      new URLSearchParams("scenario=market&scenario=inn&gender=&age=ancient&unknown=value"),
+      new URLSearchParams(
+        "scenario=market&scenario=inn&kind=other&gender=&age=ancient&unknown=value",
+      ),
       data,
     );
 
@@ -64,6 +67,12 @@ describe("filter query codec", () => {
           code: "repeated_scenario",
           key: "scenario",
           message: "scenario query は 1 件だけ指定できます。",
+        },
+        {
+          code: "unknown_value",
+          key: "kind",
+          value: "other",
+          message: "kind query に存在しない値が指定されています: other",
         },
         {
           code: "empty_value",
@@ -85,9 +94,15 @@ describe("filter query codec", () => {
     const data = fixture();
     let state = createDefaultFilterState(data);
     state = updateScenarioFilter(state, "market", data);
+    state = updateFilterValues(state, "kind", ["machine"], data);
     state = updateFilterValues(state, "model", ["beta"], data);
 
-    expect(encodeFilterState(state, data)).toBe("?scenario=market&model=beta");
+    expect([...state.kind]).toEqual(["machine"]);
+    expect([...state.model]).toEqual(["beta"]);
+    expect(encodeFilterState(state, data)).toBe("?scenario=market&kind=machine&model=beta");
+    expect(() => toggleFilterValue(state, "kind", "machine", data)).toThrow(
+      "kind filter は最低 1 件",
+    );
     expect(() => toggleFilterValue(state, "model", "beta", data)).toThrow(
       "model filter は最低 1 件",
     );
@@ -102,6 +117,7 @@ describe("comparison projection", () => {
     const model = buildComparisonModel(data);
     let state = createDefaultFilterState(data);
     state = updateScenarioFilter(state, "market", data);
+    state = updateFilterValues(state, "kind", ["machine"], data);
     state = updateFilterValues(state, "gender", ["female"], data);
     state = updateFilterValues(state, "age", ["adult"], data);
     state = updateFilterValues(state, "emotion", ["angry"], data);
@@ -132,6 +148,17 @@ describe("comparison projection", () => {
     expect(projection.models.map(({ id }) => id)).toEqual(["alpha", "beta"]);
   });
 
+  it("kind の選択を projection key と行投影へ反映する", () => {
+    const data = fixture();
+    const model = buildComparisonModel(data);
+    const defaultProjection = projectComparisonModel(model, createDefaultFilterState(data));
+    const state = updateFilterValues(createDefaultFilterState(data), "kind", ["human"], data);
+    const projection = projectComparisonModel(model, state);
+
+    expect(projection.rows.map(({ row }) => row.line.id)).toEqual(["guard-1"]);
+    expect(projection.key).not.toBe(defaultProjection.key);
+  });
+
   it("外部で組み立てられた不正 state を fail fast で拒否する", () => {
     const data = fixture();
     const model = buildComparisonModel(data);
@@ -145,9 +172,9 @@ describe("comparison projection", () => {
 });
 
 function fixture(): BenchmarkData {
-  const vendor = character("vendor", "female", "adult");
-  const guard = character("guard", "male", "middle_aged");
-  const keeper = character("keeper", "neutral", "elderly");
+  const vendor = character("vendor", "machine", "female", "adult");
+  const guard = character("guard", "human", "male", "middle_aged");
+  const keeper = character("keeper", "spirit", "neutral", "elderly");
   const scenarios = [
     scenario(
       "market",
@@ -189,8 +216,13 @@ function scenario(id: string, characters: readonly Character[], lines: readonly 
   };
 }
 
-function character(id: string, gender: Character["gender"], age: Character["age"]): Character {
-  return { id, name: id, gender, age, voice: "自然な声" };
+function character(
+  id: string,
+  kind: Character["kind"],
+  gender: Character["gender"],
+  age: Character["age"],
+): Character {
+  return { id, name: id, kind, gender, age, voice: "自然な声" };
 }
 
 function line(

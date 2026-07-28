@@ -1,13 +1,27 @@
 import { ChevronDown, RotateCcw, SlidersHorizontal } from "lucide-react";
 
+import { CHARACTER_KIND_LABELS } from "@/components/character-kind-badge";
 import { Button } from "@/components/ui/button";
-import { benchmarkData, type Age, type Difficulty, type Emotion, type Gender } from "@/data";
 import {
+  benchmarkData,
+  type Age,
+  type CharacterKind,
+  type Difficulty,
+  type Emotion,
+  type Gender,
+} from "@/data";
+import {
+  CHARACTER_KIND_ORDER,
   encodeFilterState,
   toggleFilterValue,
   updateScenarioFilter,
   type FilterState,
 } from "@/filters";
+
+const characterKindOptions = CHARACTER_KIND_ORDER.map((value) => ({
+  value,
+  label: CHARACTER_KIND_LABELS[value],
+}));
 
 const genderOptions = [
   { value: "female", label: "女性" },
@@ -114,6 +128,14 @@ export function FilterToolbar({
             </select>
           </label>
 
+          <FilterCheckboxGroup
+            legend="キャラ区分"
+            onToggle={(value) =>
+              onChange(toggleFilterValue(state, "kind", value as CharacterKind, benchmarkData))
+            }
+            options={characterKindOptions}
+            selected={state.kind}
+          />
           <FilterCheckboxGroup
             legend="性別"
             onToggle={(value) =>

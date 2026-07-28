@@ -7,6 +7,7 @@ export type {
   Age,
   BenchmarkData,
   Character,
+  CharacterKind,
   Clip,
   Difficulty,
   Emotion,

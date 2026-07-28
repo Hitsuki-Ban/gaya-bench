@@ -81,6 +81,7 @@ function scenario(): Scenario {
   const speaker: Character = {
     id: "speaker",
     name: "話者",
+    kind: "human",
     gender: "neutral",
     age: "adult",
     voice: "自然な声",

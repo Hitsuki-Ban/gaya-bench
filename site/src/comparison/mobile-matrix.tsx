@@ -1,6 +1,7 @@
 import { useRef, type KeyboardEvent } from "react";
 import { Link } from "react-router";
 
+import { CharacterKindBadge } from "@/components/character-kind-badge";
 import { Badge } from "@/components/ui/badge";
 import type { ComparisonProjection } from "@/filters";
 
@@ -122,7 +123,10 @@ export function MobileMatrix({ controller, model, projection, search }: MobileMa
                 </Link>
               ) : null}
               {isCharacterStart ? (
-                <p className="text-xs font-semibold text-primary">{row.character.name}</p>
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <p className="text-xs font-semibold text-primary">{row.character.name}</p>
+                  <CharacterKindBadge kind={row.character.kind} />
+                </div>
               ) : null}
               <p className="mt-1 text-sm leading-6">{row.line.text}</p>
               <div className="my-3 flex flex-wrap gap-1.5">
