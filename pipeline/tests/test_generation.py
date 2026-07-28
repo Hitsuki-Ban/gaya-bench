@@ -12,7 +12,7 @@ import yaml
 from gaya_pipeline import cli, generation
 from gaya_pipeline.adapters.base import LineJob
 from gaya_pipeline.adapters.dummy import DummyAdapter
-from gaya_pipeline.audio import find_audio_tools, probe_audio
+from gaya_pipeline.audio import PostprocessProfile, find_audio_tools, probe_audio
 from gaya_pipeline.generation import (
     GenerationError,
     GenerationRecord,
@@ -372,6 +372,46 @@ def test_adapter_prepare_runs_once_before_generation_input(
         "input:old-regular-001",
         "input:old-regular-002",
     ]
+
+
+def test_postprocess_algorithm_version_invalidates_cached_audio(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    scenarios_dir = _two_scenarios(tmp_path)
+    artifacts_dir = tmp_path / "artifacts"
+    manifest_path = tmp_path / "data" / "manifest.json"
+
+    monkeypatch.setattr(
+        generation,
+        "PostprocessProfile",
+        lambda: PostprocessProfile(algorithm_version=1),
+    )
+    first = run_generation(
+        model_id="dummy",
+        scenarios_dir=scenarios_dir,
+        artifacts_dir=artifacts_dir,
+        manifest_path=manifest_path,
+        scenario_id="tavern-night",
+        line_id="barmaid-001",
+    )
+    monkeypatch.setattr(generation, "PostprocessProfile", PostprocessProfile)
+    upgraded = run_generation(
+        model_id="dummy",
+        scenarios_dir=scenarios_dir,
+        artifacts_dir=artifacts_dir,
+        manifest_path=manifest_path,
+        scenario_id="tavern-night",
+        line_id="barmaid-001",
+    )
+
+    assert first.generated_count == 1
+    assert upgraded.generated_count == 1
+    metadata_path = (
+        artifacts_dir / "audio" / "dummy" / "tavern-night" / "barmaid-001-dry.json"
+    )
+    metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+    assert metadata["postprocess"]["algorithm_version"] == 2
 
 
 def test_later_batch_failure_keeps_manifest_in_sync(
