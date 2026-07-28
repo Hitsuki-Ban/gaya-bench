@@ -27,7 +27,13 @@ afterEach(() => {
 
 describe("virtual:gaya-data integration", () => {
   it("実データから安定した index と selector を公開する", () => {
-    expect(benchmarkData.manifest.clips).toHaveLength(125);
+    const modelCount = benchmarkData.manifest.models.length;
+    const lineCount = benchmarkData.scenarios.reduce(
+      (total, scenario) => total + scenario.lines.length,
+      0,
+    );
+
+    expect(benchmarkData.manifest.clips).toHaveLength(lineCount * modelCount);
     expect(benchmarkData.manifest.format_version).toBe(2);
     expect(benchmarkData.manifest.failures).toEqual([]);
     expect(scenarioById.has("market-day")).toBe(true);
@@ -35,7 +41,7 @@ describe("virtual:gaya-data integration", () => {
     expect(lineByKey.has("market-day/fruit-vendor-001")).toBe(true);
 
     const clips = getClipsForScenario("market-day");
-    expect(clips).toHaveLength(6);
+    expect(clips).toHaveLength(scenarioById.get("market-day")!.lines.length * modelCount);
     expect(clipKey(clips[0]!)).toBe(
       JSON.stringify(["dummy", "market-day", "fruit-vendor-001", "dry"]),
     );
