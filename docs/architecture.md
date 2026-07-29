@@ -80,7 +80,7 @@ pipeline (Python/uv) ── モデル別アダプタ ──▶ artifacts/takes/<
 
 - **音声**: R2バケット `gaya-bench-audio` (公開読み取り)。pathはcandidate SHAを含む `audio/takes/<model>/<scenario>/<line>/<variant>/take-<index>-<sha256>.opus`
 - **公開URL**: custom domain `https://audio.gaya-bench.hitsuki.space/`。本番 `VITE_AUDIO_BASE` もこの値を使う。rate limit 付き開発用 `r2.dev` は有効化しない
-- **CORS**: [infra/r2-cors.json](../infra/r2-cors.json) を正とし、Pages 本番 origin とローカル開発 origin の `GET` / `HEAD` を許可する
+- **CORS**: [infra/r2-cors.json](../infra/r2-cors.json) を正とし、Pages 本番・preview originとローカル開発 originの `GET` / `HEAD` を許可する
 - **原子的公開**: `gaya publish` は固定release、source manifest、candidate allow-listと全物理Opusをnetwork call前に検証する。その後全objectを`HEAD`し、同じSHA・サイズ・HTTP metadataはskip、既存keyの不一致は一件も`PUT`せず失敗する。欠落objectだけを`If-None-Match: *`とchecksum付きで単段uploadし、最後に全件を再`HEAD`する。keyはcontent-addressedなので`Cache-Control: public, max-age=31536000, immutable`とする
 - **manifest**: R2全件検証後、固定releaseと同一bytesの`data/manifest.json`をコミットする。これによりbuildの決定性とPRレビュー可能性を保つ
 - **生成メタ**: 入力hash・WAV/Opus hash・生成時間・RTF・後処理結果を `artifacts/takes/<run-id>/audio/<model>/<scenario>/<line>/<variant>/take-<index>.json` に保存し、run root の `ledger.json` から参照する (git管理外)
@@ -100,4 +100,9 @@ pipeline (Python/uv) ── モデル別アダプタ ──▶ artifacts/takes/<
 
 - PR / main: `gaya validate` + pipeline test / lint + site check / test / build
 - 音声生成・R2アップロードはCIでは行わない。固定releaseの全R2 objectを開発機から先に公開・検証した後だけmanifest変更をpushする
-- Cloudflare Pagesの本番デプロイ経路はIssue #15で構築する。現時点のrepository workflowはPagesを更新しない
+- **Pagesプロジェクト**: Direct Upload方式の `gaya-bench`。本番URLは [https://gaya-bench.pages.dev/](https://gaya-bench.pages.dev/)
+- **自動デプロイ**: [`.github/workflows/pages.yml`](../.github/workflows/pages.yml) が `main` pushを本番ブランチ `main` へ、同一repository内のPRを `pr-<PR番号>` preview branchへデプロイする。fork PRはsecretを渡さずデプロイしない
+- **ビルド環境**: `site/` をVite+でビルドし、本番・previewとも `VITE_AUDIO_BASE=https://audio.gaya-bench.hitsuki.space/` を固定する
+- **認証**: repository secrets `CLOUDFLARE_ACCOUNT_ID` と、Pages Writeだけを持つ `CLOUDFLARE_API_TOKEN` を使う
+- **PR通知**: preview成功時はbranch alias URLとimmutable deployment URLを同じbotコメントへupsertする
+- **SPA routing**: top-level `404.html`を置かず、Cloudflare Pagesの[SPA rendering](https://developers.cloudflare.com/pages/configuration/serving-pages/#single-page-application-spa-rendering)でdeep linkをrootへ解決する
