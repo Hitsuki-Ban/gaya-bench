@@ -44,6 +44,11 @@ wall time は実行時の PowerShell 計測値、generation internal は 216 sid
 - 人評結果: 72 group 中 50 selected / 22 skipped、216 rubric 完了
 - pilot UI v1 は再生 click 数と実時間を保存しないため、実際の再試聴回数は推測しない。
   比較可能な workload として candidate 数と音声尺を記録する。
+- `selected` は group 内の相対的な winner で、絶対的な合格を意味しない。
+  `content_correct` は厳密な日本語の音調・アクセントを含み、`adoptable` は感情、
+  役としての自然さ、音質などの総合的な利用可能性として独立に評価した。
+  このため `content_correct=false && adoptable=true` や非 adoptable winner は
+  owner の意図した有効な評価であり、raw decision と集計を変更しない。
 
 ## 校正判断
 

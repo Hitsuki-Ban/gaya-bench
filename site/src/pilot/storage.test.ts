@@ -79,6 +79,38 @@ describe("pilot decision storage", () => {
     writePilotDecisionDraft(storage, catalog, draft);
     expect(storage.keys).toEqual([PILOT_STORAGE_KEY]);
   });
+
+  it("content correctness、adoptable、相対的 selected を独立に保持する", () => {
+    const catalog = makeCatalog(1);
+    let draft = createPilotDecisionDraft(catalog);
+    const group = draft.groups[0]!;
+    draft = completeGroup(draft, 0);
+    draft = updatePilotCandidateRubric(draft, group.group_id, group.candidates[0]!.candidate_id, {
+      content_correct: false,
+      intent_match: 4,
+      character_naturalness: 4,
+      adoptable: true,
+    });
+    draft = setPilotGroupDecision(draft, group.group_id, {
+      type: "selected",
+      candidate_id: group.candidates[0]!.candidate_id,
+    });
+
+    const storage = new MemoryStorage();
+    writePilotDecisionDraft(storage, catalog, draft);
+    const restored = readPilotDecisionDraft(storage, catalog);
+
+    expect(restored.groups[0]!.candidates[0]!.rubric).toEqual({
+      content_correct: false,
+      intent_match: 4,
+      character_naturalness: 4,
+      adoptable: true,
+    });
+    expect(restored.groups[0]!.decision).toEqual({
+      type: "selected",
+      candidate_id: group.candidates[0]!.candidate_id,
+    });
+  });
 });
 
 describe("pilot decision export", () => {

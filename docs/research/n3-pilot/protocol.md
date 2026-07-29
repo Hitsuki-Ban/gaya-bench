@@ -142,6 +142,23 @@ type DecisionV1 = {
 }
 ```
 
+各 rubric 軸と decision は独立して解釈する。
+
+- `content_correct`: 台詞内容だけでなく、厳密な日本語の音調・アクセントまで含む。
+  語の読みが理論上正しくても、音調・アクセントが不正確なら `false` とする。
+- `intent_match`: 演技指示と感情への一致度を 1..5 で記録する。
+- `character_naturalness`: 役としての自然さを 1..5 で記録する。
+- `adoptable`: 感情、役としての自然さ、音質などを含む総合的な利用可能性を記録する。
+  厳密な音調・アクセントの誤りがあっても `true` になり得るため、
+  `adoptable=true` は `content_correct=true` を含意しない。
+- `selected`: A/B/C 内の相対的な最良候補を記録する。絶対的な合格や
+  `content_correct=true`、`adoptable=true` を含意しない。全候補から相対的な
+  winner を選べない場合だけ `skipped` とする。
+
+この独立性は #103 の owner calibration で確定した。raw decision には
+`content_correct=false && adoptable=true` と、非 adoptable の selected winner が
+意図的に含まれるため、validator は cross-field 制約を追加しない。
+
 ## 事前登録解析
 
 ```console
