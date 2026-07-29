@@ -37,7 +37,7 @@ raw v3 manifest
      - baseline-reference.json
      - baseline-provenance.json
      - source-runs/**
-     - audio/takes/**
+     - audio/takes/** (Dummy以外)
      - reference/**
      - baseline-bundle-inventory.json
   -> baseline-curation-v1
@@ -80,10 +80,21 @@ Python finalizeが検証し、browserに同じvalidatorを複製しない。
 
 ## referenceとcandidate
 
+7 source runはDummyを含めてmanifest、candidate set、ledger、QC、sidecar、
+WAV、Opusをそのまま`source-runs/**`へ保存する。aggregateだけはplan上の
+`model=dummy` 161 groupを固定policyでcandidateから除外し、failure
+`reason=test_only_adapter`へ投影する。Dummy以外のcandidateと
+`reason=no_eligible_take` failureはsource runの内容を維持する。
+投影前に全Dummy groupへeligible source candidateが存在することを必須とし、
+Dummy source failureまたは証拠欠落はpolicy exclusionへ置換せずfail fastする。
+したがってaggregateは220 candidate groupと161 candidate-zero groupであり、
+top levelへDummy candidate audioを複製しない。
+
 旧公開Opusは`reference/<model>/<scenario>/<line>/<variant>.opus`へcopyし、
 選択不能にする。`baseline-reference.json`はcandidate set SHAを固定し、
 各plan groupについて旧path/SHA、new candidate SHAまたはnull、
-`identical|different|no_candidate`を記録する。
+`identical|different|no_candidate`を記録する。Dummyはcandidate SHAがnull、
+comparisonが`no_candidate`になる。
 
 新candidateだけがrubricとdecisionの対象である。byte identicalでも自動選択せず、
 旧公開されていた事実を人間選択の証拠にしない。
@@ -105,12 +116,13 @@ N=3 pilotの`selected`はgroup内の相対winnerだったが、公開baselineの
 candidateを相対的に最良と判断しても、公開baseline decisionは`skipped`にする。
 
 `baseline-curation-v1`はcandidate set SHAとbaseline reference SHAの両方を
-固定し、全candidate groupにselectedまたはskippedを要求する。
+固定し、Dummyを除く220 candidate groupにselectedまたはskippedを要求する。
 candidate-zero groupはdecisionへ偽のcandidateを追加せず、pipeline auditで数える。
 
 ## finalize条件
 
-- raw plan、7 source run、aggregate candidate/referenceのexact coverageが一致する。
+- raw plan、7 source run、220 candidate + 161 `test_only_adapter` failureからなる
+  aggregate candidate/referenceのexact coverageが一致する。
 - 全terminal attemptのledger、QC、sidecar、WAV、Opus joinとSHAが一致する。
 - inventoryはsemantic validationの前後で同一である。
 - selectedは全件、content correctかつadoptableである。

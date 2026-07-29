@@ -78,6 +78,7 @@ AUDIT_FORMAT_VERSION = 1
 BUNDLE_INVENTORY_FORMAT_VERSION = 1
 EXPECTED_GROUP_COUNT = 381
 EXPECTED_MODEL_COUNT = 7
+DUMMY_MODEL_ID = "dummy"
 GROUP_KEYS = ("model", "scenario", "line", "variant")
 BUNDLE_INVENTORY_PATH = "baseline-bundle-inventory.json"
 BUNDLE_INVENTORY_MARKER_PATH = "baseline-bundle-inventory.sha256"
@@ -349,8 +350,8 @@ def assemble_baseline(
 
     plan_groups_by_model = _plan_groups_by_model(plan)
     run_material: dict[str, tuple[Path, dict[str, Any], Any]] = {}
-    all_candidates: list[dict[str, Any]] = []
-    all_failures: list[dict[str, Any]] = []
+    source_candidates: list[dict[str, Any]] = []
+    source_failures: list[dict[str, Any]] = []
     provenance_runs: list[dict[str, Any]] = []
     artifacts_root = artifacts_dir.resolve()
     takes_root = (artifacts_root / "takes").resolve()
@@ -373,8 +374,12 @@ def assemble_baseline(
             run_models=bundle.manifest["models"],
         )
         run_material[model_id] = (run_root, ledger, bundle)
-        all_candidates.extend(dict(candidate) for candidate in bundle.manifest["candidates"])
-        all_failures.extend(dict(failure) for failure in bundle.manifest["failures"])
+        source_candidates.extend(
+            dict(candidate) for candidate in bundle.manifest["candidates"]
+        )
+        source_failures.extend(
+            dict(failure) for failure in bundle.manifest["failures"]
+        )
         provenance_runs.append(
             {
                 "model": model_id,
@@ -390,12 +395,10 @@ def assemble_baseline(
         missing = sorted(set(plan_groups_by_model) - set(run_material))
         raise BaselineError(f"assemble の model run が不足しています: {missing}")
 
-    all_candidates.sort(key=lambda candidate: (_group_key(candidate), candidate["take_index"]))
-    all_failures.sort(key=_group_key)
-    _validate_aggregate_plan_coverage(
+    all_candidates, all_failures = _project_baseline_aggregate(
         plan=plan,
-        candidates=all_candidates,
-        failures=all_failures,
+        candidates=source_candidates,
+        failures=source_failures,
     )
 
     scenario_sha256, lines = _authoritative_plan_lines(
@@ -913,6 +916,57 @@ def _validate_aggregate_plan_coverage(
         )
 
 
+def _project_baseline_aggregate(
+    *,
+    plan: Mapping[str, Any],
+    candidates: Sequence[Mapping[str, Any]],
+    failures: Sequence[Mapping[str, Any]],
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    _validate_aggregate_plan_coverage(
+        plan=plan,
+        candidates=candidates,
+        failures=failures,
+    )
+    dummy_source_failures = sorted(
+        _group_key(failure)
+        for failure in failures
+        if failure["model"] == DUMMY_MODEL_ID
+    )
+    if dummy_source_failures:
+        raise BaselineError(
+            "Dummy aggregate 投影には全 plan group の eligible source candidate が必要です: "
+            f"{dummy_source_failures}",
+        )
+    projected_candidates = [
+        dict(candidate)
+        for candidate in candidates
+        if candidate["model"] != DUMMY_MODEL_ID
+    ]
+    projected_failures = [
+        dict(failure)
+        for failure in failures
+        if failure["model"] != DUMMY_MODEL_ID
+    ]
+    projected_failures.extend(
+        {
+            **{key: group[key] for key in GROUP_KEYS},
+            "reason": "test_only_adapter",
+        }
+        for group in plan["groups"]
+        if group["model"] == DUMMY_MODEL_ID
+    )
+    projected_candidates.sort(
+        key=lambda candidate: (_group_key(candidate), candidate["take_index"]),
+    )
+    projected_failures.sort(key=_group_key)
+    _validate_aggregate_plan_coverage(
+        plan=plan,
+        candidates=projected_candidates,
+        failures=projected_failures,
+    )
+    return projected_candidates, projected_failures
+
+
 def _validate_source_run(
     *,
     run_id: str,
@@ -1175,8 +1229,8 @@ def _load_assembled_bundle(
         hashlib.sha256(provenance_raw).hexdigest(),
         "baseline provenance",
     )
-    aggregate_candidates: list[dict[str, Any]] = []
-    aggregate_failures: list[dict[str, Any]] = []
+    source_candidates: list[dict[str, Any]] = []
+    source_failures: list[dict[str, Any]] = []
     source_runs: dict[str, dict[str, Any]] = {}
     for record in provenance["runs"]:
         source_run = bundle_dir / "source-runs" / record["model"]
@@ -1207,14 +1261,12 @@ def _load_assembled_bundle(
             "bundle": source_bundle,
             "record": record,
         }
-        aggregate_candidates.extend(source_bundle.manifest["candidates"])
-        aggregate_failures.extend(source_bundle.manifest["failures"])
-    aggregate_candidates.sort(key=lambda item: (_group_key(item), item["take_index"]))
-    aggregate_failures.sort(key=_group_key)
-    _validate_aggregate_plan_coverage(
+        source_candidates.extend(source_bundle.manifest["candidates"])
+        source_failures.extend(source_bundle.manifest["failures"])
+    aggregate_candidates, aggregate_failures = _project_baseline_aggregate(
         plan=plan,
-        candidates=aggregate_candidates,
-        failures=aggregate_failures,
+        candidates=source_candidates,
+        failures=source_failures,
     )
     if (
         aggregate_candidates != bundle.manifest["candidates"]

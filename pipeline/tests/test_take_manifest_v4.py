@@ -139,6 +139,24 @@ def test_candidateとlogical_failureのgroup競合を拒否() -> None:
         validate_manifest_v4(manifest)
 
 
+def test_failure_reasonは定義済み2値だけを許可() -> None:
+    manifest = _manifest()
+    manifest["failures"][0]["reason"] = "test_only_adapter"
+    assert validate_manifest_v4(manifest) is manifest
+
+    real_model = deepcopy(manifest["models"][0])
+    real_model["id"] = "real-model"
+    manifest["models"].append(real_model)
+    manifest["failures"][0]["model"] = "real-model"
+    with pytest.raises(TakeManifestError, match="model=dummy"):
+        validate_manifest_v4(manifest)
+
+    manifest["failures"][0]["model"] = "dummy"
+    manifest["failures"][0]["reason"] = "unknown_reason"
+    with pytest.raises(TakeManifestError, match="reason"):
+        validate_manifest_v4(manifest)
+
+
 def test_take_idはinputとaudio_shaの組に一致する必要がある() -> None:
     manifest = _manifest()
     _candidate(manifest)["sha256"] = "e" * 64

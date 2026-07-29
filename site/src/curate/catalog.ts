@@ -86,7 +86,7 @@ interface V4Failure {
   readonly scenario: string;
   readonly line: string;
   readonly variant: string;
-  readonly reason: "no_eligible_take";
+  readonly reason: "no_eligible_take" | "test_only_adapter";
 }
 
 interface V4Line {
@@ -417,8 +417,13 @@ function validateFailures(
     if (!modelIds.has(group.model)) {
       throw new Error(`${field} が未知の model を参照しています: ${group.model}`);
     }
-    if (failure.reason !== "no_eligible_take") {
-      throw new Error(`${field}.reason は no_eligible_take である必要があります。`);
+    if (failure.reason !== "no_eligible_take" && failure.reason !== "test_only_adapter") {
+      throw new Error(
+        `${field}.reason は no_eligible_take または test_only_adapter である必要があります。`,
+      );
+    }
+    if (failure.reason === "test_only_adapter" && group.model !== "dummy") {
+      throw new Error(`${field}.reason=test_only_adapter は model=dummy が必要です。`);
     }
     const key = groupKey(group);
     if (failureGroups.has(key)) {

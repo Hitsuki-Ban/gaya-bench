@@ -62,14 +62,23 @@ emotion template に限定し、同じ plan / seed base から12 groupを再生�
 ## assemble
 
 - candidate set SHA-256:
-  `7895681eef7da4efda006b3e832271fbc151584d7acfccdcb62012fd8df34c10`
+  `2f55a3a8145bf87c375dd70384464a2aecca922a47b55eeac99a2504bcfd4f7a`
 - baseline reference SHA-256:
-  `03d637065f436cd670ee95c1fc6e5d83dc73074ad78b6c5b68aca5ced9e932bd`
+  `e0f5f7560dd8d8bf051e9e0d65c8201236548862fb98d829f040433eee5e6823`
 - bundle inventory SHA-256:
-  `ee6e7da1b2e57d0225f28bd3173bc44497cd6e69010fcbd90794ca88e8e33dfe`
+  `29a01d73971008f26383fb934e442d8f8cd0f59787df27e7b911a3a4ed695319`
 - group: 381
-- candidate: 381
-- candidate zero: 0
+- candidate: 220
+- candidate zero: 161
+
+Issue #124でDummy Beepが1.2秒のtest-only adapter出力であり、TTS策展対象では
+ないことを明文化した。7 source runの完全性検証後、Dummy 161 groupはaggregate
+candidateから`reason=test_only_adapter` failureへ投影する。Dummy source runの
+161 eligible candidate、ledger、QC、sidecar、WAV、Opusは
+`source-runs/dummy/**`へ証拠として保持し、top level candidate audioには複製しない。
+全Dummy groupのeligible source candidateを投影条件とし、欠落またはsource failureは
+policy exclusionへ読み替えずassembleを失敗させる。新bundleは
+`artifacts/baseline-v4/curation-no-dummy`に保存した。
 
 漏洩修正前の bundle は candidate set
 `74b32a994f10a8738d1c2d3547f409522fb97573ccccfebaf17ba8095677dfde`
@@ -79,4 +88,16 @@ SHA-256
 で保存したが、新 candidate / reference SHA へは移行しない。策展は新 bundle
 に対して先頭から再開する。
 
-全 381 group の人評と finalize 結果は完了後に追記する。
+Dummy除外前のbrowser draftは25 group判断済みであり、独立backup
+`artifacts/baseline-v4/draft-backups/baseline-curation-partial-25-groups.json`
+をSHA-256
+`7b68c459f1ddae6e29105a0a801ccd8d898afd0c52da016a2b13797dd69445a8`
+で保存した。旧・新candidate set間で全220 real candidateのcanonical recordが
+byte一致し、判断済み24 real groupのgroup tuple、take ID、path、audio SHA、
+rubric、decisionが一致することを検証して明示的にrebindした。Dummyのskip 1件は
+策展対象外なので移行しない。復元draft
+`baseline-curation-real-24-restored.json`のSHA-256は
+`6d1a999290a2e83518cc14e7905b7431aea4d6fad24025154803a65156aaf2e4`
+で、selected 20 / skipped 4 / undecided 196である。
+
+残る196 candidate groupの人評とfinalize結果は完了後に追記する。

@@ -56,6 +56,7 @@ def test_planは381_groupと7_modelをcanonicalかつdeterministicに固定(
     assert len(plan["groups"]) == 381
     assert len(plan["models"]) == 7
     assert len(plan["excluded_failures"]) == 1
+    assert sum(group["model"] == "dummy" for group in plan["groups"]) == 161
     assert plan["source"]["manifest_sha256"] == hashlib.sha256(
         MANIFEST_PATH.read_bytes(),
     ).hexdigest()
@@ -190,6 +191,53 @@ def test_selectionはcurrent_v3_metadataとsourceを固定してQwen160(
         )
 
 
+def test_real_planのaggregate投影はDummy161件をcandidate0へ固定(
+    tmp_path: Path,
+) -> None:
+    plan = json.loads(_real_plan(tmp_path).read_bytes())
+    source_candidates = [
+        {
+            **{key: group[key] for key in baseline.GROUP_KEYS},
+            "take_index": 1,
+        }
+        for group in plan["groups"]
+    ]
+    original_candidates = deepcopy(source_candidates)
+
+    candidates, failures = baseline._project_baseline_aggregate(
+        plan=plan,
+        candidates=source_candidates,
+        failures=[],
+    )
+
+    assert source_candidates == original_candidates
+    assert len(candidates) == 220
+    assert len(failures) == 161
+    assert all(candidate["model"] != "dummy" for candidate in candidates)
+    assert {
+        (failure["model"], failure["reason"])
+        for failure in failures
+    } == {("dummy", "test_only_adapter")}
+
+    missing_dummy = next(
+        candidate for candidate in source_candidates if candidate["model"] == "dummy"
+    )
+    incomplete_candidates = [
+        candidate for candidate in source_candidates if candidate is not missing_dummy
+    ]
+    with pytest.raises(BaselineError, match="eligible source candidate"):
+        baseline._project_baseline_aggregate(
+            plan=plan,
+            candidates=incomplete_candidates,
+            failures=[
+                {
+                    **{key: missing_dummy[key] for key in baseline.GROUP_KEYS},
+                    "reason": "no_eligible_take",
+                },
+            ],
+        )
+
+
 def _small_plan(monkeypatch: pytest.MonkeyPatch) -> dict[str, Any]:
     monkeypatch.setattr(baseline, "EXPECTED_GROUP_COUNT", 2)
     monkeypatch.setattr(baseline, "EXPECTED_MODEL_COUNT", 1)
@@ -267,9 +315,12 @@ def _single_group_fixture(
     monkeypatch: pytest.MonkeyPatch,
     *,
     status: str = "eligible",
+    project_dummy: bool = False,
 ) -> dict[str, Any]:
     monkeypatch.setattr(baseline, "EXPECTED_GROUP_COUNT", 1)
     monkeypatch.setattr(baseline, "EXPECTED_MODEL_COUNT", 1)
+    if not project_dummy:
+        monkeypatch.setattr(baseline, "DUMMY_MODEL_ID", "test-only-dummy")
     repository_root = tmp_path / "repository"
     scenarios_dir = repository_root / "scenarios"
     (scenarios_dir / "schema").mkdir(parents=True)
@@ -658,11 +709,11 @@ def test_reference_exact_contractはcandidate0と比較を固定(
         )
 
 
-def test_real_assemble_finalizeはoriginal_ledger_authorityで完走(
+def test_real_assembleはDummy_source_evidenceを保持してaggregateから除外(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    fixture = _single_group_fixture(tmp_path, monkeypatch)
+    fixture = _single_group_fixture(tmp_path, monkeypatch, project_dummy=True)
     legacy_manifest = json.loads(
         (
             fixture["repository_root"] / "data" / "manifest.json"
@@ -699,47 +750,37 @@ def test_real_assemble_finalizeはoriginal_ledger_authorityで完走(
         bundle_dir / "source-runs" / "dummy" / "audio" / "orphan.opus"
     ).exists()
     candidate = fixture["snapshot"]["candidates"][0]
-    curation = _baseline_curation(candidate)
-    curation["candidate_set_sha256"] = assembled.candidate_set_sha256
-    curation["baseline_reference_sha256"] = assembled.baseline_reference_sha256
-    curation_path = fixture["repository_root"] / "curation.json"
-    curation_path.write_text(json.dumps(curation), encoding="utf-8")
-    release_dir = fixture["repository_root"] / "release"
-
-    summary = baseline.finalize_baseline(
-        bundle_dir=bundle_dir,
-        input_path=curation_path,
-        output_dir=release_dir,
-        scenarios_dir=fixture["scenarios_dir"],
+    aggregate_manifest = json.loads(
+        (bundle_dir / "manifest-v4.json").read_text(encoding="utf-8"),
     )
-
-    assert summary.selected_count == 1
-    assert summary.candidate_zero_count == 0
-    assert (release_dir / "baseline-audit.json").is_file()
-    release_inventory = baseline._validate_bundle_inventory(release_dir)
-    curation_path = (
-        release_dir / "data" / "curation" / f"{summary.decision_sha256}.json"
+    assert assembled.candidate_count == 0
+    assert assembled.failure_count == 1
+    assert aggregate_manifest["candidates"] == []
+    assert aggregate_manifest["failures"] == [
+        {
+            "model": "dummy",
+            "scenario": "tavern-night",
+            "line": "barmaid-001",
+            "variant": "dry",
+            "reason": "test_only_adapter",
+        },
+    ]
+    assert not (bundle_dir / candidate["path"]).exists()
+    copied_dummy_opus = (
+        bundle_dir
+        / "source-runs"
+        / "dummy"
+        / "audio"
+        / "dummy"
+        / "tavern-night"
+        / "barmaid-001"
+        / "dry"
+        / "take-0001.opus"
     )
-    assert curation_path.relative_to(release_dir).as_posix() in {
-        item["path"] for item in release_inventory["files"]
-    }
-    curation_bytes = curation_path.read_bytes()
-    assert curation_bytes == baseline.canonical_json(
-        json.loads(curation_bytes),
-    ).encode("utf-8")
-    assert hashlib.sha256(curation_bytes).hexdigest() == summary.decision_sha256
-    release_manifest = json.loads(
-        (release_dir / "manifest-v4.json").read_text(encoding="utf-8"),
-    )
-    assert {
-        projection["curation_sha256"]
-        for projection in release_manifest["curations"]
-    } == {summary.decision_sha256}
-    assert not (release_dir / "baseline-decision.json").exists()
-    assert not (release_dir / "baseline-decision.sha256").exists()
+    assert copied_dummy_opus.read_bytes() == b"candidate opus"
     copied_report = json.loads(
         (
-            release_dir / "source-runs" / "dummy" / "qc-report.json"
+            bundle_dir / "source-runs" / "dummy" / "qc-report.json"
         ).read_text(encoding="utf-8"),
     )
     assert copied_report["source"]["ledger"] == (
@@ -1218,6 +1259,7 @@ def test_assembleはlegacyとcandidateをSHA検証してreferenceをcanonical固
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     plan = _small_plan(monkeypatch)
+    monkeypatch.setattr(baseline, "DUMMY_MODEL_ID", "test-only-dummy")
     candidate = _candidate()
     failure = {
         "model": "dummy",
@@ -1340,6 +1382,8 @@ def test_assembleはlegacyとcandidateをSHA検証してreferenceをcanonical固
         "no_candidate",
     ]
     assert summary.group_count == 2
+    assert summary.candidate_count == 1
+    assert summary.failure_count == 1
     assert (output / candidate["path"]).read_bytes() == b"candidate"
 
     tampered_output = tmp_path / "tampered-bundle"

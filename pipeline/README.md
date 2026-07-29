@@ -165,7 +165,14 @@ uv run --project pipeline --locked gaya baseline assemble \
 ```
 
 bundleはcandidate set、旧公開reference、plan、provenance、7 source runと全音声を
-含む。`baseline-bundle-inventory.json/.sha256`は、自身2ファイルを除く全fileの
+含む。Dummy source runのcandidate evidenceもledger、QC、sidecar、WAV、Opusごと
+`source-runs/dummy/**`に保持する。一方aggregateではplan上のDummy 161 groupを
+candidateから除外し、`reason=test_only_adapter`のfailureへ固定投影する。
+全Dummy groupのeligible source candidateを投影条件とし、Dummy source failureは
+policy exclusionへ読み替えずassembleをfail fastする。
+top levelにDummy candidate audioは複製せず、策展対象は残る220 candidate group
+だけとする。通常のsource run failure reasonは`no_eligible_take`だけを許可する。
+`baseline-bundle-inventory.json/.sha256`は、自身2ファイルを除く全fileの
 canonical POSIX relative pathとraw SHA-256を固定する。missing、extra、byte
 tamper、大小文字だけが異なるpathはbrowserとpipelineの両方で拒否する。
 旧公開audioは比較専用でcandidateには変換しない。
@@ -175,7 +182,8 @@ tamper、大小文字だけが異なるpathはbrowserとpipelineの両方で拒�
 `adoptable`は感情、役としての自然さ、音質を含む独立軸である。
 productionの`selected`は相対winnerではなく公開採用であり、
 `content_correct=true && adoptable=true`を必須とする。全candidate groupを
-selectedまたはskippedにしたdecisionだけをexportできる。
+selectedまたはskippedにしたdecisionだけをexportできる。Dummy 161 groupは
+candidate-zeroなのでcuration projectionを作らない。
 
 ```console
 uv run --project pipeline --locked gaya baseline finalize \
