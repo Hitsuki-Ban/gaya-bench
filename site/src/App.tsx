@@ -7,6 +7,7 @@ import { CuratePage } from "@/pages/curate-page";
 import { HomePage } from "@/pages/home-page";
 import { ModelPage } from "@/pages/model-page";
 import { NotFoundPage } from "@/pages/not-found-page";
+import { PilotPage } from "@/pages/pilot-page";
 import { ScenarioPage } from "@/pages/scenario-page";
 
 export default function App() {
@@ -18,6 +19,7 @@ export default function App() {
         <Route path="models/:id" element={<ModelPage />} />
         <Route path="ab" element={<AbPage />} />
         <Route path="curate" element={<CuratePage />} />
+        <Route path="pilot" element={<PilotPage />} />
         <Route path="credits" element={<CreditsPage />} />
         <Route path="*" element={<NotFoundPage />} />
       </Route>

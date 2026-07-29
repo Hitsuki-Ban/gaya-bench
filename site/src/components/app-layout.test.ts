@@ -21,4 +21,13 @@ describe("MachineGeneratedAudioNotice", () => {
     expect(markup).toContain('href="/curate"');
     expect(markup).toContain("策展");
   });
+
+  it("pre-gate pilot route をナビゲーションから開ける", () => {
+    const markup = renderToStaticMarkup(
+      createElement(MemoryRouter, null, createElement(AppLayout)),
+    );
+
+    expect(markup).toContain('href="/pilot"');
+    expect(markup).toContain("Pilot");
+  });
 });

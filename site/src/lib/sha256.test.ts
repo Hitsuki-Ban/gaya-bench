@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vite-plus/test";
 
-import { sha256Hex } from "./hash";
+import { sha256Hex } from "./sha256";
 
 describe("sha256Hex", () => {
   it("candidate-set の原始 UTF-8 bytes を既知 SHA-256 にする", async () => {
