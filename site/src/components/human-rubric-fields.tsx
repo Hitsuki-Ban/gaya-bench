@@ -106,7 +106,7 @@ function ChoiceButton({
       onClick={onClick}
       size="sm"
       type="button"
-      variant={active ? "secondary" : "outline"}
+      variant={active ? "default" : "outline"}
     >
       {label}
     </Button>
