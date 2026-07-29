@@ -127,6 +127,77 @@ uv run --project pipeline gaya gen --model dummy --scenario tavern-night --line 
 
 algorithm v7が生成する現行Nテイクsidecar/ledgerはformat v1を使用する。sidecarはrun/slot、明示的なseed/sampling、`generation_input_sha256`、最終Opusに拘束した`take_id`、実行したffmpeg/ffprobe versionとlibopus capabilityに加え、`loudness.normalized_wav`へエンコード前WAV、`loudness.encoded_opus`へ最終Opusの測定値を記録する。toolchain identityが変わったartifactはwhole-run cacheに再利用しない。`--force`は既存runを上書きせず、新しいrunを作成する。同一生成入力の完了runに異なるtake identityが複数ある場合は自動選択しない。公開`data/manifest.json`はformat v3を維持するが、`gaya gen`からは更新しない。詳細は[設計書](../docs/take-harness-design.md)を参照する。
 
+## 公開 baseline の v4 release candidate
+
+既存公開 v3 の381 clip groupを新 harnessで再生成するときは、最初に raw v3
+manifestと対象集合をcanonical planへ固定する。
+
+```console
+uv run --project pipeline --locked gaya baseline plan \
+  --manifest data/manifest.json \
+  --output artifacts/baseline-v4/baseline-plan.json
+```
+
+planは既存381 clipだけを対象にし、v3に残る過去のfailureは明示的な
+`excluded_failures`として記録する。旧clipに存在しないseed、input SHA、
+take identityは補完しない。各modelは同じplanを`--selection`で参照し、
+N=1の独立runを作る。
+
+```console
+uv run --project pipeline --locked gaya gen \
+  --selection artifacts/baseline-v4/baseline-plan.json \
+  --model <model-id> --takes 1 --seed-base 104
+```
+
+7 model runをQCした後、旧公開Opusのrootと全run idを明示して単一のblind
+curation bundleへ集約する。暗黙のlatest run探索や、plan外groupの切捨ては
+行わない。
+
+```console
+uv run --project pipeline --locked gaya baseline assemble \
+  --plan artifacts/baseline-v4/baseline-plan.json \
+  --legacy-root <既存公開artifact root> \
+  --run-id <run-id-1> --run-id <run-id-2> \
+  --run-id <run-id-3> --run-id <run-id-4> \
+  --run-id <run-id-5> --run-id <run-id-6> \
+  --run-id <run-id-7> \
+  --output artifacts/baseline-v4/curation
+```
+
+bundleはcandidate set、旧公開reference、plan、provenance、7 source runと全音声を
+含む。Dummy source runのcandidate evidenceもledger、QC、sidecar、WAV、Opusごと
+`source-runs/dummy/**`に保持する。一方aggregateではplan上のDummy 161 groupを
+candidateから除外し、`reason=test_only_adapter`のfailureへ固定投影する。
+全Dummy groupのeligible source candidateを投影条件とし、Dummy source failureは
+policy exclusionへ読み替えずassembleをfail fastする。
+top levelにDummy candidate audioは複製せず、策展対象は残る220 candidate group
+だけとする。通常のsource run failure reasonは`no_eligible_take`だけを許可する。
+`baseline-bundle-inventory.json/.sha256`は、自身2ファイルを除く全fileの
+canonical POSIX relative pathとraw SHA-256を固定する。missing、extra、byte
+tamper、大小文字だけが異なるpathはbrowserとpipelineの両方で拒否する。
+旧公開audioは比較専用でcandidateには変換しない。
+
+策展はsiteの`/curate/baseline`でdirectoryを明示選択して行う。
+`content_correct`は厳密な日本語の音調・アクセントまで含み、
+`adoptable`は感情、役としての自然さ、音質を含む独立軸である。
+productionの`selected`は相対winnerではなく公開採用であり、
+`content_correct=true && adoptable=true`を必須とする。全candidate groupを
+selectedまたはskippedにしたdecisionだけをexportできる。Dummy 161 groupは
+candidate-zeroなのでcuration projectionを作らない。
+
+```console
+uv run --project pipeline --locked gaya baseline finalize \
+  --bundle artifacts/baseline-v4/curation-no-dummy \
+  --input <baseline-curation.json> \
+  --output artifacts/baseline-v4/release
+```
+
+finalizeはbundle inventoryを入口と出口で再検証し、7 source runのledger、
+QC、sidecar、WAV/Opus、plan exact coverageをPython側で再証明する。
+最終auditは`381 = candidate_zero + selected + skipped`かつ`uncurated=0`を
+必須とする。詳細なexact contractは
+[baseline v4 protocol](../docs/research/baseline-v4/protocol.md)を参照する。
+
 ## R2 への公開
 
 リポジトリルートの `.env` に、`gaya-bench-audio` だけを対象にした R2 Object Read & Write credential を設定する。`.env` と `.env.*` は git 管理外であり、API token / access key / secret をコミットしない。

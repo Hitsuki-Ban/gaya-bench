@@ -44,6 +44,7 @@ CANDIDATE_KEYS = {
 }
 GROUP_KEYS = ("model", "scenario", "line", "variant")
 FAILURE_KEYS = {*GROUP_KEYS, "reason"}
+FAILURE_REASONS = {"no_eligible_take", "test_only_adapter"}
 HEX = frozenset("0123456789abcdef")
 
 
@@ -260,8 +261,12 @@ def validate_manifest_v4(document: Any) -> dict[str, Any]:
         group = _group(failure, field)
         if group[0] not in known_models:
             raise TakeManifestError("failure が未知の model を参照しています。")
-        if failure["reason"] != "no_eligible_take":
+        if failure["reason"] not in FAILURE_REASONS:
             raise TakeManifestError(f"{field}.reason が不正です。")
+        if failure["reason"] == "test_only_adapter" and group[0] != "dummy":
+            raise TakeManifestError(
+                f"{field}.reason=test_only_adapter は model=dummy が必要です。",
+            )
         if group in failure_groups:
             raise TakeManifestError("failure group が重複しています。")
         if group in candidate_groups:

@@ -2,6 +2,7 @@ import { Route, Routes } from "react-router";
 
 import { AppLayout } from "@/components/app-layout";
 import { AbPage } from "@/pages/ab-page";
+import { BaselineCuratePage } from "@/pages/baseline-curate-page";
 import { CreditsPage } from "@/pages/credits-page";
 import { CuratePage } from "@/pages/curate-page";
 import { HomePage } from "@/pages/home-page";
@@ -19,6 +20,7 @@ export default function App() {
         <Route path="models/:id" element={<ModelPage />} />
         <Route path="ab" element={<AbPage />} />
         <Route path="curate" element={<CuratePage />} />
+        <Route path="curate/baseline" element={<BaselineCuratePage />} />
         <Route path="pilot" element={<PilotPage />} />
         <Route path="credits" element={<CreditsPage />} />
         <Route path="*" element={<NotFoundPage />} />

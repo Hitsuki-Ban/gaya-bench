@@ -1,5 +1,6 @@
 import {
   AudioLines,
+  GitCompareArrows,
   FlaskConical,
   FolderCheck,
   ListChecks,
@@ -15,7 +16,13 @@ import { Button } from "@/components/ui/button";
 const navigation = [
   { to: "/", label: "比較", icon: SlidersHorizontal, end: true },
   { to: "/ab", label: "A/B", icon: FlaskConical, end: false },
-  { to: "/curate", label: "策展", icon: FolderCheck, end: false },
+  { to: "/curate", label: "策展", icon: FolderCheck, end: true },
+  {
+    to: "/curate/baseline",
+    label: "Baseline",
+    icon: GitCompareArrows,
+    end: false,
+  },
   { to: "/pilot", label: "Pilot", icon: ListChecks, end: false },
   { to: "/credits", label: "クレジット", icon: Scale, end: false },
 ] as const;
