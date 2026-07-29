@@ -595,6 +595,13 @@ def _validate_manifest_against_terminal_ledger(
     run_root: Path,
     qc_authority: QCAuthority,
 ) -> None:
+    if any(
+        failure["reason"] != "no_eligible_take"
+        for failure in manifest["failures"]
+    ):
+        raise CurationError(
+            "source run manifest failure reason は no_eligible_take が必要です。",
+        )
     attempts_by_slot: dict[
         tuple[str, str, str, str, int],
         Mapping[str, Any],

@@ -358,8 +358,10 @@ v3 dual reader、欠落 take の `take=1` 補完、`variant` への take 番号�
   `data/curation/<curation_sha256>.json` の完全 SHA-256 と一致する。
 - 1 group の curation entry は最大 1 件。selected にされた
   `review_required` candidate は、curation 時の「内容正しい」確認を必須とする。
-- `failures` は全 attempt が terminal で candidate が 0 件の group だけを持つ。
-  attempt ごとの失敗理由は ledger にのみ残す。
+- 通常のrunで`failures`を持てるのは、全attemptがterminalでcandidateが0件の
+  groupだけであり、reasonは`no_eligible_take`とする。Ticket Fのbaseline
+  aggregateに限り、検証済みsource runのcandidateを公開方針で除外したgroupを
+  `test_only_adapter`として持てる。attemptごとの失敗理由はledgerにのみ残す。
 - path は field から再構成した規定形式と完全一致し、末尾の audio SHA は
   `sha256` と一致する。
 - unknown key、non-finite number、orphan selected take、candidate/failure 競合を
@@ -796,6 +798,10 @@ run を作る。同一 input に異なる take identity の完了 run が複数�
 `381 = candidate_zero + selected + skipped`、`uncurated=0`を満たすsnapshotだけを
 確定する。exact schemaと運用手順は
 [baseline v4 protocol](research/baseline-v4/protocol.md)を正とする。
+
+Dummy Beepはadapter profile上のテスト専用モデルであり、161 groupのsource run
+evidenceは保持するが、aggregateではcandidateを`test_only_adapter` failureへ
+投影する。したがって人評対象は実モデル220 groupだけとする。
 
 ### Ticket G — manifest/site/R2 の原子的 v4 cutover
 

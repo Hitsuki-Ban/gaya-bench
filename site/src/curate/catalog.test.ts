@@ -153,6 +153,42 @@ describe("loadCurateCatalog", () => {
     );
   });
 
+  it("baseline aggregate の test_only_adapter failure だけを追加理由として受理する", async () => {
+    const fixture = await makeFixture();
+    const candidateSet = JSON.parse(fixture.candidateSetSource) as CandidateSetFixture;
+    const manifest = JSON.parse(fixture.manifestSource) as {
+      candidate_set_sha256: string;
+      models: Array<Record<string, unknown>>;
+      failures: Array<Record<string, unknown>>;
+    };
+    const failure = candidateSet.failures[0] as Record<string, unknown>;
+    failure.reason = "test_only_adapter";
+    manifest.failures[0]!.reason = "test_only_adapter";
+    const accepted = await replaceCandidateSetManifestAndDigests(fixture, candidateSet, manifest);
+    const catalog = await loadCurateCatalog(accepted, new FakeObjectUrls());
+    expect(catalog.groups).toHaveLength(1);
+    catalog.dispose();
+
+    const realModel = { ...candidateSet.models[0]!, id: "real-model" };
+    candidateSet.models.push(realModel);
+    manifest.models.push(realModel);
+    failure.model = "real-model";
+    manifest.failures[0]!.model = "real-model";
+    const wrongModel = await replaceCandidateSetManifestAndDigests(fixture, candidateSet, manifest);
+    await expect(loadCurateCatalog(wrongModel, new FakeObjectUrls())).rejects.toThrow(
+      "model=dummy",
+    );
+
+    failure.model = "dummy";
+    manifest.failures[0]!.model = "dummy";
+    failure.reason = "unknown_policy";
+    manifest.failures[0]!.reason = "unknown_policy";
+    const rejected = await replaceCandidateSetManifestAndDigests(fixture, candidateSet, manifest);
+    await expect(loadCurateCatalog(rejected, new FakeObjectUrls())).rejects.toThrow(
+      "no_eligible_take または test_only_adapter",
+    );
+  });
+
   it("audio SHA mismatch を object URL 作成前に拒否する", async () => {
     const fixture = await makeFixture();
     const urls = new FakeObjectUrls();
@@ -382,6 +418,25 @@ async function replaceCandidateSetAndDigests(
   const source = JSON.stringify(candidateSet);
   const digest = await sha256Hex(new TextEncoder().encode(source));
   const manifest = JSON.parse(fixture.manifestSource) as { candidate_set_sha256: string };
+  manifest.candidate_set_sha256 = digest;
+  return replaceFile(
+    replaceFile(
+      replaceFile(fixture.files, "candidate-set.json", source),
+      "candidate-set.sha256",
+      digest,
+    ),
+    "manifest-v4.json",
+    JSON.stringify(manifest),
+  );
+}
+
+async function replaceCandidateSetManifestAndDigests(
+  fixture: Awaited<ReturnType<typeof makeFixture>>,
+  candidateSet: CandidateSetFixture,
+  manifest: { candidate_set_sha256: string },
+): Promise<readonly MemoryFile[]> {
+  const source = JSON.stringify(candidateSet);
+  const digest = await sha256Hex(new TextEncoder().encode(source));
   manifest.candidate_set_sha256 = digest;
   return replaceFile(
     replaceFile(

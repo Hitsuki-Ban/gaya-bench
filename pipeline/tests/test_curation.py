@@ -5,6 +5,7 @@ import json
 import threading
 from copy import deepcopy
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 
 import pytest
@@ -1393,6 +1394,25 @@ def test_candidate_set_sidecarとlocal_audioの不一致を拒否(tmp_path: Path
             artifacts_dir=tmp_path / "artifacts",
             data_dir=tmp_path / "data",
             scenarios_dir=SCENARIOS_DIR,
+        )
+
+
+def test_source_manifestはtest_only_adapter_failureを拒否(tmp_path: Path) -> None:
+    group = {
+        "model": "dummy",
+        "scenario": "tavern-night",
+        "line": "barmaid-001",
+        "variant": "dry",
+    }
+    with pytest.raises(CurationError, match="no_eligible_take"):
+        curation_module._validate_manifest_against_terminal_ledger(
+            manifest={
+                "candidates": [],
+                "failures": [{**group, "reason": "test_only_adapter"}],
+            },
+            ledger={"attempts": [], "source": {"groups": [group]}},
+            run_root=tmp_path,
+            qc_authority=SimpleNamespace(),
         )
 
 
