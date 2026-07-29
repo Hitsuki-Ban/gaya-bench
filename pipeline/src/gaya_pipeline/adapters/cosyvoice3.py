@@ -136,28 +136,55 @@ REFERENCE_ASSIGNMENTS: Mapping[tuple[str, str], str] = {
     ("market-day", "street-kid"): "tsukuyomi-corpus-94",
 }
 
-EMOTION_INSTRUCTIONS: Mapping[str, str] = {
-    "neutral": "a neutral emotion",
-    "cheerful": "a cheerful emotion",
-    "angry": "an angry emotion",
-    "sad": "a sad emotion",
-    "fearful": "a fearful emotion",
-    "surprised": "a surprised emotion",
-    "tired": "a tired emotion",
-    "drunk": "a drunken emotion",
-    "whisper": "a whispering delivery",
-    "shout": "a shouting delivery",
-    "laughing": "a laughing delivery",
-    "pain": "an emotion of pain",
-}
-INTENSITY_INSTRUCTIONS: Mapping[int, str] = {
-    1: "slightly",
-    2: "clearly",
-    3: "strongly",
-}
-INSTRUCTION_PREFIX = "You are a helpful assistant. Speak in Japanese"
-INSTRUCTION_DELIVERY_PREFIX = "Follow this delivery direction exactly:"
 INSTRUCTION_END = "<|endofprompt|>"
+INSTRUCTION_POLICY_VERSION = "fixed-emotion-template-v1"
+EMOTION_INSTRUCTION_TEMPLATES: Mapping[str, str] = {
+    "neutral": f"You are a helpful assistant.{INSTRUCTION_END}",
+    "cheerful": (
+        "You are a helpful assistant. "
+        f"请非常开心地说一句话。{INSTRUCTION_END}"
+    ),
+    "angry": (
+        "You are a helpful assistant. "
+        f"请非常生气地说一句话。{INSTRUCTION_END}"
+    ),
+    "sad": (
+        "You are a helpful assistant. "
+        f"请非常伤心地说一句话。{INSTRUCTION_END}"
+    ),
+    "fearful": (
+        "You are a helpful assistant. "
+        f"请害怕地说一句话。{INSTRUCTION_END}"
+    ),
+    "surprised": (
+        "You are a helpful assistant. "
+        f"请惊讶地说一句话。{INSTRUCTION_END}"
+    ),
+    "tired": (
+        "You are a helpful assistant. "
+        f"请用疲惫的语气说一句话。{INSTRUCTION_END}"
+    ),
+    "drunk": (
+        "You are a helpful assistant. "
+        f"请用醉酒的语气说一句话。{INSTRUCTION_END}"
+    ),
+    "whisper": (
+        "You are a helpful assistant. "
+        f"Please say a sentence in a very soft voice.{INSTRUCTION_END}"
+    ),
+    "shout": (
+        "You are a helpful assistant. "
+        f"Please say a sentence as loudly as possible.{INSTRUCTION_END}"
+    ),
+    "laughing": (
+        "You are a helpful assistant. "
+        f"请笑着说一句话。{INSTRUCTION_END}"
+    ),
+    "pain": (
+        "You are a helpful assistant. "
+        f"请用痛苦的语气说一句话。{INSTRUCTION_END}"
+    ),
+}
 
 _IDENTIFIER = re.compile(r"^[a-z0-9][a-z0-9-]*$")
 _SHA256 = re.compile(r"^[0-9a-f]{64}$")
@@ -186,6 +213,7 @@ class _PreparedInput:
     emotion: str
     intensity: int
     delivery: str
+    instruction_template_id: str
     instruction: str
     reference: _Reference
 
@@ -198,6 +226,8 @@ class _PreparedInput:
             "emotion": self.emotion,
             "intensity": self.intensity,
             "delivery": self.delivery,
+            "instruction_policy_version": INSTRUCTION_POLICY_VERSION,
+            "instruction_template_id": self.instruction_template_id,
             "reference_selection_source": self.reference.selection_source,
             "reference_voice": self.reference.voice_id,
             "reference_sha256": self.reference.sha256,
@@ -537,6 +567,7 @@ class CosyVoice3Adapter:
                 emotion=line_input["emotion"],
                 intensity=line_input["intensity"],
                 delivery=line_input["delivery"],
+                instruction_template_id=line_input["instruction_template_id"],
                 instruction=line_input["instruction"],
                 reference=reference,
             )
@@ -576,13 +607,10 @@ class CosyVoice3Adapter:
             "text_frontend": TEXT_FRONTEND,
             "zero_shot_speaker_id": ZERO_SHOT_SPEAKER_ID,
             "offline_environment": dict(OFFLINE_ENVIRONMENT),
-            "emotion_instructions": dict(EMOTION_INSTRUCTIONS),
-            "intensity_instructions": {
-                str(intensity): value
-                for intensity, value in INTENSITY_INSTRUCTIONS.items()
-            },
-            "instruction_prefix": INSTRUCTION_PREFIX,
-            "instruction_delivery_prefix": INSTRUCTION_DELIVERY_PREFIX,
+            "instruction_policy_version": INSTRUCTION_POLICY_VERSION,
+            "emotion_instruction_templates": dict(
+                EMOTION_INSTRUCTION_TEMPLATES,
+            ),
             "instruction_end": INSTRUCTION_END,
             "reference_assignments": {
                 f"{scenario_id}/{character_id}": voice_id
@@ -679,6 +707,8 @@ class CosyVoice3Adapter:
             "emotion": prepared.emotion,
             "intensity": prepared.intensity,
             "delivery": prepared.delivery,
+            "instruction_policy_version": INSTRUCTION_POLICY_VERSION,
+            "instruction_template_id": prepared.instruction_template_id,
             "reference_selection_source": (
                 prepared.reference.selection_source
             ),
@@ -757,7 +787,7 @@ def _line_input(job: LineJob) -> dict[str, Any]:
 
     emotion = _required_string(job.line, "emotion", "line")
     try:
-        emotion_instruction = EMOTION_INSTRUCTIONS[emotion]
+        instruction = EMOTION_INSTRUCTION_TEMPLATES[emotion]
     except KeyError as error:
         raise CosyVoice3AdapterError(
             f"未対応の line.emotion です: {emotion}",
@@ -768,24 +798,16 @@ def _line_input(job: LineJob) -> dict[str, Any]:
     intensity = job.line["intensity"]
     if isinstance(intensity, bool) or not isinstance(intensity, int):
         raise CosyVoice3AdapterError("line.intensity は 1〜3 の整数が必要です。")
-    try:
-        intensity_instruction = INTENSITY_INSTRUCTIONS[intensity]
-    except KeyError as error:
+    if intensity not in {1, 2, 3}:
         raise CosyVoice3AdapterError(
             f"line.intensity は 1〜3 が必要です: {intensity}",
-        ) from error
+        )
 
     delivery = _required_string(job.line, "delivery", "line")
-    if "<|" in delivery or "|>" in delivery:
-        raise CosyVoice3AdapterError(
-            "line.delivery に CosyVoice special token は使用できません。",
-        )
-    instruction = (
-        f"{INSTRUCTION_PREFIX} {intensity_instruction} with "
-        f"{emotion_instruction}. {INSTRUCTION_DELIVERY_PREFIX} "
-        f"{delivery}{INSTRUCTION_END}"
-    )
-    if not instruction.endswith(INSTRUCTION_END):
+    if (
+        instruction.count(INSTRUCTION_END) != 1
+        or not instruction.endswith(INSTRUCTION_END)
+    ):
         raise CosyVoice3AdapterError(
             "CosyVoice instruction の終端 token が不正です。",
         )
@@ -796,6 +818,7 @@ def _line_input(job: LineJob) -> dict[str, Any]:
         "emotion": emotion,
         "intensity": intensity,
         "delivery": delivery,
+        "instruction_template_id": emotion,
         "instruction": instruction,
     }
 

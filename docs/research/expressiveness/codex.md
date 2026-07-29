@@ -9,7 +9,7 @@
 現時点で「演技力」を単一の自動スコアで判定できる根拠はない。最短で品質を上げる実務解は、次の順である。
 
 1. **既に実装済みの model-native な逐行制御を比較し、Qwen3-TTS だけ感情参照 A/B を追加する。**
-   Irodori-TTS v3、VoxCPM2、CosyVoice3 は、現在の adapter で `emotion` / `intensity` / `delivery` を生成入力へ渡している。まず同じ少数行で人間評価し、制御が実際に効くモデルを絞る。Qwen3-TTS は Base clone に逐行 instruct がないため、#79 の感情別参照は妥当な仮説検証である。ただし「中立参照が棒読みの根本原因」とはまだ実証されていない。
+   Irodori-TTS v3 と VoxCPM2 は `emotion` / `intensity` / `delivery` を生成制御へ渡す。CosyVoice3 は自由記述 `delivery` の朗読混入を実出力で確認したため、短い固定 `emotion` template だけを `inference_instruct2` へ渡し、`intensity` / `delivery` は監査値に限定する。まず同じ少数行で人間評価し、制御が実際に効くモデルを絞る。Qwen3-TTS は Base clone に逐行 instruct がないため、#79 の感情別参照は妥当な仮説検証である。ただし「中立参照が棒読みの根本原因」とはまだ実証されていない。
 2. **N テイク生成を、hard gate と soft ranking に分けて導入する。**
    破損、ラウドネス、active speech 0 は hard gate にする。#103 の日本語人評で誤拒否率が高かった ASR 読み不一致は `review_required` と監査値に限定する。SER、emotion2vec、DS-WED、F0・energy・pause も、プロジェクト内の日本語人評との相関を確認するまで soft ranking と監査値に限定する。最終選択は人間が行う。
 3. **Qwen x-vector 演算は、ライセンスと日本語再現性を解決してから研究実験にする。**
@@ -55,7 +55,7 @@ Claude 側の `theory.md`、`data.md`、`data-pd-addendum.md`、`methods.md` を
 |---|---|---|---|
 | Irodori-TTS v3 | caption に voice / emotion / intensity / delivery、本文に emoji、任意の参照音声 | 公式モデルカードは参照音声と caption を同時に使う style-controlled cloning を明記。MIT。ただし複雑・矛盾した caption、漢字読みに制限 | **最優先で人評比較** |
 | VoxCPM2 | 参照音声 + emotion / intensity / delivery の control prefix | 公式モデルカードは controllable cloning、日本語、約 8GB BF16、Apache-2.0 を明記。結果は run 間で変動し 1–3 回生成を推奨 | **N テイク運用と相性が良い** |
-| CosyVoice3 | `inference_instruct2` に emotion / intensity / delivery | 逐行 instruction を直接利用 | **同じ評価セットで比較** |
+| CosyVoice3 | `inference_instruct2` に短い固定 emotion template。intensity / delivery は監査のみ | 公式 template は限定的で、長い自然言語指示の朗読混入が [#1263](https://github.com/QwenAudio/CosyVoice/issues/1263) と [#1903](https://github.com/QwenAudio/CosyVoice/issues/1903) でも報告されている | **固定 template の実出力だけを人評** |
 | Qwen3-TTS Base | character 単位の中立 VoiceDesign reference | Base clone に逐行 instruct なし | **#79 の参照 A/B 対象** |
 
 Irodori の [公式モデルカード](https://huggingface.co/Aratako/Irodori-TTS-600M-v3-VoiceDesign) は、Reference Speech + Caption + Emoji の併用を現在明記している。VoxCPM2 の [公式モデルカード](https://huggingface.co/openbmb/VoxCPM2) は、Controllable Cloning、日本語を含む 30 言語、約 8GB VRAM、run 間のばらつきを明記している。したがって、新しいモデルや後編集器を増やす前に、この 3 経路の実出力を比較する方が小さく確実である。
