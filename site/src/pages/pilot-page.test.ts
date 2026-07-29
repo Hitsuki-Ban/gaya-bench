@@ -64,6 +64,9 @@ describe("PilotGroupEditor", () => {
     expect(markup).toContain("意図一致");
     expect(markup).toContain("役として自然");
     expect(markup).toContain("採用可能");
+    expect(markup).toContain("厳密な日本語の音調・アクセントまで含みます");
+    expect(markup).toContain("内容の判定とは独立して");
+    expect(markup).toContain("選択は絶対的な合格を意味しません");
     for (const candidateId of candidateIds) {
       expect(markup).not.toContain(candidateId);
     }

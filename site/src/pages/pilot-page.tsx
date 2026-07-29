@@ -377,6 +377,22 @@ export function PilotGroupEditor({
         </CardHeader>
       </Card>
 
+      <Card>
+        <CardHeader>
+          <CardTitle>rubric の独立した意味</CardTitle>
+          <CardDescription className="space-y-1">
+            <span className="block">
+              「内容は正しい」は厳密な日本語の音調・アクセントまで含みます。語の読みが理論上正しくても、
+              音調・アクセントが不正確なら「いいえ」です。
+            </span>
+            <span className="block">
+              「採用可能」は感情、役としての自然さ、音質などの総合判断です。内容の判定とは独立して
+              「はい」にできます。
+            </span>
+          </CardDescription>
+        </CardHeader>
+      </Card>
+
       <div className="grid gap-4 xl:grid-cols-3">
         {group.candidates.map((candidate, index) => {
           const candidateDraft = draft.candidates[index]!;
@@ -424,7 +440,9 @@ export function PilotGroupEditor({
         <CardHeader>
           <CardTitle>group の判断</CardTitle>
           <CardDescription>
-            A/B/C 全候補の rubric が揃うと、1候補の選択または group の skip ができます。
+            A/B/C 全候補の rubric が揃うと、相対的に最良の1候補を選択できます。
+            選択は絶対的な合格を意味しません。相対的な winner を選べない場合だけ group を skip
+            してください。
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-wrap items-center gap-2">

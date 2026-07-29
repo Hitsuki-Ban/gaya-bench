@@ -697,6 +697,57 @@ def test_decision_raw_sha_and_exact_contract_are_required(
         )
 
 
+def test_decision_keeps_rubric_axes_and_relative_selection_independent(
+    tmp_path: Path,
+    pilot_runs: tuple[Path, list[str]],
+) -> None:
+    artifacts_dir, run_ids = pilot_runs
+    bundle_dir = tmp_path / "bundle"
+    build_pilot_bundle(
+        run_ids=run_ids,
+        output_dir=bundle_dir,
+        artifacts_dir=artifacts_dir,
+        scenarios_dir=SCENARIOS_DIR,
+    )
+    pilot_raw = (bundle_dir / "pilot-set.json").read_bytes()
+    pilot = json.loads(pilot_raw)
+    decision = _decision_for(bundle_dir)
+    first = decision["groups"][0]
+    first["candidates"][0]["rubric"] = {
+        "content_correct": False,
+        "intent_match": 4,
+        "character_naturalness": 4,
+        "adoptable": True,
+    }
+    second = decision["groups"][1]
+    second["candidates"][0]["rubric"] = {
+        "content_correct": True,
+        "intent_match": 4,
+        "character_naturalness": 4,
+        "adoptable": False,
+    }
+
+    validated = validate_pilot_decision(
+        decision,
+        pilot=pilot,
+        pilot_set_sha256=_sha(pilot_raw),
+    )
+
+    assert validated["groups"][0]["candidates"][0]["rubric"] == {
+        "content_correct": False,
+        "intent_match": 4,
+        "character_naturalness": 4,
+        "adoptable": True,
+    }
+    assert validated["groups"][0]["decision"]["candidate_id"] == (
+        first["candidates"][0]["candidate_id"]
+    )
+    assert validated["groups"][1]["candidates"][0]["rubric"]["adoptable"] is False
+    assert validated["groups"][1]["decision"]["candidate_id"] == (
+        second["candidates"][0]["candidate_id"]
+    )
+
+
 def test_builder_rejects_blocked_run(
     tmp_path: Path,
     pilot_runs: tuple[Path, list[str]],
