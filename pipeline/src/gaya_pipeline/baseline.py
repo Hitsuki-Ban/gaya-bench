@@ -674,6 +674,7 @@ def finalize_baseline(
 ) -> BaselineFinalizeSummary:
     if output_dir.exists():
         raise BaselineError(f"baseline finalize output は既存 path を拒否します: {output_dir}")
+    bundle_dir = bundle_dir.resolve()
     material = _load_assembled_bundle(
         bundle_dir=bundle_dir,
         scenarios_dir=scenarios_dir,

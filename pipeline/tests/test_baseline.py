@@ -925,6 +925,40 @@ def test_finalizeはverified_copy_raceを拒否してoutputを残さない(
     assert not output.exists()
 
 
+def test_finalizeは相対bundle_pathでもsource_runを検証してreleaseを生成(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    fixture = _single_group_fixture(tmp_path, monkeypatch)
+    bundle_dir = fixture["repository_root"] / "bundle"
+    assembled = baseline.assemble_baseline(
+        plan_path=fixture["plan_path"],
+        run_ids=[fixture["run_id"]],
+        output_dir=bundle_dir,
+        artifacts_dir=fixture["artifacts_dir"],
+        legacy_root=fixture["legacy_root"],
+        scenarios_dir=fixture["scenarios_dir"],
+    )
+    candidate = fixture["snapshot"]["candidates"][0]
+    curation = _baseline_curation(candidate)
+    curation["candidate_set_sha256"] = assembled.candidate_set_sha256
+    curation["baseline_reference_sha256"] = assembled.baseline_reference_sha256
+    curation_path = fixture["repository_root"] / "curation.json"
+    curation_path.write_text(json.dumps(curation), encoding="utf-8")
+    monkeypatch.chdir(fixture["repository_root"])
+
+    summary = baseline.finalize_baseline(
+        bundle_dir=Path("bundle"),
+        input_path=Path("curation.json"),
+        output_dir=Path("release-relative"),
+        scenarios_dir=Path("scenarios"),
+    )
+
+    assert summary.selected_count == 1
+    assert summary.skipped_count == 0
+    assert (fixture["repository_root"] / "release-relative").is_dir()
+
+
 def test_finalizeはinventory直前のcuration改変を拒否してoutputを残さない(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
