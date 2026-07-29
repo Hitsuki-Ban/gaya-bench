@@ -175,7 +175,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     pilot_parser = subparsers.add_parser(
         "pilot",
-        help="N3 pilot bundle を構築・解析する",
+        help="N3 pilot bundle を構築して解析する",
     )
     pilot_subparsers = pilot_parser.add_subparsers(
         dest="pilot_command",
