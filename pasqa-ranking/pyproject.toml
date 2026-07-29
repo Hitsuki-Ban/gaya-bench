@@ -1,0 +1,34 @@
+[project]
+name = "gaya-pasqa-ranking"
+version = "0.1.0"
+description = "Gaya Bench の同一行 N テイク用 PASQA 順位付けランタイム"
+readme = "README.md"
+requires-python = ">=3.10,<3.11"
+dependencies = [
+    "huggingface-hub==1.7.1",
+    "pasqa",
+    "torch==2.8.0",
+    "torchaudio==2.8.0",
+]
+
+[project.scripts]
+gaya-pasqa = "gaya_pasqa_ranking.cli:main"
+
+[build-system]
+requires = ["uv_build>=0.11.19,<0.12.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+]
+
+[tool.uv.sources]
+pasqa = { git = "https://github.com/lycorp-jp/PASQA.git", rev = "bdbd3f84049b1ff3925e27888949831fc1977413" }
+torch = { index = "pytorch-cpu" }
+torchaudio = { index = "pytorch-cpu" }
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true

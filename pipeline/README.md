@@ -2,6 +2,12 @@
 
 Gaya Bench のシナリオ検証・音声生成を担う Python 3.12 / uv プロジェクト。
 
+日本語ピッチアクセントの PASQA 順位付けは Python 3.10 固定の
+[`pasqa-ranking/`](../pasqa-ranking/README.md) に分離している。通常の
+`gaya gen` / `gaya qc` / CI は PASQA 環境なしで完全動作し、PASQA は
+明示コマンドで実行する同一行 N テイク内の順位付け専用とする。
+絶対閾値、gate、mora 自動推定、pipeline 3.12 からの fallback は禁止する。
+
 `pipeline/` から実行する:
 
 ```console
