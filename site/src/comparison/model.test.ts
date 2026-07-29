@@ -115,6 +115,7 @@ function fixture(): MutableBenchmarkData {
     },
     scenarios: [scenario()],
     outcomes,
+    credits: { model_sources: [], reference_voices: [] },
   };
 }
 

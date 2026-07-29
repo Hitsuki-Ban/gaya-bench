@@ -14,7 +14,9 @@ import {
   getOutcomesForScenario,
   lineByKey,
   manifestModelById,
+  modelCreditById,
   modelById,
+  referenceVoiceById,
   selectedCandidates,
 } from "./index";
 
@@ -35,6 +37,11 @@ describe("virtual:gaya-data integration", () => {
     expect(benchmarkData.outcomes.filter(({ kind }) => kind === "failure")).toHaveLength(161);
     expect(manifestModelById.has("dummy")).toBe(true);
     expect(modelById.has("dummy")).toBe(false);
+    expect(benchmarkData.credits.model_sources).toHaveLength(benchmarkData.manifest.models.length);
+    expect(benchmarkData.credits.reference_voices).toHaveLength(5);
+    expect(modelCreditById.get("dummy")?.sources).toEqual([]);
+    expect(modelCreditById.get("chatterbox-multilingual-v3")?.sources.length).toBeGreaterThan(0);
+    expect(referenceVoiceById.has("tsukuyomi-corpus-94")).toBe(true);
     expect(lineByKey.has("market-day/fruit-vendor-001")).toBe(true);
     expect(candidateKey(selectedCandidates[0]!)).toContain('"dry"');
     expect(getOutcomesForScenario("market-day").length).toBeGreaterThan(0);
@@ -61,6 +68,12 @@ describe("loadBenchmarkData v4", () => {
       loop_ok: true,
       final_intonation: "fall",
     });
+    expect(data.credits.model_sources[0]?.sources[0]).toMatchObject({
+      kind: "code",
+      repository: "owner/repository",
+      revision: "a".repeat(40),
+    });
+    expect(data.credits.reference_voices[0]?.id).toBe("sample-voice");
   });
 
   it("selected curation の take_id 欠落と同 group 外参照を拒否し、先頭候補へ fallback しない", () => {
@@ -97,6 +110,43 @@ describe("loadBenchmarkData v4", () => {
     expect(() => loadBenchmarkData(createFixture(conflict))).toThrow(
       "candidate/failure group が競合",
     );
+  });
+
+  it("model provenance の欠落・candidate 間の不一致を fail fast する", () => {
+    const missing = validManifest();
+    missing.candidates[0]!.gen_params.requested = {};
+    expect(() => loadBenchmarkData(createFixture(missing))).toThrow(
+      "コード・ウェイト provenance がありません",
+    );
+
+    const inconsistent = validManifest();
+    inconsistent.candidates[1]!.gen_params.requested.upstream_revision = "b".repeat(40);
+    expect(() => loadBenchmarkData(createFixture(inconsistent))).toThrow(
+      "candidate 間で provenance が一致しません",
+    );
+  });
+
+  it("reference voice metadata を exact validation し scenario 参照と結合する", () => {
+    const unknownReference = validScenario().replace(
+      "voice: Clear",
+      "voice: Clear\n    reference_voice: missing-voice",
+    );
+    expect(() => loadBenchmarkData(createFixture(validManifest(), unknownReference))).toThrow(
+      "存在しない reference_voice",
+    );
+
+    const unknownKey = validVoiceMetadata().replace(
+      "format_version: 1",
+      "format_version: 1\nlegacy_credits: true",
+    );
+    expect(() =>
+      loadBenchmarkData(createFixture(validManifest(), validScenario(), unknownKey)),
+    ).toThrow("reference voice metadata");
+
+    const duplicate = validVoiceMetadata().replaceAll("sample-voice-2", "sample-voice");
+    expect(() =>
+      loadBenchmarkData(createFixture(validManifest(), validScenario(), duplicate)),
+    ).toThrow("voice id が重複");
   });
 
   it.each([
@@ -194,12 +244,18 @@ function createEmptyRoot(): string {
   return root;
 }
 
-function createFixture(manifest = validManifest(), scenario = validScenario()): string {
+function createFixture(
+  manifest = validManifest(),
+  scenario = validScenario(),
+  voiceMetadata = validVoiceMetadata(),
+): string {
   const root = createEmptyRoot();
   mkdirSync(path.join(root, "data"), { recursive: true });
   mkdirSync(path.join(root, "scenarios"), { recursive: true });
+  mkdirSync(path.join(root, "assets", "voices"), { recursive: true });
   writeFileSync(path.join(root, "data", "manifest.json"), JSON.stringify(manifest), "utf8");
   writeFileSync(path.join(root, "scenarios", "sample.yaml"), scenario, "utf8");
+  writeFileSync(path.join(root, "assets", "voices", "metadata.yaml"), voiceMetadata, "utf8");
   return root;
 }
 
@@ -217,7 +273,7 @@ function validManifest(): MutableManifest {
         id: "model",
         name: "Model",
         version: "1",
-        license_note: "",
+        license_note: "MIT",
         capabilities: {
           emotion: false,
           voice_prompt: false,
@@ -287,7 +343,10 @@ function candidate(variant: string, takeIndex: number, marker: string): MutableC
       seed: takeIndex,
       recipe_version: "seed-only-v1",
       sampling: {},
-      requested: {},
+      requested: {
+        upstream_repository: "owner/repository",
+        upstream_revision: "a".repeat(40),
+      },
       realized: {},
     },
     rtf: 0.1,
@@ -325,4 +384,47 @@ lines:
     emotion: neutral
     delivery: Plain
 `;
+}
+
+function validVoiceMetadata(): string {
+  const voice = (id: string, marker: string) => `  - id: ${id}
+    file: ${id}/reference.wav
+    sha256: ${marker.repeat(64)}
+    duration_sec: 12
+    language: ja
+    transcript: Sample
+    transcript_rights:
+      license: CC0
+      evidence_url: https://example.com/transcript
+      credit_text: Transcript credit
+    source:
+      title: Sample source ${id}
+      speaker: Speaker
+      download_page: https://example.com/source
+      files:
+        - label: source.wav
+          url: https://example.com/source.wav
+          sha256: ${marker.repeat(64)}
+    rights:
+      license: CC BY 4.0
+      verified_on: "2026-07-30"
+      voice_synthesis_evidence_url: https://example.com/synthesis
+      commercial_use_evidence_url: https://example.com/commercial
+      redistribution:
+        status: allowed_with_conditions
+        evidence_url: https://example.com/redistribution
+        notes: Credit required
+    credit_text: Voice credit
+    voice:
+      gender: neutral
+      age: adult
+      notes: Test voice
+    processing:
+      source_member: source.wav
+      source_sha256: ${marker.repeat(64)}
+      summary: Converted to WAV.
+`;
+  return `format_version: 1
+voices:
+${voice("sample-voice", "a")}${voice("sample-voice-2", "b")}${voice("sample-voice-3", "c")}${voice("sample-voice-4", "d")}${voice("sample-voice-5", "e")}`;
 }

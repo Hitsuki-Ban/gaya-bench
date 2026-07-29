@@ -1,6 +1,14 @@
 import { benchmarkData } from "virtual:gaya-data";
 
-import type { ArtifactOutcome, Candidate, Line, Model, Scenario } from "./types";
+import type {
+  ArtifactOutcome,
+  Candidate,
+  Line,
+  Model,
+  ModelCredit,
+  ReferenceVoiceCredit,
+  Scenario,
+} from "./types";
 
 export { benchmarkData };
 export type {
@@ -12,6 +20,7 @@ export type {
   Character,
   CharacterKind,
   Curation,
+  CreditsData,
   Difficulty,
   Emotion,
   Gender,
@@ -23,7 +32,12 @@ export type {
   Locale,
   Manifest,
   Model,
+  ModelCredit,
   ModelCapabilities,
+  ModelSourceKind,
+  ModelSourceLink,
+  ReferenceVoiceCredit,
+  ReferenceVoiceSourceFile,
   Scenario,
   Scene,
   SelectedCuration,
@@ -49,6 +63,14 @@ export const modelById: ReadonlyMap<string, Model> = new Map(
 );
 
 export const playableModels: readonly Model[] = [...modelById.values()];
+
+export const modelCreditById: ReadonlyMap<string, ModelCredit> = new Map(
+  benchmarkData.credits.model_sources.map((credit) => [credit.model, credit]),
+);
+
+export const referenceVoiceById: ReadonlyMap<string, ReferenceVoiceCredit> = new Map(
+  benchmarkData.credits.reference_voices.map((voice) => [voice.id, voice]),
+);
 
 export const lineByKey: ReadonlyMap<string, Line> = new Map(
   benchmarkData.scenarios.flatMap((scenario) =>
