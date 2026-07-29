@@ -80,7 +80,7 @@ pipeline (Python/uv) ── モデル別アダプタ ──▶ artifacts/takes/<
 
 - **音声**: R2バケット `gaya-bench-audio` (公開読み取り)。pathはcandidate SHAを含む `audio/takes/<model>/<scenario>/<line>/<variant>/take-<index>-<sha256>.opus`
 - **公開URL**: custom domain `https://audio.gaya-bench.hitsuki.space/`。本番 `VITE_AUDIO_BASE` もこの値を使う。rate limit 付き開発用 `r2.dev` は有効化しない
-- **CORS**: [infra/r2-cors.json](../infra/r2-cors.json) を正とし、Pages 本番 origin とローカル開発 origin の `GET` / `HEAD` を許可する
+- **CORS**: [infra/r2-cors.json](../infra/r2-cors.json) を正とし、Pages 本番・preview originとローカル開発 originの `GET` / `HEAD` を許可する
 - **原子的公開**: `gaya publish` は固定release、source manifest、candidate allow-listと全物理Opusをnetwork call前に検証する。その後全objectを`HEAD`し、同じSHA・サイズ・HTTP metadataはskip、既存keyの不一致は一件も`PUT`せず失敗する。欠落objectだけを`If-None-Match: *`とchecksum付きで単段uploadし、最後に全件を再`HEAD`する。keyはcontent-addressedなので`Cache-Control: public, max-age=31536000, immutable`とする
 - **manifest**: R2全件検証後、固定releaseと同一bytesの`data/manifest.json`をコミットする。これによりbuildの決定性とPRレビュー可能性を保つ
 - **生成メタ**: 入力hash・WAV/Opus hash・生成時間・RTF・後処理結果を `artifacts/takes/<run-id>/audio/<model>/<scenario>/<line>/<variant>/take-<index>.json` に保存し、run root の `ledger.json` から参照する (git管理外)
