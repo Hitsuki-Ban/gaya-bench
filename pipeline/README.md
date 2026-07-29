@@ -78,6 +78,29 @@ generation seconds / postprocess / toolchain / loudness を snapshot 確定時�
 既存判断の置換、candidate 0、欠落設定の fallback は行わず、公開中の
 `data/manifest.json` も変更しない。
 
+## N3 pilot calibration
+
+固定 3 model × `battlefield-camp` / `dungeon-entrance` × N3 の terminal run
+6 個から、production candidate-set / curation と独立した blind bundle を作る。
+
+```console
+uv run --project pipeline --locked gaya pilot build \
+  --run-id <run-id> --run-id <run-id> --run-id <run-id> \
+  --run-id <run-id> --run-id <run-id> --run-id <run-id> \
+  --output <new-bundle-directory>
+
+uv run --project pipeline --locked gaya pilot analyze \
+  --bundle <bundle-directory> \
+  --decision <decision-v1.json> \
+  --output <new-report-directory>
+```
+
+builder は `takes=3` / `seed_base=103` と全 216 attempt の provenance を検証し、
+eligible と hard reject の両方を blind copy する。blocked / generation failure /
+未完了 attempt は build error である。decision exact contract、探索的解析と
+production no-go 条件は
+[N3 pilot calibration protocol](../docs/research/n3-pilot/protocol.md) を参照。
+
 ## ダミー音声生成
 
 リポジトリルートからダミーアダプタで生成する:

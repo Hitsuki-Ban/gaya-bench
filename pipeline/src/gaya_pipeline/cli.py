@@ -15,6 +15,13 @@ from gaya_pipeline.generation import (
     GenerationSummary,
     run_generation,
 )
+from gaya_pipeline.pilot import (
+    PilotAnalysisSummary,
+    PilotBuildSummary,
+    PilotError,
+    analyze_pilot_bundle,
+    build_pilot_bundle,
+)
 from gaya_pipeline.publish import (
     PublishError,
     PublishSummary,
@@ -123,6 +130,54 @@ def build_parser() -> argparse.ArgumentParser:
         help="curation format v1 JSON artifact",
     )
 
+    pilot_parser = subparsers.add_parser(
+        "pilot",
+        help="N3 pilot bundle を構築・解析する",
+    )
+    pilot_subparsers = pilot_parser.add_subparsers(
+        dest="pilot_command",
+        required=True,
+    )
+    pilot_build_parser = pilot_subparsers.add_parser(
+        "build",
+        help="6 個の terminal run から blind pilot bundle を構築する",
+    )
+    pilot_build_parser.add_argument(
+        "--run-id",
+        required=True,
+        action="append",
+        dest="run_ids",
+        help="3 model × 2 scenario の run id（6 回指定）",
+    )
+    pilot_build_parser.add_argument(
+        "--output",
+        required=True,
+        type=Path,
+        help="新規作成する pilot bundle directory",
+    )
+    pilot_analyze_parser = pilot_subparsers.add_parser(
+        "analyze",
+        help="pilot bundle と decision v1 を厳密検証して解析する",
+    )
+    pilot_analyze_parser.add_argument(
+        "--bundle",
+        required=True,
+        type=Path,
+        help="pilot-set.json と blind audio を含む bundle directory",
+    )
+    pilot_analyze_parser.add_argument(
+        "--decision",
+        required=True,
+        type=Path,
+        help="pilot decision v1 JSON",
+    )
+    pilot_analyze_parser.add_argument(
+        "--output",
+        required=True,
+        type=Path,
+        help="新規作成する report directory",
+    )
+
     subparsers.add_parser(
         "publish",
         help="manifest と一致する Opus を R2 へ差分アップロードする",
@@ -226,6 +281,31 @@ def main(argv: Sequence[str] | None = None) -> int:
         _print_curation_summary(summary)
         return 0
 
+    if args.command == "pilot":
+        repository_root = default_scenarios_dir().parent
+        try:
+            if args.pilot_command == "build":
+                summary = build_pilot_bundle(
+                    run_ids=args.run_ids,
+                    output_dir=args.output,
+                    artifacts_dir=repository_root / "artifacts",
+                    scenarios_dir=repository_root / "scenarios",
+                )
+                _print_pilot_build_summary(summary)
+                return 0
+            if args.pilot_command == "analyze":
+                analysis = analyze_pilot_bundle(
+                    bundle_dir=args.bundle,
+                    decision_path=args.decision,
+                    output_dir=args.output,
+                )
+                _print_pilot_analysis_summary(analysis)
+                return 0
+            raise AssertionError(f"unknown pilot command: {args.pilot_command}")
+        except PilotError as error:
+            print(f"ERROR: {error}", file=sys.stderr)
+            return 1
+
     if args.command == "publish":
         repository_root = default_scenarios_dir().parent
         try:
@@ -314,3 +394,17 @@ def _print_qc_summary(summary: QCSummary) -> None:
         f"generation failure {summary.generation_failed_count} / "
         f"未完了 {summary.pending_count}",
     )
+
+
+def _print_pilot_build_summary(summary: PilotBuildSummary) -> None:
+    print(f"Pilot bundle: {summary.bundle_dir.as_posix()}")
+    print(f"pilot-set.json: {summary.pilot_set_path.as_posix()}")
+    print(f"pilot-set SHA-256: {summary.pilot_set_sha256}")
+    print(f"完了: group {summary.group_count} / candidate {summary.candidate_count}")
+
+
+def _print_pilot_analysis_summary(summary: PilotAnalysisSummary) -> None:
+    print(f"Pilot report JSON: {summary.report_json_path.as_posix()}")
+    print(f"Pilot report Markdown: {summary.report_markdown_path.as_posix()}")
+    print(f"pilot-set SHA-256: {summary.pilot_set_sha256}")
+    print(f"decision SHA-256: {summary.decision_sha256}")

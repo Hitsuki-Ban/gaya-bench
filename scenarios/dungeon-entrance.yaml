@@ -51,6 +51,7 @@ lines:
   - id: vanguard-001
     character: vanguard
     text: 灯りを落とせ、足音がする。
+    reading: アカリヲオトセ、アシオトガスル。
     emotion: whisper
     intensity: 2
     delivery: 抑えた低い声で手短に指示する。語尾まで息を漏らすように。
@@ -61,6 +62,7 @@ lines:
   - id: vanguard-002
     character: vanguard
     text: 大丈夫だ、俺が先に行く。
+    reading: ダイジョーブダ、オレガサキニイク。
     emotion: neutral
     intensity: 1
     delivery: 落ち着いた小声で仲間を安心させる。ゆっくりと言い聞かせるように。
@@ -71,6 +73,7 @@ lines:
   - id: vanguard-003
     character: vanguard
     text: ふっ、今更びびってどうする。
+    reading: フッ、イマサラビビッテドースル。
     emotion: laughing
     intensity: 1
     delivery: 低く小さな笑いを漏らす。声を潜めたまま軽口を叩く。
@@ -81,6 +84,7 @@ lines:
   - id: rookie-archer-001
     character: rookie-archer
     text: ねえ……本当に大丈夫かな……。
+    reading: ネー……ホントーニダイジョーブカナ……。
     emotion: fearful
     intensity: 2
     delivery: 声が細かく震える。語尾がかすれて消え入りそうになる。
@@ -91,6 +95,7 @@ lines:
   - id: rookie-archer-002
     character: rookie-archer
     text: あはは……余裕っしょ、たぶん。
+    reading: アハハ……ヨユーッショ、タブン。
     emotion: laughing
     intensity: 1
     delivery: 引きつった愛想笑い。語尾に震えが滲む虚勢。
@@ -101,6 +106,7 @@ lines:
   - id: rookie-archer-003
     character: rookie-archer
     text: ひっ……な、何か聞こえた！
+    reading: ヒッ……ナ、ナニカキコエタ！
     emotion: fearful
     intensity: 3
     delivery: 短い悲鳴のような震え声。語尾が掠れて途切れる。
@@ -111,6 +117,7 @@ lines:
   - id: scout-001
     character: scout
     text: 静かに……何か動いた。
+    reading: シズカニ……ナニカウゴイタ。
     emotion: whisper
     intensity: 2
     delivery: 息を潜めた鋭い囁き。子音だけがはっきり届くように。
@@ -121,6 +128,7 @@ lines:
   - id: scout-002
     character: scout
     text: ……大丈夫、誰もいない。
+    reading: ……ダイジョーブ、ダレモイナイ。
     emotion: whisper
     intensity: 1
     delivery: 緊張を解くように小さく囁く。ゆっくり息を吐きながら。
@@ -131,6 +139,7 @@ lines:
   - id: scout-003
     character: scout
     text: 変な臭いがする、気をつけて。
+    reading: ヘンナニオイガスル、キヲツケテ。
     emotion: fearful
     intensity: 2
     delivery: 抑えた声だが警戒の色が滲む。早口気味の小声。
@@ -141,6 +150,7 @@ lines:
   - id: old-guide-001
     character: old-guide
     text: 儂はここまでだ、幸運を。
+    reading: ワシワココマデダ、コーウンヲ。
     emotion: neutral
     intensity: 1
     delivery: しわがれた低い声で淡々と告げる。ゆっくりとした間を置く。
@@ -151,6 +161,7 @@ lines:
   - id: old-guide-002
     character: old-guide
     text: ふぉっふぉ、若いのは元気じゃな。
+    reading: フォッフォ、ワカイノワゲンキジャナ。
     emotion: laughing
     intensity: 1
     delivery: かすれた小さな含み笑い。息が漏れるような笑い方。
@@ -161,6 +172,7 @@ lines:
   - id: old-guide-003
     character: old-guide
     text: 気をつけろ、噂は大抵本当だ。
+    reading: キヲツケロ、ウワサワタイテーホントーダ。
     emotion: fearful
     intensity: 1
     delivery: 声を潜めて重々しく忠告する。かすれ気味の低い声。

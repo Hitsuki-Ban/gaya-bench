@@ -51,6 +51,7 @@ lines:
   - id: wounded-001
     character: wounded
     text: ぐっ……そこは触るな……
+    reading: グッ……ソコワサワルナ……
     emotion: pain
     intensity: 3
     delivery: 苦悶の呻き声混じり。息を詰まらせながら絞り出す。
@@ -61,6 +62,7 @@ lines:
   - id: wounded-002
     character: wounded
     text: もう……立てそうにない……
+    reading: モー……タテソーニナイ……
     emotion: sad
     intensity: 1
     delivery: 力なく掠れた声。ほとんど息だけで発する。
@@ -71,6 +73,7 @@ lines:
   - id: wounded-003
     character: wounded
     text: はは……情けねえ姿だな、俺は
+    reading: ハハ……ナサケネースガタダナ、オレワ
     emotion: laughing
     intensity: 1
     delivery: 乾いた弱々しい笑い。咳き込みそうになるのを堪える。
@@ -81,6 +84,7 @@ lines:
   - id: messenger-001
     character: messenger
     text: 伝令、前線の守りが崩れます！
+    reading: デンレー、ゼンセンノマモリガクズレマス！
     emotion: shout
     intensity: 3
     delivery: 息を切らせながら叫ぶ。声が裏返るほど切迫している。
@@ -91,6 +95,7 @@ lines:
   - id: messenger-002
     character: messenger
     text: 数が多すぎます……このままでは……
+    reading: カズガオースギマス……コノママデワ……
     emotion: fearful
     intensity: 2
     delivery: 声が震え、途切れがち。恐怖で早口になる。
@@ -101,6 +106,7 @@ lines:
   - id: messenger-003
     character: messenger
     text: 退がれ！全員、今すぐ退がれ！
+    reading: サガレ！ゼンイン、イマスグサガレ！
     emotion: shout
     intensity: 3
     delivery: 喉が裂けるほどの絶叫。命令口調で余韻を残さない。
@@ -111,6 +117,7 @@ lines:
   - id: veteran-soldier-001
     character: veteran-soldier
     text: もう何人、見送ったか分からんな……
+    reading: モーナンニン、ミオクッタカワカランナ……
     emotion: sad
     intensity: 1
     delivery: 淡々とした低い声。感情を押し殺すように静か。
@@ -121,6 +128,7 @@ lines:
   - id: veteran-soldier-002
     character: veteran-soldier
     text: くそ……本部は何をしてやがる
+    reading: クソ……ホンブワナニヲシテヤガル
     emotion: angry
     intensity: 2
     delivery: 低く抑えた怒り。歯を食いしばるような声。
@@ -131,6 +139,7 @@ lines:
   - id: medic-001
     character: medic
     text: 圧迫して！血が止まらない！
+    reading: アッパクシテ！チガトマラナイ！
     emotion: shout
     intensity: 3
     delivery: 焦りながらも的確な指示。早口で切迫感がある。
@@ -141,6 +150,7 @@ lines:
   - id: medic-002
     character: medic
     text: お願い、まだ死なないで……
+    reading: オネガイ、マダシナナイデ……
     emotion: fearful
     intensity: 2
     delivery: 涙声混じりの懇願。声が細かく震える。
@@ -151,6 +161,7 @@ lines:
   - id: medic-003
     character: medic
     text: 包帯が……もう足りない……
+    reading: ホータイガ……モータリナイ……
     emotion: tired
     intensity: 2
     delivery: 疲労で掠れた声。言葉の合間に息が漏れる。
@@ -161,6 +172,7 @@ lines:
   - id: medic-004
     character: medic
     text: 大丈夫、すぐ楽になりますから
+    reading: ダイジョーブ、スグラクニナリマスカラ
     emotion: neutral
     intensity: 1
     delivery: 努めて冷静な優しい声。安心させるようゆっくり話す。

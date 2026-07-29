@@ -1,4 +1,5 @@
-import { sha256Hex, sha256Text } from "./hash";
+import { sha256Hex, sha256Text } from "@/lib/sha256";
+import type { DirectoryFile, ObjectUrlFactory } from "@/lib/local-directory";
 import {
   compareGroupTuple,
   groupKey,
@@ -50,17 +51,6 @@ const CANDIDATE_KEYS = [
   "gate",
 ];
 const GROUP_KEYS = ["model", "scenario", "line", "variant"] as const;
-
-export interface DirectoryFile {
-  readonly name: string;
-  readonly webkitRelativePath: string;
-  arrayBuffer(): Promise<ArrayBuffer>;
-}
-
-export interface ObjectUrlFactory {
-  create(file: DirectoryFile): string;
-  revoke(url: string): void;
-}
 
 interface V4Model {
   readonly id: string;

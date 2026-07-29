@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vite-plus/test";
 
-import { loadCurateCatalog, type DirectoryFile, type ObjectUrlFactory } from "./catalog";
-import { sha256Hex, sha256Text } from "./hash";
+import type { DirectoryFile, ObjectUrlFactory } from "@/lib/local-directory";
+import { sha256Hex, sha256Text } from "@/lib/sha256";
+import { loadCurateCatalog } from "./catalog";
 
 const INPUT_SHA = "a".repeat(64);
 

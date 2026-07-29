@@ -1,5 +1,6 @@
 import { groupKey, type CurateCatalog, type CurationDraft } from "./types";
 import { isRubricComplete, writeCurationDraft, type CurationStorage } from "./storage";
+import { canonicalJson } from "@/lib/canonical-json";
 
 export function buildCurationJson(catalog: CurateCatalog, draft: CurationDraft): string {
   validateCurrentDraft(catalog, draft);
@@ -37,12 +38,15 @@ export function buildCurationJson(catalog: CurateCatalog, draft: CurationDraft):
       decision: group.decision,
     };
   });
-  return canonicalJson({
-    format_version: 1,
-    rubric_version: "take-curation-v1",
-    candidate_set_sha256: catalog.candidateSetSha256,
-    groups,
-  });
+  return canonicalJson(
+    {
+      format_version: 1,
+      rubric_version: "take-curation-v1",
+      candidate_set_sha256: catalog.candidateSetSha256,
+      groups,
+    },
+    "curation artifact",
+  );
 }
 
 export function downloadCurationJson(contents: string): void {
@@ -66,34 +70,4 @@ function validateCurrentDraft(catalog: CurateCatalog, draft: CurationDraft): voi
     removeItem() {},
   };
   writeCurationDraft(sink, catalog, draft);
-}
-
-function canonicalJson(value: unknown): string {
-  return JSON.stringify(canonicalize(value));
-}
-
-function canonicalize(value: unknown): unknown {
-  if (value === null || typeof value === "string" || typeof value === "boolean") {
-    return value;
-  }
-  if (typeof value === "number") {
-    if (!Number.isSafeInteger(value)) {
-      throw new Error("curation artifact の数値は安全な整数である必要があります。");
-    }
-    return value;
-  }
-  if (Array.isArray(value)) {
-    return value.map(canonicalize);
-  }
-  if (typeof value === "object" && value !== null) {
-    const result: Record<string, unknown> = {};
-    for (const key of Object.keys(value).sort()) {
-      if (!/^[\x20-\x7e]+$/.test(key)) {
-        throw new Error(`curation artifact の key は ASCII である必要があります: ${key}`);
-      }
-      result[key] = canonicalize((value as Record<string, unknown>)[key]);
-    }
-    return result;
-  }
-  throw new Error("curation artifact に JSON ではない値があります。");
 }
