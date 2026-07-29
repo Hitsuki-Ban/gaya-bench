@@ -71,8 +71,38 @@ describe("loadBenchmarkData", () => {
       intensity: 2,
       difficulty: "standard",
       loop_ok: true,
+      final_intonation: "fall",
     });
     expect(data.manifest.clips).toHaveLength(1);
+  });
+
+  it.each(["fall", "rise", "free"] as const)(
+    "line final_intonation を受け入れる: %s",
+    (finalIntonation) => {
+      const root = createFixture({
+        scenario: validScenario().replace(
+          "    delivery: Plain",
+          `    delivery: Plain
+    final_intonation: ${finalIntonation}`,
+        ),
+      });
+
+      expect(loadBenchmarkData(root).scenarios[0]?.lines[0]?.final_intonation).toBe(
+        finalIntonation,
+      );
+    },
+  );
+
+  it.each(["flat", "null"])("不正な line final_intonation を拒否する: %s", (finalIntonation) => {
+    const root = createFixture({
+      scenario: validScenario().replace(
+        "    delivery: Plain",
+        `    delivery: Plain
+    final_intonation: ${finalIntonation}`,
+      ),
+    });
+
+    expect(() => loadBenchmarkData(root)).toThrow("lines[0].final_intonation");
   });
 
   it.each(["human", "machine", "creature", "spirit"] as const)(

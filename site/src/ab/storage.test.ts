@@ -331,6 +331,7 @@ function line(): Line {
     delivery: "自然に",
     difficulty: "standard",
     loop_ok: true,
+    final_intonation: "fall",
   };
 }
 

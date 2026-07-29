@@ -9,7 +9,7 @@ import subprocess
 from pathlib import Path
 from typing import Any
 
-from gaya_pipeline.qc import RuntimeInspection
+from gaya_pipeline.qc import FinalIntonation, RuntimeInspection
 
 
 class QCRuntimeError(RuntimeError):
@@ -25,6 +25,11 @@ SAMPLE_RATE_HZ = 16_000
 DEVICE = "cuda:0"
 DTYPE = "float16"
 BEAM_SIZE = 1
+F0_HOP_LENGTH = 256
+FINAL_INTONATION_RISE_ANCHOR_SEMITONES = 2.0
+FINAL_INTONATION_CLIP_SEMITONES = 6.0
+FINAL_INTONATION_MIN_VOICED_SEC = 0.05
+FINAL_INTONATION_MAX_WINDOW_SEC = 0.2
 
 
 class KanaWhisperQCRuntime:
@@ -61,6 +66,7 @@ class KanaWhisperQCRuntime:
         audio_path: Path,
         *,
         mora_count: int,
+        final_intonation: FinalIntonation,
     ) -> RuntimeInspection:
         self._ensure_loaded()
         assert self._model is not None
@@ -70,7 +76,13 @@ class KanaWhisperQCRuntime:
         assert self._numpy is not None
 
         samples = self._decode_audio(audio_path)
-        prosody = self._analyze_prosody(samples, mora_count=mora_count)
+        prosody = analyze_prosody_samples(
+            samples,
+            mora_count=mora_count,
+            final_intonation=final_intonation,
+            librosa_module=self._librosa,
+            numpy_module=self._numpy,
+        )
         if not prosody["active_speech_sec"]:
             return RuntimeInspection(
                 transcript="",
@@ -209,121 +221,134 @@ class KanaWhisperQCRuntime:
             raise QCRuntimeError(f"decode済み音声が不正です: {audio_path}")
         return samples
 
-    def _analyze_prosody(
-        self,
-        samples: Any,
-        *,
-        mora_count: int,
-    ) -> dict[str, Any]:
-        assert self._librosa is not None
-        assert self._numpy is not None
-        librosa = self._librosa
-        numpy = self._numpy
 
-        duration_sec = samples.size / SAMPLE_RATE_HZ
-        intervals = librosa.effects.split(
-            samples,
-            top_db=35,
-            frame_length=1024,
-            hop_length=256,
-        )
-        active_sec = sum(
-            (int(end) - int(start)) / SAMPLE_RATE_HZ
-            for start, end in intervals
-        )
-        internal_pauses = [
-            (int(intervals[index + 1][0]) - int(intervals[index][1]))
-            / SAMPLE_RATE_HZ
-            for index in range(max(0, len(intervals) - 1))
-        ]
-        internal_pauses = [pause for pause in internal_pauses if pause >= 0.08]
-        leading_silence_sec = (
-            int(intervals[0][0]) / SAMPLE_RATE_HZ if len(intervals) else duration_sec
-        )
-        trailing_silence_sec = (
-            (samples.size - int(intervals[-1][1])) / SAMPLE_RATE_HZ
+def analyze_prosody_samples(
+    samples: Any,
+    *,
+    mora_count: int,
+    final_intonation: FinalIntonation,
+    librosa_module: Any,
+    numpy_module: Any,
+) -> dict[str, Any]:
+    librosa = librosa_module
+    numpy = numpy_module
+
+    duration_sec = samples.size / SAMPLE_RATE_HZ
+    intervals = librosa.effects.split(
+        samples,
+        top_db=35,
+        frame_length=1024,
+        hop_length=256,
+    )
+    active_sec = sum(
+        (int(end) - int(start)) / SAMPLE_RATE_HZ
+        for start, end in intervals
+    )
+    internal_pauses = [
+        (int(intervals[index + 1][0]) - int(intervals[index][1]))
+        / SAMPLE_RATE_HZ
+        for index in range(max(0, len(intervals) - 1))
+    ]
+    internal_pauses = [pause for pause in internal_pauses if pause >= 0.08]
+    leading_silence_sec = (
+        int(intervals[0][0]) / SAMPLE_RATE_HZ if len(intervals) else duration_sec
+    )
+    trailing_silence_sec = (
+        (samples.size - int(intervals[-1][1])) / SAMPLE_RATE_HZ
+        if len(intervals)
+        else duration_sec
+    )
+
+    f0, voiced_flag, _ = librosa.pyin(
+        samples,
+        fmin=65,
+        fmax=1000,
+        sr=SAMPLE_RATE_HZ,
+        frame_length=1024,
+        hop_length=F0_HOP_LENGTH,
+    )
+    valid_f0 = f0[numpy.isfinite(f0)]
+    voiced_ratio = (
+        float(numpy.count_nonzero(voiced_flag)) / len(voiced_flag)
+        if len(voiced_flag)
+        else 0.0
+    )
+    if valid_f0.size:
+        median_f0 = float(numpy.median(valid_f0))
+        semitones = 12 * numpy.log2(valid_f0 / median_f0)
+        f0_report = {
+            "median_hz": _rounded_or_none(median_f0),
+            "p10_hz": _rounded_or_none(float(numpy.percentile(valid_f0, 10))),
+            "p90_hz": _rounded_or_none(float(numpy.percentile(valid_f0, 90))),
+            "semitone_std": _rounded_or_none(float(numpy.std(semitones))),
+            "voiced_ratio": _rounded_or_none(voiced_ratio),
+        }
+    else:
+        median_f0 = None
+        f0_report = {
+            "median_hz": None,
+            "p10_hz": None,
+            "p90_hz": None,
+            "semitone_std": None,
+            "voiced_ratio": 0.0,
+        }
+    f0_report["final_intonation"] = _final_intonation_report(
+        f0,
+        voiced_flag,
+        last_active_interval=(
+            (int(intervals[-1][0]), int(intervals[-1][1]))
             if len(intervals)
-            else duration_sec
-        )
+            else None
+        ),
+        median_f0_hz=median_f0,
+        expected=final_intonation,
+    )
 
-        f0, voiced_flag, _ = librosa.pyin(
-            samples,
-            fmin=65,
-            fmax=1000,
-            sr=SAMPLE_RATE_HZ,
-            frame_length=1024,
-            hop_length=256,
-        )
-        valid_f0 = f0[numpy.isfinite(f0)]
-        voiced_ratio = (
-            float(numpy.count_nonzero(voiced_flag)) / len(voiced_flag)
-            if len(voiced_flag)
-            else 0.0
-        )
-        if valid_f0.size:
-            median_f0 = float(numpy.median(valid_f0))
-            semitones = 12 * numpy.log2(valid_f0 / median_f0)
-            f0_report = {
-                "median_hz": _rounded_or_none(median_f0),
-                "p10_hz": _rounded_or_none(float(numpy.percentile(valid_f0, 10))),
-                "p90_hz": _rounded_or_none(float(numpy.percentile(valid_f0, 90))),
-                "semitone_std": _rounded_or_none(float(numpy.std(semitones))),
-                "voiced_ratio": _rounded_or_none(voiced_ratio),
-            }
-        else:
-            f0_report = {
-                "median_hz": None,
-                "p10_hz": None,
-                "p90_hz": None,
-                "semitone_std": None,
-                "voiced_ratio": 0.0,
-            }
-
-        rms = librosa.feature.rms(
-            y=samples,
-            frame_length=1024,
-            hop_length=256,
-        )[0]
-        rms_db = librosa.amplitude_to_db(rms, ref=1.0)
-        finite_rms_db = rms_db[numpy.isfinite(rms_db)]
-        energy_report = {
-            "median_dbfs": (
-                _rounded_or_none(float(numpy.median(finite_rms_db)))
-                if finite_rms_db.size
-                else None
+    rms = librosa.feature.rms(
+        y=samples,
+        frame_length=1024,
+        hop_length=256,
+    )[0]
+    rms_db = librosa.amplitude_to_db(rms, ref=1.0)
+    finite_rms_db = rms_db[numpy.isfinite(rms_db)]
+    energy_report = {
+        "median_dbfs": (
+            _rounded_or_none(float(numpy.median(finite_rms_db)))
+            if finite_rms_db.size
+            else None
+        ),
+        "p95_dbfs": (
+            _rounded_or_none(float(numpy.percentile(finite_rms_db, 95)))
+            if finite_rms_db.size
+            else None
+        ),
+    }
+    return {
+        "duration_sec": _rounded_or_none(duration_sec),
+        "active_speech_sec": _rounded_or_none(active_sec),
+        "estimated_mora_count": mora_count,
+        "overall_mora_per_sec": (
+            _rounded_or_none(mora_count / duration_sec)
+            if mora_count and duration_sec > 0
+            else None
+        ),
+        "active_mora_per_sec": (
+            _rounded_or_none(mora_count / active_sec)
+            if mora_count and active_sec > 0
+            else None
+        ),
+        "pause": {
+            "internal_count": len(internal_pauses),
+            "internal_total_sec": _rounded_or_none(sum(internal_pauses)),
+            "internal_longest_sec": _rounded_or_none(
+                max(internal_pauses, default=0.0),
             ),
-            "p95_dbfs": (
-                _rounded_or_none(float(numpy.percentile(finite_rms_db, 95)))
-                if finite_rms_db.size
-                else None
-            ),
-        }
-        return {
-            "duration_sec": _rounded_or_none(duration_sec),
-            "active_speech_sec": _rounded_or_none(active_sec),
-            "estimated_mora_count": mora_count,
-            "overall_mora_per_sec": (
-                _rounded_or_none(mora_count / duration_sec)
-                if mora_count and duration_sec > 0
-                else None
-            ),
-            "active_mora_per_sec": (
-                _rounded_or_none(mora_count / active_sec)
-                if mora_count and active_sec > 0
-                else None
-            ),
-            "pause": {
-                "internal_count": len(internal_pauses),
-                "internal_total_sec": _rounded_or_none(sum(internal_pauses)),
-                "internal_longest_sec": _rounded_or_none(
-                    max(internal_pauses, default=0.0),
-                ),
-                "leading_sec": _rounded_or_none(leading_silence_sec),
-                "trailing_sec": _rounded_or_none(trailing_silence_sec),
-            },
-            "f0": f0_report,
-            "energy": energy_report,
-        }
+            "leading_sec": _rounded_or_none(leading_silence_sec),
+            "trailing_sec": _rounded_or_none(trailing_silence_sec),
+        },
+        "f0": f0_report,
+        "energy": energy_report,
+    }
 
 
 def _require_distribution_version(name: str, expected: str) -> None:
@@ -338,6 +363,128 @@ def _require_distribution_version(name: str, expected: str) -> None:
         raise QCRuntimeError(
             f"{name} version が一致しません: expected={expected}, actual={actual}",
         )
+
+
+def _final_intonation_report(
+    f0: Any,
+    voiced_flag: Any,
+    *,
+    last_active_interval: tuple[int, int] | None,
+    median_f0_hz: float | None,
+    expected: FinalIntonation,
+) -> dict[str, Any]:
+    if len(f0) != len(voiced_flag):
+        raise QCRuntimeError("F0 と voiced flag の frame 数が一致しません。")
+
+    frame_sec = F0_HOP_LENGTH / SAMPLE_RATE_HZ
+    minimum_frames = max(
+        4,
+        math.ceil(FINAL_INTONATION_MIN_VOICED_SEC / frame_sec),
+    )
+    maximum_frames = math.floor(FINAL_INTONATION_MAX_WINDOW_SEC / frame_sec)
+    report: dict[str, Any] = {
+        "expected": expected,
+        "policy": "report_only",
+        "rise_anchor_semitones": FINAL_INTONATION_RISE_ANCHOR_SEMITONES,
+        "rise_anchor_met": None,
+        "raw_interval_semitones": None,
+        "clipped_interval_semitones": None,
+        "clipped_frame_count": 0,
+        "voiced_tail_frame_count": 0,
+        "voiced_tail_duration_sec": 0.0,
+        "window_frame_count": 0,
+        "window_duration_sec": 0.0,
+        "reason": None,
+    }
+    if last_active_interval is None:
+        report["reason"] = "no_active_speech_interval"
+        return report
+
+    interval_start, interval_end = last_active_interval
+    latest_segment: list[tuple[int, float]] = []
+    current_segment: list[tuple[int, float]] = []
+    for frame_index, (frequency, voiced) in enumerate(
+        zip(f0, voiced_flag, strict=True),
+    ):
+        frame_sample = frame_index * F0_HOP_LENGTH
+        frequency_hz = float(frequency)
+        is_valid = (
+            interval_start <= frame_sample < interval_end
+            and bool(voiced)
+            and math.isfinite(frequency_hz)
+            and frequency_hz > 0
+        )
+        if is_valid:
+            current_segment.append((frame_index, frequency_hz))
+        elif current_segment:
+            latest_segment = current_segment
+            current_segment = []
+    if current_segment:
+        latest_segment = current_segment
+
+    tail_frame_count = len(latest_segment)
+    report["voiced_tail_frame_count"] = tail_frame_count
+    report["voiced_tail_duration_sec"] = _rounded_or_none(
+        tail_frame_count * frame_sec,
+    )
+    if tail_frame_count < minimum_frames:
+        report["reason"] = "insufficient_voiced_tail"
+        return report
+    if (
+        median_f0_hz is None
+        or not math.isfinite(median_f0_hz)
+        or median_f0_hz <= 0
+    ):
+        report["reason"] = "no_voiced_f0"
+        return report
+
+    window = latest_segment[-maximum_frames:]
+    raw_semitones = [
+        12 * math.log2(frequency_hz / median_f0_hz)
+        for _, frequency_hz in window
+    ]
+    clipped_semitones = [
+        max(
+            -FINAL_INTONATION_CLIP_SEMITONES,
+            min(FINAL_INTONATION_CLIP_SEMITONES, value),
+        )
+        for value in raw_semitones
+    ]
+    window_frame_count = len(window)
+    raw_interval = _median(raw_semitones[-2:]) - _median(raw_semitones[:2])
+    clipped_interval = (
+        _median(clipped_semitones[-2:]) - _median(clipped_semitones[:2])
+    )
+    serialized_clipped_interval = _rounded_or_none(clipped_interval)
+    assert serialized_clipped_interval is not None
+    report.update(
+        {
+            "rise_anchor_met": (
+                serialized_clipped_interval
+                >= FINAL_INTONATION_RISE_ANCHOR_SEMITONES
+            ),
+            "raw_interval_semitones": _rounded_or_none(raw_interval),
+            "clipped_interval_semitones": serialized_clipped_interval,
+            "clipped_frame_count": sum(
+                value < -FINAL_INTONATION_CLIP_SEMITONES
+                or value > FINAL_INTONATION_CLIP_SEMITONES
+                for value in raw_semitones
+            ),
+            "window_frame_count": window_frame_count,
+            "window_duration_sec": _rounded_or_none(
+                window_frame_count * frame_sec,
+            ),
+        },
+    )
+    return report
+
+
+def _median(values: list[float]) -> float:
+    ordered = sorted(values)
+    middle = len(ordered) // 2
+    if len(ordered) % 2:
+        return ordered[middle]
+    return (ordered[middle - 1] + ordered[middle]) / 2
 
 
 def _rounded_or_none(value: float | None) -> float | None:

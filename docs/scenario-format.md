@@ -44,6 +44,7 @@ lines:
     situation: 両手にジョッキを持ってテーブルへ運んでいる。
     difficulty: standard    # standard / hard (TTSに難しい要素を含む行)
     loop_ok: true           # ガヤループ素材として繰返し利用可か
+    final_intonation: fall  # fall / rise / free。省略時は fall
 ```
 
 ## フィールドの意図
@@ -59,6 +60,7 @@ lines:
 | `line.delivery` | 演技指示の散文。instruct系モデル (自然文で演技指示できるもの) へ渡す |
 | `line.reading` | 漢字の誤読対策。読み指定対応モデ用。非対応モデルには使わない (誤読も品質差として観測する) |
 | `line.difficulty` | `hard` = 方言・叫び・笑い混じり・囁き・フィラー・非言語音などTTSの苦手要素を含む行。集計分析用 |
+| `line.final_intonation` | 発話末尾のイントネーション要件。`fall / rise / free`。任意で、省略時は `fall` として扱う |
 
 `辛い / 行った / 人気 / 大分` のように文脈で読みが変わる語を含む場合、
 `line.reading` を省略すると `gaya validate` が warning を出す。自動 G2P
@@ -67,6 +69,14 @@ lines:
 ## emotion enum
 
 `neutral / cheerful / angry / sad / fearful / surprised / tired / drunk / whisper / shout / laughing / pain`
+
+## final_intonation enum
+
+`fall / rise / free`
+
+- `fall`: 発話末尾を下降調にする
+- `rise`: 発話末尾を上昇調にする
+- `free`: 発話末尾のイントネーションを指定しない
 
 enumはフィルタと機械マッピングのための粗い分類。ニュアンスは `delivery` の散文で表現する。
 

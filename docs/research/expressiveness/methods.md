@@ -29,11 +29,17 @@
 | **2** | **演技参照音声によるスタイル転写** | 感情×強度の**アンカー音声グリッド** (3-10秒×12感情×3強度) を `assets/voices` に登録し、行の emotion/intensity でアンカーを選択。Qwen は ICL モード (ref_audio+ref_text) 必須、GPT-SoVITS は感情別参照 + 複数参照融合、VoxCPM2 は Controllable Cloning で参照+指示の併用 | ◎ | **M** (アンカー素材の用意が本体) | ◎ 一度作れば行→アンカーのマッピングは機械的 | ○ | △ **アンカー音声の出所が最大の論点**。自前録音か許諾済み素材のみ。VoiceDesign 生成物をアンカーにすれば権利は閉じる |
 | **3** | **人間ガイド→VC** | 自分で演技録音 → RVC v2 (要 10-20分の対象音声で学習) または Seed-VC V2 (ゼロショット 1-30秒、FT は1発話/100step) で声質だけ差し替え | ◎ (演技品質は最高) | **M〜L** (録音工数 + VC 環境) | △ 行数に比例して人間の録音時間が線形に増える。ガヤは5-30文字なので153行で1-2時間程度だが、**「TTSベンチ」から「VCベンチ」へ企画が変質する** | ○ RVC/Seed-VC とも小型で余裕 | ○ ガヤ演技は Owner 自身の声 → クリーン。**ただし RVC エコシステムの既存配布モデル (声優・著名人) は絶対に使わない**。変換先音色は VoiceDesign 生成声か許諾素材に限定 |
 | **4** | **音声編集・感情変換パス** | ①Step-Audio-EditX で生成後に感情/話法/パラ言語/速度を後編集 (反復2-3回で精度が飽和)<br>②EmoSteer-TTS 型 activation steering (flow-matching DiT 限定: F5/E2/CosyVoice2 → **Irodori-TTS も rectified-flow DiT なので適用余地**)<br>③TED-TTS 型の発話内感情・duration steering | ◎ (①)<br>○ (②③、要移植) | **M** (①: 推論足すだけ)<br>**L** (②③: 研究実装の移植) | ○ ①は行単位バッチ可、ただし生成の後段にもう1モデル分の時間が乗る | ○ ①12GB最小/16GB推奨、4bit 6-8GB。**4070Ti 12GB は最小要件ちょうど** | ✗ **①は重みライセンス未記載のまま。保留継続が妥当** ②③はコード公開だが論文実装 |
-| **5** | **明示的韻律制御** | ①AivisSpeech の `speedScale`/`pitchScale`/`intonationScale`(=スタイル感情強度 1.0-2.0)/`tempoDynamicsScale`(0.0-2.0, テンポ揺らぎ強度)/`volumeScale` + AudioQuery のモーラ単位編集<br>②MFA (日本語 境界誤差 <15ms) で強制アライン → フレーズ分割 → 区間別タイムストレッチ + 間の挿入<br>③Praat/Parselmouth の TD-PSOLA によるピッチ・尺再形成 (自然さで WORLD より優位)、pyworld で F0 再合成 | ○ (①は緩急に確実に効く)<br>△ (②③は緩急は付くが**演技は付かない**) | **S** (②③は CPU・スクリプトのみ)<br>**S** (①は既存 REST API) | ◎ 完全決定論的・再現可能・差分検証しやすい | ◎ ①は CPU/RAM 1.5GB、②③も CPU | ○ AivisSpeech は ACML-1.0 公式モデル限定運用を継続。Praat/MFA/pyworld はツール側の権利問題なし |
+| **5** | **明示的韻律制御** | ①AivisSpeech の `speedScale`/`pitchScale`/`intonationScale` (=選択スタイルの感情表現強度 0.0-2.0)/`tempoDynamicsScale` (0.0-2.0, テンポ揺らぎ強度)/`volumeScale`。`Mora.consonant_length` / `vowel_length` / `pitch` は編集不能<br>②MFA (日本語 境界誤差 <15ms) で強制アライン → フレーズ分割 → 区間別タイムストレッチ + 間の挿入<br>③Praat/Parselmouth の TD-PSOLA によるピッチ・尺再形成 (自然さで WORLD より優位)、pyworld で F0 再合成 | ○ (①は発話全体の速度・スタイル強度・緩急に作用)<br>△ (②③は緩急は付くが**演技は付かない**) | **S** (②③は CPU・スクリプトのみ)<br>**S** (①は既存 REST API) | ○ ①は公開 API に seed 指定がなく反復比較が必要<br>◎ ②③は決定論的 | ◎ ①は CPU/RAM 1.5GB、②③も CPU | ○ AivisSpeech は ACML-1.0 公式モデル限定運用を継続。Praat/MFA/pyworld はツール側の権利問題なし |
 | **6** | **マルチテイク自動選抜** | 1行 N テイク (seed/温度を振る) → ①Whisper large-v3 で CER/WER (誤読・欠落を棄却) ②emotion2vec_plus_large の目標感情セントロイドとの cos (=EECS, **演技度**) ③UTMOSv2 fusion_stage3 (自然さ, VoiceMOS2024優勝) ④ECAPA/WavLM SECS (キャラ同一性) ⑤pyworld で F0/energy/話速の分散 (**低分散=棒読み検出**) → 加重で最良テイク採用 | ◎ | **M** (スコアラ1モジュール + manifest への選抜パス) | ◎ **完全自動化前提の設計。モデル非依存で全アダプタに効く** | ○ 評価器はいずれも小型。コストは N 倍の生成時間のみ (Qwen は数秒/行、N=5×153 で現実的) | ○ 評価器はすべて研究公開モデル |
 | **7** | **微調整 (LoRA/FT)** | 演技コーパスで Qwen3-TTS Base を LoRA/FT | **×** | **L** | ✗ | △ | △ 学習素材の権利処理が別途必要 |
 
 ### 補足: 7 に × を付けた根拠 (一次実験結果)
+
+AivisSpeech Engine 1.2.0 では `Mora.consonant_length` / `vowel_length` /
+`pitch` は常にダミー値 `0.0` で、変更しても音声合成結果へ反映されない。
+`intonationScale` も全体のピッチレンジではなく、選択した話者スタイルの
+感情表現強度である。全スタイル平均の Normal ではこの値が無視されるため、
+語尾下降を直接制御するパラメータとして扱わない。
 
 arXiv:2606.05367 §3.1.1 / §4.1 Step 1 が Qwen3-TTS-12Hz-1.7B に対して直接実施している。
 
@@ -134,7 +140,7 @@ MFA (日本語 境界誤差 <15ms) で強制アライン → フレーズ分割 
 - [Aratako/Irodori-TTS-600M-v3-VoiceDesign](https://huggingface.co/Aratako/Irodori-TTS-600M-v3-VoiceDesign) — caption/絵文字/参照音声の3条件、Semantic-DACVAE 32次元、rectified-flow DiT、MIT + 利用方針
 - [Irodori-TTS EMOJI_ANNOTATIONS.md](https://huggingface.co/Aratako/Irodori-TTS-600M-v3-VoiceDesign/blob/main/EMOJI_ANNOTATIONS.md) — 絵文字45種の完全リストと反復による強度制御
 - [openbmb/VoxCPM2](https://huggingface.co/openbmb/VoxCPM2) / [VoxCPM2 Technical Report (arXiv:2606.06928)](https://arxiv.org/pdf/2606.06928) — Voice Design と Controllable Cloning、Apache-2.0
-- [Aivis-Project/AivisSpeech-Engine README](https://github.com/Aivis-Project/AivisSpeech-Engine/blob/master/README.md) — `intonationScale` が「スタイルの感情表現の強さ」を意味する VOICEVOX との差異、`tempoDynamicsScale` 等
+- [AivisSpeech Engine 1.2.0 README](https://github.com/Aivis-Project/AivisSpeech-Engine/blob/0a310883265c64f43365fde5593b1296b14ae99b/README.md) — `Mora` の長さ・pitchがダミーであること、`intonationScale` が「スタイルの感情表現の強さ」を意味すること、`tempoDynamicsScale` 等
 - [stepfun-ai/Step-Audio-EditX (HF)](https://huggingface.co/stepfun-ai/Step-Audio-EditX) / [GitHub](https://github.com/stepfun-ai/Step-Audio-EditX) — 編集能力、反復編集、日本語対応 (2025-11-28)、12GB 最小、ライセンス記述の範囲
 - [RVC-Boss/GPT-SoVITS features wiki](https://github.com/RVC-Boss/GPT-SoVITS/wiki/GPT%E2%80%90SoVITS%E2%80%90features-(%E5%90%84%E7%89%88%E6%9C%AC%E7%89%B9%E6%80%A7)) — v2ProPlus の複数参照音声融合、多言語テキスト感情抽出、RoPE 化
 - [Plachtaa/seed-vc](https://github.com/Plachtaa/seed-vc) — V1/V2 構成、`convert-style` と AR モジュールによるアクセント・感情変換、FT 要件

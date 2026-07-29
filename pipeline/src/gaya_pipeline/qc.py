@@ -9,7 +9,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Protocol
+from typing import Any, Literal, Protocol, cast
 
 import yaml
 
@@ -60,6 +60,9 @@ class QCError(RuntimeError):
     pass
 
 
+type FinalIntonation = Literal["fall", "rise", "free"]
+
+
 @dataclass(frozen=True)
 class RuntimeInspection:
     transcript: str
@@ -77,6 +80,7 @@ class QCRuntime(Protocol):
         audio_path: Path,
         *,
         mora_count: int,
+        final_intonation: FinalIntonation,
     ) -> RuntimeInspection: ...
 
 
@@ -100,6 +104,7 @@ class QCSummary:
 class _ScenarioInput:
     line: Mapping[str, Any]
     expected_reading: Mapping[str, Any]
+    final_intonation: FinalIntonation
 
 
 @dataclass(frozen=True)
@@ -126,6 +131,7 @@ class _ProvenanceError(RuntimeError):
 REPORT_FORMAT_VERSION = 2
 GATE_POLICY_VERSION = "take-gates-v2"
 VARIANT = "dry"
+FINAL_INTONATIONS = frozenset({"fall", "rise", "free"})
 
 
 def _invalidate_existing_snapshot(
@@ -462,6 +468,7 @@ def _run_qc_transaction(
                         mora_count=count_japanese_mora(
                             str(item.scenario.expected_reading["normalized"]),
                         ),
+                        final_intonation=item.scenario.final_intonation,
                     )
                 except Exception as error:
                     ledger = _record_blocked(
@@ -603,9 +610,17 @@ def _load_scenarios(
                     f"scenario reading を解決できません: "
                     f"{scenario_id}/{line.get('id')}: {error}",
                 ) from error
+            try:
+                final_intonation = _final_intonation(line)
+            except ValueError as error:
+                raise _ProvenanceError(
+                    "scenario final_intonation を解決できません: "
+                    f"{scenario_id}/{line.get('id')}: {error}",
+                ) from error
             catalog[(scenario_id, str(line["id"]))] = _ScenarioInput(
                 line=line,
                 expected_reading=expected,
+                final_intonation=final_intonation,
             )
 
     actual_source_sha = _current_scenario_source_sha(
@@ -638,6 +653,15 @@ def _expected_reading(line: Mapping[str, Any]) -> dict[str, Any]:
             for item in ambiguous
         ],
     }
+
+
+def _final_intonation(line: Mapping[str, Any]) -> FinalIntonation:
+    if "final_intonation" not in line:
+        return "fall"
+    value = line["final_intonation"]
+    if not isinstance(value, str) or value not in FINAL_INTONATIONS:
+        raise ValueError("fall / rise / free のいずれかが必要です。")
+    return cast(FinalIntonation, value)
 
 
 def _mechanical_gate(

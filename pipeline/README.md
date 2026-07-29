@@ -52,6 +52,33 @@ fail-fast する。策展後の再 QC には新しい generation run が必要�
 真値は `line.reading` で明記する。report schema、判定境界、固定 runtime、
 韻律 feature は [読み・韻律 QC](../docs/reading-qc.md) を参照。
 
+## 語尾イントネーション分布レポート
+
+terminal generation run の v2 QC authority を読み取り、eligible take だけを
+model × gender で集計する:
+
+```console
+uv run --project pipeline --locked --extra qc gaya intonation report \
+  --run-id <run-id> \
+  --artifacts artifacts \
+  --scenarios scenarios \
+  --output <new-report-directory>
+```
+
+複数 run は `--run-id` を繰り返す。出力先は未作成の directory を指定する。
+コマンドは全 attempt が terminal であること、current scenario source、ledger、
+v2 `qc-report.json`、eligible Opus の SHA-256 を検証し、mono 16kHz に decode して
+QC と同じ F0 解析を再実行する。分析 runtime は run 群に対して1回だけ準備し、
+固定した librosa / NumPy の実バージョンと ffmpeg executable / version identity を
+検証してレポートへ記録する。
+JSON と Markdown は deterministic に原子作成し、既存 ledger / QC report は変更しない。
+
+F0 の全数値は `(model, scenario, character)` を話者キーに、算術平均と母標準偏差で
+within-speaker z 正規化する。測定数が2未満、または母標準偏差が0なら z は `null`。
+レポートは model × gender ごとの実測 n、raw/z 分布、2 semitone の
+`rise_anchor_met` と、期待値 `fall` に対する unexpected rise の件数・率を含む。
+いずれも report-only であり、quality gate には使わない。
+
 ## ローカル take 策展の適用
 
 サイトが export した curation format v1 を terminal run に適用する:

@@ -2,10 +2,12 @@ from __future__ import annotations
 
 import hashlib
 import json
+import shutil
 from pathlib import Path
 from typing import Any
 
 import pytest
+import yaml
 
 from gaya_pipeline import cli, qc
 from gaya_pipeline.audio import (
@@ -51,6 +53,7 @@ class FakeRuntime:
         self.prepare_calls = 0
         self.inspect_calls = 0
         self.mora_counts: list[int] = []
+        self.final_intonations: list[str] = []
 
     def prepare(self) -> None:
         self.prepare_calls += 1
@@ -69,9 +72,11 @@ class FakeRuntime:
         audio_path: Path,
         *,
         mora_count: int,
+        final_intonation: str,
     ) -> RuntimeInspection:
         self.inspect_calls += 1
         self.mora_counts.append(mora_count)
+        self.final_intonations.append(final_intonation)
         assert audio_path.is_file()
         if self.inspect_error is not None:
             raise self.inspect_error
@@ -83,7 +88,23 @@ class FakeRuntime:
                 "active_speech_sec": self.active_speech_sec,
                 "estimated_mora_count": mora_count,
                 "pause": {"internal_count": 1},
-                "f0": {"median_hz": 150.0},
+                "f0": {
+                    "median_hz": 150.0,
+                    "final_intonation": {
+                        "expected": final_intonation,
+                        "policy": "report_only",
+                        "rise_anchor_semitones": 2.0,
+                        "rise_anchor_met": True,
+                        "raw_interval_semitones": 4.5,
+                        "clipped_interval_semitones": 4.5,
+                        "clipped_frame_count": 0,
+                        "voiced_tail_frame_count": 8,
+                        "voiced_tail_duration_sec": 0.128,
+                        "window_frame_count": 8,
+                        "window_duration_sec": 0.128,
+                        "reason": None,
+                    },
+                },
             },
         )
 
@@ -125,6 +146,7 @@ def test_explicit_reading_pass_creates_eligible_snapshot(tmp_path: Path) -> None
     assert runtime.mora_counts == [
         count_japanese_mora("ウチノマーボーワカライヨ、カクゴシナ！"),
     ]
+    assert runtime.final_intonations == ["fall"]
     assert summary.eligible_count == 1
     assert summary.blocked_count == 0
     assert summary.pending_count == 0
@@ -167,6 +189,66 @@ def test_explicit_reading_pass_creates_eligible_snapshot(tmp_path: Path) -> None
     assert report["attempts"][0]["content"]["prosody"]["pause"] == {
         "internal_count": 1,
     }
+
+
+def test_明示したriseをreport_onlyで渡して強い上昇でもgateを変えない(
+    tmp_path: Path,
+) -> None:
+    scenarios_dir = tmp_path / "scenarios"
+    shutil.copytree(SCENARIOS_DIR, scenarios_dir)
+    shutil.copytree(
+        REPOSITORY_ROOT / "assets" / "voices",
+        tmp_path / "assets" / "voices",
+    )
+    scenario_path = scenarios_dir / "chinatown-street.yaml"
+    scenario = yaml.safe_load(scenario_path.read_text(encoding="utf-8"))
+    line = next(
+        item
+        for item in scenario["lines"]
+        if item["id"] == "shokudo-oyaji-002"
+    )
+    line["final_intonation"] = "rise"
+    scenario_path.write_text(
+        yaml.safe_dump(
+            scenario,
+            allow_unicode=True,
+            sort_keys=False,
+        ),
+        encoding="utf-8",
+    )
+    run_id, ledger_path = _write_generated_run(
+        tmp_path,
+        scenarios_dir=scenarios_dir,
+    )
+    runtime = FakeRuntime("ウチノマーボーワカライヨカクゴシナ")
+
+    summary = run_qc(
+        run_id=run_id,
+        scenarios_dir=scenarios_dir,
+        artifacts_dir=tmp_path / "artifacts",
+        runtime=runtime,
+    )
+
+    assert runtime.final_intonations == ["rise"]
+    assert read_ledger(ledger_path)["attempts"][0]["gates"] == {
+        "mechanical": "pass",
+        "content": "pass",
+    }
+    report = json.loads(summary.report_path.read_text(encoding="utf-8"))
+    final_intonation = report["attempts"][0]["content"]["prosody"]["f0"][
+        "final_intonation"
+    ]
+    assert final_intonation["expected"] == "rise"
+    assert final_intonation["policy"] == "report_only"
+    assert final_intonation["rise_anchor_met"] is True
+    assert final_intonation["clipped_interval_semitones"] == 4.5
+    assert report["attempts"][0]["content"]["review_reason"] is None
+    assert summary.content_review_required_count == 0
+    assert summary.snapshot_path is not None
+    candidate = json.loads(summary.snapshot_path.read_text(encoding="utf-8"))[
+        "candidates"
+    ][0]
+    assert candidate["gate"]["content"] == "pass"
 
 
 def test_explicit_reading_mismatch_is_review_required_and_in_snapshot(
@@ -363,8 +445,13 @@ def test_audio_changed_during_runtime_is_blocked_before_gate_transition(
             audio_path: Path,
             *,
             mora_count: int,
+            final_intonation: str,
         ) -> RuntimeInspection:
-            inspection = super().inspect(audio_path, mora_count=mora_count)
+            inspection = super().inspect(
+                audio_path,
+                mora_count=mora_count,
+                final_intonation=final_intonation,
+            )
             audio_path.write_bytes(b"changed during runtime")
             return inspection
 
@@ -934,12 +1021,13 @@ def _write_generated_run(
     *,
     line_id: str = "shokudo-oyaji-002",
     takes: int = 1,
+    scenarios_dir: Path = SCENARIOS_DIR,
 ) -> tuple[str, Path]:
     run_id = "20260729T000000000000Z-dummy-n1"
     artifacts_dir = tmp_path / "artifacts"
     run_root = artifacts_dir / "takes" / run_id
     scenario_id = "chinatown-street"
-    source_path = SCENARIOS_DIR / f"{scenario_id}.yaml"
+    source_path = scenarios_dir / f"{scenario_id}.yaml"
     source_sha = hashlib.sha256(source_path.read_bytes()).hexdigest()
     group = {
         "model": "dummy",
