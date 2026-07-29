@@ -1,6 +1,7 @@
 {
   "format_version": 4,
   "generated_at": "2026-07-29T12:34:56Z",
+  "candidate_set_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
   "models": [
     {
       "id": "dummy",

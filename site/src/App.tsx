@@ -3,6 +3,7 @@ import { Route, Routes } from "react-router";
 import { AppLayout } from "@/components/app-layout";
 import { AbPage } from "@/pages/ab-page";
 import { CreditsPage } from "@/pages/credits-page";
+import { CuratePage } from "@/pages/curate-page";
 import { HomePage } from "@/pages/home-page";
 import { ModelPage } from "@/pages/model-page";
 import { NotFoundPage } from "@/pages/not-found-page";
@@ -16,6 +17,7 @@ export default function App() {
         <Route path="scenario/:id" element={<ScenarioPage />} />
         <Route path="models/:id" element={<ModelPage />} />
         <Route path="ab" element={<AbPage />} />
+        <Route path="curate" element={<CuratePage />} />
         <Route path="credits" element={<CreditsPage />} />
         <Route path="*" element={<NotFoundPage />} />
       </Route>

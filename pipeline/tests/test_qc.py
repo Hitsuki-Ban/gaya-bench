@@ -15,6 +15,7 @@ from gaya_pipeline.audio import (
     EncodedLoudnessReport,
     PostprocessProfile,
 )
+from gaya_pipeline.curation import apply_curation, canonical_candidate_set_bytes
 from gaya_pipeline.qc import QCError, RuntimeInspection, count_japanese_mora, run_qc
 from gaya_pipeline.take_identity import canonical_json, make_take_id
 from gaya_pipeline.take_ledger import read_ledger, write_ledger_atomic
@@ -149,6 +150,15 @@ def test_explicit_reading_pass_creates_eligible_snapshot(tmp_path: Path) -> None
     }
     report = json.loads(summary.report_path.read_text(encoding="utf-8"))
     assert report["runtime"]["status"] == "ready"
+    assert report["attempts"][0]["mechanical"]["sidecar_provenance"] == {
+        "generation_seconds": 1.0,
+        "postprocess": PostprocessProfile().as_dict(),
+        "toolchain": TOOLS.as_identity(),
+        "loudness": {
+            "normalized_wav": {"integrated_lufs": -18.0},
+            "encoded_opus": {"integrated_lufs": -18.0},
+        },
+    }
     assert report["attempts"][0]["content"]["prosody"]["pause"] == {
         "internal_count": 1,
     }
@@ -295,9 +305,6 @@ def test_runtime_failure_is_blocked_and_never_writes_snapshot(
         prepare_error=RuntimeError("load failed") if stage == "prepare" else None,
         inspect_error=RuntimeError("asr failed") if stage == "inspect" else None,
     )
-    stale_snapshot = ledger_path.parent / "manifest-v4.json"
-    stale_snapshot.write_text("stale", encoding="utf-8")
-
     summary = run_qc(
         run_id=run_id,
         scenarios_dir=SCENARIOS_DIR,
@@ -310,7 +317,6 @@ def test_runtime_failure_is_blocked_and_never_writes_snapshot(
     assert "blocked" in attempt["gates"].values()
     assert summary.blocked_count == 1
     assert summary.snapshot_path is None
-    assert not stale_snapshot.exists()
 
 
 def test_provenance_hash_mismatch_is_blocked_before_runtime(tmp_path: Path) -> None:
@@ -501,6 +507,58 @@ def test_generation_failedだけのterminal_runは音声tool不要でsnapshot化
     assert manifest["failures"][0]["reason"] == "no_eligible_take"
     assert runtime.prepare_calls == 0
     assert runtime.inspect_calls == 0
+
+
+def test_generatedとgeneration_failedの混在はtool不足をstrict_reportへ記録する(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    run_id, ledger_path = _write_generated_run(tmp_path, takes=2)
+    ledger = read_ledger(ledger_path)
+    failed = ledger["attempts"][1]
+    ledger["attempts"][1] = {
+        "model": failed["model"],
+        "scenario": failed["scenario"],
+        "line": failed["line"],
+        "variant": failed["variant"],
+        "take_index": failed["take_index"],
+        "generation_input_sha256": failed["generation_input_sha256"],
+        "generation": {
+            "status": "failed",
+            "seed": failed["generation"]["seed"],
+            "sampling": failed["generation"]["sampling"],
+            "error": "generation failed",
+        },
+        "status": "generation_failed",
+    }
+    write_ledger_atomic(ledger_path, ledger)
+    monkeypatch.setattr(
+        qc,
+        "find_audio_tools",
+        lambda: (_ for _ in ()).throw(AudioProcessingError("tools unavailable")),
+    )
+
+    summary = run_qc(
+        run_id=run_id,
+        scenarios_dir=SCENARIOS_DIR,
+        artifacts_dir=tmp_path / "artifacts",
+        runtime=FakeRuntime("must not inspect"),
+    )
+
+    assert summary.blocked_count == 1
+    assert summary.generation_failed_count == 1
+    assert summary.snapshot_path is None
+    report = json.loads(summary.report_path.read_text(encoding="utf-8"))
+    failed_report = next(
+        attempt
+        for attempt in report["attempts"]
+        if attempt["status"] == "generation_failed"
+    )
+    assert failed_report["mechanical"] == {
+        "status": "not_run",
+        "reason": "tools unavailable",
+    }
+    assert failed_report["content"] == {"status": "not_run"}
 
 
 def test_terminal_rerun_does_not_prepare_or_inspect_runtime(tmp_path: Path) -> None:
@@ -741,3 +799,248 @@ def _write_generated_run(
     ledger_path = run_root / "ledger.json"
     write_ledger_atomic(ledger_path, ledger)
     return run_id, ledger_path
+
+
+def test_terminal_snapshotはcanonical_candidate_setを先に書く(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    run_id, _ledger_path = _write_generated_run(tmp_path)
+    writes: list[str] = []
+    real_write = qc._atomic_write_bytes
+
+    def record_write(path: Path, payload: bytes) -> None:
+        writes.append(path.name)
+        real_write(path, payload)
+
+    monkeypatch.setattr(qc, "_atomic_write_bytes", record_write)
+    summary = run_qc(
+        run_id=run_id,
+        scenarios_dir=SCENARIOS_DIR,
+        artifacts_dir=tmp_path / "artifacts",
+        runtime=FakeRuntime("ウチノマーボーワカライヨカクゴシナ"),
+    )
+
+    assert summary.snapshot_path is not None
+    assert summary.candidate_set_path is not None
+    assert summary.candidate_set_marker_path is not None
+    manifest = json.loads(summary.snapshot_path.read_text(encoding="utf-8"))
+    candidate_set = json.loads(summary.candidate_set_path.read_text(encoding="utf-8"))
+    candidate_bytes = canonical_candidate_set_bytes(candidate_set)
+    candidate_sha = hashlib.sha256(candidate_bytes).hexdigest()
+    assert summary.candidate_set_path.read_bytes() == candidate_bytes
+    assert summary.candidate_set_marker_path.read_bytes() == candidate_sha.encode("ascii")
+    assert manifest["candidate_set_sha256"] == candidate_sha
+    assert set(candidate_set) == {
+        "format_version",
+        "scenario_sha256",
+        "lines",
+        "models",
+        "candidates",
+        "failures",
+    }
+    assert candidate_set["lines"] == [
+        {
+            "scenario": "chinatown-street",
+            "line": "shokudo-oyaji-002",
+            "scenario_title": "中華街・大通りの夕暮れ",
+            "text": "うちの麻婆は辛いよ、覚悟しな！",
+            "delivery": "豪快な笑いを含んだ脅し文句。だみ声が楽しげに揺れる。",
+        },
+    ]
+    assert writes.index("candidate-set.json") < writes.index("manifest-v4.json")
+    assert writes.index("candidate-set.sha256") < writes.index("manifest-v4.json")
+    assert writes.index("candidate-set.json") < writes.index("candidate-set.sha256")
+
+
+def test_snapshot再検証のloudnessをreportとcandidateの同一authorityにする(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    run_id, _ledger_path = _write_generated_run(tmp_path)
+    measurements = iter(
+        [
+            EncodedLoudnessReport(-18.0, -1.0, 4.0),
+            EncodedLoudnessReport(-17.7, -1.0, 4.0),
+        ],
+    )
+    monkeypatch.setattr(
+        qc,
+        "measure_encoded_opus",
+        lambda _tools, _path, _profile: next(measurements),
+    )
+
+    summary = run_qc(
+        run_id=run_id,
+        scenarios_dir=SCENARIOS_DIR,
+        artifacts_dir=tmp_path / "artifacts",
+        runtime=FakeRuntime("ウチノマーボーワカライヨカクゴシナ"),
+    )
+
+    assert summary.snapshot_path is not None
+    manifest = json.loads(summary.snapshot_path.read_text(encoding="utf-8"))
+    report = json.loads(summary.report_path.read_text(encoding="utf-8"))
+    candidate = manifest["candidates"][0]
+    assert report["attempts"][0]["mechanical"]["loudness"]["i_lufs"] == -17.7
+    assert candidate["loudness"]["i_lufs"] == -17.7
+    curation = {
+        "format_version": 1,
+        "rubric_version": "take-curation-v1",
+        "candidate_set_sha256": manifest["candidate_set_sha256"],
+        "groups": [
+            {
+                "model": candidate["model"],
+                "scenario": candidate["scenario"],
+                "line": candidate["line"],
+                "variant": candidate["variant"],
+                "candidates": [
+                    {
+                        "take_id": candidate["take_id"],
+                        "path": candidate["path"],
+                        "audio_sha256": candidate["sha256"],
+                        "rubric": {
+                            "content_correct": True,
+                            "intent_match": 4,
+                            "character_naturalness": 4,
+                            "adoptable": True,
+                        },
+                    },
+                ],
+                "decision": {
+                    "type": "selected",
+                    "take_id": candidate["take_id"],
+                },
+            },
+        ],
+    }
+    input_path = tmp_path / "curation-drift.json"
+    input_path.write_text(json.dumps(curation), encoding="utf-8")
+
+    applied = apply_curation(
+        run_id=run_id,
+        input_path=input_path,
+        artifacts_dir=tmp_path / "artifacts",
+        data_dir=tmp_path / "data",
+        scenarios_dir=SCENARIOS_DIR,
+    )
+
+    assert applied.added_projection_count == 1
+
+
+def test_QC_apply_QCは新runを要求してbundleとartifactのbytesを保持(
+    tmp_path: Path,
+) -> None:
+    run_id, _ledger_path = _write_generated_run(tmp_path)
+    first_qc = run_qc(
+        run_id=run_id,
+        scenarios_dir=SCENARIOS_DIR,
+        artifacts_dir=tmp_path / "artifacts",
+        runtime=FakeRuntime("ウチノマーボーワカライヨカクゴシナ"),
+    )
+    assert first_qc.snapshot_path is not None
+    assert first_qc.candidate_set_path is not None
+    assert first_qc.candidate_set_marker_path is not None
+    manifest = json.loads(first_qc.snapshot_path.read_text(encoding="utf-8"))
+    candidate = manifest["candidates"][0]
+    curation = {
+        "format_version": 1,
+        "rubric_version": "take-curation-v1",
+        "candidate_set_sha256": manifest["candidate_set_sha256"],
+        "groups": [
+            {
+                "model": candidate["model"],
+                "scenario": candidate["scenario"],
+                "line": candidate["line"],
+                "variant": candidate["variant"],
+                "candidates": [
+                    {
+                        "take_id": candidate["take_id"],
+                        "path": candidate["path"],
+                        "audio_sha256": candidate["sha256"],
+                        "rubric": {
+                            "content_correct": True,
+                            "intent_match": 4,
+                            "character_naturalness": 4,
+                            "adoptable": True,
+                        },
+                    },
+                ],
+                "decision": {
+                    "type": "selected",
+                    "take_id": candidate["take_id"],
+                },
+            },
+        ],
+    }
+    input_path = tmp_path / "curation.json"
+    input_path.write_text(json.dumps(curation), encoding="utf-8")
+    applied = apply_curation(
+        run_id=run_id,
+        input_path=input_path,
+        artifacts_dir=tmp_path / "artifacts",
+        data_dir=tmp_path / "data",
+        scenarios_dir=SCENARIOS_DIR,
+    )
+    watched = (
+        first_qc.snapshot_path,
+        first_qc.candidate_set_marker_path,
+        first_qc.candidate_set_path,
+        applied.artifact_path,
+    )
+    before = {path: path.read_bytes() for path in watched}
+
+    with pytest.raises(QCError, match="新しい generation run"):
+        run_qc(
+            run_id=run_id,
+            scenarios_dir=SCENARIOS_DIR,
+            artifacts_dir=tmp_path / "artifacts",
+            runtime=FakeRuntime("unused"),
+        )
+
+    assert {path: path.read_bytes() for path in watched} == before
+
+
+def test_qc開始時は壊れたsnapshot_bundleを無変更で拒否(
+    tmp_path: Path,
+) -> None:
+    run_id, ledger_path = _write_generated_run(tmp_path)
+    snapshot_path = ledger_path.parent / "manifest-v4.json"
+    candidate_set_path = ledger_path.parent / "candidate-set.json"
+    marker_path = ledger_path.parent / "candidate-set.sha256"
+    snapshot_path.write_bytes(b"stale manifest")
+    candidate_set_path.write_bytes(b"stale candidate set")
+    marker_path.write_bytes(b"0" * 64)
+    before = {
+        path: path.read_bytes()
+        for path in (snapshot_path, marker_path, candidate_set_path)
+    }
+
+    with pytest.raises(QCError, match="不正"):
+        run_qc(
+            run_id=run_id,
+            scenarios_dir=SCENARIOS_DIR,
+            artifacts_dir=tmp_path / "artifacts",
+            runtime=FakeRuntime("unused", prepare_error=RuntimeError("load failed")),
+        )
+
+    assert {path: path.read_bytes() for path in before} == before
+
+
+def test_三文件状态不完整时ledger読込前に無変更で拒否(tmp_path: Path) -> None:
+    run_root = tmp_path / "artifacts" / "takes" / "broken-run"
+    run_root.mkdir(parents=True)
+    snapshot_path = run_root / "manifest-v4.json"
+    candidate_set_path = run_root / "candidate-set.json"
+    snapshot_path.write_bytes(b"stale manifest")
+    candidate_set_path.write_bytes(b"stale candidate set")
+    before = (snapshot_path.read_bytes(), candidate_set_path.read_bytes())
+
+    with pytest.raises(QCError, match="snapshot bundle"):
+        run_qc(
+            run_id="broken-run",
+            scenarios_dir=SCENARIOS_DIR,
+            artifacts_dir=tmp_path / "artifacts",
+            runtime=FakeRuntime("unused"),
+        )
+
+    assert (snapshot_path.read_bytes(), candidate_set_path.read_bytes()) == before

@@ -30,14 +30,53 @@ uv sync --project pipeline --locked --extra qc
 uv run --project pipeline --locked --extra qc gaya qc --run-id <run-id>
 ```
 
-入力は `artifacts/takes/<run-id>/ledger.json` と同 run の sidecar/audio
-だけである。結果は同 run root の `qc-report.json` に記録し、全 attempt が
-terminal のときだけ `manifest-v4.json` を原子的に確定する。公開中の
+入力は `artifacts/takes/<run-id>/ledger.json`、同 run の sidecar/audio、
+および ledger の SHA と一致する current `scenarios/` である。結果は同 run root の
+`qc-report.json` に記録し、全 attempt が
+terminal のときだけ canonical `candidate-set.json` を先に書き、
+その raw bytes の SHA-256 を改行なし lowercase ASCII の
+`candidate-set.sha256` に書き、最後に同じ SHA を持つ `manifest-v4.json` を
+ready marker として原子的に確定する。candidate set は ledger に固定された
+scenario source の SHA と、対象 line の scenario title / text / delivery を含む。
+QC 開始時は manifest → SHA marker → candidate set の順で旧 snapshot を無効化する。
+3 ファイルの欠落・破損・不一致または既存 curation があれば、どれも削除せず
+fail-fast する。策展後の再 QC には新しい generation run が必要である。公開中の
 `data/manifest.json` は変更しない。ASR は
 `sbintuitions/kana-whisper@88ecb3d79c5846cb4fcf76f4107b84c8fa2acd82`
 を CUDA/FP16 で実行し、別 device/model へ自動切替しない。多読み語の
 真値は `line.reading` で明記する。report schema、判定境界、固定 runtime、
 韻律 feature は [読み・韻律 QC](../docs/reading-qc.md) を参照。
+
+## ローカル take 策展の適用
+
+サイトが export した curation format v1 を terminal run に適用する:
+
+```console
+uv run --project pipeline --locked gaya curate apply \
+  --run-id <run-id> \
+  --input <curation.json>
+```
+
+strict terminal ledger、current scenario source、`candidate-set.json`、
+`candidate-set.sha256`、`manifest-v4.json`、`qc-report.json`、および各 eligible
+candidate に対応する同 run の WAV / Opus / take sidecar を検証してから、
+canonical artifact を `data/curation/<curation_sha256>.json` に immutable 保存し、
+その SHA を参照する selected/skipped projection を local v4 snapshot に原子的に
+追加する。既存 projection は参照先 artifact の filename/content SHA、canonical
+bytes、candidate-set SHA、group と decision まで再検証する。新しい artifact に
+既存 group と完全に同じ内容が含まれる場合は旧 projection/SHA を保持し、新規
+group だけを追加する。referenced artifact の全 group は manifest projection を
+持ち、その group の権威 artifact と完全に一致しなければならない。eligible
+ledger attempt と candidate slot/provenance の不一致、candidate/failure による
+source group の被覆不一致、candidate set の stale、候補の欠落/過剰、
+path/SHA/rubric の不一致、既存 group と異なる内容は全書込前に拒否する。
+QC report は candidate の loudness / gate policy と、sidecar の
+generation seconds / postprocess / toolchain / loudness を snapshot 確定時の値へ
+拘束する。QC と apply は同じ run-level file lock を transaction 全体で取得し、
+同一 run へのローカル並行更新を直列化する。競合中は短い間隔で待機を継続し、
+先行 transaction の完了後に順番に取得する（任意の timeout は設けない）。
+既存判断の置換、candidate 0、欠落設定の fallback は行わず、公開中の
+`data/manifest.json` も変更しない。
 
 ## ダミー音声生成
 

@@ -32,6 +32,14 @@ def test_manifest_v4のexact_fixture() -> None:
     assert validate_manifest_v4(manifest) is manifest
 
 
+@pytest.mark.parametrize("value", [None, "", "A" * 64, "0" * 63])
+def test_candidate_set_sha256は完全な小文字SHA256が必須(value: object) -> None:
+    manifest = _manifest()
+    manifest["candidate_set_sha256"] = value
+    with pytest.raises(TakeManifestError, match="candidate_set_sha256"):
+        validate_manifest_v4(manifest)
+
+
 @pytest.mark.parametrize(
     "field",
     ["take_index", "take_id", "generation_input_sha256"],
