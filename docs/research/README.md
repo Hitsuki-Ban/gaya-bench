@@ -10,5 +10,6 @@
 | `silentcipher-survival.md` | Irodori出力の後処理段階別SilentCipher残存率 | Codex |
 | `opus-true-peak-ceiling.md` | Opus配信用True Peakのエンコード前シーリング実測 | Codex |
 | `generation-log.md` | モデル別の全量生成・公開ログ | Codex |
+| `rekion-download-feasibility.md` | NDL「歴史的音源」の音源取得可否・公開メタデータ集計・代替経路 | Codex |
 
 ルール: 主張には出典URLを付ける。ライセンスは一次情報 (LICENSE/モデルカード/公式規約) で確認。不確実な点は「要確認」と明記。

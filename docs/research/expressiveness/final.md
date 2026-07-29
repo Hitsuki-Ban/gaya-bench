@@ -20,7 +20,7 @@ Qwen x-vector arithmetic、EmoSteer、TED-TTS は研究トラックに置く。S
 | P0 | 既存 native-control 3 経路の比較 + Qwen 感情参照 A/B | #74 後続実験 / #79 | 既にある能力を測り、中立参照原因仮説を検証 | blind 人評、読み・声質非悪化 |
 | P0 | 読み QA と音響 feature 抽出 | #75 | hard gate と scorer の共通基盤 | 誤読再現、`gaya qc`、全 clip report |
 | P1 | N テイク harness 設計・実装 | #76 | 数打ちガチャを人間が扱える量へ絞る | hard gate / soft rank / 人間選抜を分離 |
-| P1 | れきおん取得条件と anchor 候補 | #82 | duration / pause の日本語参考資産 | 取得条件確認、出所 metadata |
+| P1 | れきおん取得条件と anchor 候補 | #82 | duration / pause の日本語参考資産 | **調査済み: 公式音源DLなし。提供照会または新規収録が必要** |
 | P2 | x-vector 日本語 canary | 新規実験 Issue | Qwen の連続的感情強度 | ライセンス解決後、3 emotion の A/B |
 
 ## 2. 統合した事実
@@ -294,7 +294,7 @@ soft score の重みは、24 行以上の blind 人評との相関から決め�
 - emotion2vec / DS-WED / x-vector 公式実装のライセンス。
 - Qwen emotion reference が日本語で実際に効くか。
 - scorer と日本語 RPG 短文の人評相関。
-- れきおんインターネット公開音源の正規取得方法。
+- れきおんは公式音源ダウンロードも複写も提供されていない。元音源の提供照会または新規収録へ切り替えるかの判断。
 
 未解決事項を silent fallback や推定値で埋めない。必要なモデル、参照、score definition、schema version が欠ける場合は、その実験または生成を明示的に失敗させる。
 
