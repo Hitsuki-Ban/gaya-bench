@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import io
 import shutil
+import sys
 from pathlib import Path
 
 import pytest
@@ -222,6 +224,27 @@ def test_cli_reports_file_target_reason_and_nonzero_exit(
     assert "broken-reference.yaml" in captured.err
     assert "broken-reference/guard-001" in captured.err
     assert "missing-character" in captured.err
+
+
+def test_top_level_help_is_printable_to_strict_cp936_stdout(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    output_buffer = io.BytesIO()
+    stdout = io.TextIOWrapper(
+        output_buffer,
+        encoding="cp936",
+        errors="strict",
+    )
+    monkeypatch.setattr(sys, "stdout", stdout)
+
+    with pytest.raises(SystemExit) as error:
+        main(["--help"])
+
+    stdout.flush()
+    output = output_buffer.getvalue().decode("cp936")
+    assert error.value.code == 0
+    assert "シナリオ YAML を検証する" in output
+    assert "N3 pilot bundle を構築して解析する" in output
 
 
 def test_ambiguous_reading_without_explicit_reading_is_warning(
