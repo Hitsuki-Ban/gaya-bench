@@ -19,6 +19,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { loadPilotCatalog } from "@/pilot/catalog";
 import { buildPilotDecisionJson, downloadPilotDecisionJson } from "@/pilot/export";
+import { findNextUndecidedGroupIndex } from "@/pilot/navigation";
 import {
   clearPilotGroupDecision,
   createPilotDecisionDraft,
@@ -147,6 +148,15 @@ export function PilotPage() {
   const progress = draft ? summarizeDraft(draft) : null;
   const catalogGroup = catalog?.groups[groupIndex];
   const groupDraft = draft?.groups[groupIndex];
+  const handleNextUndecided = () => {
+    if (!draft) {
+      return;
+    }
+    const nextIndex = findNextUndecidedGroupIndex(draft.groups, groupIndex);
+    if (nextIndex !== null) {
+      setGroupIndex(nextIndex);
+    }
+  };
 
   return (
     <div className="space-y-5">
@@ -213,6 +223,7 @@ export function PilotPage() {
           <PilotSummary
             current={groupIndex}
             onExport={handleExport}
+            onNextUndecided={handleNextUndecided}
             onReset={handleReset}
             progress={progress}
             total={catalog.groups.length}
@@ -257,12 +268,14 @@ export function PilotPage() {
 function PilotSummary({
   current,
   onExport,
+  onNextUndecided,
   onReset,
   progress,
   total,
 }: {
   current: number;
   onExport: () => void;
+  onNextUndecided: () => void;
   onReset: () => void;
   progress: ReturnType<typeof summarizeDraft>;
   total: number;
@@ -295,6 +308,10 @@ function PilotSummary({
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
+          <Button disabled={progress.undecided === 0} onClick={onNextUndecided} variant="outline">
+            <SkipForward aria-hidden="true" />
+            次の未評価
+          </Button>
           <Button disabled={progress.undecided > 0} onClick={onExport} variant="outline">
             <Download aria-hidden="true" />
             pilot-decision.json

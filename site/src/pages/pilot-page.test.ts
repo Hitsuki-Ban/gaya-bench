@@ -3,6 +3,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vite-plus/test";
 
 import { PilotGroupEditor } from "@/pages/pilot-page";
+import { findNextUndecidedGroupIndex } from "@/pilot/navigation";
 import type { PilotGroupDraft, PilotGroupPresentation } from "@/pilot/types";
 
 describe("PilotGroupEditor", () => {
@@ -77,6 +78,25 @@ describe("PilotGroupEditor", () => {
     ]) {
       expect(markup).not.toContain(hidden);
     }
+  });
+});
+
+describe("findNextUndecidedGroupIndex", () => {
+  const selected = {
+    decision: { type: "selected" as const, candidate_id: hex(1) },
+  };
+  const skipped = { decision: { type: "skipped" as const } };
+  const undecided = { decision: null };
+
+  it("現在位置より後ろの未評価 group へ進み、末尾では先頭へ循環する", () => {
+    const groups = [undecided, selected, skipped, undecided];
+
+    expect(findNextUndecidedGroupIndex(groups, 0)).toBe(3);
+    expect(findNextUndecidedGroupIndex(groups, 3)).toBe(0);
+  });
+
+  it("全 group 評価済みなら移動先を返さない", () => {
+    expect(findNextUndecidedGroupIndex([selected, skipped], 0)).toBeNull();
   });
 });
 
