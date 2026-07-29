@@ -76,9 +76,10 @@ torch/torchaudio 2.8.0+cpu を解決した。固定 checkpoint と bundled confi
 `mos`、`frame_error_logits`、`frame_lengths` が返った。cache warm 後の実測は
 load 6.867 秒、推論 0.116 秒だった。合成正弦波の MOS 値は品質根拠として使わない。
 
-恒久化案は、明示コマンドでだけ起動する独立 Python 3.10 runtime とし、
-同一 line の N take 内ランキングだけを出力する。pipeline 3.12 からの
-silent fallback、gate 接続、絶対 score 閾値、mora 自動推定 fallback は設けない。
+恒久化は Issue #127 の `pasqa-ranking/` で、明示コマンドでだけ起動する
+独立 Python 3.10 runtime として実装した。同一 line / model / variant の
+N take 内ランキングだけを出力する。pipeline 3.12 からの silent fallback、
+gate 接続、絶対 score 閾値、mora 自動推定 fallback は設けない。
 
 ## AivisSpeech style 群比較
 
