@@ -148,86 +148,15 @@ uv run --project pipeline gaya gen --model dummy --scenario tavern-night --takes
 uv run --project pipeline gaya gen --model dummy --scenario tavern-night --line barmaid-001 --takes 1 --seed-base 42
 ```
 
-生成物は `artifacts/takes/<run-id>/audio/`、操作履歴は同じ run root の `ledger.json` に出力される。`--takes` と `--seed-base` は必須で、seed を持たない deterministic adapter は `--takes 1` だけを受理する。`gaya gen` は公開用 `data/manifest.json` を読まず書かず、v4 cutover まで既存 v3 manifest は read-only のまま保持する。`ffmpeg` と `ffprobe`（libopus encoder を含む）が必須。後処理 algorithm v7 は -18 LUFS / 48kHz mono に正規化し、エンコード前の `pre_encode_true_peak_target_dbtp` を -1.75 dBTP に固定する。正規化後PCMを再測定し、目標を満たさない場合はlookahead limiterで最大2回補正する。各WAVは libopus 64kbps VBR / application audio で1回だけエンコードする。
+生成物は `artifacts/takes/<run-id>/audio/`、操作履歴は同じ run root の `ledger.json` に出力される。`--takes` と `--seed-base` は必須で、seed を持たない deterministic adapter は `--takes 1` だけを受理する。`gaya gen` は公開用 `data/manifest.json` を読まず書かない。`ffmpeg` と `ffprobe`（libopus encoder を含む）が必須。後処理 algorithm v7 は -18 LUFS / 48kHz mono に正規化し、エンコード前の `pre_encode_true_peak_target_dbtp` を -1.75 dBTP に固定する。正規化後PCMを再測定し、目標を満たさない場合はlookahead limiterで最大2回補正する。各WAVは libopus 64kbps VBR / application audio で1回だけエンコードする。
 
 最終Opusはデコードして再測定し、Integrated Loudness が -18 ±1.5 LUFS を外れるか、True Peak が `distribution_true_peak_max_dbtp` の -0.9 dBTP を超えた場合は生成を失敗させる。エンコード前目標を満たしていても最終 gate を省略せず、codec overshoot は fail-fast で拒否する。±0.2 LUFSを外れるが硬い許容範囲内にある場合は `shortfall` として公開する。-1.75 dBTP の選定根拠と381件の比較結果は [Opus配信用True Peakエンコード前シーリング実測](../docs/research/opus-true-peak-ceiling.md) に記録する。
 
-algorithm v7が生成する現行Nテイクsidecar/ledgerはformat v1を使用する。sidecarはrun/slot、明示的なseed/sampling、`generation_input_sha256`、最終Opusに拘束した`take_id`、実行したffmpeg/ffprobe versionとlibopus capabilityに加え、`loudness.normalized_wav`へエンコード前WAV、`loudness.encoded_opus`へ最終Opusの測定値を記録する。toolchain identityが変わったartifactはwhole-run cacheに再利用しない。`--force`は既存runを上書きせず、新しいrunを作成する。同一生成入力の完了runに異なるtake identityが複数ある場合は自動選択しない。公開`data/manifest.json`はformat v3を維持するが、`gaya gen`からは更新しない。詳細は[設計書](../docs/take-harness-design.md)を参照する。
-
-## 公開 baseline の v4 release candidate
-
-既存公開 v3 の381 clip groupを新 harnessで再生成するときは、最初に raw v3
-manifestと対象集合をcanonical planへ固定する。
-
-```console
-uv run --project pipeline --locked gaya baseline plan \
-  --manifest data/manifest.json \
-  --output artifacts/baseline-v4/baseline-plan.json
-```
-
-planは既存381 clipだけを対象にし、v3に残る過去のfailureは明示的な
-`excluded_failures`として記録する。旧clipに存在しないseed、input SHA、
-take identityは補完しない。各modelは同じplanを`--selection`で参照し、
-N=1の独立runを作る。
-
-```console
-uv run --project pipeline --locked gaya gen \
-  --selection artifacts/baseline-v4/baseline-plan.json \
-  --model <model-id> --takes 1 --seed-base 104
-```
-
-7 model runをQCした後、旧公開Opusのrootと全run idを明示して単一のblind
-curation bundleへ集約する。暗黙のlatest run探索や、plan外groupの切捨ては
-行わない。
-
-```console
-uv run --project pipeline --locked gaya baseline assemble \
-  --plan artifacts/baseline-v4/baseline-plan.json \
-  --legacy-root <既存公開artifact root> \
-  --run-id <run-id-1> --run-id <run-id-2> \
-  --run-id <run-id-3> --run-id <run-id-4> \
-  --run-id <run-id-5> --run-id <run-id-6> \
-  --run-id <run-id-7> \
-  --output artifacts/baseline-v4/curation
-```
-
-bundleはcandidate set、旧公開reference、plan、provenance、7 source runと全音声を
-含む。Dummy source runのcandidate evidenceもledger、QC、sidecar、WAV、Opusごと
-`source-runs/dummy/**`に保持する。一方aggregateではplan上のDummy 161 groupを
-candidateから除外し、`reason=test_only_adapter`のfailureへ固定投影する。
-全Dummy groupのeligible source candidateを投影条件とし、Dummy source failureは
-policy exclusionへ読み替えずassembleをfail fastする。
-top levelにDummy candidate audioは複製せず、策展対象は残る220 candidate group
-だけとする。通常のsource run failure reasonは`no_eligible_take`だけを許可する。
-`baseline-bundle-inventory.json/.sha256`は、自身2ファイルを除く全fileの
-canonical POSIX relative pathとraw SHA-256を固定する。missing、extra、byte
-tamper、大小文字だけが異なるpathはbrowserとpipelineの両方で拒否する。
-旧公開audioは比較専用でcandidateには変換しない。
-
-策展はsiteの`/curate/baseline`でdirectoryを明示選択して行う。
-`content_correct`は厳密な日本語の音調・アクセントまで含み、
-`adoptable`は感情、役としての自然さ、音質を含む独立軸である。
-productionの`selected`は相対winnerではなく公開採用であり、
-`content_correct=true && adoptable=true`を必須とする。全candidate groupを
-selectedまたはskippedにしたdecisionだけをexportできる。Dummy 161 groupは
-candidate-zeroなのでcuration projectionを作らない。
-
-```console
-uv run --project pipeline --locked gaya baseline finalize \
-  --bundle artifacts/baseline-v4/curation-no-dummy \
-  --input <baseline-curation.json> \
-  --output artifacts/baseline-v4/release
-```
-
-finalizeはbundle inventoryを入口と出口で再検証し、7 source runのledger、
-QC、sidecar、WAV/Opus、plan exact coverageをPython側で再証明する。
-最終auditは`381 = candidate_zero + selected + skipped`かつ`uncurated=0`を
-必須とする。詳細なexact contractは
-[baseline v4 protocol](../docs/research/baseline-v4/protocol.md)を参照する。
+algorithm v7が生成する現行Nテイクsidecar/ledgerはformat v1を使用する。sidecarはrun/slot、明示的なseed/sampling、`generation_input_sha256`、最終Opusに拘束した`take_id`、実行したffmpeg/ffprobe versionとlibopus capabilityに加え、`loudness.normalized_wav`へエンコード前WAV、`loudness.encoded_opus`へ最終Opusの測定値を記録する。toolchain identityが変わったartifactはwhole-run cacheに再利用しない。`--force`は既存runを上書きせず、新しいrunを作成する。同一生成入力の完了runに異なるtake identityが複数ある場合は自動選択しない。公開`data/manifest.json`はformat v4のみを受理し、`gaya gen`からは更新しない。詳細は[設計書](../docs/take-harness-design.md)を参照する。
 
 ## R2 への公開
 
-リポジトリルートの `.env` に、`gaya-bench-audio` だけを対象にした R2 Object Read & Write credential を設定する。`.env` と `.env.*` は git 管理外であり、API token / access key / secret をコミットしない。
+明示的に指定する env file に、`gaya-bench-audio` だけを対象にした R2 Object Read & Write credential を設定する。`.env` と `.env.*` は git 管理外であり、API token / access key / secret をコミットしない。
 
 ```dotenv
 CLOUDFLARE_ACCOUNT_ID=<Cloudflare account ID>
@@ -235,15 +164,18 @@ R2_ACCESS_KEY_ID=<R2 access key ID>
 R2_SECRET_ACCESS_KEY=<R2 secret access key>
 ```
 
-プロセス環境に同名の値がある場合はそちらを優先し、不足時は明示的に失敗する。Wrangler の OAuth / API token はバケット設定用、上記 S3 credential は Opus アップロード用であり、用途を混在させない。
+credential は指定した file だけから読み、不足時は明示的に失敗する。Wrangler の OAuth / API token はバケット設定用、上記 S3 credential は Opus アップロード用であり、用途を混在させない。
 
-生成後、manifest と全 Opus の path / SHA-256 を先に検証してから差分アップロードする。
+publisher は固定 release directory の canonical `manifest-v4.json` と raw SHA marker、canonical provenance と markerを検証する。provenance の `run_id` から明示的な takes root 内の source manifest と全 candidate Opus を特定し、candidate exact match、containment、SHA-256、サイズを全件検証してから R2 へ接続する。v3、missing take、rejected/blocked candidate、local-only path、`candidate[0]` fallback は受理しない。
 
 ```console
-uv run --project pipeline --locked gaya publish
+uv run --project pipeline --locked gaya publish \
+  --release <finalized-release-directory> \
+  --takes-root <artifacts/takes-directory> \
+  --env-file <r2-env-file>
 ```
 
-R2 の `HEAD` で `sha256` metadata、サイズ、`Content-Type`、`Cache-Control` が一致するオブジェクトはスキップする。同一生成物に対する2回目の実行はアップロード0件になる。公開 URL は `https://audio.gaya-bench.hitsuki.space/`、サイト本番値は `VITE_AUDIO_BASE=https://audio.gaya-bench.hitsuki.space/` とする。
+全 object の `HEAD` preflight が完了するまで `PUT` は行わない。既存 object の `ChecksumSHA256`、`sha256` metadata、サイズ、`Content-Type`、immutable `Cache-Control` が完全一致すればskipし、checksum欠落を含めてどれか1件でも競合すれば全件0 PUTで失敗する。missing objectだけを `If-None-Match: *` と SHA-256 checksum付きのsingle-part PUTで作成し、曖昧な失敗または412は再HEADしてconcurrent successか競合かを確定する。最後に全objectをHEADし直してから成功するため、同一releaseの再実行はupload 0件となる。R2完了前にPagesまたはmanifestを公開しない。公開 URL は `https://audio.gaya-bench.hitsuki.space/`、サイト本番値は `VITE_AUDIO_BASE=https://audio.gaya-bench.hitsuki.space/` とする。
 
 ## Qwen3-TTS 12Hz-1.7B
 

@@ -108,7 +108,13 @@ export function getDataFilterValues(data: BenchmarkData): {
     "scenario",
   );
   const modelIds = uniqueIds(
-    data.manifest.models.map(({ id }) => id),
+    data.manifest.models
+      .filter((model) =>
+        data.outcomes.some(
+          (outcome) => outcome.kind === "selected" && outcome.group.model === model.id,
+        ),
+      )
+      .map(({ id }) => id),
     "model",
   );
   if (modelIds.length === 0) {

@@ -83,14 +83,17 @@ export type JsonValue =
   | { readonly [key: string]: JsonValue }
   | readonly JsonValue[];
 
-export interface Clip {
+export interface Candidate {
   readonly model: string;
   readonly scenario: string;
   readonly line: string;
   readonly variant: string;
+  readonly take_index: number;
+  readonly take_id: string;
   readonly path: string;
   readonly duration_sec: number;
   readonly sha256: string;
+  readonly generation_input_sha256: string;
   readonly gen_params: { readonly [key: string]: JsonValue };
   readonly rtf: number;
   readonly loudness: {
@@ -99,9 +102,33 @@ export interface Clip {
     readonly tp_dbtp: number;
     readonly shortfall: boolean;
   };
+  readonly gate: {
+    readonly mechanical: "pass";
+    readonly content: "pass" | "review_required";
+    readonly policy_version: string;
+  };
 }
 
-export type GenerationFailureReason = "generation_failed";
+interface CurationBase {
+  readonly model: string;
+  readonly scenario: string;
+  readonly line: string;
+  readonly variant: string;
+  readonly curation_sha256: string;
+}
+
+export interface SelectedCuration extends CurationBase {
+  readonly decision: "selected";
+  readonly take_id: string;
+}
+
+export interface SkippedCuration extends CurationBase {
+  readonly decision: "skipped";
+}
+
+export type Curation = SelectedCuration | SkippedCuration;
+
+export type GenerationFailureReason = "no_eligible_take" | "test_only_adapter";
 
 export interface GenerationFailure {
   readonly model: string;
@@ -112,14 +139,48 @@ export interface GenerationFailure {
 }
 
 export interface Manifest {
-  readonly format_version: 3;
+  readonly format_version: 4;
   readonly generated_at: string;
+  readonly candidate_set_sha256: string;
   readonly models: readonly Model[];
-  readonly clips: readonly Clip[];
+  readonly candidates: readonly Candidate[];
+  readonly curations: readonly Curation[];
   readonly failures: readonly GenerationFailure[];
 }
+
+export interface ArtifactGroup {
+  readonly model: string;
+  readonly scenario: string;
+  readonly line: string;
+  readonly variant: string;
+}
+
+export type ArtifactOutcome =
+  | {
+      readonly kind: "selected";
+      readonly group: ArtifactGroup;
+      readonly candidate: Candidate;
+      readonly curation: SelectedCuration;
+    }
+  | {
+      readonly kind: "skipped";
+      readonly group: ArtifactGroup;
+      readonly candidates: readonly Candidate[];
+      readonly curation: SkippedCuration;
+    }
+  | {
+      readonly kind: "uncurated";
+      readonly group: ArtifactGroup;
+      readonly candidates: readonly Candidate[];
+    }
+  | {
+      readonly kind: "failure";
+      readonly group: ArtifactGroup;
+      readonly failure: GenerationFailure;
+    };
 
 export interface BenchmarkData {
   readonly manifest: Manifest;
   readonly scenarios: readonly Scenario[];
+  readonly outcomes: readonly ArtifactOutcome[];
 }

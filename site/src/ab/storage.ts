@@ -85,7 +85,8 @@ export function decodeStoredVotes(
   assertDatasetShape(decoded.dataset);
   if (
     decoded.dataset.formatVersion !== dataset.formatVersion ||
-    decoded.dataset.generatedAt !== dataset.generatedAt
+    decoded.dataset.generatedAt !== dataset.generatedAt ||
+    decoded.dataset.candidateSetSha256 !== dataset.candidateSetSha256
   ) {
     throw new Error("A/B 投票の保存データは現在の dataset と一致しません。");
   }
@@ -117,20 +118,27 @@ export function decodeStoredVotes(
     dataset: {
       formatVersion: decoded.dataset.formatVersion,
       generatedAt: decoded.dataset.generatedAt,
+      candidateSetSha256: decoded.dataset.candidateSetSha256,
     },
     votes,
   };
 }
 
 function assertDatasetShape(value: unknown): asserts value is DatasetIdentity {
-  assertExactKeys(value, ["formatVersion", "generatedAt"], "dataset");
-  if (value.formatVersion !== 3) {
+  assertExactKeys(value, ["formatVersion", "generatedAt", "candidateSetSha256"], "dataset");
+  if (value.formatVersion !== 4) {
     throw new Error(
-      `dataset の formatVersion は 3 である必要があります: ${String(value.formatVersion)}`,
+      `dataset の formatVersion は 4 である必要があります: ${String(value.formatVersion)}`,
     );
   }
   if (typeof value.generatedAt !== "string") {
     throw new Error("dataset の generatedAt は文字列である必要があります。");
+  }
+  if (
+    typeof value.candidateSetSha256 !== "string" ||
+    !/^[0-9a-f]{64}$/.test(value.candidateSetSha256)
+  ) {
+    throw new Error("dataset の candidateSetSha256 は完全な小文字 SHA-256 が必要です。");
   }
 }
 

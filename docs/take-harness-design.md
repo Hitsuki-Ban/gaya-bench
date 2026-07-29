@@ -2,7 +2,7 @@
 
 - 対象 Issue: [#76](https://github.com/Hitsuki-Ban/gaya-bench/issues/76)
 - 設計日: 2026-07-29
-- 状態: 実装前レビュー
+- 状態: Ticket G v4 cutover 完了
 
 ## 1. 決定
 
@@ -507,7 +507,10 @@ uv run --project pipeline --locked --extra qc gaya qc \
 uv run --project pipeline --locked gaya takes finalize \
   --run-id 2026-07-29T120000Z-qwen-n3
 
-uv run --project pipeline --locked gaya publish
+uv run --project pipeline --locked gaya publish \
+  --release <fixed-release-directory> \
+  --takes-root <artifacts/takes> \
+  --env-file <R2 credentials env file>
 
 uv run --project pipeline --locked gaya curate apply \
   --run-id 2026-07-29T120000Z-qwen-n3 \
@@ -824,6 +827,18 @@ evidenceは保持するが、aggregateではcandidateを`test_only_adapter` fail
 
 v3 -> v4 の runtime converter や dual reader は作らず、Ticket G の merge を唯一の
 切替点とする。
+
+実装結果（2026-07-30）:
+
+- 固定release manifest SHA-256
+  `c98d1666dc00fc10ef2e6fb0a8a5750234739ce6827bc50ea16f99954e2de985`
+  の220 candidate（5,618,851 bytes）をimmutable R2 keyへ公開した。
+- 初回はuploaded 220 / skipped 0、直後の冪等再実行はuploaded 0 /
+  skipped 220。公開custom domainからの全220 body SHA検証も不一致0件。
+- pipeline/siteのv3 reader、baseline移行CLI/UI、`gen --selection`を削除し、
+  `data/manifest.json`と通常比較をv4-onlyへ切り替えた。
+- 通常比較はselectedを`take_id`でexact joinし、skipped / uncurated /
+  failureを別状態として扱う。candidate先頭へのfallbackは存在しない。
 
 ## 12. 拒否した案
 

@@ -115,7 +115,7 @@ export function AbComparison() {
           <div className="grid items-stretch gap-4 lg:grid-cols-2">
             <CandidateCard
               currentTime={audioProgress.currentTime}
-              fallbackDuration={session.presentation.left.clip.duration_sec}
+              fallbackDuration={session.presentation.left.candidate.duration_sec}
               label="A"
               onPlay={() => void session.playCandidate("left")}
               progressDuration={audioProgress.duration}
@@ -124,7 +124,7 @@ export function AbComparison() {
             />
             <CandidateCard
               currentTime={audioProgress.currentTime}
-              fallbackDuration={session.presentation.right.clip.duration_sec}
+              fallbackDuration={session.presentation.right.candidate.duration_sec}
               label="B"
               onPlay={() => void session.playCandidate("right")}
               progressDuration={audioProgress.duration}

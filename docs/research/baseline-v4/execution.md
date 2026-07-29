@@ -100,7 +100,7 @@ rubric、decisionが一致することを検証して明示的にrebindした。
 `6d1a999290a2e83518cc14e7905b7431aea4d6fad24025154803a65156aaf2e4`
 で、selected 20 / skipped 4 / undecided 196である。
 
-## 最終策展と release candidate
+## 最終策展と release
 
 Dummyを除く220 candidate groupの人評とskip復聴を完了した。最終decisionは
 selected 166、skipped 54、uncurated 0である。skip復聴では、初回に
@@ -118,7 +118,8 @@ selected 166、skipped 54、uncurated 0である。skip復聴では、初回に
 
 固定したrelease metadataは
 [`release/`](release/)に置く。音声binary、source-run evidence、bundle inventoryは
-含めず、Ticket GのR2 uploadと`data/manifest.json`切替もまだ行わない。
+含めない。この固定snapshotをTicket GのR2 uploadと`data/manifest.json`切替の
+唯一の入力にした。
 
 | artifact | SHA-256 |
 | --- | --- |
@@ -132,3 +133,31 @@ selected 166、skipped 54、uncurated 0である。skip復聴では、初回に
 
 ローカルreleaseのcanonical inventoryは1792 fileを閉包し、全fileのSHA-256を
 再計算して不一致0件を確認した。
+
+## v4 cutover
+
+2026-07-30、Issue #105でrelease manifest v4を公開authorityへ切り替えた。
+publisherはrelease manifestとmarker、canonical provenance、7つのsource manifest、
+220個のsource Opusをすべてnetwork call前に検証した。公開対象はmanifestの
+candidate allow-listだけで、合計5,618,851 bytes、immutable keyは220個すべて
+一意だった。
+
+```console
+uv run --project pipeline --locked gaya publish \
+  --release docs/research/baseline-v4/release \
+  --takes-root <artifacts/takes> \
+  --env-file <R2 credentials env file>
+```
+
+R2の全keyを先にHEADし、競合0件を確認してから`If-None-Match: *`と
+SHA-256 checksum付きのsingle-part PUTを行った。初回はuploaded 220 / skipped 0、
+直後の同一command再実行はuploaded 0 / skipped 220だった。両方とも終了前に
+220件のHEAD sweepを完了した。さらにHEADを`ChecksumMode=ENABLED`かつ
+checksum必須へ強化した後も、同一commandでuploaded 0 / skipped 220を確認した。
+
+公開custom domainからも220件すべてをGETし、HTTP 200、`audio/ogg`、
+`Cache-Control: public, max-age=31536000, immutable`、body SHA-256を確認した。
+不一致は0件、取得byte合計も5,618,851 bytesだった。その後にだけ、
+release manifestとraw SHA-256
+`c98d1666dc00fc10ef2e6fb0a8a5750234739ce6827bc50ea16f99954e2de985`
+が一致する`data/manifest.json`を切替対象にした。

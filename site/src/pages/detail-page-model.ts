@@ -1,21 +1,20 @@
-import type { Character, Clip, GenerationFailure, JsonValue, Line, Scenario } from "@/data";
+import type { ArtifactOutcome, Candidate, Character, JsonValue, Line, Scenario } from "@/data";
 
 export interface ScenarioLineEntry {
   readonly line: Line;
   readonly character: Character;
-  readonly clips: readonly Clip[];
-  readonly failures: readonly GenerationFailure[];
+  readonly outcomes: readonly ArtifactOutcome[];
 }
 
-export interface ModelClipEntry {
-  readonly clip: Clip;
+export interface ModelCandidateEntry {
+  readonly candidate: Candidate;
   readonly scenario: Scenario;
   readonly line: Line;
   readonly character: Character;
 }
 
-export interface ModelFailureEntry {
-  readonly failure: GenerationFailure;
+export interface ModelOutcomeEntry {
+  readonly outcome: Exclude<ArtifactOutcome, { readonly kind: "selected" }>;
   readonly scenario: Scenario;
   readonly line: Line;
   readonly character: Character;
@@ -29,33 +28,26 @@ export interface RtfStatistics {
 
 export interface GenerationParameterSet {
   readonly parameters: { readonly [key: string]: JsonValue };
-  readonly clipCount: number;
+  readonly candidateCount: number;
 }
 
 export function buildScenarioLineEntries(
   scenario: Scenario,
-  clips: readonly Clip[],
-  failures: readonly GenerationFailure[],
+  outcomes: readonly ArtifactOutcome[],
 ): readonly ScenarioLineEntry[] {
   const characterById = new Map(scenario.characters.map((character) => [character.id, character]));
-  const clipsByLineId = new Map(scenario.lines.map((line) => [line.id, [] as Clip[]]));
-  const failuresByLineId = new Map(
-    scenario.lines.map((line) => [line.id, [] as GenerationFailure[]]),
+  const outcomesByLineId = new Map(
+    scenario.lines.map((line) => [line.id, [] as ArtifactOutcome[]]),
   );
 
-  for (const clip of clips) {
-    const lineClips = clipsByLineId.get(clip.line);
-    if (!lineClips) {
-      throw new Error(`scenario ${scenario.id} に line ${clip.line} が存在しません。`);
+  for (const outcome of outcomes) {
+    const lineOutcomes = outcomesByLineId.get(outcome.group.line);
+    if (!lineOutcomes) {
+      throw new Error(
+        `scenario ${scenario.id} に outcome line ${outcome.group.line} が存在しません。`,
+      );
     }
-    lineClips.push(clip);
-  }
-  for (const failure of failures) {
-    const lineFailures = failuresByLineId.get(failure.line);
-    if (!lineFailures) {
-      throw new Error(`scenario ${scenario.id} に line ${failure.line} が存在しません。`);
-    }
-    lineFailures.push(failure);
+    lineOutcomes.push(outcome);
   }
 
   return scenario.lines.map((line) => {
@@ -66,65 +58,57 @@ export function buildScenarioLineEntries(
     return {
       line,
       character,
-      clips: clipsByLineId.get(line.id)!,
-      failures: failuresByLineId.get(line.id)!,
+      outcomes: outcomesByLineId.get(line.id)!,
     };
   });
 }
 
-export function buildModelClipEntries(
+export function buildModelCandidateEntries(
   modelId: string,
-  clips: readonly Clip[],
+  outcomes: readonly ArtifactOutcome[],
   scenarios: readonly Scenario[],
-): readonly ModelClipEntry[] {
+): readonly ModelCandidateEntry[] {
   const scenarioIndex = buildScenarioIndex(scenarios);
-
-  const entries: ModelClipEntry[] = [];
-  for (const clip of clips) {
-    if (clip.model !== modelId) {
+  const entries: ModelCandidateEntry[] = [];
+  for (const outcome of outcomes) {
+    if (outcome.kind !== "selected" || outcome.group.model !== modelId) {
       continue;
     }
-
     const { scenario, line, character } = resolveLineContext(
       scenarioIndex,
-      clip.scenario,
-      clip.line,
-      "clip",
+      outcome.group.scenario,
+      outcome.group.line,
     );
-    entries.push({ clip, scenario, line, character });
+    entries.push({ candidate: outcome.candidate, scenario, line, character });
   }
-
   return entries;
 }
 
-export function buildModelFailureEntries(
+export function buildModelOutcomeEntries(
   modelId: string,
-  failures: readonly GenerationFailure[],
+  outcomes: readonly ArtifactOutcome[],
   scenarios: readonly Scenario[],
-): readonly ModelFailureEntry[] {
+): readonly ModelOutcomeEntry[] {
   const scenarioIndex = buildScenarioIndex(scenarios);
-  const entries: ModelFailureEntry[] = [];
-
-  for (const failure of failures) {
-    if (failure.model !== modelId) {
+  const entries: ModelOutcomeEntry[] = [];
+  for (const outcome of outcomes) {
+    if (outcome.kind === "selected" || outcome.group.model !== modelId) {
       continue;
     }
     const { scenario, line, character } = resolveLineContext(
       scenarioIndex,
-      failure.scenario,
-      failure.line,
-      "failure",
+      outcome.group.scenario,
+      outcome.group.line,
     );
-    entries.push({ failure, scenario, line, character });
+    entries.push({ outcome, scenario, line, character });
   }
-
   return entries;
 }
 
 export function calculateRtfStatistics(
-  clips: readonly Pick<Clip, "duration_sec" | "rtf">[],
+  candidates: readonly Pick<Candidate, "duration_sec" | "rtf">[],
 ): RtfStatistics | null {
-  if (clips.length === 0) {
+  if (candidates.length === 0) {
     return null;
   }
 
@@ -133,14 +117,14 @@ export function calculateRtfStatistics(
   let minimum = Number.POSITIVE_INFINITY;
   let maximum = Number.NEGATIVE_INFINITY;
 
-  for (const clip of clips) {
-    if (clip.duration_sec <= 0) {
+  for (const candidate of candidates) {
+    if (candidate.duration_sec <= 0) {
       throw new Error("RTF の集計には正の音声時間が必要です。");
     }
-    totalDuration += clip.duration_sec;
-    weightedRtf += clip.rtf * clip.duration_sec;
-    minimum = Math.min(minimum, clip.rtf);
-    maximum = Math.max(maximum, clip.rtf);
+    totalDuration += candidate.duration_sec;
+    weightedRtf += candidate.rtf * candidate.duration_sec;
+    minimum = Math.min(minimum, candidate.rtf);
+    maximum = Math.max(maximum, candidate.rtf);
   }
 
   return {
@@ -151,23 +135,23 @@ export function calculateRtfStatistics(
 }
 
 export function collectGenerationParameterSets(
-  clips: readonly Pick<Clip, "gen_params">[],
+  candidates: readonly Pick<Candidate, "gen_params">[],
 ): readonly GenerationParameterSet[] {
   const sets = new Map<
     string,
     {
       readonly parameters: { readonly [key: string]: JsonValue };
-      clipCount: number;
+      candidateCount: number;
     }
   >();
 
-  for (const { gen_params: parameters } of clips) {
+  for (const { gen_params: parameters } of candidates) {
     const key = JSON.stringify(parameters);
     const existing = sets.get(key);
     if (existing) {
-      existing.clipCount += 1;
+      existing.candidateCount += 1;
     } else {
-      sets.set(key, { parameters, clipCount: 1 });
+      sets.set(key, { parameters, candidateCount: 1 });
     }
   }
 
@@ -197,15 +181,14 @@ function resolveLineContext(
   scenarioIndex: ReadonlyMap<string, IndexedScenario>,
   scenarioId: string,
   lineId: string,
-  artifactKind: "clip" | "failure",
 ): { readonly scenario: Scenario; readonly line: Line; readonly character: Character } {
   const indexedScenario = scenarioIndex.get(scenarioId);
   if (!indexedScenario) {
-    throw new Error(`${artifactKind} が未知の scenario ${scenarioId} を参照しています。`);
+    throw new Error(`outcome が未知の scenario ${scenarioId} を参照しています。`);
   }
   const line = indexedScenario.lineById.get(lineId);
   if (!line) {
-    throw new Error(`${artifactKind} が未知の line ${scenarioId}/${lineId} を参照しています。`);
+    throw new Error(`outcome が未知の line ${scenarioId}/${lineId} を参照しています。`);
   }
   const character = indexedScenario.characterById.get(line.character);
   if (!character) {

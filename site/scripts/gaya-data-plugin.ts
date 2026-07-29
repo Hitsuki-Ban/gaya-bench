@@ -1,12 +1,15 @@
 import { readFileSync, readdirSync } from "node:fs";
+import { createHash } from "node:crypto";
 import path from "node:path";
 
 import { parse } from "yaml";
 import type { Plugin } from "vite-plus";
 
 import type {
+  ArtifactOutcome,
   BenchmarkData,
-  Clip,
+  Candidate,
+  Curation,
   GenerationFailure,
   Manifest,
   Model,
@@ -18,22 +21,45 @@ const VIRTUAL_MODULE_ID = "virtual:gaya-data";
 const RESOLVED_VIRTUAL_MODULE_ID = `\0${VIRTUAL_MODULE_ID}`;
 const ID_PATTERN = /^[a-z0-9][a-z0-9-]*$/;
 
-const MANIFEST_KEYS = ["format_version", "generated_at", "models", "clips", "failures"] as const;
+const MANIFEST_KEYS = [
+  "format_version",
+  "generated_at",
+  "candidate_set_sha256",
+  "models",
+  "candidates",
+  "curations",
+  "failures",
+] as const;
 const MODEL_KEYS = ["id", "name", "version", "license_note", "capabilities"] as const;
 const CAPABILITY_KEYS = ["emotion", "voice_prompt", "clone", "nonverbal", "reading"] as const;
-const CLIP_KEYS = [
+const CANDIDATE_KEYS = [
   "model",
   "scenario",
   "line",
   "variant",
+  "take_index",
+  "take_id",
   "path",
   "duration_sec",
   "sha256",
+  "generation_input_sha256",
   "gen_params",
   "rtf",
   "loudness",
+  "gate",
+] as const;
+const GENERATION_PARAMETER_KEYS = [
+  "seed",
+  "recipe_version",
+  "sampling",
+  "requested",
+  "realized",
 ] as const;
 const LOUDNESS_KEYS = ["source", "i_lufs", "tp_dbtp", "shortfall"] as const;
+const GATE_KEYS = ["mechanical", "content", "policy_version"] as const;
+const GROUP_KEYS = ["model", "scenario", "line", "variant"] as const;
+const SELECTED_CURATION_KEYS = [...GROUP_KEYS, "decision", "take_id", "curation_sha256"] as const;
+const SKIPPED_CURATION_KEYS = [...GROUP_KEYS, "decision", "curation_sha256"] as const;
 const FAILURE_KEYS = ["model", "scenario", "line", "variant", "reason"] as const;
 const SCENARIO_REQUIRED_KEYS = [
   "format_version",
@@ -80,7 +106,9 @@ const EMOTIONS = new Set([
 const DIFFICULTIES = new Set(["standard", "hard"]);
 const FINAL_INTONATIONS = new Set(["fall", "rise", "free"]);
 const LOUDNESS_SOURCES = new Set(["encoded_opus"]);
-const FAILURE_REASONS = new Set(["generation_failed"]);
+const FAILURE_REASONS = new Set(["no_eligible_take", "test_only_adapter"]);
+const CONTENT_GATE_RESULTS = new Set(["pass", "review_required"]);
+const SHA256_PATTERN = /^[0-9a-f]{64}$/;
 
 type WatchFile = (file: string) => void;
 type UnknownRecord = Record<string, unknown>;
@@ -135,7 +163,7 @@ export function loadBenchmarkData(repositoryRoot: string, watchFile?: WatchFile)
   const scenarios = loadScenarios(scenariosDirectory, watchFile);
   validateReferences(manifest, scenarios);
 
-  return { manifest, scenarios };
+  return { manifest, scenarios, outcomes: projectOutcomes(manifest) };
 }
 
 function loadManifest(manifestPath: string): Manifest {
@@ -152,33 +180,48 @@ function loadManifest(manifestPath: string): Manifest {
   assertRecord(value, "manifest");
   assertExactKeys(value, MANIFEST_KEYS, [], "manifest");
   assertManifestVersion(value.format_version);
-  assertString(value.generated_at, "manifest generated_at");
+  assertNonEmptyString(value.generated_at, "manifest generated_at");
+  assertSha256(value.candidate_set_sha256, "manifest candidate_set_sha256");
   assertArray(value.models, "manifest models");
-  assertArray(value.clips, "manifest clips");
+  assertArray(value.candidates, "manifest candidates");
+  assertArray(value.curations, "manifest curations");
   assertArray(value.failures, "manifest failures");
 
   const models = value.models.map((model, index) => validateModel(model, index));
-  const clips = value.clips.map((clip, index) => validateClip(clip, index));
+  const candidates = value.candidates.map((candidate, index) =>
+    validateCandidate(candidate, index),
+  );
+  const curations = value.curations.map((curation, index) => validateCuration(curation, index));
   const failures = value.failures.map((failure, index) => validateFailure(failure, index));
   assertUnique(
     models.map((model) => model.id),
     "manifest model id",
   );
   assertUnique(
-    clips.map((clip) => artifactKeyTuple(clip)),
-    "manifest clip key",
+    candidates.map((candidate) => candidate.take_id),
+    "manifest candidate take_id",
   );
   assertUnique(
-    failures.map((failure) => artifactKeyTuple(failure)),
-    "manifest failure key",
+    candidates.map((candidate) =>
+      JSON.stringify([artifactKeyTuple(candidate), candidate.take_index]),
+    ),
+    "manifest candidate slot",
   );
-  assertDisjointArtifactKeys(clips, failures);
+  assertUnique(curations.map(artifactKeyTuple), "manifest curation group");
+  assertUnique(
+    failures.map((failure) => artifactKeyTuple(failure)),
+    "manifest failure group",
+  );
+  const modelIds = new Set(models.map((model) => model.id));
+  assertManifestGroups(candidates, curations, failures, modelIds);
 
   return {
-    format_version: 3,
+    format_version: 4,
     generated_at: value.generated_at,
+    candidate_set_sha256: value.candidate_set_sha256,
     models,
-    clips,
+    candidates,
+    curations,
     failures,
   };
 }
@@ -187,9 +230,10 @@ function validateModel(value: unknown, index: number): Model {
   const label = `manifest models[${index}]`;
   assertRecord(value, label);
   assertExactKeys(value, MODEL_KEYS, [], label);
-  for (const key of ["id", "name", "version", "license_note"] as const) {
-    assertString(value[key], `${label}.${key}`);
-  }
+  assertPathSegment(value.id, `${label}.id`);
+  assertNonEmptyString(value.name, `${label}.name`);
+  assertNonEmptyString(value.version, `${label}.version`);
+  assertString(value.license_note, `${label}.license_note`);
 
   assertRecord(value.capabilities, `${label}.capabilities`);
   assertExactKeys(value.capabilities, CAPABILITY_KEYS, [], `${label}.capabilities`);
@@ -200,16 +244,46 @@ function validateModel(value: unknown, index: number): Model {
   return value as unknown as Model;
 }
 
-function validateClip(value: unknown, index: number): Clip {
-  const label = `manifest clips[${index}]`;
+function validateCandidate(value: unknown, index: number): Candidate {
+  const label = `manifest candidates[${index}]`;
   assertRecord(value, label);
-  assertExactKeys(value, CLIP_KEYS, [], label);
-  for (const key of ["model", "scenario", "line", "variant", "path", "sha256"] as const) {
-    assertString(value[key], `${label}.${key}`);
+  assertExactKeys(value, CANDIDATE_KEYS, [], label);
+  for (const key of GROUP_KEYS) {
+    assertPathSegment(value[key], `${label}.${key}`);
+  }
+  const model = value.model as string;
+  const scenario = value.scenario as string;
+  const line = value.line as string;
+  const variant = value.variant as string;
+  assertPositiveInteger(value.take_index, `${label}.take_index`);
+  assertSha256(value.take_id, `${label}.take_id`);
+  assertSha256(value.sha256, `${label}.sha256`);
+  assertSha256(value.generation_input_sha256, `${label}.generation_input_sha256`);
+  const expectedTakeId = createHash("sha256")
+    .update(
+      JSON.stringify({
+        final_opus_sha256: value.sha256,
+        generation_input_sha256: value.generation_input_sha256,
+      }),
+    )
+    .digest("hex");
+  if (value.take_id !== expectedTakeId) {
+    throw new GayaDataError(`${label}.take_id が provenance と一致しません。`);
   }
   assertNonNegativeFiniteNumber(value.duration_sec, `${label}.duration_sec`);
   assertNonNegativeFiniteNumber(value.rtf, `${label}.rtf`);
   assertRecord(value.gen_params, `${label}.gen_params`);
+  assertExactKeys(value.gen_params, GENERATION_PARAMETER_KEYS, [], `${label}.gen_params`);
+  if (
+    value.gen_params.seed !== null &&
+    (typeof value.gen_params.seed !== "number" || !Number.isSafeInteger(value.gen_params.seed))
+  ) {
+    throw new GayaDataError(`${label}.gen_params.seed は整数または null が必要です。`);
+  }
+  assertNonEmptyString(value.gen_params.recipe_version, `${label}.gen_params.recipe_version`);
+  for (const key of ["sampling", "requested", "realized"] as const) {
+    assertRecord(value.gen_params[key], `${label}.gen_params.${key}`);
+  }
   assertRecord(value.loudness, `${label}.loudness`);
   assertExactKeys(value.loudness, LOUDNESS_KEYS, [], `${label}.loudness`);
   assertEnum(value.loudness.source, LOUDNESS_SOURCES, `${label}.loudness.source`);
@@ -218,18 +292,52 @@ function validateClip(value: unknown, index: number): Clip {
   assertBoolean(value.loudness.shortfall, `${label}.loudness.shortfall`);
   assertString(value.path, `${label}.path`);
   assertRelativeClipPath(value.path, `${label}.path`);
+  const expectedPath =
+    `audio/takes/${model}/${scenario}/${line}/${variant}/` +
+    `take-${String(value.take_index).padStart(4, "0")}-${value.sha256}.opus`;
+  if (value.path !== expectedPath) {
+    throw new GayaDataError(`${label}.path が field から再構成できません。`);
+  }
+  assertRecord(value.gate, `${label}.gate`);
+  assertExactKeys(value.gate, GATE_KEYS, [], `${label}.gate`);
+  if (value.gate.mechanical !== "pass") {
+    throw new GayaDataError(`${label}.gate.mechanical は pass が必要です。`);
+  }
+  assertEnum(value.gate.content, CONTENT_GATE_RESULTS, `${label}.gate.content`);
+  assertNonEmptyString(value.gate.policy_version, `${label}.gate.policy_version`);
 
-  return value as unknown as Clip;
+  return value as unknown as Candidate;
+}
+
+function validateCuration(value: unknown, index: number): Curation {
+  const label = `manifest curations[${index}]`;
+  assertRecord(value, label);
+  if (value.decision === "selected") {
+    assertExactKeys(value, SELECTED_CURATION_KEYS, [], label);
+    assertSha256(value.take_id, `${label}.take_id`);
+  } else if (value.decision === "skipped") {
+    assertExactKeys(value, SKIPPED_CURATION_KEYS, [], label);
+  } else {
+    throw new GayaDataError(`${label}.decision が許可された値ではありません。`);
+  }
+  for (const key of GROUP_KEYS) {
+    assertPathSegment(value[key], `${label}.${key}`);
+  }
+  assertSha256(value.curation_sha256, `${label}.curation_sha256`);
+  return value as unknown as Curation;
 }
 
 function validateFailure(value: unknown, index: number): GenerationFailure {
   const label = `manifest failures[${index}]`;
   assertRecord(value, label);
   assertExactKeys(value, FAILURE_KEYS, [], label);
-  for (const key of ["model", "scenario", "line", "variant"] as const) {
-    assertString(value[key], `${label}.${key}`);
+  for (const key of GROUP_KEYS) {
+    assertPathSegment(value[key], `${label}.${key}`);
   }
   assertEnum(value.reason, FAILURE_REASONS, `${label}.reason`);
+  if (value.reason === "test_only_adapter" && value.model !== "dummy") {
+    throw new GayaDataError(`${label}.reason=test_only_adapter は model=dummy が必要です。`);
+  }
 
   return value as unknown as GenerationFailure;
 }
@@ -426,19 +534,23 @@ function validateReferences(manifest: Manifest, scenarios: readonly Scenario[]):
     scenarios.map((scenario) => [scenario.id, new Set(scenario.lines.map((line) => line.id))]),
   );
 
-  for (const clip of manifest.clips) {
-    const key = artifactKeyTuple(clip);
-    if (!modelIds.has(clip.model)) {
-      throw new GayaDataError(`clip ${key} が存在しない model を参照しています: ${clip.model}`);
-    }
-    const lineIds = linesByScenario.get(clip.scenario);
-    if (!lineIds) {
+  for (const candidate of manifest.candidates) {
+    const key = artifactKeyTuple(candidate);
+    if (!modelIds.has(candidate.model)) {
       throw new GayaDataError(
-        `clip ${key} が存在しない scenario を参照しています: ${clip.scenario}`,
+        `candidate ${key} が存在しない model を参照しています: ${candidate.model}`,
       );
     }
-    if (!lineIds.has(clip.line)) {
-      throw new GayaDataError(`clip ${key} が存在しない line を参照しています: ${clip.line}`);
+    const lineIds = linesByScenario.get(candidate.scenario);
+    if (!lineIds) {
+      throw new GayaDataError(
+        `candidate ${key} が存在しない scenario を参照しています: ${candidate.scenario}`,
+      );
+    }
+    if (!lineIds.has(candidate.line)) {
+      throw new GayaDataError(
+        `candidate ${key} が存在しない line を参照しています: ${candidate.line}`,
+      );
     }
   }
 
@@ -499,9 +611,9 @@ function assertExactKeys(
   }
 }
 
-function assertManifestVersion(value: unknown): asserts value is 3 {
-  if (value !== 3) {
-    throw new GayaDataError(`manifest format_version は3が必要です。`);
+function assertManifestVersion(value: unknown): asserts value is 4 {
+  if (value !== 4) {
+    throw new GayaDataError(`manifest format_version は4が必要です。`);
   }
 }
 
@@ -523,10 +635,43 @@ function assertBoolean(value: unknown, label: string): asserts value is boolean 
   }
 }
 
+function assertNonEmptyString(value: unknown, label: string): asserts value is string {
+  assertString(value, label);
+  if (value.length === 0) {
+    throw new GayaDataError(`${label} は空でない文字列が必要です。`);
+  }
+}
+
 function assertId(value: unknown, label: string): asserts value is string {
   assertString(value, label);
   if (!ID_PATTERN.test(value)) {
     throw new GayaDataError(`${label} は kebab-case id が必要です。`);
+  }
+}
+
+function assertPathSegment(value: unknown, label: string): asserts value is string {
+  assertString(value, label);
+  if (
+    value.length === 0 ||
+    value === "." ||
+    value === ".." ||
+    value.includes("/") ||
+    value.includes("\\")
+  ) {
+    throw new GayaDataError(`${label} は安全な path segment が必要です。`);
+  }
+}
+
+function assertSha256(value: unknown, label: string): asserts value is string {
+  assertString(value, label);
+  if (!SHA256_PATTERN.test(value)) {
+    throw new GayaDataError(`${label} は完全な小文字 SHA-256 が必要です。`);
+  }
+}
+
+function assertPositiveInteger(value: unknown, label: string): asserts value is number {
+  if (typeof value !== "number" || !Number.isSafeInteger(value) || value < 1) {
+    throw new GayaDataError(`${label} は1以上の整数が必要です。`);
   }
 }
 
@@ -577,22 +722,124 @@ function assertRelativeClipPath(value: string, label: string): void {
 }
 
 function artifactKeyTuple(
-  artifact: Pick<Clip | GenerationFailure, "model" | "scenario" | "line" | "variant">,
+  artifact: Pick<
+    Candidate | Curation | GenerationFailure,
+    "model" | "scenario" | "line" | "variant"
+  >,
 ): string {
   return JSON.stringify([artifact.model, artifact.scenario, artifact.line, artifact.variant]);
 }
 
-function assertDisjointArtifactKeys(
-  clips: readonly Clip[],
+function assertManifestGroups(
+  candidates: readonly Candidate[],
+  curations: readonly Curation[],
   failures: readonly GenerationFailure[],
+  modelIds: ReadonlySet<string>,
 ): void {
-  const clipKeys = new Set(clips.map((clip) => artifactKeyTuple(clip)));
-  for (const failure of failures) {
-    const key = artifactKeyTuple(failure);
-    if (clipKeys.has(key)) {
-      throw new GayaDataError(`manifest の clip/failure key が重複しています: ${key}`);
+  const candidatesByGroup = new Map<string, Candidate[]>();
+  const candidatesByTakeId = new Map(candidates.map((candidate) => [candidate.take_id, candidate]));
+  for (const candidate of candidates) {
+    if (!modelIds.has(candidate.model)) {
+      throw new GayaDataError(`candidate が未知の model を参照しています: ${candidate.model}`);
+    }
+    const key = artifactKeyTuple(candidate);
+    const groupCandidates = candidatesByGroup.get(key);
+    if (groupCandidates) {
+      groupCandidates.push(candidate);
+    } else {
+      candidatesByGroup.set(key, [candidate]);
     }
   }
+  for (const curation of curations) {
+    const key = artifactKeyTuple(curation);
+    const groupCandidates = candidatesByGroup.get(key);
+    if (!groupCandidates) {
+      throw new GayaDataError(`curation に対応する candidate group がありません: ${key}`);
+    }
+    if (curation.decision === "selected") {
+      const selected = candidatesByTakeId.get(curation.take_id);
+      if (!selected || artifactKeyTuple(selected) !== key) {
+        throw new GayaDataError(
+          `selected curation が同一 group の take を参照していません: ${key}`,
+        );
+      }
+    }
+  }
+  const candidateKeys = new Set(candidatesByGroup.keys());
+  for (const failure of failures) {
+    if (!modelIds.has(failure.model)) {
+      throw new GayaDataError(`failure が未知の model を参照しています: ${failure.model}`);
+    }
+    const key = artifactKeyTuple(failure);
+    if (candidateKeys.has(key)) {
+      throw new GayaDataError(`manifest の candidate/failure group が競合しています: ${key}`);
+    }
+  }
+}
+
+function projectOutcomes(manifest: Manifest): readonly ArtifactOutcome[] {
+  const candidatesByGroup = new Map<
+    string,
+    {
+      readonly group: {
+        readonly model: string;
+        readonly scenario: string;
+        readonly line: string;
+        readonly variant: string;
+      };
+      readonly candidates: Candidate[];
+    }
+  >();
+  for (const candidate of manifest.candidates) {
+    const key = artifactKeyTuple(candidate);
+    const entry = candidatesByGroup.get(key);
+    if (entry) {
+      entry.candidates.push(candidate);
+    } else {
+      candidatesByGroup.set(key, {
+        group: {
+          model: candidate.model,
+          scenario: candidate.scenario,
+          line: candidate.line,
+          variant: candidate.variant,
+        },
+        candidates: [candidate],
+      });
+    }
+  }
+  const curationsByGroup = new Map(
+    manifest.curations.map((curation) => [artifactKeyTuple(curation), curation]),
+  );
+  const outcomes: ArtifactOutcome[] = [];
+  for (const [key, { group, candidates }] of candidatesByGroup) {
+    const curation = curationsByGroup.get(key);
+    if (!curation) {
+      outcomes.push({ kind: "uncurated", group, candidates });
+      continue;
+    }
+    if (curation.decision === "skipped") {
+      outcomes.push({ kind: "skipped", group, candidates, curation });
+      continue;
+    }
+    const candidate = candidates.find((item) => item.take_id === curation.take_id);
+    if (!candidate) {
+      throw new GayaDataError(`selected curation の take_id が candidate に存在しません: ${key}`);
+    }
+    outcomes.push({ kind: "selected", group, candidate, curation });
+  }
+  for (const failure of manifest.failures) {
+    outcomes.push({
+      kind: "failure",
+      group: {
+        model: failure.model,
+        scenario: failure.scenario,
+        line: failure.line,
+        variant: failure.variant,
+      },
+      failure,
+    });
+  }
+  return outcomes;
 }
 
 function readTextFile(file: string, label: string): string {

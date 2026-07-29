@@ -6,7 +6,7 @@ import { useAudioProgress } from "@/audio/audio-provider";
 import { PageIntro } from "@/components/page-intro";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { benchmarkData, clipKey } from "@/data";
+import { benchmarkData, candidateKey, selectedCandidates } from "@/data";
 import {
   decodeFilterQuery,
   encodeFilterState,
@@ -79,7 +79,7 @@ function FilteredComparisonPage({
   const projection = useMemo(() => projectComparisonModel(comparisonModel, state), [state]);
   const controller = useComparisonController(comparisonModel, projection);
   const isDesktop = useMediaQuery("(min-width: 768px)");
-  const filteredClipCount = useMemo(() => countProjectionClips(projection), [projection]);
+  const filteredSelectedCount = useMemo(() => countProjectionSelected(projection), [projection]);
 
   return (
     <div className="space-y-4">
@@ -91,8 +91,8 @@ function FilteredComparisonPage({
               value={`${projection.rows.length}/${comparisonModel.rows.length}`}
             />
             <Metric
-              label="clips"
-              value={`${filteredClipCount}/${benchmarkData.manifest.clips.length}`}
+              label="selected"
+              value={`${filteredSelectedCount}/${selectedCandidates.length}`}
             />
             <Metric
               label="models"
@@ -282,10 +282,11 @@ function Transport({
     throw new Error(`transport の model が存在しません: ${cursor.modelId}`);
   }
   const cell = comparisonModel.getCell(cursor);
-  const clip = cell?.kind === "success" ? cell.clip : undefined;
-  const duration = progress.duration > 0 ? progress.duration : (clip?.duration_sec ?? 0);
+  const candidate = cell?.kind === "selected" ? cell.candidate : undefined;
+  const duration = progress.duration > 0 ? progress.duration : (candidate?.duration_sec ?? 0);
   const ratio = duration > 0 ? Math.min(progress.currentTime / duration, 1) : 0;
-  const isCurrentClip = clip !== undefined && controller.player.currentClipKey === clipKey(clip);
+  const isCurrentClip =
+    candidate !== undefined && controller.player.currentClipKey === candidateKey(candidate);
   const isPlaying =
     isCurrentClip &&
     (controller.player.status === "playing" || controller.player.status === "loading");
@@ -310,7 +311,7 @@ function Transport({
         <div className="flex items-center gap-2">
           <Button
             aria-label={isPlaying ? "現在のクリップを一時停止" : "現在のクリップを再生"}
-            disabled={clip === undefined}
+            disabled={candidate === undefined}
             onClick={controller.toggleFocused}
             size="sm"
           >
@@ -395,11 +396,11 @@ function InvalidFilterQuery({
   );
 }
 
-function countProjectionClips(projection: ComparisonProjection): number {
+function countProjectionSelected(projection: ComparisonProjection): number {
   let count = 0;
   for (const { rowIndex } of projection.rows) {
     for (const model of projection.models) {
-      if (comparisonModel.getCell({ rowIndex, modelId: model.id })?.kind === "success") {
+      if (comparisonModel.getCell({ rowIndex, modelId: model.id })?.kind === "selected") {
         count += 1;
       }
     }

@@ -1,20 +1,21 @@
 /// <reference types="node" />
 
+import { createHash } from "node:crypto";
 import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
 import { afterEach, describe, expect, it } from "vite-plus/test";
 
-import { GayaDataError, loadBenchmarkData } from "../../scripts/gaya-data-plugin.ts";
+import { loadBenchmarkData } from "../../scripts/gaya-data-plugin.ts";
 import {
   benchmarkData,
-  clipKey,
-  getClipsForScenario,
-  getFailuresForScenario,
+  candidateKey,
+  getOutcomesForScenario,
   lineByKey,
+  manifestModelById,
   modelById,
-  scenarioById,
+  selectedCandidates,
 } from "./index";
 
 const temporaryRoots: string[] = [];
@@ -26,310 +27,165 @@ afterEach(() => {
 });
 
 describe("virtual:gaya-data integration", () => {
-  it("実データから安定した index と selector を公開する", () => {
-    const modelCount = benchmarkData.manifest.models.length;
-    const lineCount = benchmarkData.scenarios.reduce(
-      (total, scenario) => total + scenario.lines.length,
-      0,
-    );
-
-    const resultCount =
-      benchmarkData.manifest.clips.length + benchmarkData.manifest.failures.length;
-    expect(resultCount).toBeGreaterThan(0);
-    expect(resultCount).toBeLessThanOrEqual(lineCount * modelCount);
-    expect(benchmarkData.manifest.format_version).toBe(3);
-    expect(scenarioById.has("market-day")).toBe(true);
-    expect(modelById.get("dummy")?.name).toBe("Dummy Beep");
+  it("固定 release を strict v4 / selected-only index として公開する", () => {
+    expect(benchmarkData.manifest.format_version).toBe(4);
+    expect(benchmarkData.manifest.candidates).toHaveLength(220);
+    expect(selectedCandidates).toHaveLength(166);
+    expect(benchmarkData.outcomes.filter(({ kind }) => kind === "skipped")).toHaveLength(54);
+    expect(benchmarkData.outcomes.filter(({ kind }) => kind === "failure")).toHaveLength(161);
+    expect(manifestModelById.has("dummy")).toBe(true);
+    expect(modelById.has("dummy")).toBe(false);
     expect(lineByKey.has("market-day/fruit-vendor-001")).toBe(true);
-
-    const clips = getClipsForScenario("market-day");
-    expect(clips).toEqual(
-      benchmarkData.manifest.clips.filter((clip) => clip.scenario === "market-day"),
-    );
-    expect(clipKey(clips[0]!)).toBe(
-      JSON.stringify(["chatterbox-multilingual-v3", "market-day", "fruit-vendor-001", "dry"]),
-    );
-    expect(() => getClipsForScenario("missing")).toThrow("未知の scenario id です: missing");
-    expect(getFailuresForScenario("market-day")).toEqual(
-      benchmarkData.manifest.failures.filter((failure) => failure.scenario === "market-day"),
-    );
-    expect(() => getFailuresForScenario("missing")).toThrow("未知の scenario id です: missing");
+    expect(candidateKey(selectedCandidates[0]!)).toContain('"dry"');
+    expect(getOutcomesForScenario("market-day").length).toBeGreaterThan(0);
+    expect(() => getOutcomesForScenario("missing")).toThrow("未知の scenario id");
   });
 });
 
-describe("loadBenchmarkData", () => {
-  it("schema 明示の defaults を補完する", () => {
-    const root = createFixture();
-    const data = loadBenchmarkData(root);
+describe("loadBenchmarkData v4", () => {
+  it("selected exact join、skipped、uncurated、logical failure を四態へ投影する", () => {
+    const data = loadBenchmarkData(createFixture());
 
-    expect(data.scenarios[0]?.characters[0]).toMatchObject({
-      id: "speaker",
-      kind: "human",
-    });
+    expect(data.outcomes.map(({ kind }) => kind)).toEqual([
+      "selected",
+      "skipped",
+      "uncurated",
+      "failure",
+    ]);
+    const selected = data.outcomes.find(({ kind }) => kind === "selected");
+    expect(selected?.kind === "selected" ? selected.candidate.take_index : null).toBe(2);
+    expect(data.scenarios[0]?.characters[0]?.kind).toBe("human");
     expect(data.scenarios[0]?.lines[0]).toMatchObject({
-      id: "speaker-001",
       intensity: 2,
       difficulty: "standard",
       loop_ok: true,
       final_intonation: "fall",
     });
-    expect(data.manifest.clips).toHaveLength(1);
   });
 
-  it.each(["fall", "rise", "free"] as const)(
-    "line final_intonation を受け入れる: %s",
-    (finalIntonation) => {
-      const root = createFixture({
-        scenario: validScenario().replace(
-          "    delivery: Plain",
-          `    delivery: Plain
-    final_intonation: ${finalIntonation}`,
-        ),
-      });
+  it("selected curation の take_id 欠落と同 group 外参照を拒否し、先頭候補へ fallback しない", () => {
+    const missing = validManifest();
+    delete missing.curations[0]!.take_id;
+    expect(() => loadBenchmarkData(createFixture(missing))).toThrow(
+      "manifest curations[0] の項目が一致しません",
+    );
 
-      expect(loadBenchmarkData(root).scenarios[0]?.lines[0]?.final_intonation).toBe(
-        finalIntonation,
-      );
-    },
-  );
-
-  it.each(["flat", "null"])("不正な line final_intonation を拒否する: %s", (finalIntonation) => {
-    const root = createFixture({
-      scenario: validScenario().replace(
-        "    delivery: Plain",
-        `    delivery: Plain
-    final_intonation: ${finalIntonation}`,
-      ),
-    });
-
-    expect(() => loadBenchmarkData(root)).toThrow("lines[0].final_intonation");
-  });
-
-  it.each(["human", "machine", "creature", "spirit"] as const)(
-    "character kind を受け入れる: %s",
-    (kind) => {
-      const root = createFixture({
-        scenario: validScenario().replace(
-          "    gender: neutral",
-          `    kind: ${kind}
-    gender: neutral`,
-        ),
-      });
-
-      expect(loadBenchmarkData(root).scenarios[0]?.characters[0]?.kind).toBe(kind);
-    },
-  );
-
-  it.each(["other", "null"])("不正な character kind を拒否する: %s", (kind) => {
-    const root = createFixture({
-      scenario: validScenario().replace(
-        "    gender: neutral",
-        `    kind: ${kind}
-    gender: neutral`,
-      ),
-    });
-
-    expect(() => loadBenchmarkData(root)).toThrow("characters[0].kind");
-  });
-
-  it("manifest の未知フィールドを拒否する", () => {
-    const root = createFixture();
-    const manifest = validManifest();
-    Object.assign(manifest, { legacy_format: true });
-    writeManifest(root, manifest);
-
-    expect(() => loadBenchmarkData(root)).toThrowError(
-      new GayaDataError("manifest の項目が一致しません (未知: legacy_format)。"),
+    const wrong = validManifest();
+    wrong.curations[0]!.take_id = "f".repeat(64);
+    expect(() => loadBenchmarkData(createFixture(wrong))).toThrow(
+      "selected curation が同一 group の take を参照していません",
     );
   });
 
-  it("manifest v2 を拒否する", () => {
-    const root = createFixture();
-    const manifest = validManifest();
-    manifest.format_version = 2;
-    writeManifest(root, manifest);
+  it("v4 exact keys、candidate provenance/path、candidate/failure 互斥を強制する", () => {
+    const legacy = validManifest();
+    Object.assign(legacy, { clips: [] });
+    expect(() => loadBenchmarkData(createFixture(legacy))).toThrow("manifest の項目が一致");
 
-    expect(() => loadBenchmarkData(root)).toThrow("manifest format_version は3");
-  });
+    const badTake = validManifest();
+    badTake.candidates[0]!.take_id = "a".repeat(64);
+    expect(() => loadBenchmarkData(createFixture(badTake))).toThrow("take_id が provenance と一致");
 
-  it("clip loudness の exact key と型を検証する", () => {
-    const missingRoot = createFixture();
-    const missingManifest = validManifest();
-    const { source: _source, ...missingSource } = missingManifest.clips[0]!.loudness;
-    missingManifest.clips[0]!.loudness = missingSource as MutableClip["loudness"];
-    writeManifest(missingRoot, missingManifest);
-    expect(() => loadBenchmarkData(missingRoot)).toThrow("loudness の項目が一致");
-
-    const invalidRoot = createFixture();
-    const invalidManifest = validManifest();
-    invalidManifest.clips[0]!.loudness.shortfall = "false" as unknown as boolean;
-    writeManifest(invalidRoot, invalidManifest);
-    expect(() => loadBenchmarkData(invalidRoot)).toThrow("loudness.shortfall は bool");
-
-    const invalidSourceRoot = createFixture();
-    const invalidSourceManifest = validManifest();
-    invalidSourceManifest.clips[0]!.loudness.source = "normalized_wav" as "encoded_opus";
-    writeManifest(invalidSourceRoot, invalidSourceManifest);
-    expect(() => loadBenchmarkData(invalidSourceRoot)).toThrow("loudness.source");
-  });
-
-  it("重複 model id、clip key、failure key を拒否する", () => {
-    const root = createFixture();
-    const manifest = validManifest();
-    manifest.models.push({ ...manifest.models[0]! });
-    writeManifest(root, manifest);
-
-    expect(() => loadBenchmarkData(root)).toThrow("manifest model id が重複しています");
-
-    manifest.models.pop();
-    manifest.clips.push({ ...manifest.clips[0]! });
-    writeManifest(root, manifest);
-    expect(() => loadBenchmarkData(root)).toThrow("manifest clip key が重複しています");
-
-    manifest.clips.pop();
-    manifest.failures.push(validFailure(), validFailure());
-    writeManifest(root, manifest);
-    expect(() => loadBenchmarkData(root)).toThrow("manifest failure key が重複しています");
-  });
-
-  it("failure の exact key、reason、clip との key 互斥を検証する", () => {
-    const unknownKeyRoot = createFixture();
-    const manifest = validManifest();
-    manifest.failures.push({ ...validFailure(), extra: true } as MutableFailure);
-    writeManifest(unknownKeyRoot, manifest);
-    expect(() => loadBenchmarkData(unknownKeyRoot)).toThrow("manifest failures[0] の項目が一致");
-
-    const missingKeyRoot = createFixture();
-    const missingKeyManifest = validManifest();
-    const { reason: _reason, ...missingReason } = validFailure();
-    missingKeyManifest.failures.push(missingReason as MutableFailure);
-    writeManifest(missingKeyRoot, missingKeyManifest);
-    expect(() => loadBenchmarkData(missingKeyRoot)).toThrow("manifest failures[0] の項目が一致");
-
-    const reasonRoot = createFixture();
-    const invalidReasonManifest = validManifest();
-    invalidReasonManifest.failures.push({ ...validFailure(), reason: "timeout" });
-    writeManifest(reasonRoot, invalidReasonManifest);
-    expect(() => loadBenchmarkData(reasonRoot)).toThrow("reason が許可された値ではありません");
-
-    const conflictRoot = createFixture();
-    const conflictManifest = validManifest();
-    conflictManifest.failures.push({
-      ...validFailure(),
-      variant: conflictManifest.clips[0]!.variant,
-    });
-    writeManifest(conflictRoot, conflictManifest);
-    expect(() => loadBenchmarkData(conflictRoot)).toThrow("clip/failure key が重複しています");
-  });
-
-  it("scenario のファイル名、character 参照、clip/failure 参照を検証する", () => {
-    const root = createFixture({ scenarioFilename: "wrong-name.yaml" });
-    expect(() => loadBenchmarkData(root)).toThrow("id はファイル名と一致");
-
-    const characterRoot = createFixture({
-      scenario: validScenario().replace("character: speaker", "character: missing"),
-    });
-    expect(() => loadBenchmarkData(characterRoot)).toThrow("存在しない character を参照");
-
-    const clipRoot = createFixture();
-    const manifest = validManifest();
-    manifest.clips[0]!.line = "missing";
-    writeManifest(clipRoot, manifest);
-    expect(() => loadBenchmarkData(clipRoot)).toThrow("存在しない line を参照");
-
-    for (const [field, value, message] of [
-      ["model", "missing", "存在しない model を参照"],
-      ["scenario", "missing", "存在しない scenario を参照"],
-      ["line", "missing", "存在しない line を参照"],
-    ] as const) {
-      const failureRoot = createFixture();
-      const failureManifest = validManifest();
-      failureManifest.failures.push({ ...validFailure(), [field]: value });
-      writeManifest(failureRoot, failureManifest);
-      expect(() => loadBenchmarkData(failureRoot)).toThrow(message);
-    }
+    const conflict = validManifest();
+    conflict.failures[0] = {
+      model: "model",
+      scenario: "sample",
+      line: "speaker-001",
+      variant: "dry",
+      reason: "no_eligible_take",
+    };
+    expect(() => loadBenchmarkData(createFixture(conflict))).toThrow(
+      "candidate/failure group が競合",
+    );
   });
 
   it.each([
-    "https://example.com/audio.opus",
-    "/absolute/audio.opus",
-    "../outside.opus",
-    String.raw`audio\..\outside.opus`,
-    String.raw`audio\dummy\clip.opus`,
-    "audio//clip.opus",
-    "audio/./clip.opus",
-    "audio/%2e%2e/clip.opus",
-    "audio/model#x/clip.opus",
-    "audio/model?x/clip.opus",
-  ])("安全でない clip path を拒否する: %s", (clipPath) => {
-    const root = createFixture();
+    ["generated_at", (manifest: MutableManifest) => (manifest.generated_at = "")],
+    ["model.name", (manifest: MutableManifest) => (manifest.models[0]!.name = "")],
+    ["model.version", (manifest: MutableManifest) => (manifest.models[0]!.version = "")],
+    [
+      "recipe_version",
+      (manifest: MutableManifest) => (manifest.candidates[0]!.gen_params.recipe_version = ""),
+    ],
+    [
+      "gate.policy_version",
+      (manifest: MutableManifest) => (manifest.candidates[0]!.gate.policy_version = ""),
+    ],
+  ])("%s の空文字を拒否する", (_label, mutate) => {
     const manifest = validManifest();
-    manifest.clips[0]!.path = clipPath;
-    writeManifest(root, manifest);
-
-    expect(() => loadBenchmarkData(root)).toThrow("安全な相対パス");
+    mutate(manifest);
+    expect(() => loadBenchmarkData(createFixture(manifest))).toThrow("空でない文字列");
   });
 
   it("不足ファイルと壊れた YAML を fail fast する", () => {
     const missingRoot = createEmptyRoot();
     expect(() => loadBenchmarkData(missingRoot)).toThrow("manifest を読み込めません");
 
-    const brokenRoot = createFixture({ scenario: "format_version: [" });
+    const brokenRoot = createFixture(validManifest(), "format_version: [");
     expect(() => loadBenchmarkData(brokenRoot)).toThrow("scenario YAML を解析できません");
   });
 });
 
-interface FixtureOptions {
-  readonly scenario?: string;
-  readonly scenarioFilename?: string;
+interface MutableManifest {
+  format_version: number;
+  generated_at: string;
+  candidate_set_sha256: string;
+  models: Array<{
+    id: string;
+    name: string;
+    version: string;
+    license_note: string;
+    capabilities: Record<string, boolean>;
+  }>;
+  candidates: MutableCandidate[];
+  curations: Array<{
+    model: string;
+    scenario: string;
+    line: string;
+    variant: string;
+    decision: string;
+    take_id?: string;
+    curation_sha256: string;
+  }>;
+  failures: Array<{
+    model: string;
+    scenario: string;
+    line: string;
+    variant: string;
+    reason: string;
+  }>;
 }
 
-interface MutableModel {
-  id: string;
-  name: string;
-  version: string;
-  license_note: string;
-  capabilities: {
-    emotion: boolean;
-    voice_prompt: boolean;
-    clone: boolean;
-    nonverbal: boolean;
-    reading: boolean;
-  };
-}
-
-interface MutableClip {
+interface MutableCandidate {
   model: string;
   scenario: string;
   line: string;
   variant: string;
+  take_index: number;
+  take_id: string;
   path: string;
   duration_sec: number;
   sha256: string;
-  gen_params: Record<string, never>;
+  generation_input_sha256: string;
+  gen_params: {
+    seed: number | null;
+    recipe_version: string;
+    sampling: Record<string, unknown>;
+    requested: Record<string, unknown>;
+    realized: Record<string, unknown>;
+  };
   rtf: number;
   loudness: {
-    source: "encoded_opus";
+    source: string;
     i_lufs: number;
     tp_dbtp: number;
     shortfall: boolean;
   };
-}
-
-interface MutableManifest {
-  format_version: number;
-  generated_at: string;
-  models: MutableModel[];
-  clips: MutableClip[];
-  failures: MutableFailure[];
-}
-
-interface MutableFailure {
-  model: string;
-  scenario: string;
-  line: string;
-  variant: string;
-  reason: string;
+  gate: {
+    mechanical: string;
+    content: string;
+    policy_version: string;
+  };
 }
 
 function createEmptyRoot(): string {
@@ -338,34 +194,30 @@ function createEmptyRoot(): string {
   return root;
 }
 
-function createFixture(options: FixtureOptions = {}): string {
+function createFixture(manifest = validManifest(), scenario = validScenario()): string {
   const root = createEmptyRoot();
   mkdirSync(path.join(root, "data"), { recursive: true });
   mkdirSync(path.join(root, "scenarios"), { recursive: true });
-  writeManifest(root, validManifest());
-  writeFileSync(
-    path.join(root, "scenarios", options.scenarioFilename ?? "sample.yaml"),
-    options.scenario ?? validScenario(),
-    "utf8",
-  );
+  writeFileSync(path.join(root, "data", "manifest.json"), JSON.stringify(manifest), "utf8");
+  writeFileSync(path.join(root, "scenarios", "sample.yaml"), scenario, "utf8");
   return root;
 }
 
-function writeManifest(root: string, manifest: MutableManifest): void {
-  mkdirSync(path.join(root, "data"), { recursive: true });
-  writeFileSync(path.join(root, "data", "manifest.json"), JSON.stringify(manifest), "utf8");
-}
-
 function validManifest(): MutableManifest {
+  const selectedFirst = candidate("dry", 1, "1");
+  const selectedSecond = candidate("dry", 2, "2");
+  const skipped = candidate("skipped", 1, "3");
+  const uncurated = candidate("uncurated", 1, "4");
   return {
-    format_version: 3,
-    generated_at: "2026-07-28T00:00:00Z",
+    format_version: 4,
+    generated_at: "2026-07-30T00:00:00Z",
+    candidate_set_sha256: "d".repeat(64),
     models: [
       {
         id: "model",
         name: "Model",
         version: "1",
-        license_note: "test",
+        license_note: "",
         capabilities: {
           emotion: false,
           voice_prompt: false,
@@ -375,36 +227,81 @@ function validManifest(): MutableManifest {
         },
       },
     ],
-    clips: [
+    candidates: [selectedFirst, selectedSecond, skipped, uncurated],
+    curations: [
       {
         model: "model",
         scenario: "sample",
         line: "speaker-001",
         variant: "dry",
-        path: "audio/model/sample/speaker-001-dry.opus",
-        duration_sec: 1,
-        sha256: "hash",
-        gen_params: {},
-        rtf: 0.1,
-        loudness: {
-          source: "encoded_opus",
-          i_lufs: -18,
-          tp_dbtp: -1,
-          shortfall: false,
-        },
+        decision: "selected",
+        take_id: selectedSecond.take_id,
+        curation_sha256: "c".repeat(64),
+      },
+      {
+        model: "model",
+        scenario: "sample",
+        line: "speaker-001",
+        variant: "skipped",
+        decision: "skipped",
+        curation_sha256: "c".repeat(64),
       },
     ],
-    failures: [],
+    failures: [
+      {
+        model: "model",
+        scenario: "sample",
+        line: "speaker-001",
+        variant: "failed",
+        reason: "no_eligible_take",
+      },
+    ],
   };
 }
 
-function validFailure(): MutableFailure {
+function candidate(variant: string, takeIndex: number, marker: string): MutableCandidate {
+  const generationInputSha = marker.repeat(64);
+  const audioSha = (Number(marker) + 4).toString().repeat(64);
+  const takeId = createHash("sha256")
+    .update(
+      JSON.stringify({
+        final_opus_sha256: audioSha,
+        generation_input_sha256: generationInputSha,
+      }),
+    )
+    .digest("hex");
   return {
     model: "model",
     scenario: "sample",
     line: "speaker-001",
-    variant: "scene",
-    reason: "generation_failed",
+    variant,
+    take_index: takeIndex,
+    take_id: takeId,
+    path:
+      `audio/takes/model/sample/speaker-001/${variant}/` +
+      `take-${String(takeIndex).padStart(4, "0")}-${audioSha}.opus`,
+    duration_sec: 1,
+    sha256: audioSha,
+    generation_input_sha256: generationInputSha,
+    gen_params: {
+      seed: takeIndex,
+      recipe_version: "seed-only-v1",
+      sampling: {},
+      requested: {},
+      realized: {},
+    },
+    rtf: 0.1,
+    loudness: {
+      source: "encoded_opus",
+      i_lufs: -18,
+      tp_dbtp: -1,
+      shortfall: false,
+    },
+    gate: {
+      mechanical: "pass",
+      content: "review_required",
+      policy_version: "take-gates-v2",
+    },
   };
 }
 

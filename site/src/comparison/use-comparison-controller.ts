@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 
 import { useAudioPlayer, usePlaybackManager } from "@/audio/audio-provider";
-import { clipKey } from "@/data";
+import { candidateKey } from "@/data";
 import type { ComparisonProjection } from "@/filters";
 import { resolveAudioUrl } from "@/lib/audio-url";
 
@@ -56,7 +56,7 @@ export function useComparisonController(
     const playingCoordinate =
       player.currentClipKey === null
         ? undefined
-        : model.getCoordinateForClipKey(player.currentClipKey);
+        : model.getCoordinateForCandidateKey(player.currentClipKey);
     return resolveCursor(model, playingCoordinate ?? null, projection);
   });
   const [direction, setDirectionState] = useState<SequenceDirection>("row");
@@ -114,7 +114,7 @@ export function useComparisonController(
     if (!hadSequence) {
       const currentClipKey = manager.getSnapshot().currentClipKey;
       const playingCoordinate =
-        currentClipKey === null ? undefined : model.getCoordinateForClipKey(currentClipKey);
+        currentClipKey === null ? undefined : model.getCoordinateForCandidateKey(currentClipKey);
       if (
         playingCoordinate !== undefined &&
         (!projection.rowIndexes.has(playingCoordinate.rowIndex) ||
@@ -220,8 +220,8 @@ export function useComparisonController(
       cancelSequence(false);
       updateCursor(next);
       const cell = model.getCell(next);
-      if (cell?.kind === "success") {
-        void manager.play(toAudioClip({ coordinate: next, clip: cell.clip }));
+      if (cell?.kind === "selected") {
+        void manager.play(toAudioClip({ coordinate: next, candidate: cell.candidate }));
       } else {
         manager.stop();
       }
@@ -235,8 +235,8 @@ export function useComparisonController(
       cancelSequence(false);
       updateCursor(coordinate);
       const cell = model.getCell(coordinate);
-      if (cell?.kind === "success") {
-        void manager.toggle(toAudioClip({ coordinate, clip: cell.clip }));
+      if (cell?.kind === "selected") {
+        void manager.toggle(toAudioClip({ coordinate, candidate: cell.candidate }));
       } else {
         manager.stop();
       }
@@ -250,24 +250,24 @@ export function useComparisonController(
       return;
     }
     const cell = model.getCell(current);
-    if (cell?.kind !== "success") {
+    if (cell?.kind !== "selected") {
       cancelSequence(true);
       return;
     }
 
     const activeSequence = sequenceRef.current;
     if (activeSequence === null) {
-      void manager.toggle(toAudioClip({ coordinate: current, clip: cell.clip }));
+      void manager.toggle(toAudioClip({ coordinate: current, candidate: cell.candidate }));
       return;
     }
 
     if (activeSequence.phase === "gap") {
       cancelSequence(false);
-      void manager.play(toAudioClip({ coordinate: current, clip: cell.clip }));
+      void manager.play(toAudioClip({ coordinate: current, candidate: cell.candidate }));
       return;
     }
 
-    void manager.toggle(toAudioClip({ coordinate: current, clip: cell.clip }));
+    void manager.toggle(toAudioClip({ coordinate: current, candidate: cell.candidate }));
   }, [cancelSequence, manager, model]);
 
   const startOrStopSequence = useCallback(() => {
@@ -357,7 +357,7 @@ export function useComparisonController(
 
 function toAudioClip(item: QueueItem) {
   return {
-    key: clipKey(item.clip),
-    url: resolveAudioUrl(item.clip.path),
+    key: candidateKey(item.candidate),
+    url: resolveAudioUrl(item.candidate.path),
   };
 }
