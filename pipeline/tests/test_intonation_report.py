@@ -493,6 +493,7 @@ def test_reportは非terminal_attemptを分析前に拒否する(
 
 def test_runtimeはlibrosa_numpy_ffmpegの実identityを固定して返す(
     monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
 ) -> None:
     versions = {
         "librosa": "0.11.0",
@@ -500,6 +501,7 @@ def test_runtimeはlibrosa_numpy_ffmpegの実identityを固定して返す(
     }
     fake_numpy = object()
     fake_librosa = object()
+    fake_ffmpeg = tmp_path / "tools" / "ffmpeg"
     modules = {
         "numpy": fake_numpy,
         "librosa": fake_librosa,
@@ -517,7 +519,7 @@ def test_runtimeはlibrosa_numpy_ffmpegの実identityを固定して返す(
     monkeypatch.setattr(
         intonation_report.shutil,
         "which",
-        lambda name: "C:/tools/ffmpeg.exe" if name == "ffmpeg" else None,
+        lambda name: str(fake_ffmpeg) if name == "ffmpeg" else None,
     )
     monkeypatch.setattr(
         intonation_report.subprocess,
@@ -537,7 +539,7 @@ def test_runtimeはlibrosa_numpy_ffmpegの実identityを固定して返す(
         "librosa": {"distribution": "librosa", "version": "0.11.0"},
         "numpy": {"distribution": "numpy", "version": "2.4.6"},
         "ffmpeg": {
-            "executable": "C:/tools/ffmpeg.exe",
+            "executable": fake_ffmpeg.resolve().as_posix(),
             "version": "ffmpeg version 8.1.1 fixture",
         },
     }
