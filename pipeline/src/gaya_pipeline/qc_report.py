@@ -28,6 +28,8 @@ STATUSES = (
     "planned",
     "generated",
 )
+GATE_POLICY_V1 = "take-gates-v1"
+GATE_POLICY_V2 = "take-gates-v2"
 
 
 def validate_qc_report(
@@ -35,6 +37,38 @@ def validate_qc_report(
     *,
     ledger_path: Path,
     ledger: Mapping[str, Any],
+) -> QCAuthority:
+    return _validate_qc_report(
+        document,
+        ledger_path=ledger_path,
+        ledger=ledger,
+        format_version=2,
+        gate_policy_version=GATE_POLICY_V2,
+    )
+
+
+def validate_qc_report_v1(
+    document: Any,
+    *,
+    ledger_path: Path,
+    ledger: Mapping[str, Any],
+) -> QCAuthority:
+    return _validate_qc_report(
+        document,
+        ledger_path=ledger_path,
+        ledger=ledger,
+        format_version=1,
+        gate_policy_version=GATE_POLICY_V1,
+    )
+
+
+def _validate_qc_report(
+    document: Any,
+    *,
+    ledger_path: Path,
+    ledger: Mapping[str, Any],
+    format_version: int,
+    gate_policy_version: str,
 ) -> QCAuthority:
     report = _exact(
         document,
@@ -50,13 +84,19 @@ def validate_qc_report(
         },
         "QC report",
     )
-    if report["format_version"] != 1:
-        raise QCReportError("QC report format_version は 1 が必要です。")
+    if report["format_version"] != format_version:
+        raise QCReportError(
+            f"QC report format_version は {format_version} が必要です。",
+        )
     _text(report["generated_at"], "QC report generated_at")
-    gate_policy_version = _text(
+    reported_gate_policy_version = _text(
         report["gate_policy_version"],
         "QC report gate_policy_version",
     )
+    if reported_gate_policy_version != gate_policy_version:
+        raise QCReportError(
+            f"QC report gate_policy_version は {gate_policy_version} が必要です。",
+        )
     if report["run_id"] != ledger["run_id"]:
         raise QCReportError("QC report run_id が ledger と一致しません。")
     source = _exact(
@@ -84,6 +124,12 @@ def validate_qc_report(
         **counts,
         "pending": counts["planned"] + counts["generated"],
     }
+    if format_version == 2:
+        expected_summary["content_review_required"] = sum(
+            attempt["status"] == "eligible"
+            and attempt.get("gates", {}).get("content") == "review_required"
+            for attempt in ledger["attempts"]
+        )
     if _exact(report["summary"], set(expected_summary), "QC report summary") != (
         expected_summary
     ):
@@ -140,23 +186,105 @@ def validate_qc_report(
             raise QCReportError(
                 "QC report attempt status/gates が ledger と一致しません。",
             )
-        _validate_attempt_payload(
-            report_attempt,
-            ledger_attempt=ledger_attempt,
-            field=field,
-        )
+        if format_version == 2:
+            _validate_attempt_payload_v2(
+                report_attempt,
+                ledger_attempt=ledger_attempt,
+                field=field,
+            )
+        else:
+            _validate_attempt_payload_v1(
+                report_attempt,
+                ledger_attempt=ledger_attempt,
+                field=field,
+            )
         report_by_slot[slot] = report_attempt
     if set(report_by_slot) != set(ledger_by_slot):
         raise QCReportError(
             "QC report attempts が ledger attempts を完全に被覆していません。",
         )
     return QCAuthority(
-        gate_policy_version=gate_policy_version,
+        gate_policy_version=reported_gate_policy_version,
         attempts_by_slot=report_by_slot,
     )
 
 
-def _validate_attempt_payload(
+def _validate_attempt_payload_v2(
+    report: Mapping[str, Any],
+    *,
+    ledger_attempt: Mapping[str, Any],
+    field: str,
+) -> None:
+    status = str(ledger_attempt["status"])
+    gates = ledger_attempt.get("gates")
+    mechanical = report["mechanical"]
+    content = report["content"]
+
+    if status in {"planned", "generation_failed"}:
+        _not_run_or_reason(mechanical, f"{field}.mechanical")
+        _not_run(content, f"{field}.content")
+        return
+
+    if status == "generated":
+        _not_run(mechanical, f"{field}.mechanical")
+        _not_run(content, f"{field}.content")
+        return
+
+    if not isinstance(gates, dict):
+        raise QCReportError(f"{field}.gates は object が必要です。")
+    mechanical_gate = gates["mechanical"]
+    content_gate = gates["content"]
+
+    if status == "eligible":
+        if mechanical_gate != "pass" or content_gate not in {
+            "pass",
+            "review_required",
+        }:
+            raise QCReportError(f"{field} の eligible gates が不正です。")
+        _mechanical_pass(mechanical, f"{field}.mechanical")
+        _content_result_v2(
+            content,
+            expected_status=content_gate,
+            field=f"{field}.content",
+        )
+        return
+
+    if status == "blocked":
+        if (mechanical_gate, content_gate) == ("blocked", "not_run"):
+            _status_reason(
+                mechanical,
+                expected_status="blocked",
+                field=f"{field}.mechanical",
+            )
+            _status_reason(
+                content,
+                expected_status="not_run",
+                field=f"{field}.content",
+            )
+            return
+        if (mechanical_gate, content_gate) == ("pass", "blocked"):
+            _mechanical_pass(mechanical, f"{field}.mechanical")
+            _status_reason(
+                content,
+                expected_status="blocked",
+                field=f"{field}.content",
+            )
+            return
+        raise QCReportError(f"{field} の blocked gates が不正です。")
+
+    if status == "hard_rejected":
+        if (mechanical_gate, content_gate) != ("reject", "not_run"):
+            raise QCReportError(
+                f"{field} の hard_rejected gates は mechanical reject のみ有効です。",
+            )
+        _mechanical_rejection_v2(mechanical, f"{field}.mechanical")
+        _not_run(content, f"{field}.content")
+        return
+
+    raise QCReportError(f"{field}.status が未対応です: {status}")
+
+
+def _validate_attempt_payload_v1(
     report: Mapping[str, Any],
     *,
     ledger_attempt: Mapping[str, Any],
@@ -290,6 +418,29 @@ def _mechanical_rejection(value: Any, field: str) -> None:
     _text(mechanical["reason"], f"{field}.reason")
 
 
+def _mechanical_rejection_v2(value: Any, field: str) -> None:
+    if isinstance(value, dict) and set(value) == {"status", "reason"}:
+        _status_reason(value, expected_status="reject", field=field)
+        return
+    mechanical = _mechanical_common(
+        value,
+        {
+            "status",
+            "reason",
+            "duration_sec",
+            "wav",
+            "opus",
+            "loudness",
+            "generation_params",
+            "sidecar_provenance",
+        },
+        field,
+    )
+    if mechanical["status"] != "reject":
+        raise QCReportError(f"{field}.status は reject が必要です。")
+    _text(mechanical["reason"], f"{field}.reason")
+
+
 def _mechanical_pass_or_terminal_not_rechecked(value: Any, field: str) -> None:
     if isinstance(value, dict) and set(value) == {"status", "reason"}:
         document = _exact(value, {"status", "reason"}, field)
@@ -369,6 +520,127 @@ def _mechanical_common(
                 f"{field}.sidecar_provenance.{key} は object が必要です。",
             )
     return mechanical
+
+
+def _content_result_v2(
+    value: Any,
+    *,
+    expected_status: Any,
+    field: str,
+) -> None:
+    if expected_status not in {"pass", "review_required"}:
+        raise QCReportError(f"{field} の expected status が不正です。")
+    content = _exact(
+        value,
+        {
+            "status",
+            "review_reason",
+            "expected_reading",
+            "asr",
+            "reading",
+            "prosody",
+        },
+        field,
+    )
+    if content["status"] != expected_status:
+        raise QCReportError(
+            f"{field}.status が ledger gates.content と一致しません。",
+        )
+
+    expected = _exact(
+        content["expected_reading"],
+        {"text", "source", "normalized", "authoritative", "ambiguous_terms"},
+        f"{field}.expected_reading",
+    )
+    for key in ("text", "source", "normalized"):
+        _text(expected[key], f"{field}.expected_reading.{key}")
+    if not isinstance(expected["authoritative"], bool):
+        raise QCReportError(
+            f"{field}.expected_reading.authoritative は boolean が必要です。",
+        )
+    if not isinstance(expected["ambiguous_terms"], list):
+        raise QCReportError(
+            f"{field}.expected_reading.ambiguous_terms は配列が必要です。",
+        )
+    for index, item in enumerate(expected["ambiguous_terms"]):
+        ambiguous = _exact(
+            item,
+            {"surface", "candidates"},
+            f"{field}.expected_reading.ambiguous_terms[{index}]",
+        )
+        _text(
+            ambiguous["surface"],
+            f"{field}.expected_reading.ambiguous_terms[{index}].surface",
+        )
+        if not isinstance(ambiguous["candidates"], list) or not all(
+            isinstance(candidate, str) and candidate
+            for candidate in ambiguous["candidates"]
+        ):
+            raise QCReportError(
+                f"{field}.expected_reading.ambiguous_terms[{index}]"
+                ".candidates が不正です。",
+            )
+
+    asr = _exact(
+        content["asr"],
+        {"text", "normalized_reading", "average_log_probability"},
+        f"{field}.asr",
+    )
+    for key in ("text", "normalized_reading"):
+        _text(asr[key], f"{field}.asr.{key}")
+    average = asr["average_log_probability"]
+    if average is not None:
+        _finite_number(average, f"{field}.asr.average_log_probability")
+
+    reading = _exact(
+        content["reading"],
+        {"character_error_rate", "reading_mismatch"},
+        f"{field}.reading",
+    )
+    _finite_nonnegative(
+        reading["character_error_rate"],
+        f"{field}.reading.character_error_rate",
+    )
+    if reading["reading_mismatch"] is not None and not isinstance(
+        reading["reading_mismatch"],
+        bool,
+    ):
+        raise QCReportError(
+            f"{field}.reading.reading_mismatch は boolean/null が必要です。",
+        )
+    if not isinstance(content["prosody"], dict):
+        raise QCReportError(f"{field}.prosody は object が必要です。")
+
+    authoritative = expected["authoritative"]
+    mismatch = reading["reading_mismatch"]
+    normalized_matches = asr["normalized_reading"] == expected["normalized"]
+    if expected_status == "pass":
+        if (
+            content["review_reason"] is not None
+            or not authoritative
+            or mismatch is not False
+            or not normalized_matches
+        ):
+            raise QCReportError(f"{field} の pass 判定根拠が不正です。")
+        return
+
+    if authoritative:
+        if (
+            content["review_reason"] != "explicit_reading_mismatch"
+            or mismatch is not True
+            or normalized_matches
+        ):
+            raise QCReportError(
+                f"{field} の explicit reading mismatch 判定根拠が不正です。",
+            )
+        return
+    if (
+        content["review_reason"] != "non_authoritative_expected_reading"
+        or mismatch is not None
+    ):
+        raise QCReportError(
+            f"{field} の non-authoritative review 判定根拠が不正です。",
+        )
 
 
 def _content_result(

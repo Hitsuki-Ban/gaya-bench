@@ -161,7 +161,24 @@ def _write_qc_report(
             }
             report["content"] = {
                 "status": attempt["gates"]["content"],
-                "inspection": "terminal_not_repeated",
+                "review_reason": "non_authoritative_expected_reading",
+                "expected_reading": {
+                    "text": "フィクスチャ",
+                    "source": "derived",
+                    "normalized": "フィクスチャ",
+                    "authoritative": False,
+                    "ambiguous_terms": [],
+                },
+                "asr": {
+                    "text": "フィクスチャ",
+                    "normalized_reading": "フィクスチャ",
+                    "average_log_probability": None,
+                },
+                "reading": {
+                    "character_error_rate": 0.0,
+                    "reading_mismatch": None,
+                },
+                "prosody": {},
             }
         reports.append(report)
     statuses = (
@@ -181,7 +198,7 @@ def _write_qc_report(
     }
     assert len(policy_versions) == 1
     report_document = {
-        "format_version": 1,
+        "format_version": 2,
         "generated_at": manifest["generated_at"],
         "gate_policy_version": next(iter(policy_versions)),
         "run_id": ledger["run_id"],
@@ -196,6 +213,11 @@ def _write_qc_report(
             "attempt_count": len(ledger["attempts"]),
             **counts,
             "pending": counts["planned"] + counts["generated"],
+            "content_review_required": sum(
+                attempt["status"] == "eligible"
+                and attempt.get("gates", {}).get("content") == "review_required"
+                for attempt in ledger["attempts"]
+            ),
         },
         "attempts": reports,
     }
@@ -225,6 +247,7 @@ def _setup_run(tmp_path: Path) -> tuple[str, dict[str, Any], Path, Path]:
             f"take-0001-{audio_sha}.opus"
         ),
     )
+    candidate["gate"]["policy_version"] = "take-gates-v2"
     manifest["curations"] = []
     manifest["failures"] = []
     scenario_path = SCENARIOS_DIR / "tavern-night.yaml"

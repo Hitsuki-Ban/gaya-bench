@@ -93,6 +93,7 @@ class QCSummary:
     blocked_count: int
     generation_failed_count: int
     pending_count: int
+    content_review_required_count: int
 
 
 @dataclass(frozen=True)
@@ -122,8 +123,8 @@ class _ProvenanceError(RuntimeError):
     pass
 
 
-REPORT_FORMAT_VERSION = 1
-GATE_POLICY_VERSION = "take-gates-v1"
+REPORT_FORMAT_VERSION = 2
+GATE_POLICY_VERSION = "take-gates-v2"
 VARIANT = "dry"
 
 
@@ -197,11 +198,6 @@ def _run_qc_transaction(
     candidate_set_path = run_root / "candidate-set.json"
     candidate_set_marker_path = run_root / "candidate-set.sha256"
 
-    _invalidate_existing_snapshot(
-        snapshot_path=snapshot_path,
-        candidate_set_path=candidate_set_path,
-        marker_path=candidate_set_marker_path,
-    )
     try:
         ledger = read_ledger(ledger_path)
     except (OSError, json.JSONDecodeError, TakeLedgerError) as error:
@@ -209,10 +205,64 @@ def _run_qc_transaction(
     if ledger["run_id"] != run_id:
         raise QCError("run_id と ledger.run_id が一致しません。")
 
+    existing_snapshot_state = any(
+        path.exists()
+        for path in (
+            snapshot_path,
+            candidate_set_path,
+            candidate_set_marker_path,
+        )
+    )
+    ledger_terminal = all(
+        attempt["status"] in TERMINAL_STATUSES for attempt in ledger["attempts"]
+    )
+    prior_authority = None
+    prior_report: Mapping[str, Any] | None = None
+    if (existing_snapshot_state and ledger_terminal) or any(
+        attempt["status"] in {"eligible", "hard_rejected"}
+        for attempt in ledger["attempts"]
+    ):
+        try:
+            prior_document = json.loads(report_path.read_text(encoding="utf-8"))
+            prior_authority = validate_qc_report(
+                prior_document,
+                ledger_path=ledger_path,
+                ledger=ledger,
+            )
+        except (
+            OSError,
+            UnicodeError,
+            json.JSONDecodeError,
+            QCReportError,
+        ) as error:
+            raise QCError(
+                "terminal run の再実行には完全な v2 QC report が必要です。"
+                "新しい generation run を開始してください: "
+                f"{report_path}: {error}",
+            ) from error
+        prior_report = prior_document
+
+    _invalidate_existing_snapshot(
+        snapshot_path=snapshot_path,
+        candidate_set_path=candidate_set_path,
+        marker_path=candidate_set_marker_path,
+    )
+
     generated_at = _utc_now()
-    attempt_reports: dict[tuple[str, str, str, str, int], dict[str, Any]] = {}
+    attempt_reports: dict[tuple[str, str, str, str, int], dict[str, Any]] = (
+        {
+            slot: dict(report)
+            for slot, report in prior_authority.attempts_by_slot.items()
+        }
+        if prior_authority is not None
+        else {}
+    )
     pending: list[_PendingInspection] = []
-    runtime_description: dict[str, Any] = {"status": "not_required"}
+    runtime_description: dict[str, Any] = (
+        dict(prior_report["runtime"])
+        if prior_report is not None
+        else {"status": "not_required"}
+    )
 
     try:
         scenarios = _load_scenarios(
@@ -295,7 +345,7 @@ def _run_qc_transaction(
     profile = PostprocessProfile()
     for attempt in list(ledger["attempts"]):
         slot = _attempt_slot(attempt)
-        report = _attempt_identity(attempt)
+        report = attempt_reports.get(slot, _attempt_identity(attempt))
         attempt_reports[slot] = report
         status = str(attempt["status"])
         if status in {"planned", "generation_failed"}:
@@ -313,6 +363,11 @@ def _run_qc_transaction(
 
         scenario = scenarios.get((str(attempt["scenario"]), str(attempt["line"])))
         if scenario is None:
+            if status in TERMINAL_STATUSES:
+                raise QCError(
+                    "terminal attempt に対応する scenario line がありません: "
+                    f"{_slot_text(slot)}",
+                )
             ledger = _record_blocked(
                 ledger,
                 ledger_path=ledger_path,
@@ -352,20 +407,6 @@ def _run_qc_transaction(
                     f"{_slot_text(slot)}: {error}",
                 ) from error
             if status in TERMINAL_STATUSES:
-                report.update(
-                    {
-                        "status": status,
-                        "gates": dict(attempt["gates"]),
-                        "mechanical": {
-                            "status": attempt["gates"]["mechanical"],
-                            "reason": "terminal_not_rechecked",
-                        },
-                        "content": {
-                            "status": attempt["gates"]["content"],
-                            "inspection": "terminal_not_repeated",
-                        },
-                    },
-                )
                 continue
             ledger = _record_hard_rejected(
                 ledger,
@@ -377,17 +418,6 @@ def _run_qc_transaction(
             continue
 
         if status in TERMINAL_STATUSES:
-            report.update(
-                {
-                    "status": status,
-                    "gates": dict(attempt["gates"]),
-                    "mechanical": _mechanical_report(mechanical),
-                    "content": {
-                        "status": attempt["gates"]["content"],
-                        "inspection": "terminal_not_repeated",
-                    },
-                },
-            )
             continue
 
         pending.append(
@@ -500,25 +530,15 @@ def _run_qc_transaction(
                     expected=item.scenario.expected_reading,
                     inspection=inspection,
                 )
-                if content_status == "reject":
-                    ledger = _record_content_rejected(
-                        ledger,
-                        ledger_path=ledger_path,
-                        attempt=current,
-                        report=report,
-                        mechanical=item.mechanical,
-                        content=content_report,
-                    )
-                else:
-                    ledger = _record_eligible(
-                        ledger,
-                        ledger_path=ledger_path,
-                        attempt=current,
-                        content_status=content_status,
-                        report=report,
-                        mechanical=item.mechanical,
-                        content=content_report,
-                    )
+                ledger = _record_eligible(
+                    ledger,
+                    ledger_path=ledger_path,
+                    attempt=current,
+                    content_status=content_status,
+                    report=report,
+                    mechanical=item.mechanical,
+                    content=content_report,
+                )
 
     return _finish(
         ledger=ledger,
@@ -872,15 +892,18 @@ def _content_gate(
     actual = normalize_japanese_reading(transcript)
     expected_normalized = str(expected["normalized"])
     matches = actual == expected_normalized
-    status = (
-        "pass"
-        if expected["authoritative"] and matches
-        else "reject"
-        if expected["authoritative"]
-        else "review_required"
+    authoritative = bool(expected["authoritative"])
+    status = "pass" if authoritative and matches else "review_required"
+    review_reason = (
+        None
+        if status == "pass"
+        else "explicit_reading_mismatch"
+        if authoritative
+        else "non_authoritative_expected_reading"
     )
     return status, {
         "status": status,
+        "review_reason": review_reason,
         "expected_reading": dict(expected),
         "asr": {
             "text": inspection.transcript,
@@ -893,7 +916,7 @@ def _content_gate(
                 actual,
             ),
             "reading_mismatch": (
-                not matches if expected["authoritative"] else None
+                not matches if authoritative else None
             ),
         },
         "prosody": dict(inspection.prosody),
@@ -988,38 +1011,6 @@ def _record_hard_rejected(
     return ledger
 
 
-def _record_content_rejected(
-    ledger: dict[str, Any],
-    *,
-    ledger_path: Path,
-    attempt: Mapping[str, Any],
-    report: dict[str, Any],
-    mechanical: _MechanicalPass,
-    content: Mapping[str, Any],
-) -> dict[str, Any]:
-    replacement = {
-        **attempt,
-        "gates": {"mechanical": "pass", "content": "reject"},
-        "features": {"status": "unscored"},
-        "status": "hard_rejected",
-    }
-    ledger = _checkpoint(
-        ledger,
-        ledger_path=ledger_path,
-        slot=_attempt_slot(attempt),
-        replacement=replacement,
-    )
-    report.update(
-        {
-            "status": "hard_rejected",
-            "gates": dict(replacement["gates"]),
-            "mechanical": _mechanical_report(mechanical),
-            "content": dict(content),
-        },
-    )
-    return ledger
-
-
 def _record_eligible(
     ledger: dict[str, Any],
     *,
@@ -1080,6 +1071,12 @@ def _block_mutable_attempts(
                 report=report,
             )
         else:
+            if (
+                attempt["status"] in TERMINAL_STATUSES
+                and "mechanical" in report
+                and "content" in report
+            ):
+                continue
             report.update(
                 {
                     "status": attempt["status"],
@@ -1147,6 +1144,11 @@ def _finish(
         )
     }
     pending_count = counts["planned"] + counts["generated"]
+    content_review_required_count = sum(
+        attempt["status"] == "eligible"
+        and attempt.get("gates", {}).get("content") == "review_required"
+        for attempt in ledger["attempts"]
+    )
     terminal = all(
         attempt["status"] in TERMINAL_STATUSES
         for attempt in ledger["attempts"]
@@ -1198,6 +1200,7 @@ def _finish(
             "attempt_count": len(ledger["attempts"]),
             **counts,
             "pending": pending_count,
+            "content_review_required": content_review_required_count,
         },
         "attempts": reports,
     }
@@ -1321,6 +1324,7 @@ def _finish(
         blocked_count=counts["blocked"],
         generation_failed_count=counts["generation_failed"],
         pending_count=pending_count,
+        content_review_required_count=content_review_required_count,
     )
 
 
