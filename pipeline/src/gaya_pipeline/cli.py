@@ -5,6 +5,15 @@ import sys
 from collections.abc import Sequence
 from pathlib import Path
 
+from gaya_pipeline.baseline import (
+    BaselineAssembleSummary,
+    BaselineError,
+    BaselineFinalizeSummary,
+    BaselinePlanSummary,
+    assemble_baseline,
+    finalize_baseline,
+    plan_baseline,
+)
 from gaya_pipeline.curation import (
     CurationError,
     CurationSummary,
@@ -79,6 +88,11 @@ def build_parser() -> argparse.ArgumentParser:
     gen_parser.add_argument("--scenario", help="scenario id")
     gen_parser.add_argument("--line", help="scenario 内の line id")
     gen_parser.add_argument(
+        "--selection",
+        type=Path,
+        help="baseline-plan-v1 による model group selection",
+    )
+    gen_parser.add_argument(
         "--takes",
         required=True,
         type=int,
@@ -104,6 +118,82 @@ def build_parser() -> argparse.ArgumentParser:
         "--run-id",
         required=True,
         help="artifacts/takes 配下の generation run id",
+    )
+
+    baseline_parser = subparsers.add_parser(
+        "baseline",
+        help="公開 baseline v4 bundle を準備する",
+    )
+    baseline_subparsers = baseline_parser.add_subparsers(
+        dest="baseline_command",
+        required=True,
+    )
+    baseline_plan_parser = baseline_subparsers.add_parser(
+        "plan",
+        help="公開 manifest v3 から canonical baseline plan を作る",
+    )
+    baseline_plan_parser.add_argument(
+        "--manifest",
+        required=True,
+        type=Path,
+        help="source manifest v3",
+    )
+    baseline_plan_parser.add_argument(
+        "--output",
+        required=True,
+        type=Path,
+        help="新規作成する baseline plan JSON",
+    )
+    baseline_assemble_parser = baseline_subparsers.add_parser(
+        "assemble",
+        help="7 model の terminal run と legacy 音声を bundle 化する",
+    )
+    baseline_assemble_parser.add_argument(
+        "--plan",
+        required=True,
+        type=Path,
+        help="canonical baseline-plan-v1 JSON",
+    )
+    baseline_assemble_parser.add_argument(
+        "--run-id",
+        required=True,
+        action="append",
+        dest="run_ids",
+        help="model ごとの terminal run id（7 回指定）",
+    )
+    baseline_assemble_parser.add_argument(
+        "--legacy-root",
+        required=True,
+        type=Path,
+        help="v3 public_path を格納する明示的 artifacts root",
+    )
+    baseline_assemble_parser.add_argument(
+        "--output",
+        required=True,
+        type=Path,
+        help="新規作成する baseline bundle directory",
+    )
+    baseline_finalize_parser = baseline_subparsers.add_parser(
+        "finalize",
+        help="baseline bundle と全 decision から release v4 を確定する",
+    )
+    baseline_finalize_parser.add_argument(
+        "--bundle",
+        required=True,
+        type=Path,
+        help="assemble 済み baseline bundle",
+    )
+    baseline_finalize_parser.add_argument(
+        "--input",
+        required=True,
+        type=Path,
+        help="baseline-curation-v1 JSON",
+    )
+    baseline_finalize_parser.add_argument(
+        "--output",
+        required=True,
+        type=Path,
+        help="新規作成する finalized baseline directory",
     )
 
     curate_parser = subparsers.add_parser(
@@ -234,6 +324,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 artifacts_dir=repository_root / "artifacts",
                 scenario_id=args.scenario,
                 line_id=args.line,
+                selection_path=args.selection,
                 takes=args.takes,
                 seed_base=args.seed_base,
                 force=args.force,
@@ -243,6 +334,43 @@ def main(argv: Sequence[str] | None = None) -> int:
             return 1
         _print_generation_summary(summary)
         return 1 if summary.failed_count else 0
+
+    if args.command == "baseline":
+        try:
+            if args.baseline_command == "plan":
+                summary = plan_baseline(
+                    manifest_path=args.manifest,
+                    output_path=args.output,
+                )
+                _print_baseline_plan_summary(summary)
+                return 0
+            repository_root = default_scenarios_dir().parent
+            if args.baseline_command == "assemble":
+                assembled = assemble_baseline(
+                    plan_path=args.plan,
+                    run_ids=args.run_ids,
+                    output_dir=args.output,
+                    artifacts_dir=repository_root / "artifacts",
+                    legacy_root=args.legacy_root,
+                    scenarios_dir=repository_root / "scenarios",
+                )
+                _print_baseline_assemble_summary(assembled)
+                return 0
+            if args.baseline_command == "finalize":
+                finalized = finalize_baseline(
+                    bundle_dir=args.bundle,
+                    input_path=args.input,
+                    output_dir=args.output,
+                    scenarios_dir=repository_root / "scenarios",
+                )
+                _print_baseline_finalize_summary(finalized)
+                return 0
+            raise AssertionError(
+                f"unknown baseline command: {args.baseline_command}",
+            )
+        except BaselineError as error:
+            print(f"ERROR: {error}", file=sys.stderr)
+            return 1
 
     if args.command == "qc":
         repository_root = default_scenarios_dir().parent
@@ -346,6 +474,36 @@ def _print_generation_summary(summary: GenerationSummary) -> None:
         f"スキップ {summary.skipped_count} / "
         f"失敗 {summary.failed_count} / "
         f"所要時間 {summary.elapsed_seconds:.3f}s",
+    )
+
+
+def _print_baseline_plan_summary(summary: BaselinePlanSummary) -> None:
+    print(f"Baseline plan: {summary.plan_path.as_posix()}")
+    print(f"SHA-256: {summary.plan_sha256}")
+    print(
+        f"groups {summary.group_count} / models {summary.model_count} / "
+        f"excluded failures {summary.excluded_failure_count}",
+    )
+
+
+def _print_baseline_assemble_summary(summary: BaselineAssembleSummary) -> None:
+    print(f"Baseline bundle: {summary.bundle_dir.as_posix()}")
+    print(f"Candidate set SHA-256: {summary.candidate_set_sha256}")
+    print(f"Reference SHA-256: {summary.baseline_reference_sha256}")
+    print(
+        f"groups {summary.group_count} / candidates {summary.candidate_count} / "
+        f"candidate zero {summary.failure_count}",
+    )
+
+
+def _print_baseline_finalize_summary(summary: BaselineFinalizeSummary) -> None:
+    print(f"Baseline release: {summary.output_dir.as_posix()}")
+    print(f"Decision SHA-256: {summary.decision_sha256}")
+    print(f"Manifest SHA-256: {summary.release_manifest_sha256}")
+    print(f"Audit SHA-256: {summary.audit_sha256}")
+    print(
+        f"candidate zero {summary.candidate_zero_count} / "
+        f"selected {summary.selected_count} / skipped {summary.skipped_count}",
     )
 
 

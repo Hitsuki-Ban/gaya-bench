@@ -788,6 +788,15 @@ run を作る。同一 input に異なる take identity の完了 run が複数�
 いた事実だけを「人間選択済み」の証拠にはせず、再生成した N=1 audio を明示的に
 確認する。
 
+実装では`baseline plan`でraw v3 SHAと381 groupを固定し、`gen --selection`で
+7 modelのexact N=1 runを作る。`baseline assemble`は旧公開audioをcandidateへ
+変換せずreferenceとして分離し、全bundle fileをcanonical inventoryで閉包する。
+`/curate/baseline`のdecisionはcandidate set SHAとreference SHAの両方に拘束する。
+`baseline finalize`はinventoryと全source evidenceを再検証し、
+`381 = candidate_zero + selected + skipped`、`uncurated=0`を満たすsnapshotだけを
+確定する。exact schemaと運用手順は
+[baseline v4 protocol](research/baseline-v4/protocol.md)を正とする。
+
 ### Ticket G — manifest/site/R2 の原子的 v4 cutover
 
 範囲:
