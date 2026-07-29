@@ -3,8 +3,9 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vite-plus/test";
 
 import { baselineSelectionStatus } from "@/baseline/selection";
-import type { BaselineGroup } from "@/baseline/types";
-import { BaselineGroupEditor } from "@/pages/baseline-curate-page";
+import { baselineReviewGroupIndices, resolveBaselineReviewGroupIndex } from "@/baseline/review";
+import type { BaselineCurationDraft, BaselineGroup } from "@/baseline/types";
+import { BaselineGroupEditor, BaselineReviewGuide } from "@/pages/baseline-curate-page";
 
 const TAKE_ID = "a".repeat(64);
 const CANDIDATE_SHA = "b".repeat(64);
@@ -72,6 +73,38 @@ describe("baselineSelectionStatus", () => {
   });
 });
 
+describe("baseline skip 復聴", () => {
+  it("品質理由のskipだけをcontent_correct=trueから抽出し、元の並び順を維持する", () => {
+    const draft = makeDraft([
+      ["selected", true],
+      ["skipped", true],
+      ["skipped", false],
+      ["skipped", true],
+    ]);
+
+    expect(baselineReviewGroupIndices(draft, "quality-skipped")).toEqual([1, 3]);
+    expect(baselineReviewGroupIndices(draft, "skipped")).toEqual([1, 2, 3]);
+    expect(baselineReviewGroupIndices(draft, "all")).toEqual([0, 1, 2, 3]);
+  });
+
+  it("現在組がfilterから外れたら次の可視組へ進み、切替を検出できる", () => {
+    expect(resolveBaselineReviewGroupIndex([1, 3], 1)).toBe(1);
+    expect(resolveBaselineReviewGroupIndex([3], 1)).toBe(3);
+    expect(resolveBaselineReviewGroupIndex([], 1)).toBe(-1);
+  });
+
+  it("復聴画面に今回の判断基準を明示する", () => {
+    const markup = renderToStaticMarkup(
+      createElement(BaselineReviewGuide, { mode: "quality-skipped" }),
+    );
+
+    expect(markup).toContain("本輪: 品質理由の skip");
+    expect(markup).toContain("厳密な日本語の音調・アクセント");
+    expect(markup).toContain("音質・自然さ・演技の総合品質");
+    expect(markup).toContain("実際の音声内容に混入");
+  });
+});
+
 function renderEditor(group: BaselineGroup): string {
   return renderToStaticMarkup(
     createElement(BaselineGroupEditor, {
@@ -100,6 +133,37 @@ function renderEditor(group: BaselineGroup): string {
       total: 1,
     }),
   );
+}
+
+function makeDraft(
+  rows: readonly (readonly ["selected" | "skipped", boolean])[],
+): BaselineCurationDraft {
+  return {
+    version: 1,
+    candidate_set_sha256: "d".repeat(64),
+    baseline_reference_sha256: "e".repeat(64),
+    groups: rows.map(([decision, contentCorrect], index) => ({
+      model: "model",
+      scenario: "scene",
+      line: `line-${index}`,
+      variant: "dry",
+      candidates: [
+        {
+          take_id: `${index}`.padStart(64, "0"),
+          rubric: {
+            content_correct: contentCorrect,
+            intent_match: 3,
+            character_naturalness: 3,
+            adoptable: false,
+          },
+        },
+      ],
+      decision:
+        decision === "selected"
+          ? { type: "selected", take_id: `${index}`.padStart(64, "0") }
+          : { type: "skipped" },
+    })),
+  };
 }
 
 function makeGroup(comparison: "identical" | "different"): BaselineGroup {

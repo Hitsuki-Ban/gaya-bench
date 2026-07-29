@@ -100,4 +100,35 @@ rubric、decisionが一致することを検証して明示的にrebindした。
 `6d1a999290a2e83518cc14e7905b7431aea4d6fad24025154803a65156aaf2e4`
 で、selected 20 / skipped 4 / undecided 196である。
 
-残る196 candidate groupの人評とfinalize結果は完了後に追記する。
+## 最終策展と release candidate
+
+Dummyを除く220 candidate groupの人評とskip復聴を完了した。最終decisionは
+selected 166、skipped 54、uncurated 0である。skip復聴では、初回に
+`content_correct=true && adoptable=false`だった29 groupを独立queueで再確認し、
+5 groupをselectedへ変更、6 groupを厳密な内容・日本語音調の誤りとして
+`content_correct=false`へ変更した。残る18 groupは内容が正しくても総合品質が
+採用水準に届かないためskipを維持した。
+
+`baseline finalize`は381 groupを次のexact countで確定した。
+
+- candidate zero: 161
+- selected: 166
+- skipped: 54
+- uncurated: 0
+
+固定したrelease metadataは
+[`release/`](release/)に置く。音声binary、source-run evidence、bundle inventoryは
+含めず、Ticket GのR2 uploadと`data/manifest.json`切替もまだ行わない。
+
+| artifact | SHA-256 |
+| --- | --- |
+| baseline plan | `2442095c32ae1ebf660ebaa56fc45939b528f29b18fed5883c239e91d12eb60f` |
+| candidate set | `2f55a3a8145bf87c375dd70384464a2aecca922a47b55eeac99a2504bcfd4f7a` |
+| baseline reference | `e0f5f7560dd8d8bf051e9e0d65c8201236548862fb98d829f040433eee5e6823` |
+| decision | `43e32494051436a47130e8055e5e4d216bbf2f907a620cca5f830bbebcbeedd4` |
+| release manifest v4 | `c98d1666dc00fc10ef2e6fb0a8a5750234739ce6827bc50ea16f99954e2de985` |
+| audit | `587592610e0f8ed64d12c1fad097a914801a55e09d382998c830bdb5de60e644` |
+| provenance | `962635b1110dd724b1a417858df7a2832285efeb7f247daa7a8d3dd5ef6aea6e` |
+
+ローカルreleaseのcanonical inventoryは1792 fileを閉包し、全fileのSHA-256を
+再計算して不一致0件を確認した。

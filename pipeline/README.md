@@ -187,7 +187,7 @@ candidate-zeroなのでcuration projectionを作らない。
 
 ```console
 uv run --project pipeline --locked gaya baseline finalize \
-  --bundle artifacts/baseline-v4/curation \
+  --bundle artifacts/baseline-v4/curation-no-dummy \
   --input <baseline-curation.json> \
   --output artifacts/baseline-v4/release
 ```
