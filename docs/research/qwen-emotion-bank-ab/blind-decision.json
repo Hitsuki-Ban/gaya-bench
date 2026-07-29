@@ -1,0 +1,49 @@
+{
+  "format_version": 1,
+  "experiment": "issue-96-qwen-emotion-bank-blind-ab",
+  "completed_at": "2026-07-29T23:39:18.912Z",
+  "pairs": {
+    "guard-onna-001": {
+      "preference": "right",
+      "left": {
+        "reading": "incorrect",
+        "identity": "uncertain",
+        "leakage": "none"
+      },
+      "right": {
+        "reading": "correct",
+        "identity": "uncertain",
+        "leakage": "none"
+      },
+      "notes": "指南写的是女卫兵，但是语音是男性"
+    },
+    "guard-onna-002": {
+      "preference": "equal",
+      "left": {
+        "reading": "incorrect",
+        "identity": "uncertain",
+        "leakage": "none"
+      },
+      "right": {
+        "reading": "incorrect",
+        "identity": "uncertain",
+        "leakage": "none"
+      },
+      "notes": "「するな」明显不符合语境。声线为男卫兵，且均和上一组不同(这组的左和GUARD-ONNA-001的右声线相近)"
+    },
+    "guard-onna-003": {
+      "preference": "right",
+      "left": {
+        "reading": "incorrect",
+        "identity": "uncertain",
+        "leakage": "none"
+      },
+      "right": {
+        "reading": "incorrect",
+        "identity": "uncertain",
+        "leakage": "none"
+      },
+      "notes": "声线均为男性且与上一组不同。语调问题集中在呵欠声语气词是棒读"
+    }
+  }
+}

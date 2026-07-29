@@ -326,7 +326,7 @@ class Qwen3TTSAdapter:
         version=PROFILE_VERSION,
         license_note=(
             "Apache-2.0（Qwen3-TTS code / Base / VoiceDesign）。"
-            "VoiceDesign 感情参照 bank は A/B 検証前の実験経路"
+            "VoiceDesign 感情参照 bank は blind A/B 不合格の実験経路"
         ),
         capabilities=Capabilities(
             emotion=False,
