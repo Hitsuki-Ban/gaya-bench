@@ -240,6 +240,7 @@ function line(
     delivery: "自然に",
     difficulty,
     loop_ok: true,
+    final_intonation: "fall",
   };
 }
 

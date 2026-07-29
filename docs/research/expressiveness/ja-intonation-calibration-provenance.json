@@ -1,0 +1,223 @@
+{
+  "format_version": 1,
+  "issue": 122,
+  "source_run_rebinds": [
+    {
+      "run_id": "20260729T101318586626Z-chatterbox-multilingual-v3-n1",
+      "field": "source.ledger",
+      "original_value": "F:/WorkSpace/GayaDemo/.worktrees/104-baseline-v4/artifacts/takes/20260729T101318586626Z-chatterbox-multilingual-v3-n1/ledger.json",
+      "rebound_value": "F:/WorkSpace/GayaDemo/artifacts/takes/20260729T101318586626Z-chatterbox-multilingual-v3-n1/ledger.json",
+      "original_qc_report_sha256": "c0eacc1111201467d94df75fd56f7c06578565efb9a2d9609e8984166c5fd375",
+      "rebound_qc_report_sha256": "cf3f01d11e0dcf5624d8ae6c69a4c751f950df11e2837cf0f7aa61a2c469c5d9"
+    },
+    {
+      "run_id": "20260729T140956320980Z-cosyvoice3-0.5b-2512-n1",
+      "field": "source.ledger",
+      "original_value": "F:/WorkSpace/GayaDemo/.worktrees/104-baseline-v4/artifacts/takes/20260729T140956320980Z-cosyvoice3-0.5b-2512-n1/ledger.json",
+      "rebound_value": "F:/WorkSpace/GayaDemo/artifacts/takes/20260729T140956320980Z-cosyvoice3-0.5b-2512-n1/ledger.json",
+      "original_qc_report_sha256": "2f3affa231a170bd9abff62fbd08f09c6ee35a10f09a45cb4259651ca9ed645d",
+      "rebound_qc_report_sha256": "508a997157baa01c9a622070d6aa9cc8b794080cb48133a6d40f5c3941371a73"
+    },
+    {
+      "run_id": "20260729T102548151791Z-gpt-sovits-v2-pro-plus-n1",
+      "field": "source.ledger",
+      "original_value": "F:/WorkSpace/GayaDemo/.worktrees/104-baseline-v4/artifacts/takes/20260729T102548151791Z-gpt-sovits-v2-pro-plus-n1/ledger.json",
+      "rebound_value": "F:/WorkSpace/GayaDemo/artifacts/takes/20260729T102548151791Z-gpt-sovits-v2-pro-plus-n1/ledger.json",
+      "original_qc_report_sha256": "cc22fd1aab79828b0a5ee4a234edd6cf122347877e84651b1e1449ea9506ae72",
+      "rebound_qc_report_sha256": "e29c19704ea5d2a6d685f918871e87e903c1dac9811103fd01c9d7db38305847"
+    },
+    {
+      "run_id": "20260729T113009679952Z-qwen3-tts-12hz-1.7b-n1",
+      "field": "source.ledger",
+      "original_value": "F:/WorkSpace/GayaDemo/.worktrees/104-baseline-v4/artifacts/takes/20260729T113009679952Z-qwen3-tts-12hz-1.7b-n1/ledger.json",
+      "rebound_value": "F:/WorkSpace/GayaDemo/artifacts/takes/20260729T113009679952Z-qwen3-tts-12hz-1.7b-n1/ledger.json",
+      "original_qc_report_sha256": "4b6ae613cd8e6482d79a3a2684b622b3660e2cdaca616cedd90dbd3224e41f80",
+      "rebound_qc_report_sha256": "c4c2fa90cf0b6b7e5f130fd9b02bb10f61105835d393f0036dee66a16eefae7c"
+    },
+    {
+      "run_id": "20260729T102712740366Z-supertonic-3-n1",
+      "field": "source.ledger",
+      "original_value": "F:/WorkSpace/GayaDemo/.worktrees/104-baseline-v4/artifacts/takes/20260729T102712740366Z-supertonic-3-n1/ledger.json",
+      "rebound_value": "F:/WorkSpace/GayaDemo/artifacts/takes/20260729T102712740366Z-supertonic-3-n1/ledger.json",
+      "original_qc_report_sha256": "460f601aee73fd46b2f0287a6279c2295e4609b1be95fc98e6c68dd69372acae",
+      "rebound_qc_report_sha256": "8f56f2d29d8aa15c716f681acf89c1ea531a73df3e79b5c8f134dbb20242ab6b"
+    },
+    {
+      "run_id": "20260729T103145027400Z-voxcpm2-n1",
+      "field": "source.ledger",
+      "original_value": "F:/WorkSpace/GayaDemo/.worktrees/104-baseline-v4/artifacts/takes/20260729T103145027400Z-voxcpm2-n1/ledger.json",
+      "rebound_value": "F:/WorkSpace/GayaDemo/artifacts/takes/20260729T103145027400Z-voxcpm2-n1/ledger.json",
+      "original_qc_report_sha256": "849780e9a22681bd6cd0b7ddd378a8c6c85a2168fde332bca3f15f5be4d1a2ea",
+      "rebound_qc_report_sha256": "f37c457497753b7295657079a1f0ee541d2057ba5905380f40946d80e85447b7"
+    }
+  ],
+  "aivis_speech": {
+    "engine": {
+      "name": "AivisSpeech Engine",
+      "version": "1.2.0",
+      "manifest_version": "0.13.1",
+      "uuid": "1b4a5014-d9fd-11ee-b97d-83c170a68ed3"
+    },
+    "model": {
+      "name": "コハク",
+      "aivmx_version": "1.1.0",
+      "uuid": "22e8ed77-94fe-4ef2-871f-a86f94e9a579",
+      "speaker_uuid": "5680ac39-43c9-487a-bc3e-018c0d29cc38",
+      "sha256": "3f5c08b52bb8a64efd361268580c81510f96c927cd6905aa7dbae6851333270a"
+    },
+    "text": "近頃は物騒でいかんなぁ。",
+    "audio_query": {
+      "path": "ja-intonation-aivis-audio-query.json",
+      "sha256": "4e860093a6e3a2dc3c3eaee813a5a3703bfef6dd6c093867afc4440feb7d4845"
+    },
+    "fixed_query_fields": {
+      "speedScale": 1.0,
+      "intonationScale": 1.0,
+      "tempoDynamicsScale": 1.0,
+      "pitchScale": 0.0,
+      "volumeScale": 1.0,
+      "prePhonemeLength": 0.1,
+      "postPhonemeLength": 0.1,
+      "outputSamplingRate": 44100,
+      "outputStereo": false
+    },
+    "variable": "POST /synthesis speaker ID only",
+    "styles": [
+      {
+        "name": "ノーマル",
+        "speaker_id": 1878365376,
+        "local_style_id": 0
+      },
+      {
+        "name": "せつなめ",
+        "speaker_id": 1878365378,
+        "local_style_id": 2
+      }
+    ],
+    "outputs": [
+      {
+        "style": "ノーマル",
+        "sample": 1,
+        "wav_sha256": "a1310cc76a7a33ea40345e56ab93f551d06bf2425eb42c576ca6f8150e5bb8db",
+        "opus_sha256": "0d906be4065897bb76d63ad930d2fee44af7c90bf369c49de6bcca29b666021d",
+        "public_url": "https://audio.gaya-bench.hitsuki.space/experiments/issue-122/aivis/normal/sample-01/0d906be4065897bb76d63ad930d2fee44af7c90bf369c49de6bcca29b666021d.opus"
+      },
+      {
+        "style": "ノーマル",
+        "sample": 2,
+        "wav_sha256": "e4e8f17e7f1ddff301960a9cf4e58c8fca583e3107ef7c2d3ab10c17ec4dcba0",
+        "opus_sha256": "ed299fe47c26bfb58402e81843e52b5341f9bb253651c81d871197f4d0ccf623",
+        "public_url": "https://audio.gaya-bench.hitsuki.space/experiments/issue-122/aivis/normal/sample-02/ed299fe47c26bfb58402e81843e52b5341f9bb253651c81d871197f4d0ccf623.opus"
+      },
+      {
+        "style": "ノーマル",
+        "sample": 3,
+        "wav_sha256": "03fa13b683637a91172e8c20f8aa9c115722cceae0cdcdaebe30d1b0c38c9761",
+        "opus_sha256": "de9c389f01f5ea47a12da0bbb8bd26798ff1c0ad03b62de9e0cd4277be4c6351",
+        "public_url": "https://audio.gaya-bench.hitsuki.space/experiments/issue-122/aivis/normal/sample-03/de9c389f01f5ea47a12da0bbb8bd26798ff1c0ad03b62de9e0cd4277be4c6351.opus"
+      },
+      {
+        "style": "ノーマル",
+        "sample": 4,
+        "wav_sha256": "31a478d0fd1ebb6e2bafb1760f6bbf492c920106ce6e39080c6b7af52b27cf6e",
+        "opus_sha256": "efb45050b0936e8e743ad1685d4223d3e215648b9834ab4a25ef5ad45ea26749",
+        "public_url": "https://audio.gaya-bench.hitsuki.space/experiments/issue-122/aivis/normal/sample-04/efb45050b0936e8e743ad1685d4223d3e215648b9834ab4a25ef5ad45ea26749.opus"
+      },
+      {
+        "style": "ノーマル",
+        "sample": 5,
+        "wav_sha256": "e3a2578bdaecb07e3bfeddf004db40796011c2a01d03cbfaf533c8c66e5cc82b",
+        "opus_sha256": "7abd50a9a79d82c7d2168fcd32a7fece1672c2386380db43c245b0cd448d6f83",
+        "public_url": "https://audio.gaya-bench.hitsuki.space/experiments/issue-122/aivis/normal/sample-05/7abd50a9a79d82c7d2168fcd32a7fece1672c2386380db43c245b0cd448d6f83.opus"
+      },
+      {
+        "style": "せつなめ",
+        "sample": 1,
+        "wav_sha256": "14fa245badb88f59bf433ff211c4a5350b979649543d82d445de391a783e0f44",
+        "opus_sha256": "660458bf39ee70f2609d40a0c3eb2a89b8e10b4478529923e61408a430b8707e",
+        "public_url": "https://audio.gaya-bench.hitsuki.space/experiments/issue-122/aivis/setsuname/sample-01/660458bf39ee70f2609d40a0c3eb2a89b8e10b4478529923e61408a430b8707e.opus"
+      },
+      {
+        "style": "せつなめ",
+        "sample": 2,
+        "wav_sha256": "2992bdbc42e48457ff89a8630f09ebe18f2d2293281156f1ac60915ede0a0ae6",
+        "opus_sha256": "c1843b3a7c721a83560f24a0bae5e6fbb5b912e6088d56744d01132cc63fa24d",
+        "public_url": "https://audio.gaya-bench.hitsuki.space/experiments/issue-122/aivis/setsuname/sample-02/c1843b3a7c721a83560f24a0bae5e6fbb5b912e6088d56744d01132cc63fa24d.opus"
+      },
+      {
+        "style": "せつなめ",
+        "sample": 3,
+        "wav_sha256": "84d4c3d348083d87c07d8683e032339c32b3fede90e1e9628a97850bb888eb09",
+        "opus_sha256": "e22950df4851436fabbc1c0a834cd09684c333dbe4796b9d01a5a92952337a2a",
+        "public_url": "https://audio.gaya-bench.hitsuki.space/experiments/issue-122/aivis/setsuname/sample-03/e22950df4851436fabbc1c0a834cd09684c333dbe4796b9d01a5a92952337a2a.opus"
+      },
+      {
+        "style": "せつなめ",
+        "sample": 4,
+        "wav_sha256": "7ad066ff8e89859cefa33c41df8ac3e24f757e835ea62fccf7bf933bdd751d70",
+        "opus_sha256": "0c9bf93fe443ae675454af64d00697681eab75255e2acf9ed1cf196acbcd2e3e",
+        "public_url": "https://audio.gaya-bench.hitsuki.space/experiments/issue-122/aivis/setsuname/sample-04/0c9bf93fe443ae675454af64d00697681eab75255e2acf9ed1cf196acbcd2e3e.opus"
+      },
+      {
+        "style": "せつなめ",
+        "sample": 5,
+        "wav_sha256": "42b780d72f625e1f71657268aa8f5b32e0d53b440aa3824f3c655a983165cae7",
+        "opus_sha256": "5d929545e3b6d2857406acd0d8a86b7614b055530f0ec17dd8e68d06f3d2295c",
+        "public_url": "https://audio.gaya-bench.hitsuki.space/experiments/issue-122/aivis/setsuname/sample-05/5d929545e3b6d2857406acd0d8a86b7614b055530f0ec17dd8e68d06f3d2295c.opus"
+      }
+    ]
+  },
+  "qwen3_tts": {
+    "package_version": "0.1.1",
+    "voice_design_model": "Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign",
+    "voice_design_revision": "5ecdb67327fd37bb2e042aab12ff7391903235d3",
+    "device": "cuda:0",
+    "dtype": "bfloat16",
+    "attention_backend": "sdpa",
+    "language": "Japanese",
+    "seed": 0,
+    "source": {
+      "scenario": "castle-gate",
+      "character": "merchant",
+      "emotion": "surprised",
+      "intensity": 2
+    },
+    "instruct": "声質: 愛想のいいやや高めの声。早口になりがちで愛想笑いが混じる。\n性格: 如才ないが内心では急いでいる。\n場面: 城壁に囲まれた王都の正門前。昼、検問のため旅人や商人の列ができている。\n感情: 思わず声が跳ねる驚き\n感情の強度: 中程度。台詞の意図が明確に伝わる強さで表す\n演技: 冒頭で息をのみ、声を大きく跳ね上げる。\n感情が変わっても、同じキャラクターの声質、年齢感、話者としての同一性を保つ。\n実在の人物や声優を模倣せず、この架空キャラクターの声として自然に発声する。",
+    "sampling": {
+      "do_sample": true,
+      "repetition_penalty": 1.05,
+      "temperature": 0.9,
+      "top_p": 1.0,
+      "top_k": 50,
+      "subtalker_dosample": true,
+      "subtalker_temperature": 0.9,
+      "subtalker_top_p": 1.0,
+      "subtalker_top_k": 50,
+      "max_new_tokens": 2048
+    },
+    "output_sample_rate_hz": 24000,
+    "outputs": [
+      {
+        "condition": "current-question-terminal",
+        "reference_text": "えっ、本当に？そんなことがあるなんて！",
+        "wav_sha256": "1fe58ec4c52a94aca1daeed67962ddf9411926670fdb85edb1b8dfe06cb36732",
+        "opus_sha256": "20ad72bfaf53e5bcfab116718eef169c2b9fdd2ce3e636ba50fa6422b6ed258b",
+        "public_url": "https://audio.gaya-bench.hitsuki.space/experiments/issue-122/qwen/current-question-terminal/20ad72bfaf53e5bcfab116718eef169c2b9fdd2ce3e636ba50fa6422b6ed258b.opus"
+      },
+      {
+        "condition": "falling-declarative-terminal",
+        "reference_text": "まさか、こんなことが本当に起きたとは思わなかった。",
+        "wav_sha256": "dc54f5825c66b726f6a2e83dd5be545a64f213114afbcd31b3ea167f6cd183bf",
+        "opus_sha256": "9d7d8206ec7e678a8068e632da30b7242db79b46cc30d2fb8216e523931494c0",
+        "public_url": "https://audio.gaya-bench.hitsuki.space/experiments/issue-122/qwen/falling-declarative-terminal/9d7d8206ec7e678a8068e632da30b7242db79b46cc30d2fb8216e523931494c0.opus"
+      },
+      {
+        "condition": "falling-voiced-terminal",
+        "reference_text": "まさか、こんなことが本当に起きたんだな。",
+        "wav_sha256": "9a394de2cfc7eaec2f2c01997017e50cf4bbd042547f6e78b0d933d8703165f4",
+        "opus_sha256": "2a272fdc96f8d46f87c23519ca0610384a7da1b79b3913e9c2427b3281c6e4d6",
+        "public_url": "https://audio.gaya-bench.hitsuki.space/experiments/issue-122/qwen/falling-voiced-terminal/2a272fdc96f8d46f87c23519ca0610384a7da1b79b3913e9c2427b3281c6e4d6.opus"
+      }
+    ]
+  }
+}

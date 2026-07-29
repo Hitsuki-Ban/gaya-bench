@@ -88,7 +88,12 @@
         "delivery": { "type": "string", "description": "演技指示の散文 (話速・声量・ニュアンス)" },
         "situation": { "type": "string", "description": "この一言が発される具体的状況" },
         "difficulty": { "enum": ["standard", "hard"], "default": "standard" },
-        "loop_ok": { "type": "boolean", "default": true }
+        "loop_ok": { "type": "boolean", "default": true },
+        "final_intonation": {
+          "enum": ["fall", "rise", "free"],
+          "default": "fall",
+          "description": "発話末尾のイントネーション要件。省略時は fall"
+        }
       }
     }
   }

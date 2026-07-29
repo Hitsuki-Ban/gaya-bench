@@ -16,6 +16,7 @@ export type Emotion =
   | "laughing"
   | "pain";
 export type Difficulty = "standard" | "hard";
+export type FinalIntonation = "fall" | "rise" | "free";
 
 export interface Scene {
   readonly setting: string;
@@ -46,6 +47,7 @@ export interface Line {
   readonly situation?: string;
   readonly difficulty: Difficulty;
   readonly loop_ok: boolean;
+  readonly final_intonation: FinalIntonation;
 }
 
 export interface Scenario {

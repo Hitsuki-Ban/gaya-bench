@@ -49,6 +49,21 @@ def _scenario_with_character_kind(tmp_path: Path, kind: object) -> Path:
     return scenarios_dir
 
 
+def _scenario_with_final_intonation(
+    tmp_path: Path,
+    final_intonation: object,
+) -> Path:
+    scenarios_dir = _scenarios_from_fixtures(tmp_path)
+    scenario_path = SCENARIOS_DIR / "tavern-night.yaml"
+    document = yaml.safe_load(scenario_path.read_text(encoding="utf-8"))
+    document["lines"][0]["final_intonation"] = final_intonation
+    (scenarios_dir / scenario_path.name).write_text(
+        yaml.safe_dump(document, allow_unicode=True, sort_keys=False),
+        encoding="utf-8",
+    )
+    return scenarios_dir
+
+
 def test_current_scenarios_are_valid() -> None:
     result = validate_scenarios(SCENARIOS_DIR)
 
@@ -96,6 +111,40 @@ def test_無効なcharacter_kindを拒否する(
 
     assert len(result.problems) == 1
     assert result.problems[0].target == "$.characters[0].kind"
+
+
+@pytest.mark.parametrize(
+    "final_intonation",
+    ["fall", "rise", "free"],
+    ids=["下降", "上昇", "自由"],
+)
+def test_有効なfinal_intonationを受理する(
+    tmp_path: Path,
+    final_intonation: str,
+) -> None:
+    result = validate_scenarios(
+        _scenario_with_final_intonation(tmp_path, final_intonation),
+    )
+
+    assert result.file_count == 1
+    assert result.problems == ()
+
+
+@pytest.mark.parametrize(
+    "final_intonation",
+    ["flat", None],
+    ids=["未定義の値", "null"],
+)
+def test_無効なfinal_intonationを拒否する(
+    tmp_path: Path,
+    final_intonation: object,
+) -> None:
+    result = validate_scenarios(
+        _scenario_with_final_intonation(tmp_path, final_intonation),
+    )
+
+    assert len(result.problems) == 1
+    assert result.problems[0].target == "$.lines[0].final_intonation"
 
 
 def test_schema_violation_is_rejected(tmp_path: Path) -> None:

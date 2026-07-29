@@ -24,6 +24,11 @@ from gaya_pipeline.generation import (
     GenerationSummary,
     run_generation,
 )
+from gaya_pipeline.intonation_report import (
+    IntonationReportError,
+    IntonationReportSummary,
+    build_intonation_report,
+)
 from gaya_pipeline.pilot import (
     PilotAnalysisSummary,
     PilotBuildSummary,
@@ -194,6 +199,44 @@ def build_parser() -> argparse.ArgumentParser:
         required=True,
         type=Path,
         help="新規作成する finalized baseline directory",
+    )
+
+    intonation_parser = subparsers.add_parser(
+        "intonation",
+        help="語尾イントネーションの分布を解析する",
+    )
+    intonation_subparsers = intonation_parser.add_subparsers(
+        dest="intonation_command",
+        required=True,
+    )
+    intonation_report_parser = intonation_subparsers.add_parser(
+        "report",
+        help="eligible take の model×gender 分布レポートを作成する",
+    )
+    intonation_report_parser.add_argument(
+        "--run-id",
+        required=True,
+        action="append",
+        dest="run_ids",
+        help="artifacts/takes 配下の terminal run id（複数回指定可）",
+    )
+    intonation_report_parser.add_argument(
+        "--artifacts",
+        required=True,
+        type=Path,
+        help="artifacts directory",
+    )
+    intonation_report_parser.add_argument(
+        "--scenarios",
+        required=True,
+        type=Path,
+        help="current scenarios directory",
+    )
+    intonation_report_parser.add_argument(
+        "--output",
+        required=True,
+        type=Path,
+        help="新規作成する report directory",
     )
 
     curate_parser = subparsers.add_parser(
@@ -391,6 +434,24 @@ def main(argv: Sequence[str] | None = None) -> int:
         _print_qc_summary(summary)
         return 1 if summary.blocked_count or summary.pending_count else 0
 
+    if args.command == "intonation":
+        if args.intonation_command != "report":
+            raise AssertionError(
+                f"unknown intonation command: {args.intonation_command}",
+            )
+        try:
+            summary = build_intonation_report(
+                run_ids=args.run_ids,
+                artifacts_dir=args.artifacts,
+                scenarios_dir=args.scenarios,
+                output_dir=args.output,
+            )
+        except IntonationReportError as error:
+            print(f"ERROR: {error}", file=sys.stderr)
+            return 1
+        _print_intonation_report_summary(summary)
+        return 0
+
     if args.command == "curate":
         if args.curate_command != "apply":
             raise AssertionError(f"unknown curate command: {args.curate_command}")
@@ -552,6 +613,17 @@ def _print_qc_summary(summary: QCSummary) -> None:
         f"generation failure {summary.generation_failed_count} / "
         f"未完了 {summary.pending_count} / "
         f"content review required {summary.content_review_required_count}",
+    )
+
+
+def _print_intonation_report_summary(
+    summary: IntonationReportSummary,
+) -> None:
+    print(f"Intonation report JSON: {summary.json_path.as_posix()}")
+    print(f"Intonation report Markdown: {summary.markdown_path.as_posix()}")
+    print(
+        f"完了: run {summary.run_count} / "
+        f"eligible attempt {summary.eligible_attempt_count}",
     )
 
 

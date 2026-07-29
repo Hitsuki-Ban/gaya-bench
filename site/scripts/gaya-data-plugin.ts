@@ -50,7 +50,14 @@ const SCENE_OPTIONAL_KEYS = ["acoustics", "listener"] as const;
 const CHARACTER_REQUIRED_KEYS = ["id", "name", "gender", "age", "voice"] as const;
 const CHARACTER_OPTIONAL_KEYS = ["kind", "archetype", "personality", "reference_voice"] as const;
 const LINE_REQUIRED_KEYS = ["id", "character", "text", "emotion", "delivery"] as const;
-const LINE_OPTIONAL_KEYS = ["reading", "intensity", "situation", "difficulty", "loop_ok"] as const;
+const LINE_OPTIONAL_KEYS = [
+  "reading",
+  "intensity",
+  "situation",
+  "difficulty",
+  "loop_ok",
+  "final_intonation",
+] as const;
 
 const LOCALES = new Set(["ja", "en"]);
 const GENDERS = new Set(["female", "male", "neutral"]);
@@ -71,6 +78,7 @@ const EMOTIONS = new Set([
   "pain",
 ]);
 const DIFFICULTIES = new Set(["standard", "hard"]);
+const FINAL_INTONATIONS = new Set(["fall", "rise", "free"]);
 const LOUDNESS_SOURCES = new Set(["encoded_opus"]);
 const FAILURE_REASONS = new Set(["generation_failed"]);
 
@@ -399,12 +407,16 @@ function validateLine(
   if ("loop_ok" in value) {
     assertBoolean(value.loop_ok, `${label}.loop_ok`);
   }
+  if ("final_intonation" in value) {
+    assertEnum(value.final_intonation, FINAL_INTONATIONS, `${label}.final_intonation`);
+  }
 
   return {
     ...value,
     intensity: "intensity" in value ? value.intensity : 2,
     difficulty: "difficulty" in value ? value.difficulty : "standard",
     loop_ok: "loop_ok" in value ? value.loop_ok : true,
+    final_intonation: "final_intonation" in value ? value.final_intonation : "fall",
   } as unknown as Scenario["lines"][number];
 }
 
