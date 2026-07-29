@@ -18,6 +18,7 @@ class TakeManifestError(ValueError):
 ROOT_KEYS = {
     "format_version",
     "generated_at",
+    "candidate_set_sha256",
     "models",
     "candidates",
     "curations",
@@ -194,6 +195,7 @@ def validate_manifest_v4(document: Any) -> dict[str, Any]:
     if manifest["format_version"] != 4:
         raise TakeManifestError("manifest.format_version は 4 が必要です。")
     _text(manifest["generated_at"], "manifest.generated_at")
+    _sha(manifest["candidate_set_sha256"], "manifest.candidate_set_sha256")
     for key in ("models", "candidates", "curations", "failures"):
         if not isinstance(manifest[key], list):
             raise TakeManifestError(f"manifest.{key} は配列が必要です。")

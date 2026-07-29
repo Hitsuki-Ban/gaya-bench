@@ -10,7 +10,11 @@ pipeline (Python/uv) ── モデル別アダプタ ──▶ artifacts/takes/<
     │  ラウドネス正規化 (-18 LUFS mono, エンコード前 peak -1.75 dBTP)
     │  opusエンコード (libopus 64kbps mono 48kHz)
     │  gaya qc --run-id (Gate 1/2、Gate 3 report-only)
-    ├──▶ run-local manifest-v4.json (eligible take のみ)
+    ├──▶ run-local candidate-set.json + candidate-set.sha256 + manifest-v4.json
+    │        │
+    │        └──▶ site /curate (明示的なローカル選択、blind 評価)
+    │                  └──▶ curation.json download
+    │                            └──▶ gaya curate apply --run-id ... --input ...
     │
     ├──▶ data/manifest.json (公開切替までは既存 v3 を維持)
     ▼
@@ -27,12 +31,14 @@ pipeline (Python/uv) ── モデル別アダプタ ──▶ artifacts/takes/<
   - `gaya validate` — シナリオのスキーマ検証 + 相互参照チェック (character参照、ID一意性)
   - `gaya gen --model <id> --takes <N> --seed-base <S> [--scenario <id>] [--line <id>]` — run ledger 単位の候補生成
   - `gaya qc --run-id <id>` — run ledger の全 take を gate し、terminal run の local manifest v4 snapshot を確定
+  - `gaya curate apply --run-id <id> --input <curation.json>` — ローカル策展 artifact を再検証し、immutable 保存と run-local projection 更新を行う
   - `gaya publish` — manifest/hash検証 → エンコード済みOpusをR2へ差分アップロード
 - **アダプタインターフェース**: `LineJob { scene, character, line, locale }` を受け取り音声を返す。モデル固有の入力形式 (スタイルプロンプト / 感情タグ / 参照音声) への変換はアダプタが担う
 - **capability profile**: アダプタごとに「スキーマのどのフィールドを解釈できるか」を宣言 (emotion対応 / voice記述対応 / クローン対応 / 非言語音対応...)。manifestに含め、サイトでバッジ表示する
 - **冪等性**: source、group、N、seed-base、recipe、全 generation input と artifact provenance が一致する完了済み run だけを whole-run cache として再利用する。同じ input に異なる take identity の run が複数ある場合は自動選択しない。`--force` は既存 run を書き換えず、常に新しい run を生成する
 - **ledger 更新**: `gaya gen` は `artifacts/takes/<run-id>/ledger.json` だけを操作履歴として原子的に checkpoint し、公開 manifest は更新しない。1 attempt の失敗は `generation_failed` として記録して残りを続行し、最後に非ゼロ終了を返す。再生成は既存 slot を変更せず新しい run で行う
-- **take gate**: `gaya qc` は別 process で run ledger、sidecar、最終 Opus を再検証する。mechanical reject は content `not_run`、明示 reading mismatch は content reject、推定 reading は `review_required`、環境・provenance・解析不能は `blocked` とする。韻律値は report-only で、blocked/non-terminal run には v4 snapshot を作らない
+- **take gate**: `gaya qc` は別 process で run ledger、sidecar、最終 Opus を再検証する。mechanical reject は content `not_run`、明示 reading mismatch は content reject、推定 reading は `review_required`、環境・provenance・解析不能は `blocked` とする。韻律値は report-only で、blocked/non-terminal run には v4 snapshot を作らない。未策展 snapshot の再 QC は `manifest-v4.json` → digest marker → candidate set の順に旧 ready state を失効させる。curation projection が 1 件でもある run は、判断消失を防ぐため何も削除せず fail-fast し、新しい run を要求する
+- **ローカル策展境界**: terminal run の QC は candidate inventory、ledger の scenario source SHA、生成時の台詞・演技表示 snapshot を Python canonical JSON の `candidate-set.json` に保存する。SHA-256 は exact `candidate-set.sha256` と v4 manifest の `candidate_set_sha256` の両方へ固定し、candidate set → digest marker → manifest ready marker の順で原子的に確定する。browser は利用者が明示的に選択した run directory の三者と物理 Opus だけを読み、三者の digest、表示 snapshot、音声 SHA-256 を照合する。download された decision artifact は `gaya curate apply --run-id ... --input ...` が terminal ledger、現行 scenario source、各 eligible take の sidecar/WAV/Opus、candidate inventory、既存 immutable artifact 間の一意な group 判断を repository 更新前に再検証する。公開 v3 manifest と既存 A/B vote storage はこの段階では変更しない
 - **正規化・エンコードの方針**: 後処理 algorithm v7 は全クリップを2-pass loudnormで -18 LUFS / mono / 48kHz に正規化し、`pre_encode_true_peak_target_dbtp` を -1.75 dBTP に固定する。落盤後のPCMを再測定し、ピーク制約で目標LUFSに届かない場合は最大2回のlookahead limiter補正を行う。各 WAV は libopus 64kbps VBR / application audio で1回だけエンコードする。公開 Opus をデコードして再測定し、Integrated Loudness が -18 ±1.5 LUFS を外れるか、True Peak が `distribution_true_peak_max_dbtp` の -0.9 dBTP を上回る場合は生成を失敗させる。±0.2 LUFSを外れるが硬い許容範囲内にあるクリップは manifest の `loudness.shortfall` を `true` にする。エンコード前目標は最終配信上限の代替ではなく、codec overshoot を抑えるためのヘッドルームであり、最終 Opus gate は常に fail-fast で適用する。候補値の根拠は [Opus配信用True Peakエンコード前シーリング実測](research/opus-true-peak-ceiling.md) に記録する。モデル間の音量差による印象バイアスを抑える一方、囁き/叫びの意図的な音量差が失われる副作用は +α の scene バリアント (距離感シミュレーション) で補う。Opus は Ogg muxer の format bitexact を有効にして、同一ツールチェーン・同一PCMから同一ファイルhashを生成する
 - **現行 N-take sidecar / ledger (v1)**: 各 take の sidecar は run/slot、明示的 seed/sampling、`generation_input_sha256`、最終 Opus に拘束した `take_id`、WAV/Opus hash、実行した ffmpeg/ffprobe version と libopus capability、algorithm v7 の loudness provenance を保持する。ledger は sidecar 自体の SHA-256 も固定し、QC 後の parameter 改変を拒否する。toolchain identity も generation input hash に含め、異なる encoder build の artifact を cache に再利用しない。format v3 public manifest は v4 cutover まで read-only とする
 - **バリアント**: v1は `dry` (正規化のみ) 単一。`scene` (EQ+リバーブ+減衰の中距離シミュレーション) は+α
@@ -68,12 +74,14 @@ pipeline (Python/uv) ── モデル別アダプタ ──▶ artifacts/takes/<
 - **差分公開**: `gaya publish` は manifest の全 Opus をローカルで先に検証し、R2 `HEAD` の `sha256` metadata・サイズ・HTTP metadata が一致するものをスキップする。object key は再生成時に再利用するため、`Cache-Control: public, max-age=0, must-revalidate` として古い音声の長期固定を避ける
 - **manifest**: `data/manifest.json` をリポジトリにコミット (ビルドの決定性とPRレビュー可能性のため)
 - **生成メタ**: 入力hash・WAV/Opus hash・生成時間・RTF・後処理結果を `artifacts/takes/<run-id>/audio/<model>/<scenario>/<line>/<variant>/take-<index>.json` に保存し、run root の `ledger.json` から参照する (git管理外)
+- **ローカル策展メタ**: terminal run root の `candidate-set.json` は candidate set identity と生成時の表示 snapshot の canonical bytes を保持し、`candidate-set.sha256` と v4 manifest が同じ digest を固定する。確定した decision artifact は `data/curation/<curation_sha256>.json` に immutable 保存し、run-local v4 snapshot の `curations` はその SHA を参照する selected/skipped projection とする。累積 export で既存 group が再登場した場合は、既存 artifact 内の完全な group 内容と一致するときだけ旧 projection/SHA を維持して新規 group を追加する
 - **ローカル開発fallback**: `site/public/audio/` に同一パス構造で置き、`VITE_AUDIO_BASE` で切替
 
 ## サイト (`site/`)
 
 - Vite Plus + React + TypeScript + Tailwind + shadcn/ui の静的SPA
 - 環境変数: `VITE_AUDIO_BASE` (音声配信のベースURL)
+- `/curate` は directory file input でローカル run を明示選択する。台詞・演技指示は candidate set に固定された生成時 snapshot だけを使い、seed、score、take index を表示しない。candidate set に拘束した別 version の localStorage に rubric と selected/skipped を保存し、repository を直接変更しない
 - UX仕様は [ux-spec.md](ux-spec.md)
 
 ## CI/CD (GitHub Actions)

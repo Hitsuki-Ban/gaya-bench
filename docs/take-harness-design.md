@@ -281,6 +281,7 @@ v3 dual reader、欠落 take の `take=1` 補完、`variant` への take 番号�
 {
   "format_version": 4,
   "generated_at": "2026-07-29T12:34:56Z",
+  "candidate_set_sha256": "<64 hex>",
   "models": [],
   "candidates": [
     {
@@ -338,6 +339,8 @@ v3 dual reader、欠落 take の `take=1` 補完、`variant` への take 番号�
 ### 6.2 不変条件
 
 - candidate の論理 group key は `(model, scenario, line, variant)`。
+- `candidate_set_sha256` は run-local `candidate-set.json` の完全 SHA-256 と一致し、
+  `candidate-set.sha256` marker と browser/CLI の両方で照合する。
 - attempt key は group key と `take_index` の 5-tuple。
 - `take_id` は
   `(generation_input_sha256, final_opus_sha256)` の canonical hash であり、
@@ -502,6 +505,7 @@ uv run --project pipeline --locked gaya takes finalize \
 uv run --project pipeline --locked gaya publish
 
 uv run --project pipeline --locked gaya curate apply \
+  --run-id 2026-07-29T120000Z-qwen-n3 \
   --input artifacts/curation/curation.json
 ```
 
@@ -544,10 +548,20 @@ vote storage に take selection を混ぜず、別の versioned storage とす�
 
 ### localStorage と export
 
-`candidate_set_sha256` は manifest の
-`(format_version, models, candidates, failures)` だけを canonical JSON 化した
-SHA-256 とする。`generated_at` と既存 `curations` は含めない。draft と blind
-label はこの digest に束縛し、candidate set が変わった場合だけ stale とする。
+`candidate_set_sha256` は
+`(format_version, scenario_sha256, lines, models, candidates, failures)` を
+Python canonical JSON 化した `candidate-set.json` bytes の SHA-256 とする。
+`lines` は candidate/failure が参照する全 `(scenario, line)` を一度ずつ持ち、
+生成時の `scenario_title / text / delivery` を固定する。`generated_at` と既存
+`curations` は含めない。draft と blind label はこの digest に束縛し、candidate set
+または表示根拠が変わった場合だけ stale とする。
+
+QC は canonical bytes、改行なし lowercase hex の `candidate-set.sha256`、同じ
+digest を持つ `manifest-v4.json` の順で確定し、manifest を唯一の ready marker
+とする。browser は raw bytes を SHA-256 して marker と manifest の両方へ照合する。
+manifest には float が含まれ、Python と JavaScript の number serialization は
+一致しない場合があるため、browser が候補集合を独自に再 canonicalize しない。
+curation 済み run の QC 再実行は三者を変更する前に fail-fast し、新しい run を使う。
 
 `curation.json` format v1 は次を持つ。
 
@@ -589,17 +603,32 @@ label はこの digest に束縛し、candidate set が変わった場合だけ 
 `take_id` を持たず、「評価済みだが採用品なし」を表す。これにより未策展 group と
 skip を区別し、pilot の raw decision を後から再解析できる。
 
-browser は key order と group/candidate order を固定した JSON を download するだけで、
-repository や manifest を直接変更しない。時刻を artifact 本体へ入れず、同じ判断は
-同じ bytes になるようにする。
+browser は directory file input で利用者が明示選択した同一 run root の
+`manifest-v4.json`、`candidate-set.json`、`candidate-set.sha256`、物理 Opus だけを
+読む。台詞と演技指示は sidecar の生成時 `lines` snapshot だけを表示する。候補の
+logical path から `audio/<model>/<scenario>/<line>/<variant>/take-<index>.opus` を導出し、
+三者の candidate set digest と各音声の SHA-256 を検証する。Vite middleware、
+`/@fs/`、filesystem write は使わない。key order と group/candidate order を固定した
+JSON を download するだけで、repository や manifest を直接変更しない。時刻を
+artifact 本体へ入れず、同じ判断は同じ bytes になるようにする。
 
-`gaya curate apply` は candidate set SHA、group completeness、candidate reference、
-audio SHA、rubric range、selected take の `content_correct/adoptable`、1 group 1 decision
-を全件検証する。成功時は canonical artifact を
+`gaya curate apply --run-id <id> --input <curation.json>` は明示された run root に対し、
+terminal ledger/current scenario source、三者の candidate set SHA、各 eligible take の
+sidecar/WAV/Opus provenance、eligible candidate と failure group の完全な inventory、
+rubric range、selected take の `content_correct/adoptable`、1 group 1 decision を全件検証する。
+成功時は canonical artifact を
 `data/curation/<curation_sha256>.json` へ immutable に保存し、その
 `curation_sha256` を参照する selected/skipped projection を manifest の
 `curations` へ原子的に更新する。tracked decision artifact が人評の真値であり、
 manifest は通常表示のための小さな projection である。
+
+分割作業の累積 export は、既存 projection が参照する immutable artifact の同一 group
+と identity、全 candidate、rubric、decision が完全一致するときだけ再掲を許す。
+参照中の全 artifact に重複して現れる group も、その group の projection が指す
+権威 artifact と完全一致しなければならず、projection のない付随 group は拒否する。
+一致する既存 group は旧 projection と旧 artifact SHA を維持し、新規 group だけを
+今回の artifact SHA へ追加する。既存内容の差し替え、無参照 artifact、暗黙 merge は
+拒否する。
 
 通常比較画面は `curations(decision=selected) -> candidates` を投影し、各 group
 1 clip の既存前提を維持する。skipped は策展済み未採用、entry なしは未策展として

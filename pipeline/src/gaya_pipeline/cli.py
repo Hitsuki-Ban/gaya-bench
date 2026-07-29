@@ -5,6 +5,11 @@ import sys
 from collections.abc import Sequence
 from pathlib import Path
 
+from gaya_pipeline.curation import (
+    CurationError,
+    CurationSummary,
+    apply_curation,
+)
 from gaya_pipeline.generation import (
     GenerationError,
     GenerationSummary,
@@ -94,6 +99,30 @@ def build_parser() -> argparse.ArgumentParser:
         help="artifacts/takes 配下の generation run id",
     )
 
+    curate_parser = subparsers.add_parser(
+        "curate",
+        help="local v4 snapshot に人評 decision artifact を適用する",
+    )
+    curate_subparsers = curate_parser.add_subparsers(
+        dest="curate_command",
+        required=True,
+    )
+    curate_apply_parser = curate_subparsers.add_parser(
+        "apply",
+        help="curation format v1 artifact を検証して適用する",
+    )
+    curate_apply_parser.add_argument(
+        "--run-id",
+        required=True,
+        help="artifacts/takes 配下の terminal generation run id",
+    )
+    curate_apply_parser.add_argument(
+        "--input",
+        required=True,
+        type=Path,
+        help="curation format v1 JSON artifact",
+    )
+
     subparsers.add_parser(
         "publish",
         help="manifest と一致する Opus を R2 へ差分アップロードする",
@@ -179,6 +208,24 @@ def main(argv: Sequence[str] | None = None) -> int:
         _print_qc_summary(summary)
         return 1 if summary.blocked_count or summary.pending_count else 0
 
+    if args.command == "curate":
+        if args.curate_command != "apply":
+            raise AssertionError(f"unknown curate command: {args.curate_command}")
+        repository_root = default_scenarios_dir().parent
+        try:
+            summary = apply_curation(
+                run_id=args.run_id,
+                input_path=args.input,
+                artifacts_dir=repository_root / "artifacts",
+                data_dir=repository_root / "data",
+                scenarios_dir=repository_root / "scenarios",
+            )
+        except CurationError as error:
+            print(f"ERROR: {error}", file=sys.stderr)
+            return 1
+        _print_curation_summary(summary)
+        return 0
+
     if args.command == "publish":
         repository_root = default_scenarios_dir().parent
         try:
@@ -232,11 +279,33 @@ def _print_publish_summary(summary: PublishSummary) -> None:
     )
 
 
+def _print_curation_summary(summary: CurationSummary) -> None:
+    print(f"Candidate set: {summary.candidate_set_path.as_posix()}")
+    print(
+        f"Candidate set SHA marker: "
+        f"{summary.candidate_set_marker_path.as_posix()}",
+    )
+    print(f"v4 snapshot: {summary.snapshot_path.as_posix()}")
+    print(f"Curation artifact: {summary.artifact_path.as_posix()}")
+    print(f"Curation SHA-256: {summary.curation_sha256}")
+    print(
+        f"完了: group {summary.group_count} / "
+        f"新規 projection {summary.added_projection_count}",
+    )
+
+
 def _print_qc_summary(summary: QCSummary) -> None:
     print(f"Ledger: {summary.ledger_path.as_posix()}")
     print(f"QC report: {summary.report_path.as_posix()}")
     if summary.snapshot_path is not None:
         print(f"v4 snapshot: {summary.snapshot_path.as_posix()}")
+    if summary.candidate_set_path is not None:
+        print(f"Candidate set: {summary.candidate_set_path.as_posix()}")
+    if summary.candidate_set_marker_path is not None:
+        print(
+            "Candidate set SHA marker: "
+            f"{summary.candidate_set_marker_path.as_posix()}",
+        )
     print(
         f"完了: take {summary.attempt_count} / "
         f"eligible {summary.eligible_count} / "

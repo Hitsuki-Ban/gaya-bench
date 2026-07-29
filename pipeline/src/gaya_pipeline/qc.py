@@ -3,6 +3,8 @@ from __future__ import annotations
 import hashlib
 import json
 import math
+import os
+import tempfile
 from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -22,12 +24,21 @@ from gaya_pipeline.audio import (
     measure_encoded_opus,
     probe_audio,
 )
+from gaya_pipeline.curation import (
+    CurationError,
+    build_candidate_set,
+    canonical_candidate_set_bytes,
+    load_authoritative_candidate_lines,
+    validate_snapshot_bundle,
+)
 from gaya_pipeline.japanese_reading import (
     JapaneseReadingError,
     find_ambiguous_japanese_readings,
     normalize_japanese_reading,
     resolve_japanese_reading,
 )
+from gaya_pipeline.qc_report import QCReportError, validate_qc_report
+from gaya_pipeline.run_lock import RunLockError, exclusive_run_lock
 from gaya_pipeline.take_identity import canonical_json
 from gaya_pipeline.take_ledger import (
     TERMINAL_STATUSES,
@@ -74,6 +85,8 @@ class QCSummary:
     ledger_path: Path
     report_path: Path
     snapshot_path: Path | None
+    candidate_set_path: Path | None
+    candidate_set_marker_path: Path | None
     attempt_count: int
     eligible_count: int
     hard_rejected_count: int
@@ -114,6 +127,38 @@ GATE_POLICY_VERSION = "take-gates-v1"
 VARIANT = "dry"
 
 
+def _invalidate_existing_snapshot(
+    *,
+    snapshot_path: Path,
+    candidate_set_path: Path,
+    marker_path: Path,
+) -> None:
+    paths = (snapshot_path, marker_path, candidate_set_path)
+    if not any(path.exists() for path in paths):
+        return
+    try:
+        bundle = validate_snapshot_bundle(
+            snapshot_path=snapshot_path,
+            candidate_set_path=candidate_set_path,
+            marker_path=marker_path,
+        )
+    except CurationError as error:
+        raise QCError(
+            "既存 v4 snapshot bundle が不正なため無効化を拒否しました: "
+            f"{error}",
+        ) from error
+    if bundle.manifest["curations"]:
+        raise QCError(
+            "既存 v4 snapshot には curation があるため、新しい generation run が"
+            "必要です。",
+        )
+    for path in paths:
+        try:
+            path.unlink()
+        except OSError as error:
+            raise QCError(f"既存 v4 snapshot を無効化できません: {path}") from error
+
+
 def run_qc(
     *,
     run_id: str,
@@ -127,20 +172,42 @@ def run_qc(
     run_root = (takes_root / run_id).resolve()
     if not run_root.is_relative_to(takes_root):
         raise QCError("run root が artifacts/takes の外を参照しています。")
+    try:
+        with exclusive_run_lock(run_root):
+            return _run_qc_transaction(
+                run_id=run_id,
+                scenarios_dir=scenarios_dir,
+                runtime=runtime,
+                run_root=run_root,
+            )
+    except RunLockError as error:
+        raise QCError(f"run lock に失敗しました: {error}") from error
+
+
+def _run_qc_transaction(
+    *,
+    run_id: str,
+    scenarios_dir: Path,
+    runtime: QCRuntime,
+    run_root: Path,
+) -> QCSummary:
     ledger_path = run_root / "ledger.json"
     report_path = run_root / "qc-report.json"
     snapshot_path = run_root / "manifest-v4.json"
+    candidate_set_path = run_root / "candidate-set.json"
+    candidate_set_marker_path = run_root / "candidate-set.sha256"
 
+    _invalidate_existing_snapshot(
+        snapshot_path=snapshot_path,
+        candidate_set_path=candidate_set_path,
+        marker_path=candidate_set_marker_path,
+    )
     try:
         ledger = read_ledger(ledger_path)
     except (OSError, json.JSONDecodeError, TakeLedgerError) as error:
         raise QCError(f"run ledger を読み込めません: {ledger_path}: {error}") from error
     if ledger["run_id"] != run_id:
         raise QCError("run_id と ledger.run_id が一致しません。")
-    try:
-        snapshot_path.unlink(missing_ok=True)
-    except OSError as error:
-        raise QCError(f"既存 v4 snapshot を無効化できません: {snapshot_path}") from error
 
     generated_at = _utc_now()
     attempt_reports: dict[tuple[str, str, str, str, int], dict[str, Any]] = {}
@@ -181,6 +248,8 @@ def run_qc(
             ledger_path=ledger_path,
             report_path=report_path,
             snapshot_path=snapshot_path,
+            candidate_set_path=candidate_set_path,
+            candidate_set_marker_path=candidate_set_marker_path,
             run_id=run_id,
             run_root=run_root,
             scenarios_dir=scenarios_dir,
@@ -210,6 +279,8 @@ def run_qc(
             ledger_path=ledger_path,
             report_path=report_path,
             snapshot_path=snapshot_path,
+            candidate_set_path=candidate_set_path,
+            candidate_set_marker_path=candidate_set_marker_path,
             run_id=run_id,
             run_root=run_root,
             scenarios_dir=scenarios_dir,
@@ -454,6 +525,8 @@ def run_qc(
         ledger_path=ledger_path,
         report_path=report_path,
         snapshot_path=snapshot_path,
+        candidate_set_path=candidate_set_path,
+        candidate_set_marker_path=candidate_set_marker_path,
         run_id=run_id,
         run_root=run_root,
         scenarios_dir=scenarios_dir,
@@ -733,6 +806,63 @@ def _revalidate_snapshot_inputs(
         report["mechanical"] = _mechanical_report(mechanical)
 
 
+def _verify_snapshot_material_identity(
+    *,
+    ledger: Mapping[str, Any],
+    ledger_path: Path,
+    run_root: Path,
+    scenarios_dir: Path,
+) -> None:
+    try:
+        current_ledger = read_ledger(ledger_path)
+    except (OSError, json.JSONDecodeError, TakeLedgerError) as error:
+        raise QCError(
+            "final report 書込後の snapshot 再検証で ledger を読めません。",
+        ) from error
+    if current_ledger != ledger:
+        raise QCError(
+            "final report 書込後の snapshot 再検証で ledger が変更されました。",
+        )
+    scenario_sha = _current_scenario_source_sha(
+        scenarios_dir.resolve(),
+        scenario_ids=_source_scenario_ids(ledger["source"]),
+    )
+    if scenario_sha != ledger["source"]["scenario_sha256"]:
+        raise QCError(
+            "final report 書込後の snapshot 再検証で scenario source が"
+            "変更されました。",
+        )
+    for attempt in ledger["attempts"]:
+        if attempt["status"] != "eligible":
+            continue
+        audio = attempt["audio"]
+        try:
+            for kind in ("wav", "opus"):
+                path = _resolve_run_artifact(
+                    run_root,
+                    str(audio[f"{kind}_path"]),
+                )
+                if _file_sha256(path) != audio[f"{kind}_sha256"]:
+                    raise QCError(
+                        "final report 書込後の snapshot 再検証で "
+                        f"take {kind.upper()} が変更されました。",
+                    )
+            sidecar_path = _resolve_run_artifact(
+                run_root,
+                str(audio["opus_path"]),
+            ).with_suffix(".json")
+            if _file_sha256(sidecar_path) != audio["sidecar_sha256"]:
+                raise QCError(
+                    "final report 書込後の snapshot 再検証で take sidecar が"
+                    "変更されました。",
+                )
+        except (OSError, _ProvenanceError) as error:
+            raise QCError(
+                "final report 書込後の snapshot 再検証で take material を"
+                "確認できません。",
+            ) from error
+
+
 def _content_gate(
     *,
     expected: Mapping[str, Any],
@@ -988,6 +1118,8 @@ def _finish(
     ledger_path: Path,
     report_path: Path,
     snapshot_path: Path,
+    candidate_set_path: Path,
+    candidate_set_marker_path: Path,
     run_id: str,
     run_root: Path,
     scenarios_dir: Path,
@@ -1015,6 +1147,26 @@ def _finish(
         )
     }
     pending_count = counts["planned"] + counts["generated"]
+    terminal = all(
+        attempt["status"] in TERMINAL_STATUSES
+        for attempt in ledger["attempts"]
+    )
+    if terminal:
+        try:
+            current_ledger = read_ledger(ledger_path)
+        except (OSError, json.JSONDecodeError, TakeLedgerError) as error:
+            raise QCError("v4 snapshot 確定前に ledger を再検証できません。") from error
+        if current_ledger != ledger:
+            raise QCError("v4 snapshot 確定前に ledger が変更されました。")
+        _revalidate_snapshot_inputs(
+            ledger=ledger,
+            run_id=run_id,
+            run_root=run_root,
+            scenarios_dir=scenarios_dir,
+            tools=tools,
+            profile=profile,
+            attempt_reports=attempt_reports,
+        )
     reports = [
         dict(
             attempt_reports.get(
@@ -1049,27 +1201,25 @@ def _finish(
         },
         "attempts": reports,
     }
+    try:
+        validate_qc_report(
+            report_document,
+            ledger_path=ledger_path,
+            ledger=ledger,
+        )
+    except QCReportError as error:
+        raise QCError(f"QC report contract の生成に失敗しました: {error}") from error
     _atomic_write_json(report_path, report_document)
 
     written_snapshot: Path | None = None
-    if all(
-        attempt["status"] in TERMINAL_STATUSES
-        for attempt in ledger["attempts"]
-    ):
-        try:
-            current_ledger = read_ledger(ledger_path)
-        except (OSError, json.JSONDecodeError, TakeLedgerError) as error:
-            raise QCError("v4 snapshot 確定前に ledger を再検証できません。") from error
-        if current_ledger != ledger:
-            raise QCError("v4 snapshot 確定前に ledger が変更されました。")
-        _revalidate_snapshot_inputs(
+    written_candidate_set: Path | None = None
+    written_candidate_set_marker: Path | None = None
+    if terminal:
+        _verify_snapshot_material_identity(
             ledger=ledger,
-            run_id=run_id,
+            ledger_path=ledger_path,
             run_root=run_root,
             scenarios_dir=scenarios_dir,
-            tools=tools,
-            profile=profile,
-            attempt_reports=attempt_reports,
         )
         if model_profile is None:
             raise QCError("v4 snapshot に必要な model profile がありません。")
@@ -1120,9 +1270,26 @@ def _finish(
             )
             not in candidate_groups
         ]
+        try:
+            scenario_sha256, lines = load_authoritative_candidate_lines(
+                scenarios_dir=scenarios_dir.resolve(),
+                ledger_source=ledger["source"],
+            )
+            candidate_set = build_candidate_set(
+                scenario_sha256=scenario_sha256,
+                lines=lines,
+                models=[dict(model_profile)],
+                candidates=candidates,
+                failures=failures,
+            )
+            candidate_set_payload = canonical_candidate_set_bytes(candidate_set)
+        except CurationError as error:
+            raise QCError(f"candidate set の構築に失敗しました: {error}") from error
+        candidate_set_sha256 = hashlib.sha256(candidate_set_payload).hexdigest()
         manifest = {
             "format_version": 4,
             "generated_at": generated_at,
+            "candidate_set_sha256": candidate_set_sha256,
             "models": [dict(model_profile)],
             "candidates": candidates,
             "curations": [],
@@ -1132,6 +1299,13 @@ def _finish(
             validate_manifest_v4(manifest)
         except (TakeManifestError, TakeLedgerError) as error:
             raise QCError(f"v4 snapshot の構築に失敗しました: {error}") from error
+        _atomic_write_bytes(candidate_set_path, candidate_set_payload)
+        written_candidate_set = candidate_set_path
+        _atomic_write_bytes(
+            candidate_set_marker_path,
+            candidate_set_sha256.encode("ascii"),
+        )
+        written_candidate_set_marker = candidate_set_marker_path
         _atomic_write_json(snapshot_path, manifest)
         written_snapshot = snapshot_path
 
@@ -1139,6 +1313,8 @@ def _finish(
         ledger_path=ledger_path,
         report_path=report_path,
         snapshot_path=written_snapshot,
+        candidate_set_path=written_candidate_set,
+        candidate_set_marker_path=written_candidate_set_marker,
         attempt_count=len(ledger["attempts"]),
         eligible_count=counts["eligible"],
         hard_rejected_count=counts["hard_rejected"],
@@ -1166,6 +1342,12 @@ def _mechanical_report(mechanical: _MechanicalPass) -> dict[str, Any]:
         "generation_params": {
             "requested": dict(mechanical.sidecar["gen_params"]["requested"]),
             "realized": dict(mechanical.sidecar["gen_params"]["realized"]),
+        },
+        "sidecar_provenance": {
+            "generation_seconds": mechanical.sidecar["generation_seconds"],
+            "postprocess": dict(mechanical.sidecar["postprocess"]),
+            "toolchain": dict(mechanical.sidecar["toolchain"]),
+            "loudness": dict(mechanical.sidecar["loudness"]),
         },
     }
 
@@ -1222,18 +1404,43 @@ def _file_sha256(path: Path) -> str:
 
 
 def _atomic_write_json(path: Path, payload: Mapping[str, Any]) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    pending = path.with_name(f".{path.name}.pending")
     try:
-        pending.write_text(
-            json.dumps(payload, ensure_ascii=False, indent=2, allow_nan=False) + "\n",
-            encoding="utf-8",
-        )
-        pending.replace(path)
-    except (OSError, TypeError, ValueError) as error:
+        encoded = (
+            json.dumps(payload, ensure_ascii=False, indent=2, allow_nan=False) + "\n"
+        ).encode("utf-8")
+    except (TypeError, ValueError) as error:
         raise QCError(f"QC JSON を原子的に書き込めません: {path}: {error}") from error
-    finally:
+    _atomic_write_bytes(path, encoded)
+
+
+def _atomic_write_bytes(path: Path, payload: bytes) -> None:
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        descriptor, pending_name = tempfile.mkstemp(
+            dir=path.parent,
+            prefix=f".{path.name}.",
+            suffix=".pending",
+        )
+    except OSError as error:
+        raise QCError(f"QC JSON を原子的に書き込めません: {path}: {error}") from error
+
+    pending = Path(pending_name)
+    try:
+        with os.fdopen(descriptor, "wb") as output:
+            output.write(payload)
+            output.flush()
+            os.fsync(output.fileno())
+        pending.replace(path)
+    except OSError as error:
+        try:
+            pending.unlink(missing_ok=True)
+        except OSError:
+            pass
+        raise QCError(f"QC JSON を原子的に書き込めません: {path}: {error}") from error
+    try:
         pending.unlink(missing_ok=True)
+    except OSError:
+        pass
 
 
 def _finite_number(value: Any) -> bool:
