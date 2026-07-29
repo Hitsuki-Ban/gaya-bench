@@ -1417,22 +1417,22 @@ def _render_report_markdown(report: Mapping[str, Any]) -> str:
     content_confusion = report["raw_confusion_matrices"]["content_correct"]
     human = report["human_selected_adoptable"]["overall"]
     lines = [
-        "# N3 pilot calibration report",
+        "# N3 pilot 校正レポート",
         "",
-        f"- Pilot set SHA-256: `{report['source']['pilot_set_sha256']}`",
-        f"- Decision SHA-256: `{report['source']['decision_sha256']}`",
-        f"- Scope: {report['conclusions']['exploratory_scope']}",
-        f"- Production scorer: **{report['conclusions']['production_scorer']}**",
-        "- ASR was not used for feature ranking.",
-        "- N5 policy:",
+        f"- pilot set SHA-256: `{report['source']['pilot_set_sha256']}`",
+        f"- decision SHA-256: `{report['source']['decision_sha256']}`",
+        f"- 適用範囲: {report['conclusions']['exploratory_scope']}",
+        f"- production scorer: **{report['conclusions']['production_scorer']}**",
+        "- ASR は feature ranking に使用していない。",
+        "- N5 方針:",
         *[
             f"  - `{item['model']}`: {item['decision']} — {item['reason']}"
             for item in report["conclusions"]["n5_policy"]
         ],
         "",
-        "## Raw automated gate × human adoptable",
+        "## 自動 gate × 人評 adoptable の raw 集計",
         "",
-        "| Automated gate | Human adoptable | Human not adoptable |",
+        "| 自動 gate | 人評 adoptable | 人評 not adoptable |",
         "| --- | ---: | ---: |",
         (
             "| eligible | "
@@ -1445,9 +1445,9 @@ def _render_report_markdown(report: Mapping[str, Any]) -> str:
             f"{adoptable_confusion['automated_rejected_human_not_adoptable']} |"
         ),
         "",
-        "## Raw automated gate × content correct",
+        "## 自動 gate × content correct の raw 集計",
         "",
-        "| Automated gate | Content correct | Content incorrect |",
+        "| 自動 gate | content correct | content incorrect |",
         "| --- | ---: | ---: |",
         (
             "| eligible | "
@@ -1460,23 +1460,23 @@ def _render_report_markdown(report: Mapping[str, Any]) -> str:
             f"{content_confusion['automated_rejected_content_incorrect']} |"
         ),
         "",
-        "## Human selection",
+        "## 人評の選択結果",
         "",
-        f"- Groups: {human['group_count']} (skipped {human['skipped_group_count']})",
+        f"- group: {human['group_count']} (skip {human['skipped_group_count']})",
         (
-            f"- Selected: {human['selected_candidate_count']} "
+            f"- 選択: {human['selected_candidate_count']} "
             f"(adoptable {human['selected_adoptable_count']})"
         ),
-        f"- Adoptable candidates: {human['adoptable_candidate_count']}",
+        f"- adoptable candidate: {human['adoptable_candidate_count']}",
         (
-            f"- Lost winner: {report['gate_metrics']['lost_winner']['count']} / "
+            f"- gate が失った winner: {report['gate_metrics']['lost_winner']['count']} / "
             f"{report['gate_metrics']['lost_winner']['selected_group_count']} "
             f"({_display_rate(report['gate_metrics']['lost_winner']['rate'])})"
         ),
         "",
-        "## Rule-wise false rejects",
+        "## rule 別 false reject",
         "",
-        "| Rule | Rejected | Content FRR | Content share | Adoptable FRR | Adoptable share |",
+        "| rule | reject | content FRR | content 比率 | adoptable FRR | adoptable 比率 |",
         "| --- | ---: | ---: | ---: | ---: | ---: |",
     ]
     for item in report["rule_false_rejects"]:
@@ -1492,9 +1492,9 @@ def _render_report_markdown(report: Mapping[str, Any]) -> str:
     lines.extend(
         [
         "",
-        "## Model × rule rejects",
+        "## model × rule reject",
         "",
-        "| Model | Rule | Rejected | Content FRR | Content share | Adoptable FRR | Adoptable share |",
+        "| model | rule | reject | content FRR | content 比率 | adoptable FRR | adoptable 比率 |",
         "| --- | --- | ---: | ---: | ---: | ---: | ---: |",
         ],
     )
@@ -1511,9 +1511,9 @@ def _render_report_markdown(report: Mapping[str, Any]) -> str:
     lines.extend(
         [
         "",
-        "## Eligible-only single-feature LOLO",
+        "## eligible-only 単一 feature LOLO",
         "",
-        "| Feature | Hit@1 | Random@1 | Hit@2 | Random@2 | Groups |",
+        "| feature | Hit@1 | random@1 | Hit@2 | random@2 | group |",
         "| --- | ---: | ---: | ---: | ---: | ---: |",
         ],
     )

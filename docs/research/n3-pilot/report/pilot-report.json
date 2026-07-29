@@ -1,0 +1,1028 @@
+{
+  "format_version": 1,
+  "protocol": "n3-pilot-v1",
+  "source": {
+    "pilot_set_sha256": "ef588224df5e46495d4bcc5841c2bcdf5eb69b166a38b750af7dfe8035fc6cac",
+    "decision_sha256": "98421e2875fe27a87407f24feb10bd2f63bedfefa20d9ffd519b4075afe76dcb"
+  },
+  "scope": {
+    "line_count": 24,
+    "model_count": 3,
+    "takes_per_group": 3,
+    "candidate_count": 216,
+    "group_count": 72
+  },
+  "raw_confusion_matrices": {
+    "adoptable": {
+      "automated_eligible_human_adoptable": 48,
+      "automated_eligible_human_not_adoptable": 36,
+      "automated_rejected_human_adoptable": 49,
+      "automated_rejected_human_not_adoptable": 83,
+      "total": 216
+    },
+    "content_correct": {
+      "automated_eligible_content_correct": 82,
+      "automated_eligible_content_incorrect": 2,
+      "automated_rejected_content_correct": 77,
+      "automated_rejected_content_incorrect": 55,
+      "total": 216
+    }
+  },
+  "gate_metrics": {
+    "false_reject_rate_content_correct": {
+      "numerator": 77,
+      "denominator": 159,
+      "rate": 0.484277
+    },
+    "false_reject_rate_adoptable": {
+      "numerator": 49,
+      "denominator": 97,
+      "rate": 0.505155
+    },
+    "bad_content_recall": {
+      "numerator": 55,
+      "denominator": 57,
+      "rate": 0.964912
+    },
+    "reject_precision": {
+      "numerator": 55,
+      "denominator": 132,
+      "rate": 0.416667
+    },
+    "lost_winner": {
+      "count": 28,
+      "selected_group_count": 50,
+      "rate": 0.56
+    }
+  },
+  "rule_false_rejects": [
+    {
+      "rule": "mechanical_audio",
+      "rejected_count": 0,
+      "content_correct_false_reject_count": 0,
+      "content_correct_false_reject_rate": 0.0,
+      "content_correct_share_of_rule_rejects": null,
+      "adoptable_false_reject_count": 0,
+      "adoptable_false_reject_rate": 0.0,
+      "adoptable_share_of_rule_rejects": null
+    },
+    {
+      "rule": "active_speech_nonpositive",
+      "rejected_count": 0,
+      "content_correct_false_reject_count": 0,
+      "content_correct_false_reject_rate": 0.0,
+      "content_correct_share_of_rule_rejects": null,
+      "adoptable_false_reject_count": 0,
+      "adoptable_false_reject_rate": 0.0,
+      "adoptable_share_of_rule_rejects": null
+    },
+    {
+      "rule": "explicit_reading_mismatch",
+      "rejected_count": 132,
+      "content_correct_false_reject_count": 77,
+      "content_correct_false_reject_rate": 0.484277,
+      "content_correct_share_of_rule_rejects": 0.583333,
+      "adoptable_false_reject_count": 49,
+      "adoptable_false_reject_rate": 0.505155,
+      "adoptable_share_of_rule_rejects": 0.371212
+    }
+  ],
+  "model_rule_rejects": [
+    {
+      "model": "qwen3-tts-12hz-1.7b",
+      "rule": "mechanical_audio",
+      "rejected_count": 0,
+      "content_correct_false_reject_count": 0,
+      "content_correct_false_reject_rate": 0.0,
+      "content_correct_share_of_rule_rejects": null,
+      "adoptable_false_reject_count": 0,
+      "adoptable_false_reject_rate": 0.0,
+      "adoptable_share_of_rule_rejects": null
+    },
+    {
+      "model": "qwen3-tts-12hz-1.7b",
+      "rule": "active_speech_nonpositive",
+      "rejected_count": 0,
+      "content_correct_false_reject_count": 0,
+      "content_correct_false_reject_rate": 0.0,
+      "content_correct_share_of_rule_rejects": null,
+      "adoptable_false_reject_count": 0,
+      "adoptable_false_reject_rate": 0.0,
+      "adoptable_share_of_rule_rejects": null
+    },
+    {
+      "model": "qwen3-tts-12hz-1.7b",
+      "rule": "explicit_reading_mismatch",
+      "rejected_count": 37,
+      "content_correct_false_reject_count": 20,
+      "content_correct_false_reject_rate": 0.37037,
+      "content_correct_share_of_rule_rejects": 0.540541,
+      "adoptable_false_reject_count": 20,
+      "adoptable_false_reject_rate": 0.416667,
+      "adoptable_share_of_rule_rejects": 0.540541
+    },
+    {
+      "model": "irodori-tts-600m-v3-voicedesign",
+      "rule": "mechanical_audio",
+      "rejected_count": 0,
+      "content_correct_false_reject_count": 0,
+      "content_correct_false_reject_rate": 0.0,
+      "content_correct_share_of_rule_rejects": null,
+      "adoptable_false_reject_count": 0,
+      "adoptable_false_reject_rate": 0.0,
+      "adoptable_share_of_rule_rejects": null
+    },
+    {
+      "model": "irodori-tts-600m-v3-voicedesign",
+      "rule": "active_speech_nonpositive",
+      "rejected_count": 0,
+      "content_correct_false_reject_count": 0,
+      "content_correct_false_reject_rate": 0.0,
+      "content_correct_share_of_rule_rejects": null,
+      "adoptable_false_reject_count": 0,
+      "adoptable_false_reject_rate": 0.0,
+      "adoptable_share_of_rule_rejects": null
+    },
+    {
+      "model": "irodori-tts-600m-v3-voicedesign",
+      "rule": "explicit_reading_mismatch",
+      "rejected_count": 44,
+      "content_correct_false_reject_count": 30,
+      "content_correct_false_reject_rate": 0.526316,
+      "content_correct_share_of_rule_rejects": 0.681818,
+      "adoptable_false_reject_count": 18,
+      "adoptable_false_reject_rate": 0.580645,
+      "adoptable_share_of_rule_rejects": 0.409091
+    },
+    {
+      "model": "voxcpm2",
+      "rule": "mechanical_audio",
+      "rejected_count": 0,
+      "content_correct_false_reject_count": 0,
+      "content_correct_false_reject_rate": 0.0,
+      "content_correct_share_of_rule_rejects": null,
+      "adoptable_false_reject_count": 0,
+      "adoptable_false_reject_rate": 0.0,
+      "adoptable_share_of_rule_rejects": null
+    },
+    {
+      "model": "voxcpm2",
+      "rule": "active_speech_nonpositive",
+      "rejected_count": 0,
+      "content_correct_false_reject_count": 0,
+      "content_correct_false_reject_rate": 0.0,
+      "content_correct_share_of_rule_rejects": null,
+      "adoptable_false_reject_count": 0,
+      "adoptable_false_reject_rate": 0.0,
+      "adoptable_share_of_rule_rejects": null
+    },
+    {
+      "model": "voxcpm2",
+      "rule": "explicit_reading_mismatch",
+      "rejected_count": 51,
+      "content_correct_false_reject_count": 27,
+      "content_correct_false_reject_rate": 0.5625,
+      "content_correct_share_of_rule_rejects": 0.529412,
+      "adoptable_false_reject_count": 11,
+      "adoptable_false_reject_rate": 0.611111,
+      "adoptable_share_of_rule_rejects": 0.215686
+    }
+  ],
+  "human_selected_adoptable": {
+    "overall": {
+      "group_count": 72,
+      "skipped_group_count": 22,
+      "candidate_count": 216,
+      "adoptable_candidate_count": 97,
+      "selected_candidate_count": 50,
+      "selected_adoptable_count": 47
+    },
+    "by_model": [
+      {
+        "model": "qwen3-tts-12hz-1.7b",
+        "group_count": 24,
+        "skipped_group_count": 5,
+        "candidate_count": 72,
+        "adoptable_candidate_count": 48,
+        "selected_candidate_count": 19,
+        "selected_adoptable_count": 19
+      },
+      {
+        "model": "irodori-tts-600m-v3-voicedesign",
+        "group_count": 24,
+        "skipped_group_count": 6,
+        "candidate_count": 72,
+        "adoptable_candidate_count": 31,
+        "selected_candidate_count": 18,
+        "selected_adoptable_count": 17
+      },
+      {
+        "model": "voxcpm2",
+        "group_count": 24,
+        "skipped_group_count": 11,
+        "candidate_count": 72,
+        "adoptable_candidate_count": 18,
+        "selected_candidate_count": 13,
+        "selected_adoptable_count": 11
+      }
+    ]
+  },
+  "eligible_only_feature_lolo": [
+    {
+      "feature": "duration_sec",
+      "eligible_group_count": 22,
+      "excluded_group_count": 50,
+      "excluded_missing_feature": 0,
+      "fold_count": 12,
+      "hit_at_1": {
+        "hits": 4,
+        "total": 22,
+        "rate": 0.181818,
+        "random_baseline": 0.386364
+      },
+      "hit_at_2": {
+        "hits": 17,
+        "total": 22,
+        "rate": 0.772727,
+        "random_baseline": 0.772727
+      },
+      "folds": [
+        {
+          "held_out_line": "battlefield-camp/medic-001",
+          "direction": "ascending",
+          "test_group_count": 2,
+          "hit_at_1": 0.0,
+          "hit_at_2": 0.5,
+          "random_baseline_hit_at_1": 0.333333,
+          "random_baseline_hit_at_2": 0.666667
+        },
+        {
+          "held_out_line": "battlefield-camp/medic-002",
+          "direction": "ascending",
+          "test_group_count": 3,
+          "hit_at_1": 0.333333,
+          "hit_at_2": 1.0,
+          "random_baseline_hit_at_1": 0.444444,
+          "random_baseline_hit_at_2": 0.888889
+        },
+        {
+          "held_out_line": "battlefield-camp/medic-003",
+          "direction": "ascending",
+          "test_group_count": 2,
+          "hit_at_1": 0.5,
+          "hit_at_2": 0.5,
+          "random_baseline_hit_at_1": 0.333333,
+          "random_baseline_hit_at_2": 0.666667
+        },
+        {
+          "held_out_line": "battlefield-camp/medic-004",
+          "direction": "descending",
+          "test_group_count": 2,
+          "hit_at_1": 0.5,
+          "hit_at_2": 0.5,
+          "random_baseline_hit_at_1": 0.333333,
+          "random_baseline_hit_at_2": 0.666667
+        },
+        {
+          "held_out_line": "battlefield-camp/messenger-002",
+          "direction": "descending",
+          "test_group_count": 3,
+          "hit_at_1": 0.0,
+          "hit_at_2": 1.0,
+          "random_baseline_hit_at_1": 0.388889,
+          "random_baseline_hit_at_2": 0.777778
+        },
+        {
+          "held_out_line": "battlefield-camp/messenger-003",
+          "direction": "descending",
+          "test_group_count": 1,
+          "hit_at_1": 0.0,
+          "hit_at_2": 1.0,
+          "random_baseline_hit_at_1": 0.5,
+          "random_baseline_hit_at_2": 1.0
+        },
+        {
+          "held_out_line": "battlefield-camp/veteran-soldier-001",
+          "direction": "descending",
+          "test_group_count": 2,
+          "hit_at_1": 0.0,
+          "hit_at_2": 1.0,
+          "random_baseline_hit_at_1": 0.416667,
+          "random_baseline_hit_at_2": 0.833333
+        },
+        {
+          "held_out_line": "battlefield-camp/wounded-001",
+          "direction": "descending",
+          "test_group_count": 1,
+          "hit_at_1": 0.0,
+          "hit_at_2": 1.0,
+          "random_baseline_hit_at_1": 0.333333,
+          "random_baseline_hit_at_2": 0.666667
+        },
+        {
+          "held_out_line": "battlefield-camp/wounded-002",
+          "direction": "descending",
+          "test_group_count": 1,
+          "hit_at_1": 0.0,
+          "hit_at_2": 1.0,
+          "random_baseline_hit_at_1": 0.5,
+          "random_baseline_hit_at_2": 1.0
+        },
+        {
+          "held_out_line": "dungeon-entrance/scout-001",
+          "direction": "descending",
+          "test_group_count": 1,
+          "hit_at_1": 0.0,
+          "hit_at_2": 0.0,
+          "random_baseline_hit_at_1": 0.333333,
+          "random_baseline_hit_at_2": 0.666667
+        },
+        {
+          "held_out_line": "dungeon-entrance/scout-002",
+          "direction": "descending",
+          "test_group_count": 3,
+          "hit_at_1": 0.333333,
+          "hit_at_2": 0.666667,
+          "random_baseline_hit_at_1": 0.333333,
+          "random_baseline_hit_at_2": 0.666667
+        },
+        {
+          "held_out_line": "dungeon-entrance/vanguard-002",
+          "direction": "ascending",
+          "test_group_count": 1,
+          "hit_at_1": 0.0,
+          "hit_at_2": 1.0,
+          "random_baseline_hit_at_1": 0.5,
+          "random_baseline_hit_at_2": 1.0
+        }
+      ]
+    },
+    {
+      "feature": "mora_per_second",
+      "eligible_group_count": 22,
+      "excluded_group_count": 50,
+      "excluded_missing_feature": 0,
+      "fold_count": 12,
+      "hit_at_1": {
+        "hits": 6,
+        "total": 22,
+        "rate": 0.272727,
+        "random_baseline": 0.386364
+      },
+      "hit_at_2": {
+        "hits": 16,
+        "total": 22,
+        "rate": 0.727273,
+        "random_baseline": 0.772727
+      },
+      "folds": [
+        {
+          "held_out_line": "battlefield-camp/medic-001",
+          "direction": "ascending",
+          "test_group_count": 2,
+          "hit_at_1": 0.0,
+          "hit_at_2": 1.0,
+          "random_baseline_hit_at_1": 0.333333,
+          "random_baseline_hit_at_2": 0.666667
+        },
+        {
+          "held_out_line": "battlefield-camp/medic-002",
+          "direction": "descending",
+          "test_group_count": 3,
+          "hit_at_1": 0.0,
+          "hit_at_2": 0.666667,
+          "random_baseline_hit_at_1": 0.444444,
+          "random_baseline_hit_at_2": 0.888889
+        },
+        {
+          "held_out_line": "battlefield-camp/medic-003",
+          "direction": "ascending",
+          "test_group_count": 2,
+          "hit_at_1": 0.5,
+          "hit_at_2": 1.0,
+          "random_baseline_hit_at_1": 0.333333,
+          "random_baseline_hit_at_2": 0.666667
+        },
+        {
+          "held_out_line": "battlefield-camp/medic-004",
+          "direction": "ascending",
+          "test_group_count": 2,
+          "hit_at_1": 0.5,
+          "hit_at_2": 1.0,
+          "random_baseline_hit_at_1": 0.333333,
+          "random_baseline_hit_at_2": 0.666667
+        },
+        {
+          "held_out_line": "battlefield-camp/messenger-002",
+          "direction": "ascending",
+          "test_group_count": 3,
+          "hit_at_1": 0.333333,
+          "hit_at_2": 0.666667,
+          "random_baseline_hit_at_1": 0.388889,
+          "random_baseline_hit_at_2": 0.777778
+        },
+        {
+          "held_out_line": "battlefield-camp/messenger-003",
+          "direction": "ascending",
+          "test_group_count": 1,
+          "hit_at_1": 1.0,
+          "hit_at_2": 1.0,
+          "random_baseline_hit_at_1": 0.5,
+          "random_baseline_hit_at_2": 1.0
+        },
+        {
+          "held_out_line": "battlefield-camp/veteran-soldier-001",
+          "direction": "ascending",
+          "test_group_count": 2,
+          "hit_at_1": 0.5,
+          "hit_at_2": 1.0,
+          "random_baseline_hit_at_1": 0.416667,
+          "random_baseline_hit_at_2": 0.833333
+        },
+        {
+          "held_out_line": "battlefield-camp/wounded-001",
+          "direction": "ascending",
+          "test_group_count": 1,
+          "hit_at_1": 0.0,
+          "hit_at_2": 0.0,
+          "random_baseline_hit_at_1": 0.333333,
+          "random_baseline_hit_at_2": 0.666667
+        },
+        {
+          "held_out_line": "battlefield-camp/wounded-002",
+          "direction": "ascending",
+          "test_group_count": 1,
+          "hit_at_1": 0.0,
+          "hit_at_2": 1.0,
+          "random_baseline_hit_at_1": 0.5,
+          "random_baseline_hit_at_2": 1.0
+        },
+        {
+          "held_out_line": "dungeon-entrance/scout-001",
+          "direction": "ascending",
+          "test_group_count": 1,
+          "hit_at_1": 0.0,
+          "hit_at_2": 0.0,
+          "random_baseline_hit_at_1": 0.333333,
+          "random_baseline_hit_at_2": 0.666667
+        },
+        {
+          "held_out_line": "dungeon-entrance/scout-002",
+          "direction": "ascending",
+          "test_group_count": 3,
+          "hit_at_1": 0.0,
+          "hit_at_2": 0.333333,
+          "random_baseline_hit_at_1": 0.333333,
+          "random_baseline_hit_at_2": 0.666667
+        },
+        {
+          "held_out_line": "dungeon-entrance/vanguard-002",
+          "direction": "ascending",
+          "test_group_count": 1,
+          "hit_at_1": 1.0,
+          "hit_at_2": 1.0,
+          "random_baseline_hit_at_1": 0.5,
+          "random_baseline_hit_at_2": 1.0
+        }
+      ]
+    },
+    {
+      "feature": "pause_sec",
+      "eligible_group_count": 22,
+      "excluded_group_count": 50,
+      "excluded_missing_feature": 0,
+      "fold_count": 12,
+      "hit_at_1": {
+        "hits": 10,
+        "total": 22,
+        "rate": 0.454545,
+        "random_baseline": 0.386364
+      },
+      "hit_at_2": {
+        "hits": 16,
+        "total": 22,
+        "rate": 0.727273,
+        "random_baseline": 0.772727
+      },
+      "folds": [
+        {
+          "held_out_line": "battlefield-camp/medic-001",
+          "direction": "ascending",
+          "test_group_count": 2,
+          "hit_at_1": 0.0,
+          "hit_at_2": 0.5,
+          "random_baseline_hit_at_1": 0.333333,
+          "random_baseline_hit_at_2": 0.666667
+        },
+        {
+          "held_out_line": "battlefield-camp/medic-002",
+          "direction": "ascending",
+          "test_group_count": 3,
+          "hit_at_1": 0.333333,
+          "hit_at_2": 1.0,
+          "random_baseline_hit_at_1": 0.444444,
+          "random_baseline_hit_at_2": 0.888889
+        },
+        {
+          "held_out_line": "battlefield-camp/medic-003",
+          "direction": "ascending",
+          "test_group_count": 2,
+          "hit_at_1": 0.0,
+          "hit_at_2": 0.5,
+          "random_baseline_hit_at_1": 0.333333,
+          "random_baseline_hit_at_2": 0.666667
+        },
+        {
+          "held_out_line": "battlefield-camp/medic-004",
+          "direction": "ascending",
+          "test_group_count": 2,
+          "hit_at_1": 0.5,
+          "hit_at_2": 0.5,
+          "random_baseline_hit_at_1": 0.333333,
+          "random_baseline_hit_at_2": 0.666667
+        },
+        {
+          "held_out_line": "battlefield-camp/messenger-002",
+          "direction": "ascending",
+          "test_group_count": 3,
+          "hit_at_1": 0.666667,
+          "hit_at_2": 0.666667,
+          "random_baseline_hit_at_1": 0.388889,
+          "random_baseline_hit_at_2": 0.777778
+        },
+        {
+          "held_out_line": "battlefield-camp/messenger-003",
+          "direction": "ascending",
+          "test_group_count": 1,
+          "hit_at_1": 0.0,
+          "hit_at_2": 1.0,
+          "random_baseline_hit_at_1": 0.5,
+          "random_baseline_hit_at_2": 1.0
+        },
+        {
+          "held_out_line": "battlefield-camp/veteran-soldier-001",
+          "direction": "ascending",
+          "test_group_count": 2,
+          "hit_at_1": 1.0,
+          "hit_at_2": 1.0,
+          "random_baseline_hit_at_1": 0.416667,
+          "random_baseline_hit_at_2": 0.833333
+        },
+        {
+          "held_out_line": "battlefield-camp/wounded-001",
+          "direction": "ascending",
+          "test_group_count": 1,
+          "hit_at_1": 1.0,
+          "hit_at_2": 1.0,
+          "random_baseline_hit_at_1": 0.333333,
+          "random_baseline_hit_at_2": 0.666667
+        },
+        {
+          "held_out_line": "battlefield-camp/wounded-002",
+          "direction": "ascending",
+          "test_group_count": 1,
+          "hit_at_1": 1.0,
+          "hit_at_2": 1.0,
+          "random_baseline_hit_at_1": 0.5,
+          "random_baseline_hit_at_2": 1.0
+        },
+        {
+          "held_out_line": "dungeon-entrance/scout-001",
+          "direction": "ascending",
+          "test_group_count": 1,
+          "hit_at_1": 0.0,
+          "hit_at_2": 1.0,
+          "random_baseline_hit_at_1": 0.333333,
+          "random_baseline_hit_at_2": 0.666667
+        },
+        {
+          "held_out_line": "dungeon-entrance/scout-002",
+          "direction": "ascending",
+          "test_group_count": 3,
+          "hit_at_1": 0.333333,
+          "hit_at_2": 0.333333,
+          "random_baseline_hit_at_1": 0.333333,
+          "random_baseline_hit_at_2": 0.666667
+        },
+        {
+          "held_out_line": "dungeon-entrance/vanguard-002",
+          "direction": "ascending",
+          "test_group_count": 1,
+          "hit_at_1": 1.0,
+          "hit_at_2": 1.0,
+          "random_baseline_hit_at_1": 0.5,
+          "random_baseline_hit_at_2": 1.0
+        }
+      ]
+    },
+    {
+      "feature": "voiced_ratio",
+      "eligible_group_count": 22,
+      "excluded_group_count": 50,
+      "excluded_missing_feature": 0,
+      "fold_count": 12,
+      "hit_at_1": {
+        "hits": 11,
+        "total": 22,
+        "rate": 0.5,
+        "random_baseline": 0.386364
+      },
+      "hit_at_2": {
+        "hits": 19,
+        "total": 22,
+        "rate": 0.863636,
+        "random_baseline": 0.772727
+      },
+      "folds": [
+        {
+          "held_out_line": "battlefield-camp/medic-001",
+          "direction": "descending",
+          "test_group_count": 2,
+          "hit_at_1": 0.5,
+          "hit_at_2": 1.0,
+          "random_baseline_hit_at_1": 0.333333,
+          "random_baseline_hit_at_2": 0.666667
+        },
+        {
+          "held_out_line": "battlefield-camp/medic-002",
+          "direction": "descending",
+          "test_group_count": 3,
+          "hit_at_1": 0.666667,
+          "hit_at_2": 1.0,
+          "random_baseline_hit_at_1": 0.444444,
+          "random_baseline_hit_at_2": 0.888889
+        },
+        {
+          "held_out_line": "battlefield-camp/medic-003",
+          "direction": "descending",
+          "test_group_count": 2,
+          "hit_at_1": 0.5,
+          "hit_at_2": 0.5,
+          "random_baseline_hit_at_1": 0.333333,
+          "random_baseline_hit_at_2": 0.666667
+        },
+        {
+          "held_out_line": "battlefield-camp/medic-004",
+          "direction": "descending",
+          "test_group_count": 2,
+          "hit_at_1": 1.0,
+          "hit_at_2": 1.0,
+          "random_baseline_hit_at_1": 0.333333,
+          "random_baseline_hit_at_2": 0.666667
+        },
+        {
+          "held_out_line": "battlefield-camp/messenger-002",
+          "direction": "descending",
+          "test_group_count": 3,
+          "hit_at_1": 0.333333,
+          "hit_at_2": 0.666667,
+          "random_baseline_hit_at_1": 0.388889,
+          "random_baseline_hit_at_2": 0.777778
+        },
+        {
+          "held_out_line": "battlefield-camp/messenger-003",
+          "direction": "descending",
+          "test_group_count": 1,
+          "hit_at_1": 0.0,
+          "hit_at_2": 1.0,
+          "random_baseline_hit_at_1": 0.5,
+          "random_baseline_hit_at_2": 1.0
+        },
+        {
+          "held_out_line": "battlefield-camp/veteran-soldier-001",
+          "direction": "descending",
+          "test_group_count": 2,
+          "hit_at_1": 0.5,
+          "hit_at_2": 1.0,
+          "random_baseline_hit_at_1": 0.416667,
+          "random_baseline_hit_at_2": 0.833333
+        },
+        {
+          "held_out_line": "battlefield-camp/wounded-001",
+          "direction": "descending",
+          "test_group_count": 1,
+          "hit_at_1": 0.0,
+          "hit_at_2": 1.0,
+          "random_baseline_hit_at_1": 0.333333,
+          "random_baseline_hit_at_2": 0.666667
+        },
+        {
+          "held_out_line": "battlefield-camp/wounded-002",
+          "direction": "descending",
+          "test_group_count": 1,
+          "hit_at_1": 1.0,
+          "hit_at_2": 1.0,
+          "random_baseline_hit_at_1": 0.5,
+          "random_baseline_hit_at_2": 1.0
+        },
+        {
+          "held_out_line": "dungeon-entrance/scout-001",
+          "direction": "descending",
+          "test_group_count": 1,
+          "hit_at_1": 0.0,
+          "hit_at_2": 1.0,
+          "random_baseline_hit_at_1": 0.333333,
+          "random_baseline_hit_at_2": 0.666667
+        },
+        {
+          "held_out_line": "dungeon-entrance/scout-002",
+          "direction": "descending",
+          "test_group_count": 3,
+          "hit_at_1": 0.333333,
+          "hit_at_2": 0.666667,
+          "random_baseline_hit_at_1": 0.333333,
+          "random_baseline_hit_at_2": 0.666667
+        },
+        {
+          "held_out_line": "dungeon-entrance/vanguard-002",
+          "direction": "descending",
+          "test_group_count": 1,
+          "hit_at_1": 1.0,
+          "hit_at_2": 1.0,
+          "random_baseline_hit_at_1": 0.5,
+          "random_baseline_hit_at_2": 1.0
+        }
+      ]
+    },
+    {
+      "feature": "f0_semitone_std",
+      "eligible_group_count": 21,
+      "excluded_group_count": 51,
+      "excluded_missing_feature": 1,
+      "fold_count": 12,
+      "hit_at_1": {
+        "hits": 9,
+        "total": 21,
+        "rate": 0.428571,
+        "random_baseline": 0.388889
+      },
+      "hit_at_2": {
+        "hits": 18,
+        "total": 21,
+        "rate": 0.857143,
+        "random_baseline": 0.777778
+      },
+      "folds": [
+        {
+          "held_out_line": "battlefield-camp/medic-001",
+          "direction": "ascending",
+          "test_group_count": 1,
+          "hit_at_1": 0.0,
+          "hit_at_2": 1.0,
+          "random_baseline_hit_at_1": 0.333333,
+          "random_baseline_hit_at_2": 0.666667
+        },
+        {
+          "held_out_line": "battlefield-camp/medic-002",
+          "direction": "ascending",
+          "test_group_count": 3,
+          "hit_at_1": 0.666667,
+          "hit_at_2": 1.0,
+          "random_baseline_hit_at_1": 0.444444,
+          "random_baseline_hit_at_2": 0.888889
+        },
+        {
+          "held_out_line": "battlefield-camp/medic-003",
+          "direction": "ascending",
+          "test_group_count": 2,
+          "hit_at_1": 0.5,
+          "hit_at_2": 0.5,
+          "random_baseline_hit_at_1": 0.333333,
+          "random_baseline_hit_at_2": 0.666667
+        },
+        {
+          "held_out_line": "battlefield-camp/medic-004",
+          "direction": "ascending",
+          "test_group_count": 2,
+          "hit_at_1": 0.5,
+          "hit_at_2": 1.0,
+          "random_baseline_hit_at_1": 0.333333,
+          "random_baseline_hit_at_2": 0.666667
+        },
+        {
+          "held_out_line": "battlefield-camp/messenger-002",
+          "direction": "ascending",
+          "test_group_count": 3,
+          "hit_at_1": 0.333333,
+          "hit_at_2": 1.0,
+          "random_baseline_hit_at_1": 0.388889,
+          "random_baseline_hit_at_2": 0.777778
+        },
+        {
+          "held_out_line": "battlefield-camp/messenger-003",
+          "direction": "ascending",
+          "test_group_count": 1,
+          "hit_at_1": 0.0,
+          "hit_at_2": 1.0,
+          "random_baseline_hit_at_1": 0.5,
+          "random_baseline_hit_at_2": 1.0
+        },
+        {
+          "held_out_line": "battlefield-camp/veteran-soldier-001",
+          "direction": "ascending",
+          "test_group_count": 2,
+          "hit_at_1": 1.0,
+          "hit_at_2": 1.0,
+          "random_baseline_hit_at_1": 0.416667,
+          "random_baseline_hit_at_2": 0.833333
+        },
+        {
+          "held_out_line": "battlefield-camp/wounded-001",
+          "direction": "ascending",
+          "test_group_count": 1,
+          "hit_at_1": 0.0,
+          "hit_at_2": 1.0,
+          "random_baseline_hit_at_1": 0.333333,
+          "random_baseline_hit_at_2": 0.666667
+        },
+        {
+          "held_out_line": "battlefield-camp/wounded-002",
+          "direction": "ascending",
+          "test_group_count": 1,
+          "hit_at_1": 0.0,
+          "hit_at_2": 1.0,
+          "random_baseline_hit_at_1": 0.5,
+          "random_baseline_hit_at_2": 1.0
+        },
+        {
+          "held_out_line": "dungeon-entrance/scout-001",
+          "direction": "ascending",
+          "test_group_count": 1,
+          "hit_at_1": 1.0,
+          "hit_at_2": 1.0,
+          "random_baseline_hit_at_1": 0.333333,
+          "random_baseline_hit_at_2": 0.666667
+        },
+        {
+          "held_out_line": "dungeon-entrance/scout-002",
+          "direction": "ascending",
+          "test_group_count": 3,
+          "hit_at_1": 0.0,
+          "hit_at_2": 0.333333,
+          "random_baseline_hit_at_1": 0.333333,
+          "random_baseline_hit_at_2": 0.666667
+        },
+        {
+          "held_out_line": "dungeon-entrance/vanguard-002",
+          "direction": "ascending",
+          "test_group_count": 1,
+          "hit_at_1": 1.0,
+          "hit_at_2": 1.0,
+          "random_baseline_hit_at_1": 0.5,
+          "random_baseline_hit_at_2": 1.0
+        }
+      ]
+    },
+    {
+      "feature": "energy_median_dbfs",
+      "eligible_group_count": 22,
+      "excluded_group_count": 50,
+      "excluded_missing_feature": 0,
+      "fold_count": 12,
+      "hit_at_1": {
+        "hits": 11,
+        "total": 22,
+        "rate": 0.5,
+        "random_baseline": 0.386364
+      },
+      "hit_at_2": {
+        "hits": 19,
+        "total": 22,
+        "rate": 0.863636,
+        "random_baseline": 0.772727
+      },
+      "folds": [
+        {
+          "held_out_line": "battlefield-camp/medic-001",
+          "direction": "descending",
+          "test_group_count": 2,
+          "hit_at_1": 0.5,
+          "hit_at_2": 1.0,
+          "random_baseline_hit_at_1": 0.333333,
+          "random_baseline_hit_at_2": 0.666667
+        },
+        {
+          "held_out_line": "battlefield-camp/medic-002",
+          "direction": "descending",
+          "test_group_count": 3,
+          "hit_at_1": 0.666667,
+          "hit_at_2": 1.0,
+          "random_baseline_hit_at_1": 0.444444,
+          "random_baseline_hit_at_2": 0.888889
+        },
+        {
+          "held_out_line": "battlefield-camp/medic-003",
+          "direction": "descending",
+          "test_group_count": 2,
+          "hit_at_1": 0.0,
+          "hit_at_2": 1.0,
+          "random_baseline_hit_at_1": 0.333333,
+          "random_baseline_hit_at_2": 0.666667
+        },
+        {
+          "held_out_line": "battlefield-camp/medic-004",
+          "direction": "descending",
+          "test_group_count": 2,
+          "hit_at_1": 1.0,
+          "hit_at_2": 1.0,
+          "random_baseline_hit_at_1": 0.333333,
+          "random_baseline_hit_at_2": 0.666667
+        },
+        {
+          "held_out_line": "battlefield-camp/messenger-002",
+          "direction": "descending",
+          "test_group_count": 3,
+          "hit_at_1": 0.333333,
+          "hit_at_2": 0.666667,
+          "random_baseline_hit_at_1": 0.388889,
+          "random_baseline_hit_at_2": 0.777778
+        },
+        {
+          "held_out_line": "battlefield-camp/messenger-003",
+          "direction": "descending",
+          "test_group_count": 1,
+          "hit_at_1": 0.0,
+          "hit_at_2": 1.0,
+          "random_baseline_hit_at_1": 0.5,
+          "random_baseline_hit_at_2": 1.0
+        },
+        {
+          "held_out_line": "battlefield-camp/veteran-soldier-001",
+          "direction": "descending",
+          "test_group_count": 2,
+          "hit_at_1": 1.0,
+          "hit_at_2": 1.0,
+          "random_baseline_hit_at_1": 0.416667,
+          "random_baseline_hit_at_2": 0.833333
+        },
+        {
+          "held_out_line": "battlefield-camp/wounded-001",
+          "direction": "descending",
+          "test_group_count": 1,
+          "hit_at_1": 0.0,
+          "hit_at_2": 1.0,
+          "random_baseline_hit_at_1": 0.333333,
+          "random_baseline_hit_at_2": 0.666667
+        },
+        {
+          "held_out_line": "battlefield-camp/wounded-002",
+          "direction": "descending",
+          "test_group_count": 1,
+          "hit_at_1": 1.0,
+          "hit_at_2": 1.0,
+          "random_baseline_hit_at_1": 0.5,
+          "random_baseline_hit_at_2": 1.0
+        },
+        {
+          "held_out_line": "dungeon-entrance/scout-001",
+          "direction": "descending",
+          "test_group_count": 1,
+          "hit_at_1": 1.0,
+          "hit_at_2": 1.0,
+          "random_baseline_hit_at_1": 0.333333,
+          "random_baseline_hit_at_2": 0.666667
+        },
+        {
+          "held_out_line": "dungeon-entrance/scout-002",
+          "direction": "descending",
+          "test_group_count": 3,
+          "hit_at_1": 0.0,
+          "hit_at_2": 0.333333,
+          "random_baseline_hit_at_1": 0.333333,
+          "random_baseline_hit_at_2": 0.666667
+        },
+        {
+          "held_out_line": "dungeon-entrance/vanguard-002",
+          "direction": "descending",
+          "test_group_count": 1,
+          "hit_at_1": 1.0,
+          "hit_at_2": 1.0,
+          "random_baseline_hit_at_1": 0.5,
+          "random_baseline_hit_at_2": 1.0
+        }
+      ]
+    }
+  ],
+  "conclusions": {
+    "exploratory_scope": "24-line exploratory",
+    "production_scorer": "no-go without independent confirmation",
+    "n5_policy": [
+      {
+        "model": "qwen3-tts-12hz-1.7b",
+        "decision": "maintain_n3",
+        "reason": "no paired take4/5 data"
+      },
+      {
+        "model": "irodori-tts-600m-v3-voicedesign",
+        "decision": "maintain_n3",
+        "reason": "no paired take4/5 data"
+      },
+      {
+        "model": "voxcpm2",
+        "decision": "maintain_n3",
+        "reason": "no paired take4/5 data"
+      }
+    ],
+    "asr_used_for_ranking": false
+  }
+}

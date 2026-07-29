@@ -659,6 +659,8 @@ def test_analyze_validates_decision_and_writes_json_and_markdown(
     assert feature_reports["f0_semitone_std"]["excluded_missing_feature"] == 1
     assert feature_reports["voiced_ratio"]["excluded_missing_feature"] == 0
     markdown = summary.report_markdown_path.read_text(encoding="utf-8")
+    assert "# N3 pilot 校正レポート" in markdown
+    assert "ASR は feature ranking に使用していない。" in markdown
     assert "24-line exploratory" in markdown
     assert "no-go without independent confirmation" in markdown
 
