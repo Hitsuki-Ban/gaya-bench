@@ -166,6 +166,14 @@ R2_SECRET_ACCESS_KEY=<R2 secret access key>
 
 credential は指定した file だけから読み、不足時は明示的に失敗する。Wrangler の OAuth / API token はバケット設定用、上記 S3 credential は Opus アップロード用であり、用途を混在させない。
 
+`gaya-bench-audio` には bucket lock rule
+`gaya-bench-audio-takes-immutable` を設定し、prefix `audio/takes/` の object を
+無期限に保持する。新しい content-addressed key の初回 `PUT` は許可されるが、
+作成後の上書きと削除は R2 が `ObjectLockedByBucketPolicy` で拒否する。
+publisher credential は `gaya-bench-audio` だけの Object Read & Write に限定し、
+bucket lock を含む bucket configuration の変更権限を与えない。credential は漏洩、
+権限変更、運用主体の変更がない限り継続利用し、該当時は revoke / rotation する。
+
 publisher は固定 release directory の canonical `manifest-v4.json` と raw SHA marker、canonical provenance と markerを検証する。provenance の `run_id` から明示的な takes root 内の source manifest と全 candidate Opus を特定し、candidate exact match、containment、SHA-256、サイズを全件検証してから R2 へ接続する。v3、missing take、rejected/blocked candidate、local-only path、`candidate[0]` fallback は受理しない。
 
 ```console
