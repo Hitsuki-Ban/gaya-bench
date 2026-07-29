@@ -25,6 +25,7 @@
     "typescript": "~6.0.2",
     "vite": "catalog:",
     "vite-plus": "catalog:",
+    "wrangler": "4.115.0",
     "yaml": "2.9.0"
   },
   "devEngines": {
