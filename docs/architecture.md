@@ -100,4 +100,9 @@ pipeline (Python/uv) ── モデル別アダプタ ──▶ artifacts/takes/<
 
 - PR / main: `gaya validate` + pipeline test / lint + site check / test / build
 - 音声生成・R2アップロードはCIでは行わない。固定releaseの全R2 objectを開発機から先に公開・検証した後だけmanifest変更をpushする
-- Cloudflare Pagesの本番デプロイ経路はIssue #15で構築する。現時点のrepository workflowはPagesを更新しない
+- **Pagesプロジェクト**: Direct Upload方式の `gaya-bench`。本番URLは [https://gaya-bench.pages.dev/](https://gaya-bench.pages.dev/)
+- **自動デプロイ**: [`.github/workflows/pages.yml`](../.github/workflows/pages.yml) が `main` pushを本番ブランチ `main` へ、同一repository内のPRを `pr-<PR番号>` preview branchへデプロイする。fork PRはsecretを渡さずデプロイしない
+- **ビルド環境**: `site/` をVite+でビルドし、本番・previewとも `VITE_AUDIO_BASE=https://audio.gaya-bench.hitsuki.space/` を固定する
+- **認証**: repository secrets `CLOUDFLARE_ACCOUNT_ID` と、Pages Writeだけを持つ `CLOUDFLARE_API_TOKEN` を使う
+- **PR通知**: preview成功時はbranch alias URLとimmutable deployment URLを同じbotコメントへupsertする
+- **SPA routing**: top-level `404.html`を置かず、Cloudflare Pagesの[SPA rendering](https://developers.cloudflare.com/pages/configuration/serving-pages/#single-page-application-spa-rendering)でdeep linkをrootへ解決する

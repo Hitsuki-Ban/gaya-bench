@@ -1,0 +1,119 @@
+name: Cloudflare Pages
+
+on:
+  pull_request:
+    types:
+      - opened
+      - synchronize
+      - reopened
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+  deployments: write
+  pull-requests: write
+
+concurrency:
+  group: pages-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    name: ${{ github.event_name == 'pull_request' && 'PRプレビュー' || '本番デプロイ' }}
+    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      VITE_AUDIO_BASE: https://audio.gaya-bench.hitsuki.space/
+      DEPLOY_BRANCH: ${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.number) || 'main' }}
+      DEPLOY_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+    steps:
+      - name: リポジトリを取得
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - name: Vite+ をセットアップ
+        uses: voidzero-dev/setup-vp@250f29ce396baf5e8f24498e17c0dfdebabc26eb # v1
+        with:
+          working-directory: site
+          cache: true
+
+      - name: 本番用サイトをビルド
+        working-directory: site
+        run: vp build
+
+      - name: Cloudflare Pages へデプロイ
+        id: deploy
+        uses: cloudflare/wrangler-action@9acf94ace14e7dc412b076f2c5c20b8ce93c79cd # v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          gitHubToken: ${{ secrets.GITHUB_TOKEN }}
+          workingDirectory: site
+          packageManager: pnpm
+          wranglerVersion: "4.115.0"
+          command: >-
+            pages deploy dist
+            --project-name=gaya-bench
+            --branch=${{ env.DEPLOY_BRANCH }}
+            --commit-hash=${{ env.DEPLOY_SHA }}
+
+      - name: PR にプレビューURLを通知
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        env:
+          PREVIEW_URL: ${{ steps.deploy.outputs.pages-deployment-alias-url }}
+          DEPLOYMENT_URL: ${{ steps.deploy.outputs.deployment-url }}
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const marker = "<!-- gaya-bench-pages-preview -->";
+            const previewUrl = process.env.PREVIEW_URL;
+            const deploymentUrl = process.env.DEPLOYMENT_URL;
+
+            if (!previewUrl || !deploymentUrl) {
+              core.setFailed("Cloudflare Pages のプレビューURLを取得できませんでした");
+              return;
+            }
+
+            const body = [
+              marker,
+              "Cloudflare Pages のプレビューを更新しました。",
+              "",
+              `- プレビュー: ${previewUrl}`,
+              `- このデプロイ固有のURL: ${deploymentUrl}`,
+            ].join("\n");
+
+            const comments = await github.paginate(
+              github.rest.issues.listComments,
+              {
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                per_page: 100,
+              },
+            );
+            const previous = comments.find(
+              (comment) =>
+                comment.user?.login === "github-actions[bot]" &&
+                comment.body?.includes(marker),
+            );
+
+            if (previous) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: previous.id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body,
+              });
+            }
