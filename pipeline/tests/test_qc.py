@@ -17,6 +17,7 @@ from gaya_pipeline.audio import (
 )
 from gaya_pipeline.curation import apply_curation, canonical_candidate_set_bytes
 from gaya_pipeline.qc import QCError, RuntimeInspection, count_japanese_mora, run_qc
+from gaya_pipeline.qc_report import QCReportError, validate_qc_report
 from gaya_pipeline.take_identity import canonical_json, make_take_id
 from gaya_pipeline.take_ledger import read_ledger, write_ledger_atomic
 from gaya_pipeline.take_manifest_v4 import validate_manifest_v4
@@ -139,7 +140,7 @@ def test_explicit_reading_pass_creates_eligible_snapshot(tmp_path: Path) -> None
     )
     assert len(manifest["candidates"]) == 1
     candidate = manifest["candidates"][0]
-    assert candidate["gate"]["policy_version"] == "take-gates-v1"
+    assert candidate["gate"]["policy_version"] == "take-gates-v2"
     assert candidate["gen_params"]["requested"] == {"temperature": 1.0}
     assert candidate["gen_params"]["realized"] == {"temperature": 1.0}
     assert candidate["loudness"] == {
@@ -149,6 +150,10 @@ def test_explicit_reading_pass_creates_eligible_snapshot(tmp_path: Path) -> None
         "shortfall": False,
     }
     report = json.loads(summary.report_path.read_text(encoding="utf-8"))
+    assert report["format_version"] == 2
+    assert report["gate_policy_version"] == "take-gates-v2"
+    assert report["summary"]["content_review_required"] == 0
+    assert report["attempts"][0]["content"]["review_reason"] is None
     assert report["runtime"]["status"] == "ready"
     assert report["attempts"][0]["mechanical"]["sidecar_provenance"] == {
         "generation_seconds": 1.0,
@@ -164,7 +169,7 @@ def test_explicit_reading_pass_creates_eligible_snapshot(tmp_path: Path) -> None
     }
 
 
-def test_explicit_reading_mismatch_is_hard_rejected_and_absent_from_snapshot(
+def test_explicit_reading_mismatch_is_review_required_and_in_snapshot(
     tmp_path: Path,
 ) -> None:
     run_id, ledger_path = _write_generated_run(tmp_path)
@@ -177,21 +182,24 @@ def test_explicit_reading_mismatch_is_hard_rejected_and_absent_from_snapshot(
     )
 
     attempt = read_ledger(ledger_path)["attempts"][0]
-    assert attempt["status"] == "hard_rejected"
-    assert attempt["gates"] == {"mechanical": "pass", "content": "reject"}
-    assert summary.hard_rejected_count == 1
+    assert attempt["status"] == "eligible"
+    assert attempt["gates"] == {
+        "mechanical": "pass",
+        "content": "review_required",
+    }
+    assert summary.eligible_count == 1
+    assert summary.content_review_required_count == 1
     assert summary.snapshot_path is not None
+    report = json.loads(summary.report_path.read_text(encoding="utf-8"))
+    content = report["attempts"][0]["content"]
+    assert content["status"] == "review_required"
+    assert content["review_reason"] == "explicit_reading_mismatch"
+    assert content["reading"]["reading_mismatch"] is True
+    assert report["summary"]["content_review_required"] == 1
     manifest = json.loads(summary.snapshot_path.read_text(encoding="utf-8"))
-    assert manifest["candidates"] == []
-    assert manifest["failures"] == [
-        {
-            "model": "dummy",
-            "scenario": "chinatown-street",
-            "line": "shokudo-oyaji-002",
-            "variant": "dry",
-            "reason": "no_eligible_take",
-        },
-    ]
+    assert len(manifest["candidates"]) == 1
+    assert manifest["candidates"][0]["gate"]["content"] == "review_required"
+    assert manifest["failures"] == []
 
 
 @pytest.mark.parametrize("failure", ["format", "loudness"])
@@ -287,11 +295,16 @@ def test_derived_reading_is_review_required_not_pass_or_reject(
         "content": "review_required",
     }
     assert summary.eligible_count == 1
+    assert summary.content_review_required_count == 1
     assert summary.snapshot_path is not None
     candidate = json.loads(summary.snapshot_path.read_text(encoding="utf-8"))[
         "candidates"
     ][0]
     assert candidate["gate"]["content"] == "review_required"
+    report = json.loads(summary.report_path.read_text(encoding="utf-8"))
+    content = report["attempts"][0]["content"]
+    assert content["review_reason"] == "non_authoritative_expected_reading"
+    assert content["reading"]["reading_mismatch"] is None
 
 
 @pytest.mark.parametrize("stage", ["prepare", "inspect", "empty_transcript"])
@@ -509,6 +522,63 @@ def test_generation_failedだけのterminal_runは音声tool不要でsnapshot化
     assert runtime.inspect_calls == 0
 
 
+def test_generation_failedだけのterminal_snapshot再実行もv2_reportを先に要求(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    run_id, ledger_path = _write_generated_run(tmp_path)
+    ledger = read_ledger(ledger_path)
+    attempt = ledger["attempts"][0]
+    ledger["attempts"][0] = {
+        "model": attempt["model"],
+        "scenario": attempt["scenario"],
+        "line": attempt["line"],
+        "variant": attempt["variant"],
+        "take_index": attempt["take_index"],
+        "generation_input_sha256": attempt["generation_input_sha256"],
+        "generation": {
+            "status": "failed",
+            "seed": attempt["generation"]["seed"],
+            "sampling": attempt["generation"]["sampling"],
+            "error": "generation failed",
+        },
+        "status": "generation_failed",
+    }
+    write_ledger_atomic(ledger_path, ledger)
+    monkeypatch.setattr(
+        qc,
+        "find_audio_tools",
+        lambda: (_ for _ in ()).throw(AssertionError("must not load tools")),
+    )
+
+    first = run_qc(
+        run_id=run_id,
+        scenarios_dir=SCENARIOS_DIR,
+        artifacts_dir=tmp_path / "artifacts",
+        runtime=FakeRuntime("must not inspect"),
+    )
+    assert first.snapshot_path is not None
+    assert first.candidate_set_path is not None
+    assert first.candidate_set_marker_path is not None
+    watched = (
+        first.snapshot_path,
+        first.candidate_set_path,
+        first.candidate_set_marker_path,
+    )
+    before = {path: path.read_bytes() for path in watched}
+    first.report_path.unlink()
+
+    with pytest.raises(QCError, match="完全な v2 QC report"):
+        run_qc(
+            run_id=run_id,
+            scenarios_dir=SCENARIOS_DIR,
+            artifacts_dir=tmp_path / "artifacts",
+            runtime=FakeRuntime("must not inspect"),
+        )
+
+    assert {path: path.read_bytes() for path in watched} == before
+
+
 def test_generatedとgeneration_failedの混在はtool不足をstrict_reportへ記録する(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -570,6 +640,8 @@ def test_terminal_rerun_does_not_prepare_or_inspect_runtime(tmp_path: Path) -> N
         runtime=FakeRuntime("ウチノマーボーワカライヨカクゴシナ"),
     )
     assert first.snapshot_path is not None
+    first_report = json.loads(first.report_path.read_text(encoding="utf-8"))
+    first_content = first_report["attempts"][0]["content"]
     runtime = FakeRuntime(
         "must not inspect",
         prepare_error=AssertionError("must not prepare"),
@@ -587,9 +659,139 @@ def test_terminal_rerun_does_not_prepare_or_inspect_runtime(tmp_path: Path) -> N
     assert runtime.inspect_calls == 0
     assert second.eligible_count == 1
     assert second.snapshot_path is not None
+    second_report = json.loads(second.report_path.read_text(encoding="utf-8"))
+    assert second_report["attempts"][0]["content"] == first_content
+    assert set(second_report["attempts"][0]["mechanical"]) == {
+        "status",
+        "duration_sec",
+        "wav",
+        "opus",
+        "loudness",
+        "generation_params",
+        "sidecar_provenance",
+    }
     validate_manifest_v4(
         json.loads(second.snapshot_path.read_text(encoding="utf-8")),
     )
+
+
+def test_v2_report_rejects_terminal_content_stub(tmp_path: Path) -> None:
+    run_id, ledger_path = _write_generated_run(tmp_path)
+    summary = run_qc(
+        run_id=run_id,
+        scenarios_dir=SCENARIOS_DIR,
+        artifacts_dir=tmp_path / "artifacts",
+        runtime=FakeRuntime("ウチノマーボーワカライヨカクゴシナ"),
+    )
+    ledger = read_ledger(ledger_path)
+    report = json.loads(summary.report_path.read_text(encoding="utf-8"))
+    report["attempts"][0]["content"] = {
+        "status": "pass",
+        "inspection": "terminal_not_repeated",
+    }
+
+    with pytest.raises(QCReportError, match="exact contract"):
+        validate_qc_report(report, ledger_path=ledger_path, ledger=ledger)
+
+
+def test_v2_report_rejects_content_hard_reject(tmp_path: Path) -> None:
+    run_id, ledger_path = _write_generated_run(tmp_path)
+    summary = run_qc(
+        run_id=run_id,
+        scenarios_dir=SCENARIOS_DIR,
+        artifacts_dir=tmp_path / "artifacts",
+        runtime=FakeRuntime("ウチノマーボーワカライヨカクゴシナ"),
+    )
+    ledger = read_ledger(ledger_path)
+    ledger["attempts"][0]["status"] = "hard_rejected"
+    ledger["attempts"][0]["gates"] = {
+        "mechanical": "pass",
+        "content": "reject",
+    }
+    report = json.loads(summary.report_path.read_text(encoding="utf-8"))
+    report["summary"]["eligible"] = 0
+    report["summary"]["hard_rejected"] = 1
+    report["attempts"][0]["status"] = "hard_rejected"
+    report["attempts"][0]["gates"] = {
+        "mechanical": "pass",
+        "content": "reject",
+    }
+    report["attempts"][0]["content"]["status"] = "reject"
+
+    with pytest.raises(QCReportError, match="mechanical reject"):
+        validate_qc_report(report, ledger_path=ledger_path, ledger=ledger)
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    [
+        "review_reason",
+        "authoritative",
+        "reading_mismatch",
+        "normalized_reading",
+    ],
+)
+def test_v2_report_rejects_inconsistent_pass_evidence(
+    tmp_path: Path,
+    mutation: str,
+) -> None:
+    run_id, ledger_path = _write_generated_run(tmp_path)
+    summary = run_qc(
+        run_id=run_id,
+        scenarios_dir=SCENARIOS_DIR,
+        artifacts_dir=tmp_path / "artifacts",
+        runtime=FakeRuntime("ウチノマーボーワカライヨカクゴシナ"),
+    )
+    ledger = read_ledger(ledger_path)
+    report = json.loads(summary.report_path.read_text(encoding="utf-8"))
+    content = report["attempts"][0]["content"]
+    if mutation == "review_reason":
+        content["review_reason"] = "explicit_reading_mismatch"
+    elif mutation == "authoritative":
+        content["expected_reading"]["authoritative"] = False
+    elif mutation == "reading_mismatch":
+        content["reading"]["reading_mismatch"] = True
+    else:
+        content["asr"]["normalized_reading"] = "フイッチ"
+
+    with pytest.raises(QCReportError, match="pass 判定根拠"):
+        validate_qc_report(report, ledger_path=ledger_path, ledger=ledger)
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    [
+        "review_reason",
+        "authoritative",
+        "reading_mismatch",
+        "normalized_reading",
+    ],
+)
+def test_v2_report_rejects_inconsistent_explicit_mismatch_evidence(
+    tmp_path: Path,
+    mutation: str,
+) -> None:
+    run_id, ledger_path = _write_generated_run(tmp_path)
+    summary = run_qc(
+        run_id=run_id,
+        scenarios_dir=SCENARIOS_DIR,
+        artifacts_dir=tmp_path / "artifacts",
+        runtime=FakeRuntime("ウチノマーボーワツライヨカクゴシナ"),
+    )
+    ledger = read_ledger(ledger_path)
+    report = json.loads(summary.report_path.read_text(encoding="utf-8"))
+    content = report["attempts"][0]["content"]
+    if mutation == "review_reason":
+        content["review_reason"] = None
+    elif mutation == "authoritative":
+        content["expected_reading"]["authoritative"] = False
+    elif mutation == "reading_mismatch":
+        content["reading"]["reading_mismatch"] = False
+    else:
+        content["asr"]["normalized_reading"] = content["expected_reading"]["normalized"]
+
+    with pytest.raises(QCReportError, match="判定根拠"):
+        validate_qc_report(report, ledger_path=ledger_path, ledger=ledger)
 
 
 def test_terminal_eligibleのmechanical再検証失敗はsnapshotを無効化(
@@ -621,6 +823,57 @@ def test_terminal_eligibleのmechanical再検証失敗はsnapshotを無効化(
         )
 
     assert not (ledger_path.parent / "manifest-v4.json").exists()
+
+
+@pytest.mark.parametrize(
+    ("mutation", "message"),
+    [
+        ("missing", "完全な v2 QC report"),
+        ("format_v1", "format_version"),
+        ("policy_v1", "gate_policy_version"),
+    ],
+)
+def test_terminal_rerun_requires_existing_v2_report_before_snapshot_invalidation(
+    tmp_path: Path,
+    mutation: str,
+    message: str,
+) -> None:
+    run_id, ledger_path = _write_generated_run(tmp_path)
+    first = run_qc(
+        run_id=run_id,
+        scenarios_dir=SCENARIOS_DIR,
+        artifacts_dir=tmp_path / "artifacts",
+        runtime=FakeRuntime("ウチノマーボーワカライヨカクゴシナ"),
+    )
+    assert first.snapshot_path is not None
+    assert first.candidate_set_path is not None
+    assert first.candidate_set_marker_path is not None
+    watched = (
+        first.snapshot_path,
+        first.candidate_set_path,
+        first.candidate_set_marker_path,
+    )
+    before = {path: path.read_bytes() for path in watched}
+    report_path = ledger_path.parent / "qc-report.json"
+    if mutation == "missing":
+        report_path.unlink()
+    else:
+        report = json.loads(report_path.read_text(encoding="utf-8"))
+        if mutation == "format_v1":
+            report["format_version"] = 1
+        else:
+            report["gate_policy_version"] = "take-gates-v1"
+        report_path.write_text(json.dumps(report), encoding="utf-8")
+
+    with pytest.raises(QCError, match=message):
+        run_qc(
+            run_id=run_id,
+            scenarios_dir=SCENARIOS_DIR,
+            artifacts_dir=tmp_path / "artifacts",
+            runtime=FakeRuntime("must not inspect"),
+        )
+
+    assert {path: path.read_bytes() for path in watched} == before
 
 
 def test_qc_cliはrun_idだけを入力にする() -> None:
@@ -1026,7 +1279,7 @@ def test_qc開始時は壊れたsnapshot_bundleを無変更で拒否(
     assert {path: path.read_bytes() for path in before} == before
 
 
-def test_三文件状态不完整时ledger読込前に無変更で拒否(tmp_path: Path) -> None:
+def test_三文件状态不完整时ledger読込失敗でも無変更(tmp_path: Path) -> None:
     run_root = tmp_path / "artifacts" / "takes" / "broken-run"
     run_root.mkdir(parents=True)
     snapshot_path = run_root / "manifest-v4.json"
@@ -1035,7 +1288,7 @@ def test_三文件状态不完整时ledger読込前に無変更で拒否(tmp_pat
     candidate_set_path.write_bytes(b"stale candidate set")
     before = (snapshot_path.read_bytes(), candidate_set_path.read_bytes())
 
-    with pytest.raises(QCError, match="snapshot bundle"):
+    with pytest.raises(QCError, match="run ledger"):
         run_qc(
             run_id="broken-run",
             scenarios_dir=SCENARIOS_DIR,

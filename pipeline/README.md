@@ -38,7 +38,12 @@ terminal のときだけ canonical `candidate-set.json` を先に書き、
 `candidate-set.sha256` に書き、最後に同じ SHA を持つ `manifest-v4.json` を
 ready marker として原子的に確定する。candidate set は ledger に固定された
 scenario source の SHA と、対象 line の scenario title / text / delivery を含む。
-QC 開始時は manifest → SHA marker → candidate set の順で旧 snapshot を無効化する。
+明示 reading mismatch は gate policy `take-gates-v2` では hard reject にせず、
+`review_required` の eligible candidate とする。format v2 の QC report は ASR
+transcript、Kana-CER、mismatch、review reason と `content_review_required` 集計を
+保持する。terminal run の再 QC は既存の完全な v2 report を先に検証して監査情報を
+再利用し、欠損・破損・旧 policy なら新しい generation run を要求する。
+QC 開始時はその検証後に manifest → SHA marker → candidate set の順で旧 snapshot を無効化する。
 3 ファイルの欠落・破損・不一致または既存 curation があれば、どれも削除せず
 fail-fast する。策展後の再 QC には新しい generation run が必要である。公開中の
 `data/manifest.json` は変更しない。ASR は

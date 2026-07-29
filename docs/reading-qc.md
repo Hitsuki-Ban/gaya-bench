@@ -21,7 +21,8 @@ adapter の `unload` や CPU runtime への切替は設けない。
 
 run-local の出力は次の二つである。
 
-- `artifacts/takes/<run-id>/qc-report.json`: gate 理由、ASR、未校正の韻律 feature
+- `artifacts/takes/<run-id>/qc-report.json`: format v2 の gate 理由、ASR、
+  未校正の韻律 feature と hard reject / review の集計
 - `artifacts/takes/<run-id>/manifest-v4.json`: terminal run の eligible take だけを
   投影した local snapshot
 
@@ -37,8 +38,11 @@ generation input hash、take recipe、requested parameters、toolchain、
 WAV/Opus path と SHA-256 を照合する。欠損や provenance の不一致は音質不良とは
 みなさず `blocked` とする。入力が検査中に変化した場合も `blocked` である。
 
-terminal attempt は再分類しない。再実行時は `blocked` だけを同じ provenance で
-再評価し、まだ解消していなければ ledger を書き換えず `blocked` のまま残す。
+terminal attempt は再分類しない。再実行時は既存の format v2 report を厳密に
+検証し、terminal attempt の ASR、Kana-CER、mismatch、review reason をそのまま
+再利用する。report が欠損・破損している場合や gate policy が異なる場合は
+fail-fast し、新しい generation run を要求する。`blocked` だけを同じ provenance
+で再評価し、まだ解消していなければ ledger を書き換えず `blocked` のまま残す。
 `generation_failed` は generation phase の terminal 結果として Gate 対象外とする。
 
 ## Gate 1: mechanical
@@ -58,11 +62,15 @@ provenance、tool、runtime の都合で検査を完了できない場合は
 ## Gate 2: content
 
 期待 reading は `line.reading` を最優先する。明示 reading と Kana ASR が一致すれば
-`pass`、不一致なら `reject` とする。空 ASR、runtime error、検査中の artifact
-変更は `blocked` であり、誤読として reject しない。
+`pass`、不一致なら `review_required` とする。不一致は
+`review_reason=explicit_reading_mismatch`、normalized ASR transcript、
+Kana-CER、`reading_mismatch=true` とともに report へ残すが、candidate から除外せず
+人間の内容確認へ送る。空 ASR、runtime error、検査中の artifact 変更は `blocked`
+であり、誤読として reject しない。
 
 `line.reading` がない場合は既存の日本語 reading 解決を report に残すが、G2P
-推定や多読み語を正解とはみなさず `review_required` とする。
+推定や多読み語を正解とはみなさず、
+`review_reason=non_authoritative_expected_reading` の `review_required` とする。
 `review_required` は eligible であり、pass へ変換しない。
 
 ASR は次の単一路径に固定する。
@@ -87,3 +95,11 @@ ASR は次の単一路径に固定する。
 
 QC は音声を上書き・削除しない。hard reject と generation failure の artifact は
 run に監査用として残るが、manifest v4 candidates には決して含めない。
+
+明示 reading mismatch を review signal とする根拠は
+[#103 N=3 pilot](research/n3-pilot/report/pilot-report.md) に固定した。
+Kana Whisper の公式 model card は片仮名 transcript と Kana-CER の評価用途を説明するが、
+単一 take の production hard gate は保証していない。
+[Sarashina2.2-TTS](https://arxiv.org/html/2606.25369) も強い話し方では
+人が理解できる音声を Kana-ASR が誤認識し得ると報告している。このため ASR evidence
+は順位 score にも使用せず、人間の `content_correct` 判定を置き換えない。

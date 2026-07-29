@@ -21,7 +21,7 @@ from gaya_pipeline.curation import (
     load_authoritative_candidate_lines,
     validate_snapshot_bundle,
 )
-from gaya_pipeline.qc_report import QCReportError, validate_qc_report
+from gaya_pipeline.qc_report import QCReportError, validate_qc_report_v1
 from gaya_pipeline.take_identity import canonical_json, sha256_canonical
 from gaya_pipeline.take_ledger import TakeLedgerError, read_ledger
 from gaya_pipeline.take_sidecar import TakeSidecarError, validate_take_sidecar
@@ -621,7 +621,11 @@ def _load_run_material(
     report_raw = _read_bytes(report_path, f"{run_id} QC report")
     report = _read_json_bytes(report_raw, report_path, f"{run_id} QC report")
     try:
-        authority = validate_qc_report(report, ledger_path=ledger_path, ledger=ledger)
+        authority = validate_qc_report_v1(
+            report,
+            ledger_path=ledger_path,
+            ledger=ledger,
+        )
     except QCReportError as error:
         raise PilotError(f"pilot QC report が不正です: {run_id}: {error}") from error
     generated_at = _text(report["generated_at"], f"{run_id} QC generated_at")

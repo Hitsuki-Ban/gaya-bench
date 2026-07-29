@@ -59,7 +59,7 @@ manifest とサイトを take-aware に切り替える。
 
 なお、161 行中で明示 `reading` があるのは現状 1 行だけである。明示 reading が
 ないこと自体を hard reject にすると運用不能になるため、内容 gate は
-`pass / review_required / reject / blocked` の 4 状態を持つ。
+`pass / review_required / blocked` の 3 状態を持つ。
 
 ## 3. データフローと状態
 
@@ -76,7 +76,7 @@ scenario + model + take plan
   Gate 1: mechanical ---------------> hard_rejected
         |
         v
-  Gate 2: content ------------------> hard_rejected / blocked
+  Gate 2: content ------------------> blocked
         |
         +---- pass or review_required
         v
@@ -97,10 +97,10 @@ scenario + model + take plan
 | 状態 | 意味 | manifest / R2 |
 |---|---|---|
 | `generation_failed` | adapter が音声を生成できなかった | 入れない |
-| `hard_rejected` | 確定的な機械違反または明示 reading mismatch | 入れない |
+| `hard_rejected` | 確定的な機械違反または active speech 0 | 入れない |
 | `blocked` | QC runtime/error により品質が未判定 | 入れない。run 全体を非 0 終了 |
 | `eligible:pass` | Gate 1 を通過し、権威ある reading と一致 | candidate に入れる |
-| `eligible:review_required` | hard failure はないが reading の権威性が不足 | candidate に入れ、状態を表示する |
+| `eligible:review_required` | 明示 reading と ASR の不一致、または reading の権威性不足 | candidate に入れ、状態を表示する |
 | `selected` | 人間が内容正しさと採用可否を確認 | `curations` から candidate を参照 |
 
 `review_required` を `pass` と偽装しない。ただし、これは「基準未満」ではなく
@@ -309,7 +309,7 @@ v3 dual reader、欠落 take の `take=1` 補完、`variant` への take 番号�
       "gate": {
         "mechanical": "pass",
         "content": "review_required",
-        "policy_version": "take-gate-v1"
+        "policy_version": "take-gates-v2"
       }
     }
   ],
@@ -403,7 +403,7 @@ candidate object を参照し、旧 canonical key へ copy しない。
 R2 の orphan cleanup はこの設計の実装 ticket に含めない。必要になった場合は、
 対象 manifest digest と object 一覧を確認する別の明示操作として設計する。
 
-## 7. Gate policy v1
+## 7. Gate policy v2
 
 Gate は hard reject、review、report-only を schema 上も実行上も分離する。
 TTS と ASR/scorer は 12GB VRAM に同時常駐させない。
@@ -412,7 +412,7 @@ TTS と ASR/scorer は 12GB VRAM に同時常駐させない。
 
 初版で hard reject にするのは、既存 pipeline が確定的に検証できる項目だけである。
 
-| 項目 | v1 判定 |
+| 項目 | v2 判定 |
 |---|---|
 | decode failure、空音声、NaN / Inf | hard reject |
 | adapter が宣言した native format 違反 | hard reject |
@@ -428,7 +428,7 @@ hard reject は `±1.5 LUFS` である。pre-encode limiter target と final Opu
 混同しない。
 
 「異常な尺」「尻切れ」「長い無音」は style に依存する。whisper、shout、
-酔態、笑いを同じ固定値で落とす校正データがないため、v1 では duration/silence
+酔態、笑いを同じ固定値で落とす校正データがないため、v2 では duration/silence
 feature として記録する。active speech 0 のみ hard reject とする。閾値を hard gate
 へ上げる場合は、model/emotion を含む日本語 gold set の false reject を先に測る。
 
@@ -436,24 +436,27 @@ feature として記録する。active speech 0 のみ hard reject とする。�
 
 既存 `gaya qc` と Kana Whisper の固定 revision を利用する。
 
-| 条件 | v1 判定 |
+| 条件 | v2 判定 |
 |---|---|
 | 明示 `line.reading` と exact kana 一致 | `pass` |
-| 明示 `line.reading` と不一致 | hard `reject` |
+| 明示 `line.reading` と不一致 | `review_required`、reason は `explicit_reading_mismatch` |
 | reading が G2P 推定のみ、または多音語を含む | `review_required` |
 | ASR が空、解析不能、入力 SHA が実行中に変化 | `blocked` |
 | 未校正の小さな Kana-CER 差 | ranking に使わない |
 | 欠落、反復、early stop の新 detector | 日本語 gold set 校正までは report-only |
 
-#75 の現在の契約に合わせ、明示 reading mismatch は hard reject とする。ただし、
-短い bark や極端な演技での Kana ASR false reject は未計測である。閾値変更を
-暗黙に行わず、N=3 pilot の blind 判定と照合して policy version を更新する。
+#103 の N=3 pilot では content-correct false reject 77/159、adoptable false reject
+49/97、hard reject が失った人評 winner 28/50 となった。したがって v2 では明示
+reading mismatch を hard reject にせず、ASR transcript、Kana-CER、
+`reading_mismatch`、review reason を report に保持したまま人間確認へ送る。
+manifest/candidate-set には ASR evidence を複製せず、`review_required` と policy
+version だけを固定する。
 
 ASR Best-of-N の一次研究は silence、early stop、repetition、wrong content の
 災害的失敗を N=2〜4 で減らせることを示す一方、検証は英語中心である。また
 Whisper / wav2vec2 / HuBERT family により候補順位が反転する報告がある。そのため、
-単一 Kana Whisper の僅差を take ranking に使わない。初版 hard gate のために
-第 2 ASR を常駐させることもしない。
+単一 Kana Whisper の差を take ranking に使わず、人間の `content_correct` 判定も
+置き換えない。第 2 ASR を常駐させることもしない。
 
 ### 7.3 Gate 3: 表現 signal
 
@@ -724,7 +727,8 @@ run を作る。同一 input に異なる take identity の完了 run が複数�
 
 受け入れ条件:
 
-- loudness/TP、invalid audio、explicit reading mismatch の fixture を落とす。
+- loudness/TP、invalid audio の fixture を hard reject し、explicit reading
+  mismatch の fixture は `review_required` candidate に残す。
 - review_required と blocked を pass/reject に変換しない。
 - blocked または非 terminal run で snapshot を確定しない。
 - reject audio が v4 snapshot に 1 件も現れない。

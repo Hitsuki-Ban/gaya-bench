@@ -11,7 +11,7 @@
 1. **既に実装済みの model-native な逐行制御を比較し、Qwen3-TTS だけ感情参照 A/B を追加する。**
    Irodori-TTS v3、VoxCPM2、CosyVoice3 は、現在の adapter で `emotion` / `intensity` / `delivery` を生成入力へ渡している。まず同じ少数行で人間評価し、制御が実際に効くモデルを絞る。Qwen3-TTS は Base clone に逐行 instruct がないため、#79 の感情別参照は妥当な仮説検証である。ただし「中立参照が棒読みの根本原因」とはまだ実証されていない。
 2. **N テイク生成を、hard gate と soft ranking に分けて導入する。**
-   破損、ラウドネス、異常尺、ASR 読み不一致は hard gate にできる。SER、emotion2vec、DS-WED、F0・energy・pause は、プロジェクト内の日本語人評との相関を確認するまで soft ranking と監査値に限定する。最終選択は人間が行う。
+   破損、ラウドネス、active speech 0 は hard gate にする。#103 の日本語人評で誤拒否率が高かった ASR 読み不一致は `review_required` と監査値に限定する。SER、emotion2vec、DS-WED、F0・energy・pause も、プロジェクト内の日本語人評との相関を確認するまで soft ranking と監査値に限定する。最終選択は人間が行う。
 3. **Qwen x-vector 演算は、ライセンスと日本語再現性を解決してから研究実験にする。**
    論文の結果は有望だが、検証感情は angry / happy / sad、主言語は英語、言語横断はポルトガル語までである。公開実装にライセンスがないため、現時点で製品パイプラインへコードや配布ベクトルを取り込めない。
 

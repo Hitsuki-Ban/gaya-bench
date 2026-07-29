@@ -392,7 +392,8 @@ def _print_qc_summary(summary: QCSummary) -> None:
         f"hard reject {summary.hard_rejected_count} / "
         f"blocked {summary.blocked_count} / "
         f"generation failure {summary.generation_failed_count} / "
-        f"未完了 {summary.pending_count}",
+        f"未完了 {summary.pending_count} / "
+        f"content review required {summary.content_review_required_count}",
     )
 
 
