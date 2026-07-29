@@ -2,29 +2,39 @@ import { Pause, Play, TriangleAlert } from "lucide-react";
 
 import { useAudioPlayer, useAudioProgress } from "@/audio/audio-provider";
 import { Button } from "@/components/ui/button";
-import { clipKey, lineByKey, modelById, scenarioById, type Clip } from "@/data";
+import { candidateKey, lineByKey, modelById, scenarioById, type Candidate } from "@/data";
 import { resolveAudioUrl } from "@/lib/audio-url";
 
 interface ClipButtonProps {
-  clip: Clip;
+  candidate: Candidate;
 }
 
-export function ClipButton({ clip }: ClipButtonProps) {
+export function ClipButton({ candidate }: ClipButtonProps) {
   const player = useAudioPlayer();
-  const key = clipKey(clip);
+  const key = candidateKey(candidate);
   const isCurrent = player.currentClipKey === key;
   const isPlaying = isCurrent && (player.status === "playing" || player.status === "loading");
-  const line = lineByKey.get(`${clip.scenario}/${clip.line}`)!;
-  const scenario = scenarioById.get(clip.scenario)!;
-  const character = scenario.characters.find((item) => item.id === line.character)!;
-  const model = modelById.get(clip.model)!;
+  const line = lineByKey.get(`${candidate.scenario}/${candidate.line}`);
+  const scenario = scenarioById.get(candidate.scenario);
+  const model = modelById.get(candidate.model);
+  if (!line || !scenario || !model) {
+    throw new Error(
+      `selected candidate の参照を解決できません: ${candidate.model}/${candidate.scenario}/${candidate.line}`,
+    );
+  }
+  const character = scenario.characters.find((item) => item.id === line.character);
+  if (!character) {
+    throw new Error(
+      `selected candidate の character を解決できません: ${candidate.scenario}/${candidate.line}`,
+    );
+  }
 
   return (
     <div className="space-y-2">
       <Button
         aria-label={`${character.name}「${line.text}」${model.name} を${isPlaying ? "停止" : "再生"}`}
         className="relative w-full justify-between overflow-hidden font-mono"
-        onClick={() => void player.toggle({ key, url: resolveAudioUrl(clip.path) })}
+        onClick={() => void player.toggle({ key, url: resolveAudioUrl(candidate.path) })}
         variant={isCurrent ? "default" : "outline"}
       >
         <span className="relative z-10 flex items-center gap-2">
@@ -36,9 +46,9 @@ export function ClipButton({ clip }: ClipButtonProps) {
           {model.name}
         </span>
         {isCurrent ? (
-          <ClipProgress fallbackDuration={clip.duration_sec} />
+          <ClipProgress fallbackDuration={candidate.duration_sec} />
         ) : (
-          <span className="relative z-10">{clip.duration_sec.toFixed(2)}s</span>
+          <span className="relative z-10">{candidate.duration_sec.toFixed(2)}s</span>
         )}
       </Button>
       {isCurrent && player.status === "error" ? (

@@ -25,7 +25,7 @@ export function MobileMatrix({ controller, model, projection, search }: MobileMa
   const playingCoordinate =
     controller.player.currentClipKey === null
       ? undefined
-      : model.getCoordinateForClipKey(controller.player.currentClipKey);
+      : model.getCoordinateForCandidateKey(controller.player.currentClipKey);
   useVisibleAudioPrefetch(scopeRef, null, `${projection.key}:${selectedModel?.id ?? ""}`);
 
   if (cursor === null) {

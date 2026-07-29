@@ -7,8 +7,8 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { benchmarkData, modelById } from "@/data";
 import {
-  buildModelClipEntries,
-  buildModelFailureEntries,
+  buildModelCandidateEntries,
+  buildModelOutcomeEntries,
   calculateRtfStatistics,
   collectGenerationParameterSets,
 } from "@/pages/detail-page-model";
@@ -30,19 +30,19 @@ export function ModelPage() {
     return <NotFoundPage />;
   }
 
-  const clipEntries = buildModelClipEntries(
+  const candidateEntries = buildModelCandidateEntries(
     model.id,
-    benchmarkData.manifest.clips,
+    benchmarkData.outcomes,
     benchmarkData.scenarios,
   );
-  const clips = clipEntries.map(({ clip }) => clip);
-  const failureEntries = buildModelFailureEntries(
+  const candidates = candidateEntries.map(({ candidate }) => candidate);
+  const nonSelectedEntries = buildModelOutcomeEntries(
     model.id,
-    benchmarkData.manifest.failures,
+    benchmarkData.outcomes,
     benchmarkData.scenarios,
   );
-  const rtf = calculateRtfStatistics(clips);
-  const parameterSets = collectGenerationParameterSets(clips);
+  const rtf = calculateRtfStatistics(candidates);
+  const parameterSets = collectGenerationParameterSets(candidates);
 
   return (
     <div className="space-y-5">
@@ -90,17 +90,11 @@ export function ModelPage() {
           <CardContent className="space-y-3 text-sm">
             <Row label="version" value={model.version} />
             <Row label="license" value={model.license_note} />
-            <Row label="clips" value={String(clipEntries.length)} />
-            <Row label="failures" value={String(failureEntries.length)} />
+            <Row label="selected" value={String(candidateEntries.length)} />
+            <Row label="non-selected" value={String(nonSelectedEntries.length)} />
             <Row
               label="variants"
-              value={
-                clips.length === 0
-                  ? failureEntries.length > 0
-                    ? "成功なし"
-                    : "未生成"
-                  : [...new Set(clips.map(({ variant }) => variant))].join(", ")
-              }
+              value={[...new Set(candidates.map(({ variant }) => variant))].join(", ")}
             />
           </CardContent>
         </Card>
@@ -144,12 +138,12 @@ export function ModelPage() {
         <SectionHeading id="parameters-heading" title="生成パラメータ" />
         {parameterSets.length > 0 ? (
           <div className="grid gap-3 lg:grid-cols-2">
-            {parameterSets.map(({ parameters, clipCount }, index) => (
+            {parameterSets.map(({ parameters, candidateCount }, index) => (
               <Card key={JSON.stringify(parameters)} size="sm">
                 <CardHeader>
                   <CardTitle className="flex items-center justify-between gap-3">
                     <span>設定 {index + 1}</span>
-                    <Badge variant="outline">{clipCount} clips</Badge>
+                    <Badge variant="outline">{candidateCount} selected</Badge>
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
@@ -167,12 +161,16 @@ export function ModelPage() {
         )}
       </section>
 
-      <section aria-labelledby="clips-heading" className="space-y-3">
-        <SectionHeading count={clipEntries.length} id="clips-heading" title="全生成クリップ" />
-        {clipEntries.length > 0 ? (
+      <section aria-labelledby="selected-heading" className="space-y-3">
+        <SectionHeading
+          count={candidateEntries.length}
+          id="selected-heading"
+          title="公開 selected 音声"
+        />
+        {candidateEntries.length > 0 ? (
           <div className="grid gap-3 lg:grid-cols-2">
-            {clipEntries.map(({ clip, scenario, line, character }) => (
-              <Card key={`${clip.scenario}/${clip.line}/${clip.variant}`} size="sm">
+            {candidateEntries.map(({ candidate, scenario, line, character }) => (
+              <Card key={`${candidate.scenario}/${candidate.line}/${candidate.variant}`} size="sm">
                 <CardHeader>
                   <div className="flex flex-wrap gap-2">
                     <Badge
@@ -190,16 +188,16 @@ export function ModelPage() {
                     </Badge>
                     <Badge variant="outline">{character.name}</Badge>
                     <Badge variant="outline">{line.emotion}</Badge>
-                    <Badge variant="outline">{clip.variant}</Badge>
+                    <Badge variant="outline">{candidate.variant}</Badge>
                   </div>
                   <CardTitle className="mt-2 leading-7">{line.text}</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-2">
                   <p className="text-xs leading-5 text-muted-foreground">{line.delivery}</p>
-                  <ClipButton clip={clip} />
+                  <ClipButton candidate={candidate} />
                   <div className="flex justify-between font-mono text-[10px] text-muted-foreground">
-                    <span>RTF {clip.rtf.toFixed(3)}</span>
-                    <span>{clip.duration_sec.toFixed(2)}s</span>
+                    <span>RTF {candidate.rtf.toFixed(3)}</span>
+                    <span>{candidate.duration_sec.toFixed(2)}s</span>
                   </div>
                 </CardContent>
               </Card>
@@ -207,19 +205,24 @@ export function ModelPage() {
           </div>
         ) : (
           <p className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">
-            {failureEntries.length > 0
-              ? "成功したクリップはありません。記録された生成失敗を下記に表示します。"
-              : "このモデルのクリップは未生成です。"}
+            このモデルには selected candidate がありません。
           </p>
         )}
       </section>
 
-      <section aria-labelledby="failures-heading" className="space-y-3">
-        <SectionHeading count={failureEntries.length} id="failures-heading" title="生成失敗" />
-        {failureEntries.length > 0 ? (
+      <section aria-labelledby="outcomes-heading" className="space-y-3">
+        <SectionHeading
+          count={nonSelectedEntries.length}
+          id="outcomes-heading"
+          title="非 selected outcome"
+        />
+        {nonSelectedEntries.length > 0 ? (
           <div className="grid gap-3 lg:grid-cols-2">
-            {failureEntries.map(({ failure, scenario, line, character }) => (
-              <Card key={`${failure.scenario}/${failure.line}/${failure.variant}`} size="sm">
+            {nonSelectedEntries.map(({ outcome, scenario, line, character }) => (
+              <Card
+                key={`${outcome.group.scenario}/${outcome.group.line}/${outcome.group.variant}`}
+                size="sm"
+              >
                 <CardHeader>
                   <div className="flex flex-wrap gap-2">
                     <Badge
@@ -236,21 +239,22 @@ export function ModelPage() {
                       {scenario.title}
                     </Badge>
                     <Badge variant="outline">{character.name}</Badge>
-                    <Badge variant="outline">{failure.variant}</Badge>
-                    <Badge variant="destructive">再生成待ち</Badge>
+                    <Badge variant="outline">{outcome.group.variant}</Badge>
+                    <Badge variant={outcome.kind === "failure" ? "destructive" : "secondary"}>
+                      {outcome.kind}
+                    </Badge>
                   </div>
                   <CardTitle className="mt-2 leading-7">{line.text}</CardTitle>
                 </CardHeader>
                 <CardContent className="text-xs leading-5 text-muted-foreground">
-                  {model.name} の生成は完了しませんでした。この結果は再生・連続再生・A/B
-                  比較の対象外です。
+                  この outcome は再生・連続再生・A/B 比較の対象外です。
                 </CardContent>
               </Card>
             ))}
           </div>
         ) : (
           <p className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">
-            記録された生成失敗はありません。
+            非 selected outcome はありません。
           </p>
         )}
       </section>

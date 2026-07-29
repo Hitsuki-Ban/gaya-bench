@@ -29,7 +29,6 @@ from gaya_pipeline.audio import (
     normalize_wav,
     probe_audio,
 )
-from gaya_pipeline.baseline import BaselineError, generation_selection
 from gaya_pipeline.take_identity import (
     canonical_json,
     derive_seed,
@@ -127,7 +126,6 @@ def run_generation(
     artifacts_dir: Path,
     scenario_id: str | None = None,
     line_id: str | None = None,
-    selection_path: Path | None = None,
     takes: int,
     seed_base: int,
     force: bool = False,
@@ -135,7 +133,6 @@ def run_generation(
     _validate_cli_inputs(
         scenario_id=scenario_id,
         line_id=line_id,
-        selection_path=selection_path,
         takes=takes,
         seed_base=seed_base,
     )
@@ -146,20 +143,10 @@ def run_generation(
 
     try:
         adapter = create_adapter(model_id)
-        selected_lines = (
-            generation_selection(
-                plan_path=selection_path,
-                model_id=adapter.profile.id,
-                scenarios_dir=scenarios_dir,
-            )
-            if selection_path is not None
-            else None
-        )
         jobs, scenario_sources = _load_jobs(
             scenarios_dir,
             scenario_id=scenario_id,
             line_id=line_id,
-            selected_lines=selected_lines,
         )
         recipe = adapter.take_recipe()
         requested_params = dict(adapter.generation_params())
@@ -176,8 +163,6 @@ def run_generation(
         profile = PostprocessProfile()
     except GenerationError:
         raise
-    except BaselineError as error:
-        raise GenerationError(f"baseline selection が不正です: {error}") from error
     except UnknownAdapterError as error:
         raise GenerationError(str(error)) from error
     except Exception as error:
@@ -347,16 +332,9 @@ def _validate_cli_inputs(
     *,
     scenario_id: str | None,
     line_id: str | None,
-    selection_path: Path | None,
     takes: int,
     seed_base: int,
 ) -> None:
-    if selection_path is not None and (
-        scenario_id is not None or line_id is not None
-    ):
-        raise GenerationError(
-            "--selection は --scenario/--line と同時に指定できません。",
-        )
     if line_id is not None and scenario_id is None:
         raise GenerationError("--line には --scenario が必要です。")
     if isinstance(takes, bool) or not isinstance(takes, int) or takes < 1:
@@ -370,7 +348,6 @@ def _load_jobs(
     *,
     scenario_id: str | None,
     line_id: str | None,
-    selected_lines: set[tuple[str, str]] | None = None,
 ) -> tuple[list[LineJob], tuple[_ScenarioSource, ...]]:
     documents: list[tuple[dict[str, Any], _ScenarioSource]] = []
     for scenario_path in sorted(scenarios_dir.glob("*.yaml")):
@@ -380,18 +357,7 @@ def _load_jobs(
             raise GenerationError(
                 f"シナリオが object ではありません: {scenario_path}",
             )
-        selected_scenarios = (
-            {scenario for scenario, _line in selected_lines}
-            if selected_lines is not None
-            else None
-        )
-        if (
-            selected_scenarios is not None
-            and document["id"] in selected_scenarios
-        ) or (
-            selected_scenarios is None
-            and (scenario_id is None or document["id"] == scenario_id)
-        ):
+        if scenario_id is None or document["id"] == scenario_id:
             documents.append(
                 (
                     document,
@@ -417,11 +383,6 @@ def _load_jobs(
             character["id"]: character for character in document["characters"]
         }
         for line in document["lines"]:
-            if (
-                selected_lines is not None
-                and (str(document["id"]), str(line["id"])) not in selected_lines
-            ):
-                continue
             if line_id is not None and line["id"] != line_id:
                 continue
             jobs.append(
@@ -436,13 +397,6 @@ def _load_jobs(
         raise GenerationError(
             f"line id が見つかりません: {scenario_id}/{line_id}",
         )
-    if selected_lines is not None:
-        actual = {(job.scenario_id, job.line_id) for job in jobs}
-        if actual != selected_lines or len(actual) != len(jobs):
-            raise GenerationError(
-                "baseline selection groups が current scenario line と exact に"
-                "一致しません。",
-            )
     return jobs, tuple(source for _, source in documents)
 
 

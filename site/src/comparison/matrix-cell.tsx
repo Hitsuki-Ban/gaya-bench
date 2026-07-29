@@ -38,7 +38,7 @@ export const MatrixCell = memo(function MatrixCell({
   stop,
   toggleFocused,
 }: MatrixCellProps) {
-  const clip = cell?.kind === "success" ? cell.clip : undefined;
+  const candidate = cell?.kind === "selected" ? cell.candidate : undefined;
   const generationFailure = cell?.kind === "failure" ? cell.failure : undefined;
   const isPlaying = isCurrent && (status === "playing" || status === "loading");
   const isPaused = isCurrent && status === "paused";
@@ -72,37 +72,45 @@ export const MatrixCell = memo(function MatrixCell({
 
   return (
     <button
-      aria-disabled={cell?.kind !== "success"}
+      aria-disabled={cell?.kind !== "selected"}
       aria-keyshortcuts="ArrowLeft ArrowRight ArrowUp ArrowDown Space Enter Escape"
       aria-label={`${accessibleLabel}・${model.name}・${
         cell === undefined
-          ? "未生成"
-          : generationFailure
-            ? "生成失敗"
-            : isError
-              ? "再生エラー、再試行"
-              : isPlaying
-                ? "停止"
-                : isPaused
-                  ? "再開"
-                  : "再生"
+          ? "group なし"
+          : cell.kind === "skipped"
+            ? "策展スキップ"
+            : cell.kind === "uncurated"
+              ? "未策展"
+              : generationFailure
+                ? "生成失敗"
+                : isError
+                  ? "再生エラー、再試行"
+                  : isPlaying
+                    ? "停止"
+                    : isPaused
+                      ? "再開"
+                      : "再生"
       }`}
       className={[
         "group relative flex min-h-10 w-full items-center justify-between overflow-hidden rounded border px-2 py-1.5 text-left font-mono text-[11px] transition-[border-color,background-color,color] motion-reduce:transition-none",
         "focus-visible:z-10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary",
         cell === undefined
           ? "border-dashed border-border/70 bg-muted/30 text-muted-foreground"
-          : generationFailure
+          : cell.kind === "failure"
             ? "border-destructive/55 bg-destructive/10 text-destructive"
-            : "border-border bg-card text-foreground hover:border-primary/55 hover:bg-primary/5",
+            : cell.kind === "skipped"
+              ? "border-amber-500/45 bg-amber-500/10 text-amber-700 dark:text-amber-300"
+              : cell.kind === "uncurated"
+                ? "border-dashed border-sky-500/45 bg-sky-500/10 text-sky-700 dark:text-sky-300"
+                : "border-border bg-card text-foreground hover:border-primary/55 hover:bg-primary/5",
         isCursor ? "ring-2 ring-primary/75" : "",
         isCurrent ? "border-primary bg-primary/12 text-primary" : "",
         isError ? "border-destructive bg-destructive/10 text-destructive" : "",
       ].join(" ")}
-      data-audio-url={clip ? resolveAudioUrl(clip.path) : undefined}
+      data-audio-url={candidate ? resolveAudioUrl(candidate.path) : undefined}
       data-matrix-coordinate={coordinateKey(coordinate)}
       onClick={() => {
-        if (cell?.kind === "success") {
+        if (cell?.kind === "selected") {
           selectAndToggle(coordinate);
         }
       }}
@@ -112,24 +120,40 @@ export const MatrixCell = memo(function MatrixCell({
     >
       <span className="relative z-10 flex items-center gap-2">
         <span aria-hidden="true" className="w-3 text-center">
-          {isPlaying ? "Ⅱ" : cell === undefined ? "—" : generationFailure ? "!" : "▶"}
+          {isPlaying
+            ? "Ⅱ"
+            : cell === undefined
+              ? "—"
+              : cell.kind === "failure"
+                ? "!"
+                : cell.kind === "skipped"
+                  ? "×"
+                  : cell.kind === "uncurated"
+                    ? "?"
+                    : "▶"}
         </span>
         <span className="truncate">
           {cell === undefined
-            ? "未生成"
-            : generationFailure
-              ? "生成失敗"
-              : isError
-                ? "再生エラー"
-                : model.name}
+            ? "group なし"
+            : cell.kind === "skipped"
+              ? "策展スキップ"
+              : cell.kind === "uncurated"
+                ? "未策展"
+                : generationFailure
+                  ? "生成失敗"
+                  : isError
+                    ? "再生エラー"
+                    : model.name}
         </span>
       </span>
-      {clip && !isCurrent ? (
+      {candidate && !isCurrent ? (
         <span className="relative z-10 ml-2 shrink-0 text-[10px] text-current/70">
-          {clip.duration_sec.toFixed(2)}s
+          {candidate.duration_sec.toFixed(2)}s
         </span>
       ) : null}
-      {isCurrent && clip ? <CellPlaybackProgress fallbackDuration={clip.duration_sec} /> : null}
+      {isCurrent && candidate ? (
+        <CellPlaybackProgress fallbackDuration={candidate.duration_sec} />
+      ) : null}
       {generationFailure ? (
         <span className="relative z-10 ml-2 shrink-0 text-[9px] text-current/75">再生成待ち</span>
       ) : null}

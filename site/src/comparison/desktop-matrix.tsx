@@ -23,7 +23,7 @@ export function DesktopMatrix({ controller, model, projection, search }: Desktop
   const playingCoordinate =
     controller.player.currentClipKey === null
       ? undefined
-      : model.getCoordinateForClipKey(controller.player.currentClipKey);
+      : model.getCoordinateForCandidateKey(controller.player.currentClipKey);
   useVisibleAudioPrefetch(scrollRef, scrollRef, projection.key);
 
   return (

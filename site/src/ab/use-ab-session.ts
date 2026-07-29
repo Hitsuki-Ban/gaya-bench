@@ -151,7 +151,7 @@ export function useAbSession() {
       const candidate = side === "left" ? presentation.left : presentation.right;
       const key = side === "left" ? presentation.leftKey : presentation.rightKey;
       try {
-        await player.toggle({ key, url: resolveAudioUrl(candidate.clip.path) });
+        await player.toggle({ key, url: resolveAudioUrl(candidate.candidate.path) });
       } catch {
         setSession((current) => ({
           ...current,

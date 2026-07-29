@@ -4,6 +4,7 @@ import { CHARACTER_KIND_LABELS } from "@/components/character-kind-badge";
 import { Button } from "@/components/ui/button";
 import {
   benchmarkData,
+  playableModels,
   type Age,
   type CharacterKind,
   type Difficulty,
@@ -171,7 +172,7 @@ export function FilterToolbar({
           <FilterCheckboxGroup
             legend="モデル列"
             onToggle={(value) => onChange(toggleFilterValue(state, "model", value, benchmarkData))}
-            options={benchmarkData.manifest.models.map(({ id, name }) => ({
+            options={playableModels.map(({ id, name }) => ({
               value: id,
               label: name,
             }))}

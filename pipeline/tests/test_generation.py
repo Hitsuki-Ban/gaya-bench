@@ -639,62 +639,6 @@ def test_public_manifestは読まず書かず存在しなくても生成でき�
     assert not (tmp_path / "missing" / "data" / "manifest.json").exists()
 
 
-def test_baseline_selectionはplanのmodel_groupだけをledgerに固定する(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-    fake_audio: AudioTools,
-) -> None:
-    del fake_audio
-    adapter = FakeStochasticAdapter()
-    selected = {
-        ("tavern-night", "barmaid-001"),
-        ("tavern-night", "drunkard-002"),
-    }
-    captured: dict[str, object] = {}
-
-    def fake_selection(**arguments: object) -> set[tuple[str, str]]:
-        captured.update(arguments)
-        return selected
-
-    monkeypatch.setattr(generation, "create_adapter", lambda _model: adapter)
-    monkeypatch.setattr(generation, "generation_selection", fake_selection)
-    selection_path = tmp_path / "baseline-plan.json"
-
-    summary = run_generation(
-        model_id=adapter.profile.id,
-        scenarios_dir=_scenarios(tmp_path),
-        artifacts_dir=tmp_path / "artifacts",
-        selection_path=selection_path,
-        takes=1,
-        seed_base=104,
-    )
-
-    ledger = read_ledger(summary.ledger_path)
-    assert {
-        (group["scenario"], group["line"])
-        for group in ledger["source"]["groups"]
-    } == selected
-    assert len(ledger["attempts"]) == 2
-    assert captured["plan_path"] == selection_path
-    assert captured["model_id"] == adapter.profile.id
-
-
-def test_selectionとscenario_lineは相互排他でprepare前に拒否(
-    tmp_path: Path,
-) -> None:
-    with pytest.raises(GenerationError, match="同時に指定"):
-        run_generation(
-            model_id="dummy",
-            scenarios_dir=_scenarios(tmp_path),
-            artifacts_dir=tmp_path / "artifacts",
-            scenario_id="tavern-night",
-            selection_path=tmp_path / "plan.json",
-            takes=1,
-            seed_base=104,
-        )
-    assert not (tmp_path / "artifacts").exists()
-
-
 @pytest.mark.parametrize(
     ("takes", "seed_base", "message"),
     [
@@ -767,7 +711,6 @@ def test_gen_cliはselectors_take_seed_forceをroutingしてrunを表示する(
     assert captured["takes"] == 3
     assert captured["seed_base"] == 77
     assert captured["force"] is True
-    assert captured["selection_path"] is None
     assert "manifest_path" not in captured
     output = capsys.readouterr().out
     assert "Run ID:" in output

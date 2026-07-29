@@ -1,391 +1,145 @@
 import { describe, expect, it } from "vite-plus/test";
 
-import type { BenchmarkData, Character, Clip, Line, Model, Scenario } from "../data/types";
+import type {
+  ArtifactOutcome,
+  BenchmarkData,
+  Candidate,
+  Character,
+  Line,
+  Model,
+  Scenario,
+} from "../data/types";
 import {
   buildBlindCatalog,
-  MIN_MODEL_APPEARANCES,
+  datasetIdentity,
   rankModels,
   selectNextMatch,
-  type BlindMatch,
   type BlindVote,
 } from "./model";
 
-describe("buildBlindCatalog", () => {
-  it("0 / 1 model では候補を作らず、2 / 3 model では同一台詞の nC2 候補を作る", () => {
-    expect(buildBlindCatalog(fixture(0, 2)).matches).toHaveLength(0);
-    expect(buildBlindCatalog(fixture(1, 2)).matches).toHaveLength(0);
-    expect(buildBlindCatalog(fixture(2, 2)).matches).toHaveLength(2);
-    expect(buildBlindCatalog(fixture(3, 2)).matches).toHaveLength(6);
-  });
-
-  it("match は同じ scenario / line / dry と canonical な無順序 model pair で構成する", () => {
-    const catalog = buildBlindCatalog(fixture(3, 1, ["gamma", "alpha", "beta"]));
-
-    expect(
-      catalog.matches.map((match) => ({
-        id: match.id,
-        pairId: match.pairId,
-        line: match.line.id,
-        variant: match.variant,
-        models: [match.first.modelId, match.second.modelId],
-      })),
-    ).toEqual([
-      {
-        id: '["scenario","line-0","dry","alpha","beta"]',
-        pairId: '["alpha","beta"]',
-        line: "line-0",
-        variant: "dry",
-        models: ["alpha", "beta"],
-      },
-      {
-        id: '["scenario","line-0","dry","alpha","gamma"]',
-        pairId: '["alpha","gamma"]',
-        line: "line-0",
-        variant: "dry",
-        models: ["alpha", "gamma"],
-      },
-      {
-        id: '["scenario","line-0","dry","beta","gamma"]',
-        pairId: '["beta","gamma"]',
-        line: "line-0",
-        variant: "dry",
-        models: ["beta", "gamma"],
-      },
-    ]);
-  });
-
-  it("dry 以外の variant は候補から明示的に除外する", () => {
-    const data = fixture(2, 1);
-    data.manifest.clips.push({
-      ...data.manifest.clips[0]!,
-      variant: "scene",
-      path: "audio/alpha/scenario/line-0-scene.opus",
-    });
+describe("buildBlindCatalog v4", () => {
+  it("selected outcome だけから同一 line の canonical model pair を作る", () => {
+    const data = fixture(["gamma", "alpha", "beta"]);
+    data.outcomes.push(skippedOutcome("alpha"), uncuratedOutcome("beta"), failureOutcome("gamma"));
 
     const catalog = buildBlindCatalog(data);
 
-    expect(catalog.matches).toHaveLength(1);
-    expect(catalog.matches[0]?.first.clip.variant).toBe("dry");
-    expect(catalog.matches[0]?.second.clip.variant).toBe("dry");
-  });
-
-  it("生成失敗は A/B 候補に含めない", () => {
-    const data = fixture(2, 1);
-    const removed = data.manifest.clips.pop()!;
-    data.manifest.failures.push({
-      model: removed.model,
-      scenario: removed.scenario,
-      line: removed.line,
-      variant: removed.variant,
-      reason: "generation_failed",
-    });
-
-    expect(buildBlindCatalog(data).matches).toHaveLength(0);
-  });
-
-  it("重複 cell と model / scenario / line の不正参照を fail fast で拒否する", () => {
-    const duplicate = fixture(2, 1);
-    duplicate.manifest.clips.push({ ...duplicate.manifest.clips[0]! });
-    expect(() => buildBlindCatalog(duplicate)).toThrow("A/B の cell clip が重複しています");
-
-    const missingModel = fixture(2, 1);
-    missingModel.manifest.clips[0]!.model = "missing";
-    expect(() => buildBlindCatalog(missingModel)).toThrow(
-      "clip が存在しない model を参照しています",
-    );
-
-    const missingLine = fixture(2, 1);
-    missingLine.manifest.clips[0]!.line = "missing";
-    expect(() => buildBlindCatalog(missingLine)).toThrow(
-      "clip が存在しない scenario/line を参照しています",
-    );
-
-    const invalidNonDry = fixture(2, 1);
-    invalidNonDry.manifest.clips.push({
-      ...invalidNonDry.manifest.clips[0]!,
-      model: "missing",
-      variant: "scene",
-    });
-    expect(() => buildBlindCatalog(invalidNonDry)).toThrow(
-      "clip が存在しない model を参照しています",
-    );
-  });
-});
-
-describe("selectNextMatch", () => {
-  it("最少投票 pair から未投票 match を選び、tie も pair の履歴 1 票に数える", () => {
-    const catalog = buildBlindCatalog(fixture(3, 2));
-    const firstAlphaBeta = catalog.matches.find(
-      ({ pairId, line }) => pairId === '["alpha","beta"]' && line.id === "line-0",
-    )!;
-    const votes = [vote(firstAlphaBeta, null)];
-
-    const selected = selectNextMatch(catalog, votes, sequenceRng([0, 0, 0]));
-
-    expect(selected?.match.pairId).toBe('["alpha","gamma"]');
-    expect(selected?.match.line.id).toBe("line-0");
-  });
-
-  it("乱数の先頭値で先頭 pair / match と canonical first を左へ提示する", () => {
-    const catalog = buildBlindCatalog(fixture(3, 2));
-
-    const selected = selectNextMatch(catalog, [], sequenceRng([0, 0, 0]));
-
-    expect(selected?.match.pairId).toBe('["alpha","beta"]');
-    expect(selected?.match.line.id).toBe("line-0");
-    expect(selected?.left.modelId).toBe("alpha");
-    expect(selected?.right.modelId).toBe("beta");
-  });
-
-  it("乱数の末尾値で末尾 pair / match と canonical second を左へ提示する", () => {
-    const catalog = buildBlindCatalog(fixture(3, 2));
-
-    const selected = selectNextMatch(catalog, [], sequenceRng([0.999_999, 0.999_999, 0.999_999]));
-
-    expect(selected?.match.pairId).toBe('["beta","gamma"]');
-    expect(selected?.match.line.id).toBe("line-1");
-    expect(selected?.left.modelId).toBe("gamma");
-    expect(selected?.right.modelId).toBe("beta");
-  });
-
-  it("全 match への投票完了後は null を返す", () => {
-    const catalog = buildBlindCatalog(fixture(2, 1));
-
-    expect(selectNextMatch(catalog, [vote(catalog.matches[0]!, "alpha")], () => 0)).toBeNull();
-  });
-
-  it("match の重複投票、不正参照、pair / winner 不一致、不正 RNG を拒否する", () => {
-    const catalog = buildBlindCatalog(fixture(2, 1));
-    const match = catalog.matches[0]!;
-    const validVote = vote(match, "alpha");
-
-    expect(() => selectNextMatch(catalog, [validVote, validVote], () => 0)).toThrow(
-      "同じ A/B match へ複数回投票できません",
-    );
-    expect(() => selectNextMatch(catalog, [{ ...validVote, matchId: "missing" }], () => 0)).toThrow(
-      "投票先の A/B match が存在しません",
-    );
-    expect(() =>
-      selectNextMatch(catalog, [{ ...validVote, modelIds: ["alpha", "missing"] }], () => 0),
-    ).toThrow("投票の model pair が A/B match と一致しません");
-    expect(() =>
-      selectNextMatch(catalog, [{ ...validVote, winnerModelId: "missing" }], () => 0),
-    ).toThrow("投票の winner が model pair に含まれていません");
-    expect(() => selectNextMatch(catalog, [], () => 1)).toThrow(
-      "乱数は 0 以上 1 未満である必要があります",
-    );
-  });
-});
-
-describe("rankModels", () => {
-  it("4 appearances までは rate / rank を隠し、5 appearances で公開する", () => {
-    const models = fixture(2, 0).manifest.models;
-    const fourVotes = Array.from({ length: MIN_MODEL_APPEARANCES - 1 }, (_, index) =>
-      standaloneVote(`match-${index}`, "alpha"),
-    );
-
-    expect(
-      rankModels(models, fourVotes).map(({ modelId, appearances, rate, rank }) => ({
-        modelId,
-        appearances,
-        rate,
-        rank,
-      })),
-    ).toEqual([
-      { modelId: "alpha", appearances: 4, rate: null, rank: null },
-      { modelId: "beta", appearances: 4, rate: null, rank: null },
+    expect(catalog.matches).toHaveLength(3);
+    expect(catalog.matches.map(({ pairId }) => pairId)).toEqual([
+      '["alpha","beta"]',
+      '["alpha","gamma"]',
+      '["beta","gamma"]',
     ]);
-
-    const ranking = rankModels(models, [...fourVotes, standaloneVote("match-4", "alpha")]);
-    expect(ranking.map(({ modelId, rate, rank }) => ({ modelId, rate, rank }))).toEqual([
-      { modelId: "alpha", rate: 1, rank: 1 },
-      { modelId: "beta", rate: 0, rank: 2 },
-    ]);
+    expect(catalog.matches[0]?.first.candidate.variant).toBe("dry");
+    expect(JSON.stringify(catalog)).not.toContain("skipped");
+    expect(JSON.stringify(catalog)).not.toContain("uncurated");
+    expect(JSON.stringify(catalog)).not.toContain("no_eligible_take");
   });
 
-  it("勝ち 1 / 引き分け 0.5 / 負け 0 を集計し、同率は同じ competition rank にする", () => {
-    const models = fixture(2, 0).manifest.models;
-    const votes = Array.from({ length: MIN_MODEL_APPEARANCES }, (_, index) =>
-      standaloneVote(`match-${index}`, null),
-    );
-
-    const ranking = rankModels(models, votes);
-
-    expect(
-      ranking.map(({ modelId, appearances, wins, ties, losses, score, rate, rank }) => ({
-        modelId,
-        appearances,
-        wins,
-        ties,
-        losses,
-        score,
-        rate,
-        rank,
-      })),
-    ).toEqual([
-      {
-        modelId: "alpha",
-        appearances: 5,
-        wins: 0,
-        ties: 5,
-        losses: 0,
-        score: 2.5,
-        rate: 0.5,
-        rank: 1,
-      },
-      {
-        modelId: "beta",
-        appearances: 5,
-        wins: 0,
-        ties: 5,
-        losses: 0,
-        score: 2.5,
-        rate: 0.5,
-        rank: 1,
-      },
-    ]);
-  });
-
-  it("重複 match、非 canonical pair、未知 model、不正 winner を拒否する", () => {
-    const models = fixture(2, 0).manifest.models;
-    const validVote = standaloneVote("match", "alpha");
-
-    expect(() => rankModels(models, [validVote, validVote])).toThrow(
-      "同じ A/B match へ複数回投票できません",
-    );
-    expect(() => rankModels(models, [{ ...validVote, modelIds: ["beta", "alpha"] }])).toThrow(
-      "投票の model pair は canonical 順",
-    );
-    expect(() => rankModels(models, [{ ...validVote, modelIds: ["alpha", "missing"] }])).toThrow(
-      "投票が存在しない model を参照しています",
-    );
-    expect(() => rankModels(models, [{ ...validVote, winnerModelId: "missing" }])).toThrow(
-      "投票の winner が model pair に含まれていません",
-    );
-  });
-});
-
-function vote(match: BlindMatch, winnerModelId: string | null): BlindVote {
-  return {
-    matchId: match.id,
-    modelIds: [match.first.modelId, match.second.modelId],
-    winnerModelId,
-  };
-}
-
-function standaloneVote(matchId: string, winnerModelId: string | null): BlindVote {
-  return {
-    matchId,
-    modelIds: ["alpha", "beta"],
-    winnerModelId,
-  };
-}
-
-function sequenceRng(values: readonly number[]): () => number {
-  let index = 0;
-  return () => {
-    const value = values[index];
-    if (value === undefined) {
-      throw new Error("テスト乱数が不足しています。");
+  it("selected candidate の model / scenario / line 参照を fail fast する", () => {
+    const missingModel = fixture(["alpha", "beta"]);
+    const selected = missingModel.outcomes[0]!;
+    if (selected.kind !== "selected") {
+      throw new Error("fixture selected outcome がありません。");
     }
-    index += 1;
-    return value;
-  };
+    missingModel.outcomes[0] = {
+      ...selected,
+      candidate: { ...selected.candidate, model: "missing" },
+    };
+    expect(() => buildBlindCatalog(missingModel)).toThrow("存在しない model");
+
+    const missingLine = fixture(["alpha", "beta"]);
+    const other = missingLine.outcomes[0]!;
+    if (other.kind !== "selected") {
+      throw new Error("fixture selected outcome がありません。");
+    }
+    missingLine.outcomes[0] = {
+      ...other,
+      candidate: { ...other.candidate, line: "missing" },
+    };
+    expect(() => buildBlindCatalog(missingLine)).toThrow("存在しない scenario/line");
+  });
+});
+
+describe("A/B session model", () => {
+  it("dataset identity を format4 / generated_at / candidate set SHA に拘束する", () => {
+    expect(datasetIdentity(fixture(["alpha", "beta"]))).toEqual({
+      formatVersion: 4,
+      generatedAt: "2026-07-30T00:00:00Z",
+      candidateSetSha256: "d".repeat(64),
+    });
+  });
+
+  it("未投票 match を提示し、全投票後は null を返す", () => {
+    const catalog = buildBlindCatalog(fixture(["alpha", "beta"]));
+    const presented = selectNextMatch(catalog, [], () => 0);
+    expect(presented?.left.modelId).toBe("alpha");
+    const match = catalog.matches[0]!;
+    const vote: BlindVote = {
+      matchId: match.id,
+      modelIds: [match.first.modelId, match.second.modelId],
+      winnerModelId: match.first.modelId,
+    };
+    expect(selectNextMatch(catalog, [vote], () => 0)).toBeNull();
+  });
+
+  it("勝敗と引分を集計し、5 appearances 未満は順位を出さない", () => {
+    const models = fixture(["alpha", "beta"]).manifest.models;
+    const votes: BlindVote[] = Array.from({ length: 5 }, (_, index) => ({
+      matchId: `match-${index}`,
+      modelIds: ["alpha", "beta"],
+      winnerModelId: index === 4 ? null : "alpha",
+    }));
+    const ranking = rankModels(models, votes);
+    expect(ranking.map(({ modelId, rank, score }) => ({ modelId, rank, score }))).toEqual([
+      { modelId: "alpha", rank: 1, score: 4.5 },
+      { modelId: "beta", rank: 2, score: 0.5 },
+    ]);
+  });
+});
+
+interface MutableBenchmarkData extends Omit<BenchmarkData, "outcomes"> {
+  outcomes: ArtifactOutcome[];
 }
 
-interface MutableManifest {
-  format_version: 3;
-  generated_at: string;
-  models: Model[];
-  clips: MutableClip[];
-  failures: MutableGenerationFailure[];
-}
-
-interface MutableClip extends Omit<Clip, "model" | "line" | "variant"> {
-  model: string;
-  line: string;
-  variant: string;
-}
-
-interface MutableGenerationFailure {
-  model: string;
-  scenario: string;
-  line: string;
-  variant: string;
-  reason: "generation_failed";
-}
-
-interface MutableBenchmarkData extends Omit<BenchmarkData, "manifest"> {
-  manifest: MutableManifest;
-}
-
-function fixture(
-  modelCount: number,
-  lineCount: number,
-  requestedModelIds = ["alpha", "beta", "gamma"],
-): MutableBenchmarkData {
-  const modelIds = requestedModelIds.slice(0, modelCount);
-  const models = modelIds.map(ttsModel);
-  const speaker = character("speaker");
-  const lines = Array.from({ length: lineCount }, (_, index) => line(`line-${index}`));
-  const fixtureScenario = scenario("scenario", speaker, lines);
+function fixture(modelIds: readonly string[]): MutableBenchmarkData {
+  const models = modelIds.map(model);
+  const candidates = modelIds.map((modelId) => candidate(modelId));
+  const curations = candidates.map((item) => ({
+    model: item.model,
+    scenario: item.scenario,
+    line: item.line,
+    variant: item.variant,
+    decision: "selected" as const,
+    take_id: item.take_id,
+    curation_sha256: "c".repeat(64),
+  }));
   return {
     manifest: {
-      format_version: 3,
-      generated_at: "2026-07-28T00:00:00Z",
+      format_version: 4,
+      generated_at: "2026-07-30T00:00:00Z",
+      candidate_set_sha256: "d".repeat(64),
       models,
-      clips: lines.flatMap((fixtureLine) =>
-        models.map((model) => clip(model.id, fixtureScenario.id, fixtureLine.id)),
-      ),
+      candidates,
+      curations,
       failures: [],
     },
-    scenarios: [fixtureScenario],
+    scenarios: [scenario()],
+    outcomes: candidates.map((item, index) => ({
+      kind: "selected",
+      group: group(item.model, "dry"),
+      candidate: item,
+      curation: curations[index]!,
+    })),
   };
 }
 
-function scenario(id: string, speaker: Character, lines: readonly Line[]): Scenario {
-  return {
-    format_version: 1,
-    id,
-    title: id,
-    locale: "ja",
-    scene: { setting: "テスト" },
-    characters: [speaker],
-    lines,
-  };
-}
-
-function character(id: string): Character {
-  return {
-    id,
-    name: id,
-    kind: "human",
-    gender: "neutral",
-    age: "adult",
-    voice: "自然な声",
-  };
-}
-
-function line(id: string): Line {
-  return {
-    id,
-    character: "speaker",
-    text: id,
-    emotion: "neutral",
-    intensity: 2,
-    delivery: "自然に",
-    difficulty: "standard",
-    loop_ok: true,
-    final_intonation: "fall",
-  };
-}
-
-function ttsModel(id: string): Model {
+function model(id: string): Model {
   return {
     id,
     name: id,
     version: "1",
-    license_note: "テスト",
+    license_note: "",
     capabilities: {
       emotion: false,
       voice_prompt: false,
@@ -396,22 +150,106 @@ function ttsModel(id: string): Model {
   };
 }
 
-function clip(model: string, scenarioId: string, lineId: string): MutableClip {
+function candidate(modelId: string, variant = "dry"): Candidate {
   return {
-    model,
-    scenario: scenarioId,
-    line: lineId,
-    variant: "dry",
-    path: `audio/${model}/${scenarioId}/${lineId}.opus`,
+    ...group(modelId, variant),
+    take_index: 1,
+    take_id: `${modelId.charCodeAt(0).toString(16).padStart(2, "0")}`.repeat(32),
+    path: `audio/takes/${modelId}/sample/speaker-001/${variant}/take-0001-${"b".repeat(64)}.opus`,
     duration_sec: 1,
-    sha256: `${model}-${scenarioId}-${lineId}`,
-    gen_params: {},
-    rtf: 0.1,
+    sha256: "b".repeat(64),
+    generation_input_sha256: "a".repeat(64),
+    gen_params: {
+      seed: 1,
+      recipe_version: "test-v1",
+      sampling: {},
+      requested: {},
+      realized: {},
+    },
+    rtf: 0.5,
     loudness: {
       source: "encoded_opus",
       i_lufs: -18,
       tp_dbtp: -1,
       shortfall: false,
     },
+    gate: {
+      mechanical: "pass",
+      content: "review_required",
+      policy_version: "test-gate-v1",
+    },
+  };
+}
+
+function skippedOutcome(modelId: string): ArtifactOutcome {
+  const item = candidate(modelId, "skipped");
+  const outcomeGroup = group(modelId, "skipped");
+  return {
+    kind: "skipped",
+    group: outcomeGroup,
+    candidates: [item],
+    curation: {
+      ...outcomeGroup,
+      decision: "skipped",
+      curation_sha256: "c".repeat(64),
+    },
+  };
+}
+
+function uncuratedOutcome(modelId: string): ArtifactOutcome {
+  const item = candidate(modelId, "uncurated");
+  return {
+    kind: "uncurated",
+    group: group(modelId, "uncurated"),
+    candidates: [item],
+  };
+}
+
+function failureOutcome(modelId: string): ArtifactOutcome {
+  const outcomeGroup = group(modelId, "failed");
+  return {
+    kind: "failure",
+    group: outcomeGroup,
+    failure: { ...outcomeGroup, reason: "no_eligible_take" },
+  };
+}
+
+function group(modelId: string, variant: string) {
+  return {
+    model: modelId,
+    scenario: "sample",
+    line: "speaker-001",
+    variant,
+  };
+}
+
+function scenario(): Scenario {
+  const character: Character = {
+    id: "speaker",
+    name: "Speaker",
+    kind: "human",
+    gender: "neutral",
+    age: "adult",
+    voice: "clear",
+  };
+  const line: Line = {
+    id: "speaker-001",
+    character: character.id,
+    text: "台詞",
+    emotion: "neutral",
+    intensity: 2,
+    delivery: "自然に",
+    difficulty: "standard",
+    loop_ok: true,
+    final_intonation: "fall",
+  };
+  return {
+    format_version: 1,
+    id: "sample",
+    title: "Sample",
+    locale: "ja",
+    scene: { setting: "Test" },
+    characters: [character],
+    lines: [line],
   };
 }

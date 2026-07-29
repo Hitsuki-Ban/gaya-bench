@@ -6,7 +6,12 @@ import { ClipButton } from "@/components/clip-button";
 import { PageIntro } from "@/components/page-intro";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { getClipsForScenario, getFailuresForScenario, modelById, scenarioById } from "@/data";
+import {
+  getOutcomesForScenario,
+  manifestModelById,
+  scenarioById,
+  type ArtifactOutcome,
+} from "@/data";
 import { buildScenarioLineEntries } from "@/pages/detail-page-model";
 import { NotFoundPage } from "@/pages/not-found-page";
 
@@ -18,9 +23,8 @@ export function ScenarioPage() {
     return <NotFoundPage />;
   }
 
-  const clips = getClipsForScenario(scenario.id);
-  const failures = getFailuresForScenario(scenario.id);
-  const lineEntries = buildScenarioLineEntries(scenario, clips, failures);
+  const outcomes = getOutcomesForScenario(scenario.id);
+  const lineEntries = buildScenarioLineEntries(scenario, outcomes);
 
   return (
     <div className="space-y-5">
@@ -120,73 +124,86 @@ export function ScenarioPage() {
           title="全セリフと生成クリップ"
         />
         <div className="grid gap-4 lg:grid-cols-2">
-          {lineEntries.map(
-            ({ line, character, clips: lineClips, failures: lineFailures }, lineIndex) => {
-              return (
-                <Card key={line.id} size="sm">
-                  <CardHeader>
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="flex flex-wrap gap-2">
-                        <Badge variant="secondary">{character.name}</Badge>
-                        <Badge variant="outline">{line.emotion}</Badge>
-                        <Badge variant="outline">強度 {line.intensity}</Badge>
-                        <Badge variant={line.difficulty === "hard" ? "destructive" : "outline"}>
-                          {line.difficulty}
-                        </Badge>
-                      </div>
-                      <span className="shrink-0 font-mono text-[10px] text-muted-foreground">
-                        {String(lineIndex + 1).padStart(2, "0")}
-                      </span>
+          {lineEntries.map(({ line, character, outcomes: lineOutcomes }, lineIndex) => {
+            return (
+              <Card key={line.id} size="sm">
+                <CardHeader>
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex flex-wrap gap-2">
+                      <Badge variant="secondary">{character.name}</Badge>
+                      <Badge variant="outline">{line.emotion}</Badge>
+                      <Badge variant="outline">強度 {line.intensity}</Badge>
+                      <Badge variant={line.difficulty === "hard" ? "destructive" : "outline"}>
+                        {line.difficulty}
+                      </Badge>
                     </div>
-                    <CardTitle className="mt-2 leading-7">{line.text}</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-3">
-                    <div className="space-y-1 border-l-2 border-border pl-3 text-xs leading-5 text-muted-foreground">
-                      <p>{line.delivery}</p>
-                      {line.situation ? <p>{line.situation}</p> : null}
+                    <span className="shrink-0 font-mono text-[10px] text-muted-foreground">
+                      {String(lineIndex + 1).padStart(2, "0")}
+                    </span>
+                  </div>
+                  <CardTitle className="mt-2 leading-7">{line.text}</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div className="space-y-1 border-l-2 border-border pl-3 text-xs leading-5 text-muted-foreground">
+                    <p>{line.delivery}</p>
+                    {line.situation ? <p>{line.situation}</p> : null}
+                  </div>
+                  {lineOutcomes.length > 0 ? (
+                    <div className="space-y-2">
+                      {lineOutcomes.map((outcome) => (
+                        <ScenarioOutcome
+                          key={`${outcome.group.model}/${outcome.group.variant}`}
+                          outcome={outcome}
+                        />
+                      ))}
                     </div>
-                    {lineClips.length > 0 ? (
-                      <div className="space-y-2">
-                        {lineClips.map((clip) => (
-                          <ClipButton clip={clip} key={`${clip.model}/${clip.variant}`} />
-                        ))}
-                      </div>
-                    ) : null}
-                    {lineFailures.length > 0 ? (
-                      <div className="space-y-2">
-                        {lineFailures.map((failure) => {
-                          const failedModel = modelById.get(failure.model);
-                          if (!failedModel) {
-                            throw new Error(
-                              `生成失敗が未知の model を参照しています: ${failure.model}`,
-                            );
-                          }
-                          return (
-                            <div
-                              className="rounded-md border border-destructive/40 bg-destructive/5 p-3 text-xs"
-                              key={`${failure.model}/${failure.variant}`}
-                            >
-                              <p className="font-medium text-destructive">生成失敗</p>
-                              <p className="mt-1 text-muted-foreground">
-                                {failedModel.name} · {failure.variant} · 再生成待ち
-                              </p>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    ) : null}
-                    {lineClips.length === 0 && lineFailures.length === 0 ? (
-                      <p className="rounded-md border border-dashed p-3 text-xs text-muted-foreground">
-                        このセリフのクリップは未生成です。
-                      </p>
-                    ) : null}
-                  </CardContent>
-                </Card>
-              );
-            },
-          )}
+                  ) : null}
+                  {lineOutcomes.length === 0 ? (
+                    <p className="rounded-md border border-dashed p-3 text-xs text-muted-foreground">
+                      このセリフには group がありません。
+                    </p>
+                  ) : null}
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
       </section>
+    </div>
+  );
+}
+
+function ScenarioOutcome({ outcome }: { outcome: ArtifactOutcome }) {
+  const model = manifestModelById.get(outcome.group.model);
+  if (!model) {
+    throw new Error(`outcome が未知の model を参照しています: ${outcome.group.model}`);
+  }
+  if (outcome.kind === "selected") {
+    return <ClipButton candidate={outcome.candidate} />;
+  }
+  const presentation = {
+    skipped: {
+      label: "策展スキップ",
+      detail: "候補は公開対象に選ばれませんでした。",
+      className: "border-amber-500/40 bg-amber-500/5 text-amber-700 dark:text-amber-300",
+    },
+    uncurated: {
+      label: "未策展",
+      detail: "候補の策展判断がまだありません。",
+      className: "border-sky-500/40 bg-sky-500/5 text-sky-700 dark:text-sky-300",
+    },
+    failure: {
+      label: "生成失敗",
+      detail: "再生成待ちです。",
+      className: "border-destructive/40 bg-destructive/5 text-destructive",
+    },
+  }[outcome.kind];
+  return (
+    <div className={`rounded-md border p-3 text-xs ${presentation.className}`}>
+      <p className="font-medium">{presentation.label}</p>
+      <p className="mt-1 text-muted-foreground">
+        {model.name} · {outcome.group.variant} · {presentation.detail}
+      </p>
     </div>
   );
 }

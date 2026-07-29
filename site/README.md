@@ -23,21 +23,32 @@ vp dev
 VITE_AUDIO_BASE=https://audio.gaya-bench.hitsuki.space/
 ```
 
-## ダミー音声
+## 公開データ契約
 
-リポジトリルートで既存の dummy adapter を実行し、追跡対象の
-`data/manifest.json` と、git 管理外の Opus を生成する。
+サイトは `data/manifest.json` の `format_version=4` だけを読み込む。
+`curations[].decision=selected` の `take_id` と同一 group の
+`candidates[].take_id` が完全一致した候補だけが再生可能で、A/B 比較にも selected
+だけを渡す。先頭候補への暗黙の置換は行わない。
 
-```powershell
-uv run --project pipeline --locked gaya gen --model dummy --scenario tavern-night
-uv run --project pipeline --locked gaya gen --model dummy --scenario market-day
-New-Item -ItemType Directory -Path site/public/audio -Force
-Copy-Item artifacts/audio/dummy site/public/audio -Recurse -Force
-```
+比較用投影は group を次の四態で保持する。
+
+- `selected`: 策展で選ばれた再生可能 candidate
+- `skipped`: 策展で公開対象外になった candidate group
+- `uncurated`: candidate はあるが策展判断がない group
+- `failure`: candidate が成立しなかった logical failure
+
+group 自体が存在しない場合だけ cell は未定義になる。manifest v4 契約、参照、
+selected join が不正な場合は起動時に失敗する。
+
+## ローカル音声
+
+manifest v4 の candidate path は take identity に固定された
+`audio/takes/<model>/<scenario>/<line>/<variant>/take-<index>-<sha256>.opus`
+である。ローカル検証では selected Opus をこの immutable path のまま
+`site/public/` 配下へ配置し、`VITE_AUDIO_BASE=/` で参照する。
 
 `site/public/audio/` はローカル検証専用で、音声バイナリはコミットしない。
-manifest の `path` は `audio/...` なので、`VITE_AUDIO_BASE=/` で
-`site/public/audio/...` を参照する。
+サイト起動のために `data/manifest.json` を生成・更新する手順はない。
 
 ## 検証
 

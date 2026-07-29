@@ -1,14 +1,17 @@
 import { benchmarkData } from "virtual:gaya-data";
 
-import type { Clip, GenerationFailure, Line, Model, Scenario } from "./types";
+import type { ArtifactOutcome, Candidate, Line, Model, Scenario } from "./types";
 
 export { benchmarkData };
 export type {
   Age,
+  ArtifactGroup,
+  ArtifactOutcome,
   BenchmarkData,
+  Candidate,
   Character,
   CharacterKind,
-  Clip,
+  Curation,
   Difficulty,
   Emotion,
   Gender,
@@ -23,15 +26,29 @@ export type {
   ModelCapabilities,
   Scenario,
   Scene,
+  SelectedCuration,
+  SkippedCuration,
 } from "./types";
 
 export const scenarioById: ReadonlyMap<string, Scenario> = new Map(
   benchmarkData.scenarios.map((scenario) => [scenario.id, scenario]),
 );
 
-export const modelById: ReadonlyMap<string, Model> = new Map(
+export const manifestModelById: ReadonlyMap<string, Model> = new Map(
   benchmarkData.manifest.models.map((model) => [model.id, model]),
 );
+
+export const modelById: ReadonlyMap<string, Model> = new Map(
+  [...manifestModelById.values()]
+    .filter((model) =>
+      benchmarkData.outcomes.some(
+        (outcome) => outcome.kind === "selected" && outcome.candidate.model === model.id,
+      ),
+    )
+    .map((model) => [model.id, model]),
+);
+
+export const playableModels: readonly Model[] = [...modelById.values()];
 
 export const lineByKey: ReadonlyMap<string, Line> = new Map(
   benchmarkData.scenarios.flatMap((scenario) =>
@@ -39,36 +56,26 @@ export const lineByKey: ReadonlyMap<string, Line> = new Map(
   ),
 );
 
-const clipsByScenario = new Map<string, Clip[]>(
-  benchmarkData.scenarios.map((scenario) => [scenario.id, []]),
-);
-const failuresByScenario = new Map<string, GenerationFailure[]>(
+const outcomesByScenario = new Map<string, ArtifactOutcome[]>(
   benchmarkData.scenarios.map((scenario) => [scenario.id, []]),
 );
 
-for (const clip of benchmarkData.manifest.clips) {
-  clipsByScenario.get(clip.scenario)!.push(clip);
-}
-for (const failure of benchmarkData.manifest.failures) {
-  failuresByScenario.get(failure.scenario)!.push(failure);
+for (const outcome of benchmarkData.outcomes) {
+  outcomesByScenario.get(outcome.group.scenario)!.push(outcome);
 }
 
-export function clipKey(clip: Clip): string {
-  return JSON.stringify([clip.model, clip.scenario, clip.line, clip.variant]);
+export const selectedCandidates: readonly Candidate[] = benchmarkData.outcomes.flatMap((outcome) =>
+  outcome.kind === "selected" ? [outcome.candidate] : [],
+);
+
+export function candidateKey(candidate: Candidate): string {
+  return JSON.stringify([candidate.model, candidate.scenario, candidate.line, candidate.variant]);
 }
 
-export function getClipsForScenario(id: string): readonly Clip[] {
-  const clips = clipsByScenario.get(id);
-  if (!clips) {
+export function getOutcomesForScenario(id: string): readonly ArtifactOutcome[] {
+  const outcomes = outcomesByScenario.get(id);
+  if (!outcomes) {
     throw new Error(`未知の scenario id です: ${id}`);
   }
-  return clips;
-}
-
-export function getFailuresForScenario(id: string): readonly GenerationFailure[] {
-  const failures = failuresByScenario.get(id);
-  if (!failures) {
-    throw new Error(`未知の scenario id です: ${id}`);
-  }
-  return failures;
+  return outcomes;
 }

@@ -1,7 +1,15 @@
 import { describe, expect, it } from "vite-plus/test";
 
 import { buildComparisonModel } from "../comparison/model";
-import type { BenchmarkData, Character, Clip, Line, Model, Scenario } from "../data/types";
+import type {
+  ArtifactOutcome,
+  BenchmarkData,
+  Candidate,
+  Character,
+  Line,
+  Model,
+  Scenario,
+} from "../data/types";
 import {
   createDefaultFilterState,
   decodeFilterQuery,
@@ -188,19 +196,43 @@ function fixture(): BenchmarkData {
     scenario("inn", [keeper], [line("keeper-1", "keeper", "neutral", "standard")]),
   ];
   const models = [ttsModel("alpha"), ttsModel("beta")];
+  const candidates = scenarios.flatMap((fixtureScenario) =>
+    fixtureScenario.lines.flatMap((fixtureLine) =>
+      models.map((fixtureModel) => candidate(fixtureModel.id, fixtureScenario.id, fixtureLine.id)),
+    ),
+  );
+  const curations = candidates.map((item) => ({
+    model: item.model,
+    scenario: item.scenario,
+    line: item.line,
+    variant: item.variant,
+    decision: "selected" as const,
+    take_id: item.take_id,
+    curation_sha256: "c".repeat(64),
+  }));
+  const outcomes: ArtifactOutcome[] = candidates.map((item, index) => ({
+    kind: "selected",
+    group: {
+      model: item.model,
+      scenario: item.scenario,
+      line: item.line,
+      variant: item.variant,
+    },
+    candidate: item,
+    curation: curations[index]!,
+  }));
   return {
     manifest: {
-      format_version: 3,
-      generated_at: "2026-07-28T00:00:00Z",
+      format_version: 4,
+      generated_at: "2026-07-30T00:00:00Z",
+      candidate_set_sha256: "d".repeat(64),
       models,
-      clips: scenarios.flatMap((fixtureScenario) =>
-        fixtureScenario.lines.flatMap((fixtureLine) =>
-          models.map((fixtureModel) => clip(fixtureModel.id, fixtureScenario.id, fixtureLine.id)),
-        ),
-      ),
+      candidates,
+      curations,
       failures: [],
     },
     scenarios,
+    outcomes,
   };
 }
 
@@ -260,22 +292,36 @@ function ttsModel(id: string): Model {
   };
 }
 
-function clip(model: string, scenario: string, lineId: string): Clip {
+function candidate(model: string, scenario: string, lineId: string): Candidate {
   return {
     model,
     scenario,
     line: lineId,
     variant: "dry",
-    path: `audio/${model}/${scenario}/${lineId}.opus`,
+    take_index: 1,
+    take_id: "a".repeat(64),
+    path: `audio/takes/${model}/${scenario}/${lineId}/dry/take-0001-${"b".repeat(64)}.opus`,
     duration_sec: 1,
-    sha256: `${model}-${scenario}-${lineId}`,
-    gen_params: {},
+    sha256: "b".repeat(64),
+    generation_input_sha256: "c".repeat(64),
+    gen_params: {
+      seed: 1,
+      recipe_version: "test-v1",
+      sampling: {},
+      requested: {},
+      realized: {},
+    },
     rtf: 0.1,
     loudness: {
       source: "encoded_opus",
       i_lufs: -18,
       tp_dbtp: -1,
       shortfall: false,
+    },
+    gate: {
+      mechanical: "pass",
+      content: "review_required",
+      policy_version: "test-v1",
     },
   };
 }

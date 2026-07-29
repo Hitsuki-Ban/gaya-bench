@@ -1,15 +1,16 @@
-import type { BenchmarkData, Clip, Line, Model, Scenario } from "../data/types";
+import type { BenchmarkData, Candidate, Line, Model, Scenario } from "../data/types";
 
 export const MIN_MODEL_APPEARANCES = 5;
 
 export interface DatasetIdentity {
-  readonly formatVersion: 3;
+  readonly formatVersion: 4;
   readonly generatedAt: string;
+  readonly candidateSetSha256: string;
 }
 
 export interface BlindCandidate {
   readonly modelId: string;
-  readonly clip: Clip;
+  readonly candidate: Candidate;
 }
 
 export interface BlindMatch {
@@ -55,6 +56,7 @@ export function datasetIdentity(data: BenchmarkData): DatasetIdentity {
   return {
     formatVersion: data.manifest.format_version,
     generatedAt: data.manifest.generated_at,
+    candidateSetSha256: data.manifest.candidate_set_sha256,
   };
 }
 
@@ -79,66 +81,79 @@ export function buildBlindCatalog(data: BenchmarkData): BlindCatalog {
     }
   }
 
-  const clipsByLine = new Map<string, Clip[]>();
-  const clipKeys = new Set<string>();
-  for (const clip of data.manifest.clips) {
-    const key = clipKey(clip);
-    if (clipKeys.has(key)) {
-      throw new Error(
-        `A/B の cell clip が重複しています: ${clip.model}/${clip.scenario}/${clip.line}/${clip.variant}`,
-      );
-    }
-    clipKeys.add(key);
-
-    if (!modelsById.has(clip.model)) {
-      throw new Error(`clip が存在しない model を参照しています: ${clip.model}`);
-    }
-
-    const matchedLine = linesByKey.get(lineKey(clip.scenario, clip.line));
-    if (!matchedLine) {
-      throw new Error(
-        `clip が存在しない scenario/line を参照しています: ${clip.scenario}/${clip.line}`,
-      );
-    }
-
-    if (clip.variant !== "dry") {
+  const candidatesByLine = new Map<string, Candidate[]>();
+  const candidateKeys = new Set<string>();
+  const selectedModelIds = new Set<string>();
+  for (const outcome of data.outcomes) {
+    if (outcome.kind !== "selected") {
       continue;
     }
+    const candidate = outcome.candidate;
+    const key = candidateKey(candidate);
+    if (candidateKeys.has(key)) {
+      throw new Error(
+        `A/B の selected candidate が重複しています: ${candidate.model}/${candidate.scenario}/${candidate.line}/${candidate.variant}`,
+      );
+    }
+    candidateKeys.add(key);
 
-    const clips = clipsByLine.get(lineKey(clip.scenario, clip.line));
-    if (clips) {
-      clips.push(clip);
+    if (!modelsById.has(candidate.model)) {
+      throw new Error(`candidate が存在しない model を参照しています: ${candidate.model}`);
+    }
+
+    const matchedLine = linesByKey.get(lineKey(candidate.scenario, candidate.line));
+    if (!matchedLine) {
+      throw new Error(
+        `candidate が存在しない scenario/line を参照しています: ${candidate.scenario}/${candidate.line}`,
+      );
+    }
+
+    if (candidate.variant !== "dry") {
+      continue;
+    }
+    selectedModelIds.add(candidate.model);
+
+    const candidates = candidatesByLine.get(lineKey(candidate.scenario, candidate.line));
+    if (candidates) {
+      candidates.push(candidate);
     } else {
-      clipsByLine.set(lineKey(clip.scenario, clip.line), [clip]);
+      candidatesByLine.set(lineKey(candidate.scenario, candidate.line), [candidate]);
     }
   }
 
   const matches: BlindMatch[] = [];
   for (const scenario of data.scenarios) {
     for (const line of scenario.lines) {
-      const clips = [...(clipsByLine.get(lineKey(scenario.id, line.id)) ?? [])].sort(
-        (left, right) => compareIds(left.model, right.model),
+      const lineCandidates = candidatesByLine.get(lineKey(scenario.id, line.id));
+      if (!lineCandidates) {
+        continue;
+      }
+      const candidates = [...lineCandidates].sort((left, right) =>
+        compareIds(left.model, right.model),
       );
-      for (let firstIndex = 0; firstIndex < clips.length; firstIndex += 1) {
-        for (let secondIndex = firstIndex + 1; secondIndex < clips.length; secondIndex += 1) {
-          const firstClip = clips[firstIndex]!;
-          const secondClip = clips[secondIndex]!;
-          const modelIds = [firstClip.model, secondClip.model] as const;
+      for (let firstIndex = 0; firstIndex < candidates.length; firstIndex += 1) {
+        for (let secondIndex = firstIndex + 1; secondIndex < candidates.length; secondIndex += 1) {
+          const firstCandidate = candidates[firstIndex]!;
+          const secondCandidate = candidates[secondIndex]!;
+          const modelIds = [firstCandidate.model, secondCandidate.model] as const;
           matches.push({
             id: matchId(scenario.id, line.id, modelIds),
             pairId: pairId(modelIds),
             scenario,
             line,
             variant: "dry",
-            first: { modelId: firstClip.model, clip: firstClip },
-            second: { modelId: secondClip.model, clip: secondClip },
+            first: { modelId: firstCandidate.model, candidate: firstCandidate },
+            second: { modelId: secondCandidate.model, candidate: secondCandidate },
           });
         }
       }
     }
   }
 
-  return { matches, models: data.manifest.models };
+  return {
+    matches,
+    models: data.manifest.models.filter((model) => selectedModelIds.has(model.id)),
+  };
 }
 
 export function selectNextMatch(
@@ -364,8 +379,8 @@ function lineKey(scenarioId: string, lineId: string): string {
   return JSON.stringify([scenarioId, lineId]);
 }
 
-function clipKey(clip: Clip): string {
-  return JSON.stringify([clip.model, clip.scenario, clip.line, clip.variant]);
+function candidateKey(candidate: Candidate): string {
+  return JSON.stringify([candidate.model, candidate.scenario, candidate.line, candidate.variant]);
 }
 
 function pairId(modelIds: readonly [string, string]): string {
