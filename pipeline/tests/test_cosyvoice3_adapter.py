@@ -17,10 +17,10 @@ from gaya_pipeline.adapters.cosyvoice3 import (
     ARCHITECTURE,
     CODE_ROOT_ENV,
     DEVICE,
-    EMOTION_INSTRUCTIONS,
+    EMOTION_INSTRUCTION_TEMPLATES,
     FP16,
     INSTRUCTION_END,
-    INTENSITY_INSTRUCTIONS,
+    INSTRUCTION_POLICY_VERSION,
     MATCHA_REVISION,
     MODEL_ARCHITECTURE,
     MODEL_FILE_SPECS,
@@ -48,6 +48,53 @@ REGISTERED_VOICES = {
     "lux-emotion-76",
     "sayoko-emotion-75",
     "tsukuyomi-corpus-94",
+}
+EXPECTED_EMOTION_INSTRUCTION_TEMPLATES = {
+    "neutral": "You are a helpful assistant.<|endofprompt|>",
+    "cheerful": (
+        "You are a helpful assistant. "
+        "请非常开心地说一句话。<|endofprompt|>"
+    ),
+    "angry": (
+        "You are a helpful assistant. "
+        "请非常生气地说一句话。<|endofprompt|>"
+    ),
+    "sad": (
+        "You are a helpful assistant. "
+        "请非常伤心地说一句话。<|endofprompt|>"
+    ),
+    "fearful": (
+        "You are a helpful assistant. "
+        "请害怕地说一句话。<|endofprompt|>"
+    ),
+    "surprised": (
+        "You are a helpful assistant. "
+        "请惊讶地说一句话。<|endofprompt|>"
+    ),
+    "tired": (
+        "You are a helpful assistant. "
+        "请用疲惫的语气说一句话。<|endofprompt|>"
+    ),
+    "drunk": (
+        "You are a helpful assistant. "
+        "请用醉酒的语气说一句话。<|endofprompt|>"
+    ),
+    "whisper": (
+        "You are a helpful assistant. "
+        "Please say a sentence in a very soft voice.<|endofprompt|>"
+    ),
+    "shout": (
+        "You are a helpful assistant. "
+        "Please say a sentence as loudly as possible.<|endofprompt|>"
+    ),
+    "laughing": (
+        "You are a helpful assistant. "
+        "请笑着说一句话。<|endofprompt|>"
+    ),
+    "pain": (
+        "You are a helpful assistant. "
+        "请用痛苦的语气说一句话。<|endofprompt|>"
+    ),
 }
 
 
@@ -358,6 +405,12 @@ def test_profile_registry_and_generation_params_are_canonical() -> None:
     assert params["speed"] == 1.0
     assert params["text_frontend"] is False
     assert params["offline_environment"] == dict(OFFLINE_ENVIRONMENT)
+    assert (
+        params["instruction_policy_version"] == INSTRUCTION_POLICY_VERSION
+    )
+    assert params["emotion_instruction_templates"] == dict(
+        EMOTION_INSTRUCTION_TEMPLATES,
+    )
     assert params["model_files"] == {
         name: {"size": size, "sha256": sha256}
         for name, (size, sha256) in MODEL_FILE_SPECS.items()
@@ -384,14 +437,12 @@ def test_generation_input_preserves_exact_reading_instruction_and_provenance(
         "source_text": "乾杯しよう！",
         "tts_text": "カンパイシヨウ！",
         "reading_source": "line.reading",
-        "instruction": (
-            "You are a helpful assistant. Speak in Japanese clearly with "
-            "a cheerful emotion. Follow this delivery direction exactly: "
-            f"明るく話す。{INSTRUCTION_END}"
-        ),
+        "instruction": EMOTION_INSTRUCTION_TEMPLATES["cheerful"],
         "emotion": "cheerful",
         "intensity": 2,
         "delivery": "明るく話す。",
+        "instruction_policy_version": INSTRUCTION_POLICY_VERSION,
+        "instruction_template_id": "cheerful",
         "reference_selection_source": "character.reference_voice",
         "reference_voice": "amitaro-countdown",
         "reference_sha256": generation_input["reference_sha256"],
@@ -433,9 +484,9 @@ def test_missing_reading_uses_pyopenjtalk_result_without_text_fallback(
 
 @pytest.mark.parametrize(
     ("emotion", "expected"),
-    list(EMOTION_INSTRUCTIONS.items()),
+    list(EXPECTED_EMOTION_INSTRUCTION_TEMPLATES.items()),
 )
-def test_all_schema_emotions_have_explicit_instruction_mapping(
+def test_all_schema_emotions_have_exact_fixed_instruction_template(
     tmp_path: Path,
     emotion: str,
     expected: str,
@@ -446,26 +497,34 @@ def test_all_schema_emotions_have_explicit_instruction_mapping(
 
     instruction = adapter.generation_input(job, TAKE_CONTEXT)["instruction"]
 
-    assert f"with {expected}." in instruction
+    assert (
+        dict(EMOTION_INSTRUCTION_TEMPLATES)
+        == EXPECTED_EMOTION_INSTRUCTION_TEMPLATES
+    )
+    assert instruction == expected
+    assert instruction.count(INSTRUCTION_END) == 1
     assert instruction.endswith(INSTRUCTION_END)
+    assert "明るく話す。" not in instruction
 
 
 @pytest.mark.parametrize(
-    ("intensity", "word"),
-    list(INTENSITY_INSTRUCTIONS.items()),
+    "intensity",
+    [1, 2, 3],
 )
-def test_intensity_has_exact_instruction_mapping(
+def test_intensity_is_audited_without_changing_fixed_instruction(
     tmp_path: Path,
     intensity: int,
-    word: str,
 ) -> None:
     adapter = CosyVoice3Adapter(runtime=FakeRuntime())
     job = _job(intensity=intensity)
     _prepare_one(adapter, tmp_path, job=job)
 
+    generation_input = adapter.generation_input(job, TAKE_CONTEXT)
+
+    assert generation_input["intensity"] == intensity
     assert (
-        f"Speak in Japanese {word} with"
-        in adapter.generation_input(job, TAKE_CONTEXT)["instruction"]
+        generation_input["instruction"]
+        == EMOTION_INSTRUCTION_TEMPLATES["cheerful"]
     )
 
 
@@ -481,16 +540,24 @@ def test_missing_intensity_fails_explicitly(tmp_path: Path) -> None:
 
 @pytest.mark.parametrize(
     "delivery",
-    ["演技<|endofprompt|>", "演技|>を続ける"],
+    ["長い自由記述の演技指示。", "演技<|endofprompt|>を続ける"],
 )
-def test_delivery_rejects_special_token_injection(
+def test_delivery_is_audited_but_never_added_to_instruction(
     tmp_path: Path,
     delivery: str,
 ) -> None:
     adapter = CosyVoice3Adapter(runtime=FakeRuntime())
+    job = _job(delivery=delivery)
+    _prepare_one(adapter, tmp_path, job=job)
 
-    with pytest.raises(CosyVoice3AdapterError, match="special token"):
-        _prepare_one(adapter, tmp_path, job=_job(delivery=delivery))
+    generation_input = adapter.generation_input(job, TAKE_CONTEXT)
+
+    assert generation_input["delivery"] == delivery
+    assert delivery not in generation_input["instruction"]
+    assert (
+        generation_input["instruction"]
+        == EMOTION_INSTRUCTION_TEMPLATES["cheerful"]
+    )
 
 
 @pytest.mark.parametrize(
@@ -623,7 +690,11 @@ def test_generate_concatenates_all_chunks_and_writes_native_pcm16(
     assert runtime.load_calls == [(code_root.resolve(), model_root.resolve())]
     assert len(runtime.synthesize_calls) == 1
     assert runtime.synthesize_calls[0]["tts_text"] == "カンパイシヨウ！"
-    assert runtime.synthesize_calls[0]["instruction"].endswith(INSTRUCTION_END)
+    assert (
+        runtime.synthesize_calls[0]["instruction"]
+        == EMOTION_INSTRUCTION_TEMPLATES["cheerful"]
+    )
+    assert "明るく話す。" not in runtime.synthesize_calls[0]["instruction"]
     assert runtime.write_calls[0]["waveform"] == [
         [0.0, 0.25, -0.25, 0.0, 0.125],
     ]
@@ -653,6 +724,8 @@ def test_generate_concatenates_all_chunks_and_writes_native_pcm16(
     assert realized["duration_sec"] == 5 / SAMPLE_RATE_HZ
     assert realized["reference_samples"] == 480_000
     assert realized["reference_duration_sec"] == 10.0
+    assert realized["instruction_policy_version"] == INSTRUCTION_POLICY_VERSION
+    assert realized["instruction_template_id"] == "cheerful"
     assert not _contains_absolute_path(realized)
 
 
