@@ -223,11 +223,13 @@ uv run --project pipeline --locked --extra qwen gaya gen --model qwen3-tts-12hz-
 uv run --project pipeline --locked --extra qwen gaya gen --model qwen3-tts-12hz-1.7b --scenario market-day --takes 1 --seed-base 42
 ```
 
-2026-07-28 に RTX 4070 Ti 12GB で旧 character-only 参照による上記2シナリオ（12行）を実測し、失敗0件、最大 4,193 MiB allocated / 4,296 MiB reserved、warm RTF 5.52〜9.81（cold canary 42.79）だった。感情参照 bank の品質と VRAM は同じ固定環境で A/B する。
+2026-07-28 に RTX 4070 Ti 12GB で旧 character-only 参照による上記2シナリオ（12行）を実測し、失敗0件、最大 4,193 MiB allocated / 4,296 MiB reserved、warm RTF 5.52〜9.81（cold canary 42.79）だった。
 
-Base の現行 API は line ごとの `instruct` を受け取らない。adapter は 12 emotion の reference text と代表 delivery を明示 table で固定し、`line.emotion` と exact `intensity` で bank を選ぶ。全 emotion で `character.voice` / `personality` / `scene.setting` の共通 prefix と「同じ話者の声質・年齢感を保つ」という指示を維持する。逐行の自由記述 `line.delivery` は Base へ直接渡さない。効果は「中立参照が棒読みの根因」という確定事項ではなく、旧公開音声との blind A/B で検証する仮説である。A/B で逐行情動の変化と声質維持を確認するまでは、production manifest の `emotion` capability を `false` に保つ。
+Base の現行 API は line ごとの `instruct` を受け取らない。adapter は 12 emotion の reference text と代表 delivery を明示 table で固定し、`line.emotion` と exact `intensity` で bank を選ぶ。全 emotion で `character.voice` / `personality` / `scene.setting` の共通 prefix と「同じ話者の声質・年齢感を保つ」という指示を維持する。逐行の自由記述 `line.delivery` は Base へ直接渡さない。
 
-現行 corpus は 58 scenario-scoped character、161行で、実際に使う character-emotion 組み合わせは146、exact intensity を含めると157である。全 `58 × 12 × 3 = 2,088` 件は事前生成せず、要求された157件だけを作る。旧58参照の実測平均は約30.1秒 / 0.198 MiB だったため、157件の粗い見積もりは約78.8分 / 31.1 MiB、旧方式からの純増は約49.7分 / 19.6 MiBである。最初の A/B は少数行だけを指定し、全量 bank は A/B 合格後に生成する。
+2026-07-30 に旧 character-only neutral reference を A、感情参照 bank を B とし、`castle-gate/guard-onna-001`〜`003` をすべて実 seed 0 で blind A/B した。neutral は A 優位、angry は同等、whisper は A 優位で、B は angry / whisper のどちらも演技 preference を改善しなかった。全候補で prompt leakage は報告されなかった一方、女衛兵に対して男性声と判定され、逐行の声線一貫性も確認できなかった。したがって [#96 の実験結果](../docs/research/qwen-emotion-bank-ab/README.md) は不合格であり、production manifest の `emotion` capability は `false` のまま維持する。この経路で #10 の Qwen 全量生成を開始してはならない。gender 指定と speaker identity の再設計は [#142](https://github.com/Hitsuki-Ban/gaya-bench/issues/142) で canary から行う。
+
+現行 corpus は 58 scenario-scoped character、161行で、実際に使う character-emotion 組み合わせは146、exact intensity を含めると157である。全 `58 × 12 × 3 = 2,088` 件は事前生成しない。旧58参照の実測平均は約30.1秒 / 0.198 MiB だったため、157件の粗い見積もりは約78.8分 / 31.1 MiB、旧方式からの純増は約49.7分 / 19.6 MiBである。#96 が不合格だったため、157件の全量 bank は生成しない。
 
 依存欠落、CUDA unavailable、BF16 非対応、モデル取得・読み込み失敗、OOM はその場で失敗する。CPU、GGUF、WSL、クラウド、別 attention backend への自動切替は行わない。
 

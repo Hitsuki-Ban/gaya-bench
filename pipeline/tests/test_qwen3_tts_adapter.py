@@ -249,7 +249,9 @@ def test_profile_and_requested_parameters_are_canonical(tmp_path: Path) -> None:
     assert QWEN_TTS_VERSION in adapter.profile.version
     assert BASE_REVISION in adapter.profile.version
     assert VOICE_DESIGN_REVISION in adapter.profile.version
-    assert "感情参照 bank は A/B 検証前の実験経路" in adapter.profile.license_note
+    assert "感情参照 bank は blind A/B 不合格の実験経路" in (
+        adapter.profile.license_note
+    )
     assert adapter.profile.capabilities.as_dict() == {
         "emotion": False,
         "voice_prompt": True,
