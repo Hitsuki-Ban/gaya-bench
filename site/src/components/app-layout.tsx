@@ -28,13 +28,14 @@ export function AppLayout() {
       <header className="sticky top-0 z-20 border-b bg-background/95 backdrop-blur">
         <div className="mx-auto flex min-h-14 max-w-[1480px] items-center gap-6 px-4 sm:px-6">
           <NavLink
+            aria-label="比較トップ"
             className="flex items-center gap-3"
             to={{ pathname: "/", search: location.search }}
           >
             <span className="grid size-9 place-items-center rounded-md border border-primary/35 bg-primary/10 text-primary">
               <AudioLines aria-hidden="true" className="size-5" />
             </span>
-            <span>
+            <span className="hidden min-[360px]:block">
               <span className="block font-mono text-sm font-semibold tracking-[0.22em] text-foreground">
                 GAYA BENCH
               </span>

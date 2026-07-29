@@ -30,4 +30,24 @@ describe("MachineGeneratedAudioNotice", () => {
     expect(markup).toContain('href="/pilot"');
     expect(markup).toContain("Pilot");
   });
+
+  it("320px 幅でも全ナビゲーションを識別できる", () => {
+    const markup = renderToStaticMarkup(
+      createElement(MemoryRouter, null, createElement(AppLayout)),
+    );
+
+    expect(markup).toContain('aria-label="比較トップ"');
+    expect(markup).toContain('class="hidden min-[360px]:block"');
+
+    for (const [href, label] of [
+      ["/", "比較"],
+      ["/ab", "A/B"],
+      ["/curate", "策展"],
+      ["/pilot", "Pilot"],
+      ["/credits", "クレジット"],
+    ]) {
+      expect(markup).toContain(`aria-label="${label}"`);
+      expect(markup).toContain(`href="${href}"`);
+    }
+  });
 });
