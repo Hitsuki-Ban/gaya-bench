@@ -233,6 +233,7 @@ function fixture(): BenchmarkData {
     },
     scenarios,
     outcomes,
+    credits: { model_sources: [], reference_voices: [] },
   };
 }
 

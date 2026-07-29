@@ -13,6 +13,10 @@ import type {
   GenerationFailure,
   Manifest,
   Model,
+  ModelCredit,
+  ModelSourceKind,
+  ModelSourceLink,
+  ReferenceVoiceCredit,
   Scenario,
 } from "../src/data/types.ts";
 import { isSafeClipPath } from "../src/lib/clip-path.ts";
@@ -84,6 +88,94 @@ const LINE_OPTIONAL_KEYS = [
   "loop_ok",
   "final_intonation",
 ] as const;
+const VOICE_METADATA_KEYS = ["format_version", "voices"] as const;
+const REFERENCE_VOICE_KEYS = [
+  "id",
+  "file",
+  "sha256",
+  "duration_sec",
+  "language",
+  "transcript",
+  "transcript_rights",
+  "source",
+  "rights",
+  "credit_text",
+  "voice",
+  "processing",
+] as const;
+const TRANSCRIPT_RIGHTS_KEYS = ["license", "evidence_url", "credit_text"] as const;
+const VOICE_SOURCE_KEYS = ["title", "speaker", "download_page", "files"] as const;
+const VOICE_SOURCE_FILE_KEYS = ["label", "url", "sha256"] as const;
+const VOICE_RIGHTS_KEYS = [
+  "license",
+  "verified_on",
+  "voice_synthesis_evidence_url",
+  "commercial_use_evidence_url",
+  "redistribution",
+] as const;
+const REDISTRIBUTION_KEYS = ["status", "evidence_url", "notes"] as const;
+const VOICE_PROFILE_KEYS = ["gender", "age", "notes"] as const;
+const VOICE_PROCESSING_KEYS = ["source_member", "source_sha256", "summary"] as const;
+
+interface ModelSourceField {
+  readonly repository: string;
+  readonly revision: string;
+  readonly label: string;
+  readonly kind: ModelSourceKind;
+  readonly host: "github" | "huggingface";
+}
+
+const MODEL_SOURCE_FIELDS: readonly ModelSourceField[] = [
+  {
+    repository: "upstream_repository",
+    revision: "upstream_revision",
+    label: "コード",
+    kind: "code",
+    host: "github",
+  },
+  {
+    repository: "weights_repository",
+    revision: "weights_revision",
+    label: "公式ウェイト",
+    kind: "weights",
+    host: "huggingface",
+  },
+  {
+    repository: "base_model",
+    revision: "base_revision",
+    label: "Base ウェイト",
+    kind: "weights",
+    host: "huggingface",
+  },
+  {
+    repository: "voice_design_model",
+    revision: "voice_design_revision",
+    label: "VoiceDesign ウェイト",
+    kind: "weights",
+    host: "huggingface",
+  },
+  {
+    repository: "perth_repository",
+    revision: "perth_revision",
+    label: "PerTh 依存",
+    kind: "related",
+    host: "github",
+  },
+  {
+    repository: "matcha_repository",
+    revision: "matcha_revision",
+    label: "Matcha-TTS 依存",
+    kind: "related",
+    host: "github",
+  },
+  {
+    repository: "sdk_repository",
+    revision: "sdk_revision",
+    label: "SDK",
+    kind: "related",
+    host: "github",
+  },
+] as const;
 
 const LOCALES = new Set(["ja", "en"]);
 const GENDERS = new Set(["female", "male", "neutral"]);
@@ -108,7 +200,11 @@ const FINAL_INTONATIONS = new Set(["fall", "rise", "free"]);
 const LOUDNESS_SOURCES = new Set(["encoded_opus"]);
 const FAILURE_REASONS = new Set(["no_eligible_take", "test_only_adapter"]);
 const CONTENT_GATE_RESULTS = new Set(["pass", "review_required"]);
+const REDISTRIBUTION_STATUSES = new Set(["prohibited", "allowed_with_conditions"]);
 const SHA256_PATTERN = /^[0-9a-f]{64}$/;
+const SHA1_PATTERN = /^[0-9a-f]{40}$/;
+const REPOSITORY_PATTERN = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/;
+const ISO_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
 type WatchFile = (file: string) => void;
 type UnknownRecord = Record<string, unknown>;
@@ -157,13 +253,24 @@ export function gayaDataPlugin({ repositoryRoot }: GayaDataPluginOptions): Plugi
 export function loadBenchmarkData(repositoryRoot: string, watchFile?: WatchFile): BenchmarkData {
   const manifestPath = path.join(repositoryRoot, "data", "manifest.json");
   const scenariosDirectory = path.join(repositoryRoot, "scenarios");
+  const voiceMetadataPath = path.join(repositoryRoot, "assets", "voices", "metadata.yaml");
   watchFile?.(manifestPath);
+  watchFile?.(voiceMetadataPath);
 
   const manifest = loadManifest(manifestPath);
   const scenarios = loadScenarios(scenariosDirectory, watchFile);
-  validateReferences(manifest, scenarios);
+  const referenceVoices = loadReferenceVoices(voiceMetadataPath);
+  validateReferences(manifest, scenarios, referenceVoices);
 
-  return { manifest, scenarios, outcomes: projectOutcomes(manifest) };
+  return {
+    manifest,
+    scenarios,
+    outcomes: projectOutcomes(manifest),
+    credits: {
+      model_sources: projectModelCredits(manifest),
+      reference_voices: referenceVoices,
+    },
+  };
 }
 
 function loadManifest(manifestPath: string): Manifest {
@@ -233,7 +340,7 @@ function validateModel(value: unknown, index: number): Model {
   assertPathSegment(value.id, `${label}.id`);
   assertNonEmptyString(value.name, `${label}.name`);
   assertNonEmptyString(value.version, `${label}.version`);
-  assertString(value.license_note, `${label}.license_note`);
+  assertNonEmptyString(value.license_note, `${label}.license_note`);
 
   assertRecord(value.capabilities, `${label}.capabilities`);
   assertExactKeys(value.capabilities, CAPABILITY_KEYS, [], `${label}.capabilities`);
@@ -528,11 +635,216 @@ function validateLine(
   } as unknown as Scenario["lines"][number];
 }
 
-function validateReferences(manifest: Manifest, scenarios: readonly Scenario[]): void {
+function loadReferenceVoices(metadataPath: string): readonly ReferenceVoiceCredit[] {
+  const source = readTextFile(metadataPath, "reference voice metadata");
+  let value: unknown;
+  try {
+    value = parse(source);
+  } catch (error) {
+    throw new GayaDataError(`reference voice metadata YAML を解析できません: ${metadataPath}`, {
+      cause: error,
+    });
+  }
+
+  const label = `reference voice metadata ${metadataPath}`;
+  assertRecord(value, label);
+  assertExactKeys(value, VOICE_METADATA_KEYS, [], label);
+  if (value.format_version !== 1) {
+    throw new GayaDataError(`${label}.format_version は1が必要です。`);
+  }
+  assertArray(value.voices, `${label}.voices`);
+  if (value.voices.length < 5) {
+    throw new GayaDataError(`${label}.voices は5件以上必要です。`);
+  }
+
+  const voices = value.voices.map((voice, index) =>
+    validateReferenceVoice(voice, `${label}.voices[${index}]`),
+  );
+  assertUnique(
+    voices.map((voice) => voice.id),
+    `${label} voice id`,
+  );
+  return voices;
+}
+
+function validateReferenceVoice(value: unknown, label: string): ReferenceVoiceCredit {
+  assertRecord(value, label);
+  assertExactKeys(value, REFERENCE_VOICE_KEYS, [], label);
+  assertId(value.id, `${label}.id`);
+  assertString(value.file, `${label}.file`);
+  if (value.file !== `${value.id}/reference.wav`) {
+    throw new GayaDataError(`${label}.file は id/reference.wav が必要です。`);
+  }
+  assertSha256(value.sha256, `${label}.sha256`);
+  assertFiniteNumber(value.duration_sec, `${label}.duration_sec`);
+  if ((value.duration_sec as number) < 10 || (value.duration_sec as number) > 20) {
+    throw new GayaDataError(`${label}.duration_sec は10〜20秒が必要です。`);
+  }
+  if (value.language !== "ja") {
+    throw new GayaDataError(`${label}.language は ja が必要です。`);
+  }
+  assertNonEmptyString(value.transcript, `${label}.transcript`);
+
+  assertRecord(value.transcript_rights, `${label}.transcript_rights`);
+  assertExactKeys(
+    value.transcript_rights,
+    TRANSCRIPT_RIGHTS_KEYS,
+    [],
+    `${label}.transcript_rights`,
+  );
+  assertNonEmptyString(value.transcript_rights.license, `${label}.transcript_rights.license`);
+  assertHttpsUrl(value.transcript_rights.evidence_url, `${label}.transcript_rights.evidence_url`);
+  assertNonEmptyString(
+    value.transcript_rights.credit_text,
+    `${label}.transcript_rights.credit_text`,
+  );
+
+  assertRecord(value.source, `${label}.source`);
+  assertExactKeys(value.source, VOICE_SOURCE_KEYS, [], `${label}.source`);
+  assertNonEmptyString(value.source.title, `${label}.source.title`);
+  assertNonEmptyString(value.source.speaker, `${label}.source.speaker`);
+  assertHttpsUrl(value.source.download_page, `${label}.source.download_page`);
+  assertArray(value.source.files, `${label}.source.files`);
+  if (value.source.files.length === 0) {
+    throw new GayaDataError(`${label}.source.files は1件以上必要です。`);
+  }
+  for (const [index, file] of value.source.files.entries()) {
+    const fileLabel = `${label}.source.files[${index}]`;
+    assertRecord(file, fileLabel);
+    assertExactKeys(file, VOICE_SOURCE_FILE_KEYS, [], fileLabel);
+    assertNonEmptyString(file.label, `${fileLabel}.label`);
+    assertHttpsUrl(file.url, `${fileLabel}.url`);
+    assertSha256(file.sha256, `${fileLabel}.sha256`);
+  }
+
+  assertRecord(value.rights, `${label}.rights`);
+  assertExactKeys(value.rights, VOICE_RIGHTS_KEYS, [], `${label}.rights`);
+  assertNonEmptyString(value.rights.license, `${label}.rights.license`);
+  assertIsoDate(value.rights.verified_on, `${label}.rights.verified_on`);
+  assertHttpsUrl(
+    value.rights.voice_synthesis_evidence_url,
+    `${label}.rights.voice_synthesis_evidence_url`,
+  );
+  assertHttpsUrl(
+    value.rights.commercial_use_evidence_url,
+    `${label}.rights.commercial_use_evidence_url`,
+  );
+  assertRecord(value.rights.redistribution, `${label}.rights.redistribution`);
+  assertExactKeys(
+    value.rights.redistribution,
+    REDISTRIBUTION_KEYS,
+    [],
+    `${label}.rights.redistribution`,
+  );
+  assertEnum(
+    value.rights.redistribution.status,
+    REDISTRIBUTION_STATUSES,
+    `${label}.rights.redistribution.status`,
+  );
+  assertHttpsUrl(
+    value.rights.redistribution.evidence_url,
+    `${label}.rights.redistribution.evidence_url`,
+  );
+  assertNonEmptyString(value.rights.redistribution.notes, `${label}.rights.redistribution.notes`);
+
+  assertNonEmptyString(value.credit_text, `${label}.credit_text`);
+
+  assertRecord(value.voice, `${label}.voice`);
+  assertExactKeys(value.voice, VOICE_PROFILE_KEYS, [], `${label}.voice`);
+  assertEnum(value.voice.gender, GENDERS, `${label}.voice.gender`);
+  assertEnum(value.voice.age, AGES, `${label}.voice.age`);
+  assertNonEmptyString(value.voice.notes, `${label}.voice.notes`);
+
+  assertRecord(value.processing, `${label}.processing`);
+  assertExactKeys(value.processing, VOICE_PROCESSING_KEYS, [], `${label}.processing`);
+  assertNonEmptyString(value.processing.source_member, `${label}.processing.source_member`);
+  assertSha256(value.processing.source_sha256, `${label}.processing.source_sha256`);
+  assertNonEmptyString(value.processing.summary, `${label}.processing.summary`);
+
+  return value as unknown as ReferenceVoiceCredit;
+}
+
+function projectModelCredits(manifest: Manifest): readonly ModelCredit[] {
+  return manifest.models.map((model) => {
+    const candidates = manifest.candidates.filter((candidate) => candidate.model === model.id);
+    if (model.id === "dummy") {
+      if (candidates.length > 0) {
+        throw new GayaDataError("dummy model は candidate を持てません。");
+      }
+      return { model: model.id, sources: [] };
+    }
+    if (candidates.length === 0) {
+      throw new GayaDataError(
+        `model ${model.id} の provenance を取得できる candidate がありません。`,
+      );
+    }
+
+    const sources = extractModelSources(candidates[0]!, model.id);
+    if (sources.length === 0) {
+      throw new GayaDataError(`model ${model.id} のコード・ウェイト provenance がありません。`);
+    }
+    const expected = JSON.stringify(sources);
+    for (const candidate of candidates.slice(1)) {
+      const actual = JSON.stringify(extractModelSources(candidate, model.id));
+      if (actual !== expected) {
+        throw new GayaDataError(`model ${model.id} の candidate 間で provenance が一致しません。`);
+      }
+    }
+    return { model: model.id, sources };
+  });
+}
+
+function extractModelSources(candidate: Candidate, modelId: string): readonly ModelSourceLink[] {
+  const requested = candidate.gen_params.requested;
+  assertRecord(requested, `model ${modelId} requested provenance`);
+  const sources: ModelSourceLink[] = [];
+  for (const field of MODEL_SOURCE_FIELDS) {
+    const repositoryValue = requested[field.repository];
+    const revisionValue = requested[field.revision];
+    const repositoryPresent = repositoryValue !== undefined;
+    const revisionPresent = revisionValue !== undefined;
+    if (repositoryPresent !== revisionPresent) {
+      throw new GayaDataError(
+        `model ${modelId} の ${field.repository}/${field.revision} は対で必要です。`,
+      );
+    }
+    if (!repositoryPresent) {
+      continue;
+    }
+    assertRepository(repositoryValue, `model ${modelId} ${field.repository}`);
+    assertSha1(revisionValue, `model ${modelId} ${field.revision}`);
+    const baseUrl = field.host === "github" ? "https://github.com" : "https://huggingface.co";
+    sources.push({
+      kind: field.kind,
+      label: field.label,
+      repository: repositoryValue,
+      revision: revisionValue,
+      url: `${baseUrl}/${repositoryValue}/tree/${revisionValue}`,
+    });
+  }
+  return sources;
+}
+
+function validateReferences(
+  manifest: Manifest,
+  scenarios: readonly Scenario[],
+  referenceVoices: readonly ReferenceVoiceCredit[],
+): void {
   const modelIds = new Set(manifest.models.map((model) => model.id));
+  const referenceVoiceIds = new Set(referenceVoices.map((voice) => voice.id));
   const linesByScenario = new Map(
     scenarios.map((scenario) => [scenario.id, new Set(scenario.lines.map((line) => line.id))]),
   );
+
+  for (const scenario of scenarios) {
+    for (const character of scenario.characters) {
+      if (character.reference_voice && !referenceVoiceIds.has(character.reference_voice)) {
+        throw new GayaDataError(
+          `scenario ${scenario.id} の character ${character.id} が存在しない reference_voice を参照しています: ${character.reference_voice}`,
+        );
+      }
+    }
+  }
 
   for (const candidate of manifest.candidates) {
     const key = artifactKeyTuple(candidate);
@@ -666,6 +978,43 @@ function assertSha256(value: unknown, label: string): asserts value is string {
   assertString(value, label);
   if (!SHA256_PATTERN.test(value)) {
     throw new GayaDataError(`${label} は完全な小文字 SHA-256 が必要です。`);
+  }
+}
+
+function assertSha1(value: unknown, label: string): asserts value is string {
+  assertString(value, label);
+  if (!SHA1_PATTERN.test(value)) {
+    throw new GayaDataError(`${label} は完全な小文字 Git SHA-1 が必要です。`);
+  }
+}
+
+function assertRepository(value: unknown, label: string): asserts value is string {
+  assertString(value, label);
+  if (!REPOSITORY_PATTERN.test(value)) {
+    throw new GayaDataError(`${label} は owner/repository が必要です。`);
+  }
+}
+
+function assertHttpsUrl(value: unknown, label: string): asserts value is string {
+  assertString(value, label);
+  let parsed: URL;
+  try {
+    parsed = new URL(value);
+  } catch (error) {
+    throw new GayaDataError(`${label} は有効な HTTPS URL が必要です。`, { cause: error });
+  }
+  if (parsed.protocol !== "https:" || parsed.username || parsed.password) {
+    throw new GayaDataError(`${label} は有効な HTTPS URL が必要です。`);
+  }
+}
+
+function assertIsoDate(value: unknown, label: string): asserts value is string {
+  assertString(value, label);
+  if (
+    !ISO_DATE_PATTERN.test(value) ||
+    new Date(`${value}T00:00:00.000Z`).toISOString().slice(0, 10) !== value
+  ) {
+    throw new GayaDataError(`${label} は有効な YYYY-MM-DD が必要です。`);
   }
 }
 

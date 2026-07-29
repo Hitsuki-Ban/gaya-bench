@@ -131,6 +131,7 @@ function fixture(modelIds: readonly string[]): MutableBenchmarkData {
       candidate: item,
       curation: curations[index]!,
     })),
+    credits: { model_sources: [], reference_voices: [] },
   };
 }
 

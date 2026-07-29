@@ -40,6 +40,12 @@ VITE_AUDIO_BASE=https://audio.gaya-bench.hitsuki.space/
 group 自体が存在しない場合だけ cell は未定義になる。manifest v4 契約、参照、
 selected join が不正な場合は起動時に失敗する。
 
+`/credits` は同じ manifest の model エントリと固定 provenance、および
+`assets/voices/metadata.yaml` の全 reference voice を表示する。model ごとの
+repository/revision が candidate 間で一致しない場合、voice metadata が schema
+相当の exact contract を満たさない場合、scenario が未登録の reference voice を
+参照する場合も起動時に失敗する。
+
 ## ローカル音声
 
 manifest v4 の candidate path は take identity に固定された

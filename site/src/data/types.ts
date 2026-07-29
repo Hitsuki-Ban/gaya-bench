@@ -179,8 +179,77 @@ export type ArtifactOutcome =
       readonly failure: GenerationFailure;
     };
 
+export type ModelSourceKind = "code" | "weights" | "related";
+
+export interface ModelSourceLink {
+  readonly kind: ModelSourceKind;
+  readonly label: string;
+  readonly repository: string;
+  readonly revision: string;
+  readonly url: string;
+}
+
+export interface ModelCredit {
+  readonly model: string;
+  readonly sources: readonly ModelSourceLink[];
+}
+
+export interface ReferenceVoiceSourceFile {
+  readonly label: string;
+  readonly url: string;
+  readonly sha256: string;
+}
+
+export interface ReferenceVoiceCredit {
+  readonly id: string;
+  readonly file: string;
+  readonly sha256: string;
+  readonly duration_sec: number;
+  readonly language: "ja";
+  readonly transcript: string;
+  readonly transcript_rights: {
+    readonly license: string;
+    readonly evidence_url: string;
+    readonly credit_text: string;
+  };
+  readonly source: {
+    readonly title: string;
+    readonly speaker: string;
+    readonly download_page: string;
+    readonly files: readonly ReferenceVoiceSourceFile[];
+  };
+  readonly rights: {
+    readonly license: string;
+    readonly verified_on: string;
+    readonly voice_synthesis_evidence_url: string;
+    readonly commercial_use_evidence_url: string;
+    readonly redistribution: {
+      readonly status: "prohibited" | "allowed_with_conditions";
+      readonly evidence_url: string;
+      readonly notes: string;
+    };
+  };
+  readonly credit_text: string;
+  readonly voice: {
+    readonly gender: Gender;
+    readonly age: Age;
+    readonly notes: string;
+  };
+  readonly processing: {
+    readonly source_member: string;
+    readonly source_sha256: string;
+    readonly summary: string;
+  };
+}
+
+export interface CreditsData {
+  readonly model_sources: readonly ModelCredit[];
+  readonly reference_voices: readonly ReferenceVoiceCredit[];
+}
+
 export interface BenchmarkData {
   readonly manifest: Manifest;
   readonly scenarios: readonly Scenario[];
   readonly outcomes: readonly ArtifactOutcome[];
+  readonly credits: CreditsData;
 }
