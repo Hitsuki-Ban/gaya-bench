@@ -165,5 +165,28 @@ main runへ暗黙合成しない。main runの5件は明示的なfailureとし�
 Qwenは`20260729T113009679952Z-qwen3-tts-12hz-1.7b-n1`の確定済み
 baselineを再生成せず使用する。現行161行のうち旧sourceにない
 `spirit-forest/spring-sprite-002`だけを`no_eligible_take`として明示する
-projection planを固定した。人手策展、aggregate release確定、R2 publishと
-公開URLのhash照合は未完了であり、完了後に本節へ実測結果を追記する。
+projection planを固定した。旧Qwen人評160 group（selected 121 / skipped 39）は
+format v2 selection artifactからformat v1へ再構成した結果、旧artifactとgroup単位で
+exact一致した。
+
+7モデルの未策展N=1候補は`automatic-gate-v1`で確定した。自動authority 1,122
+groupはすべて`mechanical=pass`、`policy_version=take-gates-v2`で、
+`content=pass` 49 / `review_required` 1,073だった。soft signalを人評済みや
+`pass`へ書き換えていない。Qwenの人評authority 160 groupと合わせた最終releaseは
+次のとおり。
+
+- model 8、candidate 1,282、selected 1,243、skipped 39、failure 6
+- group coverage 1,288 = 8 model × 161行
+- aggregate authority: automatic gate 1,122 / human 160
+- manifest SHA-256:
+  `f9dfda542fd1120fe0f74daae3036eab5211d7394d155f7b9953978e59bbe89d`
+- candidate set SHA-256:
+  `91913e08f97497f1f7604f109a6d0f7308742237277f6bbc5483678ac9858cc2`
+- selection artifact SHA-256:
+  `629cc80346160eb8e687757e6f792ef519da9a4fb74f79bdf97eb4d00f56126e`
+
+R2 publishは全1,282 objectの事前HEAD後、1,079件
+（28,179,753 bytes）を条件付き新規uploadし、既存203件
+（5,151,007 bytes）をSHA・size・HTTP metadata一致としてskipした。完了後に
+全1,282 objectを再HEADし、競合・欠落は0だった。custom domainから各modelを1件ずつ
+計8件GETし、すべてHTTP 200、`audio/ogg`、body SHA-256がmanifestと一致した。
