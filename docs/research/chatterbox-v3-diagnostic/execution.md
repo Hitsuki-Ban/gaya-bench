@@ -82,6 +82,7 @@ exaggeration、text form、生成元 path は blind data に含めず、answer k
 | blind data | `e76427a7d03962742d924a695f738ac4ef451ef1d63f60230704576e107e7c05` |
 | answer key | `659d62f483d1c51b38caf4e42c57ab9fad4d57c11ae527e71f7b99f57ab6511b` |
 | listening page | `c6c356dce9d4455c9a6b91d1bcdd387eaa6035732c4107d4da2fd01dcd2aef22` |
+| decision analyzer | `3b90d0b88fa2a5cbc5880309ad1fb82529da601b113cfcd14965aa25152d412e` |
 
 ページには5参照と25候補、候補ごとの6軸判定、自由記述、行ごとの総合ベストを
 配置した。dummy は置かない。必要入力は合計160項目で、全件入力前は完了操作を
@@ -93,6 +94,12 @@ exaggeration、text form、生成元 path は blind data に含めず、answer k
 4. 厳密な日本語 pitch accent、重音、句調
 5. 破音、ノイズ、截断などの音質
 6. reference / prompt 内容の leakage
+
+解盲 analyzer は decision、blind data、answer key の exact inventory と payload
+SHA-256、25候補の全必須値、10行の総合ベスト、完了・出力 timestamp を検証する。
+欠落 field、未知値、別候補集合、別行候補の選択、未完了 decision、既存 output への
+上書きはすべて明示的に拒否する。正常な160/160 QA export から25 record / 10 line
+decision を生成し、不完全な fixture が output を残さず失敗することを確認した。
 
 ## Browser QA
 
