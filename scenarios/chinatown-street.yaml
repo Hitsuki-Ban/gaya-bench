@@ -54,6 +54,7 @@ lines:
     text: 蒸したての焼売だよ、熱々だよー！
     emotion: shout
     intensity: 3
+    final_intonation: rise
     delivery: 湯気の向こうから通りへ張り上げる呼び込み。語尾を伸ばしてリズムをつける。
     situation: 蒸籠の蓋を開けながら通行人に声を張る。
     difficulty: hard
@@ -105,6 +106,7 @@ lines:
     text: 奥の円卓、空いたよー！
     emotion: cheerful
     intensity: 2
+    final_intonation: rise
     delivery: 店先から待ち客へ知らせる声。忙しさの中の景気のよさ。
     situation: 席が空いたのを見て順番待ちの客を呼ぶ。
     difficulty: standard
@@ -115,6 +117,7 @@ lines:
     text: 月餅、まだ残ってるといいなぁ。
     emotion: neutral
     intensity: 1
+    final_intonation: rise
     delivery: 歌うような独り言。語尾がふわりと上がる。
     situation: おつかいのついでに菓子屋へ寄ろうと歩いている。
     difficulty: standard
@@ -135,6 +138,7 @@ lines:
     text: 通るよ通るよ、荷が通るよっ！
     emotion: shout
     intensity: 3
+    final_intonation: rise
     delivery: 人混みを割る掛け声。リズムよく繰り返して張り上げる。
     situation: 大きな荷を担いで雑踏を縫って進む。
     difficulty: hard

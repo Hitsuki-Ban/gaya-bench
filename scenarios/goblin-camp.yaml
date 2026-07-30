@@ -92,6 +92,7 @@ lines:
     text: ギャッ！ ミツカッタ！
     emotion: fearful
     intensity: 3
+    final_intonation: free
     delivery: >-
       冒頭は言葉でない悲鳴。裏返った最高音から一気に落とし、後半は震える早口。
       息が足りずに語尾が掠れて切れる。
@@ -104,6 +105,7 @@ lines:
     text: ナベ、グツグツ、ウマイ！
     emotion: cheerful
     intensity: 2
+    final_intonation: rise
     delivery: >-
       甲高く舌足らずに。擬音部分だけ弾ませ、語尾を跳ね上げる。
       鼻にかかった濁りを保ったまま明るく。
@@ -152,6 +154,7 @@ lines:
     text: ウオオッ、戦だァ！
     emotion: shout
     intensity: 3
+    final_intonation: free
     delivery: >-
       腹から吐き出す咆哮。冒頭は言葉でない吼え声、そのまま語へ雪崩れ込む。
       低音域を保ったまま音量だけを爆発させ、語尾を長く伸ばして割れさせる。
@@ -176,6 +179,7 @@ lines:
     text: ヒヒ……骨ガ、笑ッテル。
     emotion: laughing
     intensity: 1
+    final_intonation: free
     delivery: >-
       息だけの掠れた含み笑いから入る。枯れた声で、話速は非常に遅い。
       片言の部分だけ音高が不自然に上がり、人語部分は普通に戻る。
@@ -188,6 +192,7 @@ lines:
     text: 火ヲ絶ヤスナ、絶ヤスナ。
     emotion: neutral
     intensity: 2
+    final_intonation: free
     delivery: >-
       詠唱の節回しで、同じ句を二度、二度目は音高を一段下げて繰り返す。
       語尾を歌のように長く揺らす。声はかすれたまま。
@@ -200,6 +205,7 @@ lines:
     text: イタイ、イタイヨォ……
     emotion: pain
     intensity: 2
+    final_intonation: free
     delivery: >-
       老いた高い泣き声。息が漏れて音が続かず、語尾が震えて消える。
       直前の笑い声と同一人物と分かる枯れた音色を保つ。

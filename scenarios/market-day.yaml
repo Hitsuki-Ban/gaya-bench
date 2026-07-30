@@ -47,6 +47,7 @@ lines:
     text: 安いよ安いよ！今朝もぎのリンゴだよ！
     emotion: shout
     intensity: 3
+    final_intonation: rise
     delivery: 通り全体に届く呼び込み。リズムがあり、張っているが濁らない。
     situation: 店先で通行人に向かって声を張り上げている。
     difficulty: hard
@@ -77,6 +78,7 @@ lines:
     text: もうちょっと、まからないの？
     emotion: cheerful
     intensity: 1
+    final_intonation: rise
     delivery: 冗談めかした値切り。上目遣いの甘え声だが本気。
     situation: 店主と顔なじみの値段交渉。
     difficulty: standard
@@ -87,6 +89,7 @@ lines:
     text: わーっ！ごめんよおじさん！
     emotion: surprised
     intensity: 3
+    final_intonation: rise
     delivery: 走りながら叫ぶ。悪びれない明るい謝罪。
     situation: 人混みを駆け抜けて通行人にぶつかりかけた。
     difficulty: hard
@@ -97,6 +100,7 @@ lines:
     text: ねえねえ、剣持ってる！すごーい！
     emotion: cheerful
     intensity: 3
+    final_intonation: rise
     delivery: 興奮した早口。「すごーい」で音程が跳ね上がる。
     situation: 武装したプレイヤーを見つけてはしゃぐ。
     difficulty: hard

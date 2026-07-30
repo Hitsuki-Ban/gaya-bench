@@ -74,6 +74,7 @@ lines:
     text: 次の市電に……間に合うか、急げば。
     emotion: neutral
     intensity: 2
+    final_intonation: free
     delivery: 途切れがちな早口の独り言。語尾が呑み込まれる。
     situation: 懐中時計を見ながら足を速める。
     difficulty: hard
@@ -84,6 +85,7 @@ lines:
     text: それでね、聞いてちょうだいよ、それがねえ。
     emotion: cheerful
     intensity: 2
+    final_intonation: free
     delivery: 前置きばかりが続く早口。抑揚が大きく波打つ。
     situation: 連れの婦人に話の続きを溜めている。
     difficulty: hard
@@ -94,6 +96,7 @@ lines:
     text: まあ、うそでしょう？あはは！
     emotion: laughing
     intensity: 2
+    final_intonation: free
     delivery: 大きな相槌から笑いへ流れる。周りを気にしない声量。
     situation: 連れの話に大げさに反応する。
     difficulty: hard
@@ -114,6 +117,7 @@ lines:
     text: 号外、号外だよー！
     emotion: shout
     intensity: 3
+    final_intonation: rise
     delivery: 通りの端まで届く甲高い売り声。決まった節回しで繰り返す。
     situation: 刷りたての新聞を掲げて売り歩く。
     difficulty: hard
@@ -144,6 +148,7 @@ lines:
     text: あっ、来た来た！おーい、こっち！
     emotion: cheerful
     intensity: 3
+    final_intonation: rise
     delivery: 安堵から一気に張り上げる呼びかけ。手を振る勢いが声に出る。
     situation: 人混みの向こうに相手を見つける。
     difficulty: hard

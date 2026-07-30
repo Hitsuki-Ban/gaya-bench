@@ -53,6 +53,7 @@ lines:
     text: いらっしゃいませ、本日のご用件は？
     emotion: neutral
     intensity: 2
+    final_intonation: rise
     delivery: 定型の丁寧な口上。滑らかで淀みない話速。
     situation: カウンターに来た客へ型通りの挨拶をしている。
     difficulty: standard
@@ -63,6 +64,7 @@ lines:
     text: この依頼、報酬が上がったんですよ
     emotion: cheerful
     intensity: 2
+    final_intonation: free
     delivery: 明るく弾んだ声。相手の反応を期待する語尾。
     situation: 好条件の依頼を勧めながら説明している。
     difficulty: standard
@@ -73,6 +75,7 @@ lines:
     text: うそ、お一人で討伐なさったんですか！？
     emotion: surprised
     intensity: 3
+    final_intonation: rise
     delivery: 思わず声が裏返る。早口で驚きを隠せない。
     situation: 冒険者からの討伐報告を聞いて驚いている。
     difficulty: hard
@@ -123,6 +126,7 @@ lines:
     text: えっ、この依頼こんなに難しいの！？
     emotion: surprised
     intensity: 3
+    final_intonation: rise
     delivery: 声が裏返るほどの驚き。早口でうろたえ気味。
     situation: 依頼書の詳細を読んで難易度に驚いている。
     difficulty: hard
@@ -133,6 +137,7 @@ lines:
     text: つ、次はきっともっと頑張りますから！
     emotion: shout
     intensity: 3
+    final_intonation: free
     delivery: 上ずった大声の意気込み。声変わり特有の不安定さが残る。
     situation: 先輩に叱られた後、奮起して宣言している。
     difficulty: hard

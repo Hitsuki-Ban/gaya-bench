@@ -53,6 +53,7 @@ lines:
     text: おはようさん、今日もええ天気で。
     emotion: cheerful
     intensity: 1
+    final_intonation: free
     delivery: のんびりした挨拶。語尾を伸ばす柔らかい調子。
     situation: 朝、通りかかった村人に挨拶する。
     difficulty: standard
@@ -113,6 +114,7 @@ lines:
     text: 痛っ！木の枝が目に……
     emotion: pain
     intensity: 3
+    final_intonation: free
     delivery: 反射的に叫ぶ短い悲鳴。語尾がしぼんで消える。
     situation: 作業中に木の枝が顔に当たって痛がる。
     difficulty: hard
@@ -133,6 +135,7 @@ lines:
     text: おはようございます、いいお天気で。
     emotion: cheerful
     intensity: 1
+    final_intonation: free
     delivery: 明るく丁寧な挨拶。滑らかで聞き取りやすい調子。
     situation: 洗濯物を干しながら通りがかりの人に挨拶する。
     difficulty: standard
@@ -143,6 +146,7 @@ lines:
     text: こらこら、泥はねさせないの！
     emotion: angry
     intensity: 2
+    final_intonation: rise
     delivery: 叱りつつもどこか楽しげな声。語尾が跳ねる。
     situation: 家畜が水たまりで泥をはねさせたのを見て注意する。
     difficulty: standard
@@ -153,6 +157,7 @@ lines:
     text: はいどう、進め進めー！
     emotion: shout
     intensity: 3
+    final_intonation: rise
     delivery: 家畜への掛け声。腹から出す張りのある大声。
     situation: 牛を促して畑を耕し始める。
     difficulty: hard

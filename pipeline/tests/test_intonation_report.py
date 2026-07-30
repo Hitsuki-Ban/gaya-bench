@@ -293,7 +293,10 @@ class _FakeAnalysisRuntime:
     ) -> dict[str, Any]:
         self.analyze_calls += 1
         assert mora_count == 1
-        assert final_intonation == "fall"
+        expected_intonation = (
+            "rise" if FEMALE_LINE in path.as_posix() else "fall"
+        )
+        assert final_intonation == expected_intonation
         if MALE_LINE in path.as_posix() and path.stem == "take-0001":
             return _prosody(
                 median=100.0,

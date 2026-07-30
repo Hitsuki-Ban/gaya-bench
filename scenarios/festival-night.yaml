@@ -53,6 +53,7 @@ lines:
     text: 焼きとうもろこし、あつあつだよ！
     emotion: shout
     intensity: 3
+    final_intonation: rise
     delivery: 屋台の奥から通りへ向けて張り上げる。語尾を伸ばして耳に残す呼び込み。
     situation: 炭火で焼いたとうもろこしを裏返しながら声を張る。
     difficulty: hard
@@ -63,6 +64,7 @@ lines:
     text: りんご飴だよ、甘くておいしいよ！
     emotion: cheerful
     intensity: 3
+    final_intonation: rise
     delivery: 明るく弾む呼び込み。語尾を跳ね上げてリズムをつける。
     situation: 赤く艶めくりんご飴を並べ直しながら通行人に声をかける。
     difficulty: standard
@@ -73,6 +75,7 @@ lines:
     text: あいよ、まいどありぃ！
     emotion: laughing
     intensity: 2
+    final_intonation: free
     delivery: 受け取った代金をしまいながら笑い混じりに礼を言う。語尾が緩んで崩れる。
     situation: 常連客から代金を受け取り、笑顔で見送る。
     difficulty: hard
@@ -83,6 +86,7 @@ lines:
     text: うおっ、花火始まるぞー！
     emotion: surprised
     intensity: 3
+    final_intonation: rise
     delivery: 夜空を指差して仲間に叫ぶ。息を吸う間もない早口。
     situation: 打ち上げ花火の一発目に気づいて声を上げる。
     difficulty: standard
@@ -123,6 +127,7 @@ lines:
     text: ねえ、綿あめ買ってよぉ！
     emotion: cheerful
     intensity: 3
+    final_intonation: rise
     delivery: 甘えてねだる声。語尾を伸ばして駄々をこねる調子。
     situation: 親の手を引っ張りながら屋台を指差す。
     difficulty: hard
@@ -133,6 +138,7 @@ lines:
     text: きゃー、花火すごーい！
     emotion: surprised
     intensity: 3
+    final_intonation: rise
     delivery: 歓声混じりの高い叫び。語尾が裏返るほど興奮している。
     situation: 打ち上がった花火を見上げて思わず声を上げる。
     difficulty: hard
@@ -143,6 +149,7 @@ lines:
     text: せえのっ、わっしょい！
     emotion: shout
     intensity: 3
+    final_intonation: rise
     delivery: 掛け声のリズムで短く鋭く叫ぶ。腹から出す破裂音気味の声。
     situation: 神輿を担ぎ上げる合図をかけている。
     difficulty: hard
@@ -163,6 +170,7 @@ lines:
     text: がっはっは、今夜は飲むぞー！
     emotion: laughing
     intensity: 3
+    final_intonation: rise
     delivery: 豪快な笑い声から一気に叫びへ切り替わる。腹の底から出る太い声。
     situation: 神輿を納めた後、仲間と乾杯しようと声を張る。
     difficulty: hard
