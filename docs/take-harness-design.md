@@ -505,7 +505,9 @@ uv run --project pipeline --locked --extra qc gaya qc \
   --run-id 2026-07-29T120000Z-qwen-n3
 
 uv run --project pipeline --locked gaya takes finalize \
-  --run-id 2026-07-29T120000Z-qwen-n3
+  --run-id 2026-07-29T120000Z-qwen-n3 \
+  --run-id 2026-07-29T120500Z-voxcpm2-n3 \
+  --output artifacts/releases/2026-07-29-production
 
 uv run --project pipeline --locked gaya publish \
   --release <fixed-release-directory> \
@@ -517,7 +519,8 @@ uv run --project pipeline --locked gaya curate apply \
   --input artifacts/curation/curation.json
 ```
 
-コマンド名の最終決定は実装 ticket で行うが、phase boundary は変えない。
+`takes finalize` は同じscenario source/line snapshotを持つ完全策展済みterminal
+runをmodelごとに1件だけ受理し、generic production releaseを新規作成する。
 `gaya gen` から QC runtime を直接 load せず、`gaya qc` は run ledger を入力にできる
 よう拡張する。公開 manifest を候補 inventory として先に作らない。
 

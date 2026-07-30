@@ -10,6 +10,11 @@ import pytest
 from botocore.exceptions import ClientError, EndpointConnectionError
 
 from gaya_pipeline import cli
+from gaya_pipeline.curation import (
+    build_candidate_set,
+    canonical_candidate_set_bytes,
+    canonical_curation_bytes,
+)
 from gaya_pipeline.publish import (
     CACHE_CONTROL,
     CONTENT_TYPE,
@@ -82,7 +87,12 @@ def _remote_object(
     }
 
 
-def _candidate(line: str, content: bytes) -> dict[str, Any]:
+def _candidate(
+    line: str,
+    content: bytes,
+    *,
+    take_index: int = 1,
+) -> dict[str, Any]:
     sha256 = hashlib.sha256(content).hexdigest()
     input_sha = hashlib.sha256(f"input:{line}".encode()).hexdigest()
     return {
@@ -90,14 +100,14 @@ def _candidate(line: str, content: bytes) -> dict[str, Any]:
         "scenario": "scene-a",
         "line": line,
         "variant": "dry",
-        "take_index": 1,
+        "take_index": take_index,
         "take_id": make_take_id(
             generation_input_sha256=input_sha,
             final_opus_sha256=sha256,
         ),
         "path": (
             f"audio/takes/model-a/scene-a/{line}/dry/"
-            f"take-0001-{sha256}.opus"
+            f"take-{take_index:04d}-{sha256}.opus"
         ),
         "duration_sec": 1.0,
         "sha256": sha256,
@@ -124,11 +134,16 @@ def _candidate(line: str, content: bytes) -> dict[str, Any]:
     }
 
 
-def _manifest(candidates: list[dict[str, Any]]) -> dict[str, Any]:
+def _manifest(
+    candidates: list[dict[str, Any]],
+    *,
+    candidate_set_sha256: str,
+    curation_sha256: str,
+) -> dict[str, Any]:
     return {
         "format_version": 4,
         "generated_at": "2026-07-30T00:00:00Z",
-        "candidate_set_sha256": "a" * 64,
+        "candidate_set_sha256": candidate_set_sha256,
         "models": [
             {
                 "id": "model-a",
@@ -153,9 +168,9 @@ def _manifest(candidates: list[dict[str, Any]]) -> dict[str, Any]:
                 "variant": candidate["variant"],
                 "decision": "selected",
                 "take_id": candidate["take_id"],
-                "curation_sha256": "b" * 64,
+                "curation_sha256": curation_sha256,
             }
-            for candidate in candidates
+            for candidate in _first_candidates_by_group(candidates)
         ],
         "failures": [],
     }
@@ -168,51 +183,161 @@ def _write_canonical(path: Path, document: Any) -> bytes:
     return payload
 
 
+def _first_candidates_by_group(
+    candidates: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    first: dict[tuple[str, str, str, str], dict[str, Any]] = {}
+    for candidate in candidates:
+        identity = tuple(
+            candidate[key] for key in ("model", "scenario", "line", "variant")
+        )
+        first.setdefault(identity, candidate)
+    return [first[identity] for identity in sorted(first)]
+
+
 def _write_release(
     root: Path,
     *,
     contents: tuple[bytes, ...] = (b"opus-a", b"opus-b"),
+    same_group: bool = False,
 ) -> tuple[Path, Path, list[dict[str, Any]]]:
     release_dir = root / "release"
     takes_root = root / "takes"
     run_id = "run-model-a"
-    candidates = [
-        _candidate(f"line-{index}", content)
-        for index, content in enumerate(contents, start=1)
+    candidates = (
+        [
+            _candidate("line-1", content, take_index=index)
+            for index, content in enumerate(contents, start=1)
+        ]
+        if same_group
+        else [
+            _candidate(f"line-{index}", content)
+            for index, content in enumerate(contents, start=1)
+        ]
+    )
+    models = [
+        {
+            "id": "model-a",
+            "name": "Model A",
+            "version": "1",
+            "license_note": "test",
+            "capabilities": {
+                "emotion": False,
+                "voice_prompt": False,
+                "clone": False,
+                "nonverbal": False,
+                "reading": False,
+            },
+        },
     ]
-    manifest = _manifest(candidates)
+    candidate_set = build_candidate_set(
+        scenario_sha256="f" * 64,
+        lines=[
+            {
+                "scenario": candidate["scenario"],
+                "line": candidate["line"],
+                "scenario_title": "Scene A",
+                "text": candidate["line"],
+                "delivery": "test",
+            }
+            for candidate in _first_candidates_by_group(candidates)
+        ],
+        models=models,
+        candidates=candidates,
+        failures=[],
+    )
+    candidate_set_raw = canonical_candidate_set_bytes(candidate_set)
+    candidate_set_sha256 = hashlib.sha256(candidate_set_raw).hexdigest()
+    curation = {
+        "format_version": 1,
+        "rubric_version": "take-curation-v1",
+        "candidate_set_sha256": candidate_set_sha256,
+        "groups": [
+            {
+                "model": candidate["model"],
+                "scenario": candidate["scenario"],
+                "line": candidate["line"],
+                "variant": candidate["variant"],
+                "candidates": [
+                    {
+                        "take_id": member["take_id"],
+                        "path": member["path"],
+                        "audio_sha256": member["sha256"],
+                        "rubric": {
+                            "content_correct": True,
+                            "intent_match": 5,
+                            "character_naturalness": 5,
+                            "adoptable": True,
+                        },
+                    }
+                    for member in candidates
+                    if all(
+                        member[key] == candidate[key]
+                        for key in ("model", "scenario", "line", "variant")
+                    )
+                ],
+                "decision": {
+                    "type": "selected",
+                    "take_id": candidate["take_id"],
+                },
+            }
+            for candidate in _first_candidates_by_group(candidates)
+        ],
+    }
+    curation_raw = canonical_curation_bytes(curation)
+    curation_sha256 = hashlib.sha256(curation_raw).hexdigest()
+    manifest = _manifest(
+        candidates,
+        candidate_set_sha256=candidate_set_sha256,
+        curation_sha256=curation_sha256,
+    )
+    _write_canonical(release_dir / "candidate-set.json", candidate_set)
+    (release_dir / "candidate-set.sha256").write_text(
+        candidate_set_sha256,
+        encoding="ascii",
+    )
+    (release_dir / "curation").mkdir(parents=True, exist_ok=True)
+    (release_dir / "curation" / f"{curation_sha256}.json").write_bytes(
+        curation_raw,
+    )
     manifest_raw = _write_canonical(release_dir / "manifest-v4.json", manifest)
     (release_dir / "manifest-v4.sha256").write_text(
         hashlib.sha256(manifest_raw).hexdigest(),
         encoding="ascii",
     )
-    source_path = takes_root / run_id / "manifest-v4.json"
-    source_path.parent.mkdir(parents=True, exist_ok=True)
-    source_path.write_text(
-        json.dumps(manifest, ensure_ascii=False, indent=2) + "\n",
-        encoding="utf-8",
+    run_root = takes_root / run_id
+    source_path = run_root / "manifest-v4.json"
+    source_raw = _write_canonical(source_path, manifest)
+    (run_root / "candidate-set.json").write_bytes(candidate_set_raw)
+    (run_root / "candidate-set.sha256").write_text(
+        candidate_set_sha256,
+        encoding="ascii",
     )
-    source_raw = source_path.read_bytes()
+    ledger_raw = _write_canonical(run_root / "ledger.json", {"fixture": "ledger"})
+    qc_report_raw = _write_canonical(
+        run_root / "qc-report.json",
+        {"fixture": "qc-report"},
+    )
     provenance = {
         "format_version": 1,
-        "plan_sha256": "c" * 64,
+        "candidate_set_sha256": candidate_set_sha256,
+        "manifest_sha256": hashlib.sha256(manifest_raw).hexdigest(),
         "runs": [
             {
                 "model": "model-a",
                 "run_id": run_id,
-                "ledger_path": "C:/fixed/ledger.json",
-                "ledger_sha256": "d" * 64,
-                "qc_report_sha256": "e" * 64,
+                "ledger_sha256": hashlib.sha256(ledger_raw).hexdigest(),
+                "qc_report_sha256": hashlib.sha256(qc_report_raw).hexdigest(),
                 "manifest_sha256": hashlib.sha256(source_raw).hexdigest(),
-                "candidate_set_sha256": manifest["candidate_set_sha256"],
+                "candidate_set_sha256": candidate_set_sha256,
             },
         ],
     }
     provenance_raw = _write_canonical(
-        release_dir / "baseline-provenance.json",
+        release_dir / "release-provenance.json",
         provenance,
     )
-    (release_dir / "baseline-provenance.sha256").write_text(
+    (release_dir / "release-provenance.sha256").write_text(
         hashlib.sha256(provenance_raw).hexdigest(),
         encoding="ascii",
     )
@@ -225,11 +350,62 @@ def _write_release(
             / candidate["scenario"]
             / candidate["line"]
             / candidate["variant"]
-            / "take-0001.opus"
+            / f"take-{candidate['take_index']:04d}.opus"
         )
         local_path.parent.mkdir(parents=True, exist_ok=True)
         local_path.write_bytes(content)
     return release_dir, takes_root, candidates
+
+
+def _drop_second_release_candidate(release_dir: Path) -> None:
+    candidate_set_path = release_dir / "candidate-set.json"
+    candidate_set = json.loads(candidate_set_path.read_bytes())
+    candidate_set["candidates"] = candidate_set["candidates"][:1]
+    kept_take_id = candidate_set["candidates"][0]["take_id"]
+    candidate_set_raw = canonical_candidate_set_bytes(candidate_set)
+    candidate_set_sha256 = hashlib.sha256(candidate_set_raw).hexdigest()
+    candidate_set_path.write_bytes(candidate_set_raw)
+    (release_dir / "candidate-set.sha256").write_text(
+        candidate_set_sha256,
+        encoding="ascii",
+    )
+
+    old_curation_path = next((release_dir / "curation").glob("*.json"))
+    curation = json.loads(old_curation_path.read_bytes())
+    curation["candidate_set_sha256"] = candidate_set_sha256
+    curation["groups"][0]["candidates"] = [
+        candidate
+        for candidate in curation["groups"][0]["candidates"]
+        if candidate["take_id"] == kept_take_id
+    ]
+    curation_raw = canonical_curation_bytes(curation)
+    curation_sha256 = hashlib.sha256(curation_raw).hexdigest()
+    old_curation_path.unlink()
+    (release_dir / "curation" / f"{curation_sha256}.json").write_bytes(
+        curation_raw,
+    )
+
+    manifest_path = release_dir / "manifest-v4.json"
+    manifest = json.loads(manifest_path.read_bytes())
+    manifest["candidate_set_sha256"] = candidate_set_sha256
+    manifest["candidates"] = manifest["candidates"][:1]
+    manifest["curations"][0]["curation_sha256"] = curation_sha256
+    manifest_raw = _write_canonical(manifest_path, manifest)
+    manifest_sha256 = hashlib.sha256(manifest_raw).hexdigest()
+    (release_dir / "manifest-v4.sha256").write_text(
+        manifest_sha256,
+        encoding="ascii",
+    )
+
+    provenance_path = release_dir / "release-provenance.json"
+    provenance = json.loads(provenance_path.read_bytes())
+    provenance["candidate_set_sha256"] = candidate_set_sha256
+    provenance["manifest_sha256"] = manifest_sha256
+    provenance_raw = _write_canonical(provenance_path, provenance)
+    (release_dir / "release-provenance.sha256").write_text(
+        hashlib.sha256(provenance_raw).hexdigest(),
+        encoding="ascii",
+    )
 
 
 def test_first_publishはconditional_putしsecondは全skip(
@@ -308,6 +484,20 @@ def test_remote_checksum欠落はmetadata一致でもzero_put(
     assert client.put_calls == []
 
 
+def test_releaseはsource_group内の全candidateをexact投影する(
+    tmp_path: Path,
+) -> None:
+    release, takes, _candidates = _write_release(tmp_path, same_group=True)
+    _drop_second_release_candidate(release)
+    client = FakeS3Client()
+
+    with pytest.raises(PublishError, match="release 投影が exact"):
+        run_publish(release_dir=release, takes_root=takes, client=client)
+
+    assert client.head_calls == []
+    assert client.put_calls == []
+
+
 @pytest.mark.parametrize(
     "mutation",
     [
@@ -368,17 +558,17 @@ def test_provenance非文字列は変換せずnetwork前に拒否(
     bad_value: object,
 ) -> None:
     release, takes, _candidates = _write_release(tmp_path)
-    path = release / "baseline-provenance.json"
+    path = release / "release-provenance.json"
     document = json.loads(path.read_bytes())
     document["runs"][0]["run_id"] = bad_value
     raw = _write_canonical(path, document)
-    (release / "baseline-provenance.sha256").write_text(
+    (release / "release-provenance.sha256").write_text(
         hashlib.sha256(raw).hexdigest(),
         encoding="ascii",
     )
     client = FakeS3Client()
 
-    with pytest.raises(PublishError, match="全項目は文字列"):
+    with pytest.raises(PublishError, match="path segment"):
         run_publish(release_dir=release, takes_root=takes, client=client)
 
     assert client.head_calls == []
@@ -389,17 +579,17 @@ def test_provenance_run_idのcontainment違反はnetwork前に拒否(
     tmp_path: Path,
 ) -> None:
     release, takes, _candidates = _write_release(tmp_path)
-    path = release / "baseline-provenance.json"
+    path = release / "release-provenance.json"
     document = json.loads(path.read_bytes())
     document["runs"][0]["run_id"] = "../outside"
     raw = _write_canonical(path, document)
-    (release / "baseline-provenance.sha256").write_text(
+    (release / "release-provenance.sha256").write_text(
         hashlib.sha256(raw).hexdigest(),
         encoding="ascii",
     )
     client = FakeS3Client()
 
-    with pytest.raises(PublishError, match="安全な path segment"):
+    with pytest.raises(PublishError, match="path segment"):
         run_publish(release_dir=release, takes_root=takes, client=client)
 
     assert client.head_calls == []
@@ -407,11 +597,11 @@ def test_provenance_run_idのcontainment違反はnetwork前に拒否(
 
 
 def _rewrite_provenance_manifest_sha(release: Path, source_raw: bytes) -> None:
-    path = release / "baseline-provenance.json"
+    path = release / "release-provenance.json"
     document = json.loads(path.read_bytes())
     document["runs"][0]["manifest_sha256"] = hashlib.sha256(source_raw).hexdigest()
     raw = _write_canonical(path, document)
-    (release / "baseline-provenance.sha256").write_text(
+    (release / "release-provenance.sha256").write_text(
         hashlib.sha256(raw).hexdigest(),
         encoding="ascii",
     )

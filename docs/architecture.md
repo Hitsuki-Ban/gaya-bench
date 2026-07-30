@@ -16,7 +16,9 @@ pipeline (Python/uv) ── モデル別アダプタ ──▶ artifacts/takes/<
     │                  └──▶ curation.json download
     │                            └──▶ gaya curate apply --run-id ... --input ...
     │
-    └──▶ 固定 release manifest v4
+    └──▶ gaya takes finalize --run-id ... --output ...
+              └──▶ 固定 release bundle
+                    (candidate set + aggregate curation + manifest v4 + provenance)
               │
               ├──▶ `gaya publish` ── 全ローカル検証・全R2 preflight・条件付きPUT ──▶ Cloudflare R2
               │
@@ -33,6 +35,7 @@ pipeline (Python/uv) ── モデル別アダプタ ──▶ artifacts/takes/<
   - `gaya gen --model <id> --takes <N> --seed-base <S> [--scenario <id>] [--line <id>]` — run ledger 単位の候補生成
   - `gaya qc --run-id <id>` — run ledger の全 take を gate し、terminal run の local manifest v4 snapshot を確定
   - `gaya curate apply --run-id <id> --input <curation.json>` — ローカル策展 artifact を再検証し、immutable 保存と run-local projection 更新を行う
+  - `gaya takes finalize --run-id <id>... --output <dir>` — modelごとに1件の完全策展済みterminal runを、単一のcanonical production releaseへ確定
   - `gaya publish --release <dir> --takes-root <dir> --env-file <path>` — 固定 release と source run を全件検証し、immutable OpusをR2へ原子的に公開する
 - **アダプタインターフェース**: `LineJob { scene, character, line, locale }` を受け取り音声を返す。モデル固有の入力形式 (スタイルプロンプト / 感情タグ / 参照音声) への変換はアダプタが担う
 - **capability profile**: アダプタごとに「スキーマのどのフィールドを解釈できるか」を宣言 (emotion対応 / voice記述対応 / クローン対応 / 非言語音対応...)。manifestに含め、サイトでバッジ表示する
@@ -40,6 +43,7 @@ pipeline (Python/uv) ── モデル別アダプタ ──▶ artifacts/takes/<
 - **ledger 更新**: `gaya gen` は `artifacts/takes/<run-id>/ledger.json` だけを操作履歴として原子的に checkpoint し、公開 manifest は更新しない。1 attempt の失敗は `generation_failed` として記録して残りを続行し、最後に非ゼロ終了を返す。再生成は既存 slot を変更せず新しい run で行う
 - **take gate**: `gaya qc` は別 process で run ledger、sidecar、最終 Opus を再検証する。gate policy `take-gates-v2` では mechanical failure と active speech 0 だけを hard reject とし、content は `not_run` にする。明示 reading mismatch と推定 reading は ASR transcript、Kana-CER、mismatch、review reason を format v2 QC report に残した `review_required` の eligible candidate とする。環境・provenance・解析不能は `blocked`、韻律値は report-only であり、blocked/non-terminal run には v4 snapshot を作らない。terminal run の再 QC は既存の完全な v2 report を先に検証し、欠損・破損・旧 policy なら新しい run を要求する。未策展 snapshot の再 QC は report 検証後に `manifest-v4.json` → digest marker → candidate set の順で旧 ready state を失効させる。curation projection が 1 件でもある run は、判断消失を防ぐため何も削除せず fail-fast し、新しい run を要求する
 - **ローカル策展境界**: terminal run の QC は candidate inventory、ledger の scenario source SHA、生成時の台詞・演技表示 snapshot を Python canonical JSON の `candidate-set.json` に保存する。SHA-256 は exact `candidate-set.sha256` と v4 manifest の `candidate_set_sha256` の両方へ固定し、candidate set → digest marker → manifest ready marker の順で原子的に確定する。browser は利用者が明示的に選択した run directory の三者と物理 Opus だけを読み、三者の digest、表示 snapshot、音声 SHA-256 を照合する。download された decision artifact は `gaya curate apply --run-id ... --input ...` が terminal ledger、現行 scenario source、各 eligible take の sidecar/WAV/Opus、candidate inventory、既存 immutable artifact 間の一意な group 判断を repository 更新前に再検証する。追跡対象の公開 manifest と既存 A/B vote storage はこの段階では変更しない
+- **release確定境界**: `gaya takes finalize` は同じscenario source/line snapshotを持つ実modelのrunだけを受理し、テスト専用`dummy`を拒否した上で、modelごとの一意性、terminal ledger、QC、source snapshot、candidate set、全candidate groupのimmutable curation、物理audio provenanceを再検証する。成功時だけaggregate candidate set、単一`take-curation-v1`、manifest v4、`release-provenance.json`とSHA markerを新規directoryへ確定する。旧baseline専用provenance、既存outputの上書き、暗黙run選択、欠損値fallbackはない
 - **正規化・エンコードの方針**: 後処理 algorithm v7 は全クリップを2-pass loudnormで -18 LUFS / mono / 48kHz に正規化し、`pre_encode_true_peak_target_dbtp` を -1.75 dBTP に固定する。落盤後のPCMを再測定し、ピーク制約で目標LUFSに届かない場合は最大2回のlookahead limiter補正を行う。各 WAV は libopus 64kbps VBR / application audio で1回だけエンコードする。公開 Opus をデコードして再測定し、Integrated Loudness が -18 ±1.5 LUFS を外れるか、True Peak が `distribution_true_peak_max_dbtp` の -0.9 dBTP を上回る場合は生成を失敗させる。±0.2 LUFSを外れるが硬い許容範囲内にあるクリップは manifest の `loudness.shortfall` を `true` にする。エンコード前目標は最終配信上限の代替ではなく、codec overshoot を抑えるためのヘッドルームであり、最終 Opus gate は常に fail-fast で適用する。候補値の根拠は [Opus配信用True Peakエンコード前シーリング実測](research/opus-true-peak-ceiling.md) に記録する。モデル間の音量差による印象バイアスを抑える一方、囁き/叫びの意図的な音量差が失われる副作用は +α の scene バリアント (距離感シミュレーション) で補う。Opus は Ogg muxer の format bitexact を有効にして、同一ツールチェーン・同一PCMから同一ファイルhashを生成する
 - **現行 N-take sidecar / ledger (v1)**: 各 take の sidecar は run/slot、明示的 seed/sampling、`generation_input_sha256`、最終 Opus に拘束した `take_id`、WAV/Opus hash、実行した ffmpeg/ffprobe version と libopus capability、algorithm v7 の loudness provenance を保持する。ledger は sidecar 自体の SHA-256 も固定し、QC 後の parameter 改変を拒否する。toolchain identity も generation input hash に含め、異なる encoder build の artifact は whole-run cache に再利用しない
 - **公開baseline策展の確定履歴**: 旧v3 raw manifest、381 group、7つのN=1 run、旧公開referenceを固定して人評した一回限りの移行証拠は [`docs/research/baseline-v4/release/`](research/baseline-v4/release/) に保持する。公開v4は220 candidate、166 selected、54 skipped、Dummy由来の`test_only_adapter` failure 161件を含む。移行専用のbaseline CLIと画面はcutover後の通常経路には残さない
@@ -82,11 +86,11 @@ pipeline (Python/uv) ── モデル別アダプタ ──▶ artifacts/takes/<
 - **公開URL**: custom domain `https://audio.gaya-bench.hitsuki.space/`。本番 `VITE_AUDIO_BASE` もこの値を使う。rate limit 付き開発用 `r2.dev` は有効化しない
 - **CORS**: [infra/r2-cors.json](../infra/r2-cors.json) を正とし、Pages 本番・preview originとローカル開発 originの `GET` / `HEAD` を許可する
 - **bucket lock**: rule `gaya-bench-audio-takes-immutable` が `audio/takes/` を無期限保持する。新しいcontent-addressed keyの作成は許可し、作成済みobjectの上書き・削除はstorage layerで拒否する。publisherのS3 credentialはこのbucketのObject Read & Writeだけを持ち、lock設定は変更できない
-- **原子的公開**: `gaya publish` は固定release、source manifest、candidate allow-listと全物理Opusをnetwork call前に検証する。その後全objectを`HEAD`し、同じSHA・サイズ・HTTP metadataはskip、既存keyの不一致は一件も`PUT`せず失敗する。欠落objectだけを`If-None-Match: *`とchecksum付きで単段uploadし、最後に全件を再`HEAD`する。keyはcontent-addressedなので`Cache-Control: public, max-age=31536000, immutable`とする
+- **原子的公開**: `gaya publish` は固定releaseのcandidate set、aggregate curation、manifest、generic provenance、source snapshot、candidate allow-listと全物理Opusをnetwork call前に検証する。その後全objectを`HEAD`し、同じSHA・サイズ・HTTP metadataはskip、既存keyの不一致は一件も`PUT`せず失敗する。欠落objectだけを`If-None-Match: *`とchecksum付きで単段uploadし、最後に全件を再`HEAD`する。keyはcontent-addressedなので`Cache-Control: public, max-age=31536000, immutable`とする
 - **manifest**: R2全件検証後、固定releaseと同一bytesの`data/manifest.json`をコミットする。これによりbuildの決定性とPRレビュー可能性を保つ
 - **生成メタ**: 入力hash・WAV/Opus hash・生成時間・RTF・後処理結果を `artifacts/takes/<run-id>/audio/<model>/<scenario>/<line>/<variant>/take-<index>.json` に保存し、run root の `ledger.json` から参照する (git管理外)
 - **ローカル策展メタ**: terminal run root の `candidate-set.json` は candidate set identity と生成時の表示 snapshot の canonical bytes を保持し、`candidate-set.sha256` と v4 manifest が同じ digest を固定する。確定した decision artifact は `data/curation/<curation_sha256>.json` に immutable 保存し、run-local v4 snapshot の `curations` はその SHA を参照する selected/skipped projection とする。累積 export で既存 group が再登場した場合は、既存 artifact 内の完全な group 内容と一致するときだけ旧 projection/SHA を維持して新規 group を追加する
-- **baseline release**: `artifacts/baseline-v4/`は生成・QC・人評時のgit管理外artifact、追跡対象の[`docs/research/baseline-v4/release/`](research/baseline-v4/release/)は音声binaryを含まない確定metadataである。publisherは後者だけを公開authorityとして受理する
+- **baseline release**: `artifacts/baseline-v4/`は生成・QC・人評時のgit管理外artifact、追跡対象の[`docs/research/baseline-v4/release/`](research/baseline-v4/release/)は音声binaryを含まない確定metadataである。これは通常releaseと同じgeneric provenance/curation契約へ移行済みで、publisherにbaseline専用経路はない
 - **ローカル音声モード**: `site/public/` 配下にmanifestのimmutable pathと同じ構造で明示的に配置し、`VITE_AUDIO_BASE=/`で参照する
 
 ## サイト (`site/`)
