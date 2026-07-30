@@ -33,13 +33,15 @@ export function buildPilotDecisionJson(catalog: PilotCatalog, draft: PilotDecisi
 
 export function downloadPilotDecisionJson(contents: string): void {
   const url = URL.createObjectURL(new Blob([contents], { type: "application/json" }));
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = "pilot-decision.json";
+  document.body.append(anchor);
   try {
-    const anchor = document.createElement("a");
-    anchor.href = url;
-    anchor.download = "pilot-decision.json";
     anchor.click();
   } finally {
-    URL.revokeObjectURL(url);
+    anchor.remove();
+    globalThis.setTimeout(() => URL.revokeObjectURL(url), 0);
   }
 }
 
