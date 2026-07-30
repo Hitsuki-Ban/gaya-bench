@@ -15,8 +15,8 @@ import { Button } from "@/components/ui/button";
 const navigation = [
   { to: "/", label: "比較", icon: SlidersHorizontal, end: true },
   { to: "/ab", label: "A/B", icon: FlaskConical, end: false },
-  { to: "/curate", label: "策展", icon: FolderCheck, end: true },
-  { to: "/pilot", label: "Pilot", icon: ListChecks, end: false },
+  { to: "/curate", label: "音声選定", icon: FolderCheck, end: true },
+  { to: "/pilot", label: "事前確認", icon: ListChecks, end: false },
   { to: "/credits", label: "クレジット", icon: Scale, end: false },
 ] as const;
 
@@ -85,7 +85,9 @@ export function MachineGeneratedAudioNotice() {
       className="mb-5 rounded-md border border-primary/25 bg-primary/6 px-3 py-2 text-xs leading-5 text-muted-foreground"
       role="note"
     >
-      掲載音声は AI テキスト読み上げ（TTS）により機械生成されています。
+      {
+        "掲載音声は AI テキスト読み上げ（TTS）により機械生成されています。品質注記は自動判定であり、人手確認は順次実施中です。"
+      }
     </p>
   );
 }

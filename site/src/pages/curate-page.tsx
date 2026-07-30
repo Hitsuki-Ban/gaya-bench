@@ -47,7 +47,7 @@ export function CuratePage() {
   const [groupIndex, setGroupIndex] = useState(0);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState("run root を選択すると、検証後に策展を開始します。");
+  const [notice, setNotice] = useState("生成フォルダーを選ぶと、検証後に音声選定を開始します。");
 
   useEffect(() => {
     return () => {
@@ -80,7 +80,7 @@ export function CuratePage() {
       try {
         setDraft(readCurationDraft(localStorage, loaded));
         setNotice(
-          `${loaded.groups.length} group を読み込みました。candidate set ${loaded.candidateSetSha256.slice(0, 12)}…`,
+          `${loaded.groups.length} 項目を読み込みました。候補セット ${loaded.candidateSetSha256.slice(0, 12)}…`,
         );
       } catch (reason: unknown) {
         setError(errorMessage(reason));
@@ -93,7 +93,7 @@ export function CuratePage() {
         return;
       }
       setError(errorMessage(reason));
-      setNotice("run root を読み込めませんでした。");
+      setNotice("生成フォルダーを読み込めませんでした。");
     } finally {
       if (loadToken === loadTokenRef.current) {
         setBusy(false);
@@ -136,7 +136,7 @@ export function CuratePage() {
     try {
       downloadCurationJson(buildCurationJson(catalog, draft));
       setError(null);
-      setNotice("決定済み group を deterministic curation.json としてダウンロードしました。");
+      setNotice("決定済み項目を curation.json としてダウンロードしました。");
     } catch (reason: unknown) {
       setError(errorMessage(reason));
     }
@@ -149,23 +149,23 @@ export function CuratePage() {
   return (
     <div className="space-y-5">
       <PageIntro
-        description="ローカル run の eligible take を匿名で確認し、rubric と採否を candidate set に拘束して保存します。ブラウザーは repository を変更しません。"
-        eyebrow="Local take curation"
-        title="テイク策展"
+        description="候補音声を匿名で確認し、ページに示した基準で採否を記録します。ファイルは外部へ送信されません。"
+        eyebrow="ローカル音声選定"
+        title="公開する音声を選ぶ"
       />
 
       <Card className="ring-primary/25">
         <CardHeader>
-          <CardTitle>run root を選択</CardTitle>
+          <CardTitle>生成フォルダーを選択</CardTitle>
           <CardDescription>
-            manifest-v4.json、candidate-set.json、candidate-set.sha256、audio/ を含む run
-            rootを選択してください。ファイルはサーバーへ送信されません。
+            manifest-v4.json、candidate-set.json、candidate-set.sha256、audio/
+            を含むフォルダーを選択してください。
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-wrap items-center gap-3">
           <label className="inline-flex min-h-9 cursor-pointer items-center gap-2 rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground hover:bg-primary/80">
             <FolderOpen aria-hidden="true" className="size-4" />
-            {busy ? "検証中…" : "run root を選択"}
+            {busy ? "検証中…" : "生成フォルダーを選択"}
             <input
               accept=".json,.opus,.sha256"
               className="sr-only"
@@ -197,7 +197,7 @@ export function CuratePage() {
               <AlertTriangle aria-hidden="true" />
               拒否
             </Badge>
-            <CardTitle>策展データを使用できません</CardTitle>
+            <CardTitle>音声選定データを使用できません</CardTitle>
             <CardDescription>{error}</CardDescription>
           </CardHeader>
           {catalog ? (
@@ -225,17 +225,12 @@ export function CuratePage() {
             decision={groupDraft.decision}
             group={group}
             onClearDecision={() =>
-              commitDraft(
-                clearGroupDecision(draft, groupKey(group)),
-                "group を未策展へ戻しました。",
-              )
+              commitDraft(clearGroupDecision(draft, groupKey(group)), "項目を未判断へ戻しました。")
             }
             onDecision={(decision) =>
               commitDraft(
                 setGroupDecision(draft, groupKey(group), decision),
-                decision.type === "skipped"
-                  ? "group を skip しました。"
-                  : "candidate を選択しました。",
+                decision.type === "skipped" ? "項目を見送りました。" : "候補を選択しました。",
               )
             }
             onNext={() => setGroupIndex((index) => Math.min(index + 1, catalog.groups.length - 1))}
@@ -282,11 +277,11 @@ function CurationSummary({
               {current + 1} / {total}
             </Badge>
             <Badge variant="outline">選択 {progress.selected}</Badge>
-            <Badge variant="outline">skip {progress.skipped}</Badge>
-            <Badge variant="outline">未策展 {progress.uncurated}</Badge>
+            <Badge variant="outline">見送り {progress.skipped}</Badge>
+            <Badge variant="outline">未判断 {progress.uncurated}</Badge>
           </div>
           <div
-            aria-label="策展進捗"
+            aria-label="音声選定の進捗"
             aria-valuemax={total}
             aria-valuemin={0}
             aria-valuenow={progress.selected + progress.skipped}
@@ -302,11 +297,11 @@ function CurationSummary({
         <div className="flex flex-wrap gap-2">
           <Button onClick={onExport} variant="outline">
             <Download aria-hidden="true" />
-            curation.json
+            選定結果を保存
           </Button>
           <Button onClick={onReset} variant="destructive">
             <RotateCcw aria-hidden="true" />
-            draft をリセット
+            一時保存をリセット
           </Button>
         </div>
       </CardContent>
@@ -354,7 +349,7 @@ function GroupEditor({
             <Badge>{group.model}</Badge>
             <Badge variant="secondary">{group.scenarioTitle}</Badge>
             <Badge variant="outline">{group.variant}</Badge>
-            <Badge variant="outline">{group.candidates.length} candidates</Badge>
+            <Badge variant="outline">候補 {group.candidates.length}</Badge>
           </div>
           <CardTitle className="mt-2 text-xl leading-8" id="curation-group-heading">
             {group.lineText}
@@ -387,10 +382,9 @@ function GroupEditor({
 
       <Card>
         <CardHeader>
-          <CardTitle>group の判断</CardTitle>
+          <CardTitle>この項目の判断</CardTitle>
           <CardDescription>
-            全 candidate の rubric が揃うと選択または skip
-            できます。選択には内容正解かつ採用可が必要です。
+            全候補の判断基準を入力すると、選択または見送りに進めます。選択には内容正解かつ採用可が必要です。
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-wrap items-center gap-2">
@@ -400,31 +394,31 @@ function GroupEditor({
             variant="outline"
           >
             <SkipForward aria-hidden="true" />
-            全候補を skip
+            全候補を見送る
           </Button>
           {decision ? (
             <>
               <Badge variant="secondary">
                 {decision.type === "skipped"
-                  ? "策展済み: skipped"
-                  : `策展済み: 候補 ${selectedLabel}`}
+                  ? "判断済み: 見送り"
+                  : `判断済み: 候補 ${selectedLabel}`}
               </Badge>
               <Button onClick={onClearDecision} variant="ghost">
-                未策展に戻す
+                未判断に戻す
               </Button>
             </>
           ) : (
-            <Badge variant="outline">未策展</Badge>
+            <Badge variant="outline">未判断</Badge>
           )}
         </CardContent>
       </Card>
 
       <div className="flex justify-between gap-3">
         <Button disabled={position === 0} onClick={onPrevious} variant="outline">
-          前の group
+          前の項目
         </Button>
         <Button disabled={position + 1 >= total} onClick={onNext} variant="outline">
-          次の group
+          次の項目
         </Button>
       </div>
     </section>
@@ -459,9 +453,9 @@ function CandidateEditor({
           </span>
           <div className="flex gap-2">
             {candidate.gateContent === "review_required" ? (
-              <Badge variant="destructive">内容確認必須</Badge>
+              <Badge variant="destructive">自動QC: 要確認</Badge>
             ) : (
-              <Badge variant="outline">gate pass</Badge>
+              <Badge variant="outline">自動QC通過</Badge>
             )}
             {selected ? <Badge>選択中</Badge> : null}
           </div>

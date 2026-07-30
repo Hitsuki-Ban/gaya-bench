@@ -4,6 +4,7 @@ import { Link } from "react-router";
 import { CharacterKindBadge } from "@/components/character-kind-badge";
 import { Badge } from "@/components/ui/badge";
 import type { ComparisonProjection } from "@/filters";
+import { DIFFICULTY_LABELS, EMOTION_LABELS } from "@/ui-labels";
 
 import { MatrixCell } from "./matrix-cell";
 import { resolveCursor, type ComparisonModel, type Coordinate } from "./model";
@@ -131,11 +132,13 @@ export function MobileMatrix({ controller, model, projection, search }: MobileMa
               <p className="mt-1 text-sm leading-6">{row.line.text}</p>
               <div className="my-3 flex flex-wrap gap-1.5">
                 <Badge className="font-mono text-[9px]" variant="outline">
-                  {row.line.emotion}
+                  {EMOTION_LABELS[row.line.emotion]}
                 </Badge>
-                <Badge className="font-mono text-[9px]" variant="secondary">
-                  {row.line.difficulty}
-                </Badge>
+                {row.line.difficulty === "hard" ? (
+                  <Badge className="font-mono text-[9px]" variant="destructive">
+                    {DIFFICULTY_LABELS[row.line.difficulty]}
+                  </Badge>
+                ) : null}
               </div>
               <MatrixCell
                 accessibleLabel={`${row.character.name}「${row.line.text}」`}

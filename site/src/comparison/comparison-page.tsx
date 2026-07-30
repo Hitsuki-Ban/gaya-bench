@@ -18,7 +18,8 @@ import {
 
 import { DesktopMatrix } from "./desktop-matrix";
 import { FilterToolbar } from "./filter-toolbar";
-import { buildComparisonModel } from "./model";
+import { focusCoordinate } from "./matrix-focus";
+import { buildComparisonModel, type Coordinate } from "./model";
 import { MobileMatrix } from "./mobile-matrix";
 import { useComparisonController, type SequenceDirection } from "./use-comparison-controller";
 import { useMediaQuery } from "./use-media-query";
@@ -80,29 +81,46 @@ function FilteredComparisonPage({
   const controller = useComparisonController(comparisonModel, projection);
   const isDesktop = useMediaQuery("(min-width: 768px)");
   const filteredSelectedCount = useMemo(() => countProjectionSelected(projection), [projection]);
+  const firstPlayableCoordinate = useMemo(
+    () => findFirstPlayableCoordinate(projection),
+    [projection],
+  );
+  const playFirst = useCallback(() => {
+    if (!firstPlayableCoordinate) {
+      return;
+    }
+    controller.selectAndToggle(firstPlayableCoordinate);
+    focusCoordinate(firstPlayableCoordinate);
+  }, [controller, firstPlayableCoordinate]);
 
   return (
     <div className="space-y-4">
       <PageIntro
         aside={
-          <div className="grid min-w-64 grid-cols-3 gap-px overflow-hidden rounded-md border bg-border">
-            <Metric
-              label="lines"
-              value={`${projection.rows.length}/${comparisonModel.rows.length}`}
-            />
-            <Metric
-              label="selected"
-              value={`${filteredSelectedCount}/${selectedCandidates.length}`}
-            />
-            <Metric
-              label="models"
-              value={`${projection.models.length}/${comparisonModel.models.length}`}
-            />
+          <div className="flex w-full flex-col gap-2 lg:w-auto lg:min-w-80">
+            <Button disabled={firstPlayableCoordinate === null} onClick={playFirst} size="lg">
+              <Play aria-hidden="true" data-icon="inline-start" />
+              まず聴いてみる
+            </Button>
+            <div className="grid grid-cols-3 gap-px overflow-hidden rounded-md border bg-border">
+              <Metric
+                label="セリフ"
+                value={`${projection.rows.length}/${comparisonModel.rows.length}`}
+              />
+              <Metric
+                label="音声"
+                value={`${filteredSelectedCount}/${selectedCandidates.length}`}
+              />
+              <Metric
+                label="モデル"
+                value={`${projection.models.length}/${comparisonModel.models.length}`}
+              />
+            </div>
           </div>
         }
-        description="行はセリフ、列はモデル。方向キーで比較対象を移動し、そのまま再生できます。未生成セルも含め、全シナリオを同じ座標系で確認します。"
-        eyebrow="Comparison matrix / Tactical Console"
-        title="聴き比べの摩擦を、最小に。"
+        description="同じセリフをモデルごとに、その場で再生して比べられます。"
+        eyebrow="聴き比べ"
+        title="日本語TTSのゲームガヤ演技を聴き比べる"
       />
 
       <FilterToolbar
@@ -159,14 +177,14 @@ function MatrixToolbar({
       <div className="flex flex-wrap items-center gap-2">
         <Badge variant="outline">
           <AudioWaveform aria-hidden="true" data-icon="inline-start" />
-          -18 LUFS 目標 / mono / 48kHz
+          <span title="-18 LUFS 目標 / mono / 48kHz">音量を揃えて比較</span>
         </Badge>
         <Badge variant="secondary">表示モデル {visibleModelCount}</Badge>
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
         <span className="font-mono text-[10px] tracking-wider text-muted-foreground uppercase">
-          Continuous
+          連続再生
         </span>
         <DirectionButton
           active={controller.direction === "row"}
@@ -346,8 +364,8 @@ function Transport({
             <span>{formatTime(progress.currentTime)}</span>
             <span>
               {controller.sequence
-                ? `${controller.sequence.itemIndex + 1}/${controller.sequence.queue.items.length} · skip ${controller.sequence.queue.skippedCount}`
-                : controller.player.status}
+                ? `${controller.sequence.itemIndex + 1}/${controller.sequence.queue.items.length} · 未収録 ${controller.sequence.queue.skippedCount}`
+                : playbackStatusLabel(controller.player.status)}
             </span>
             <span>{formatTime(duration)}</span>
           </div>
@@ -373,13 +391,13 @@ function InvalidFilterQuery({
     <div className="space-y-6">
       <PageIntro
         description="URL のフィルタ指定を読み取れませんでした。値を確認するか、初期状態へ戻してください。"
-        eyebrow="Comparison matrix / Invalid filter"
+        eyebrow="聴き比べ / フィルタ指定エラー"
         title="共有リンクの条件が無効です。"
       />
       <div className="rounded-lg border border-destructive/40 bg-destructive/5 p-5">
         <h2 className="flex items-center gap-2 text-sm font-semibold text-destructive">
           <AlertTriangle aria-hidden="true" className="size-4" />
-          Filter query error
+          フィルタ指定を確認してください
         </h2>
         <ul className="mt-3 list-disc space-y-1 pl-5 text-sm text-muted-foreground">
           {issues.map((issue, index) => (
@@ -408,15 +426,37 @@ function countProjectionSelected(projection: ComparisonProjection): number {
   return count;
 }
 
+function findFirstPlayableCoordinate(projection: ComparisonProjection): Coordinate | null {
+  for (const { rowIndex } of projection.rows) {
+    for (const model of projection.models) {
+      const coordinate = { rowIndex, modelId: model.id };
+      if (comparisonModel.getCell(coordinate)?.kind === "selected") {
+        return coordinate;
+      }
+    }
+  }
+  return null;
+}
+
 function Metric({ label, value }: { label: string; value: string }) {
   return (
     <div className="bg-card px-4 py-3 text-center">
       <p className="font-mono text-lg text-foreground">{value}</p>
-      <p className="font-mono text-[10px] tracking-wider text-muted-foreground uppercase">
-        {label}
-      </p>
+      <p className="text-[10px] tracking-wider text-muted-foreground">{label}</p>
     </div>
   );
+}
+
+function playbackStatusLabel(
+  status: ReturnType<typeof useComparisonController>["player"]["status"],
+) {
+  return {
+    idle: "停止中",
+    loading: "読込中",
+    playing: "再生中",
+    paused: "一時停止",
+    error: "再生エラー",
+  }[status];
 }
 
 function formatTime(seconds: number): string {

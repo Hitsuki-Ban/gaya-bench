@@ -2,6 +2,7 @@ import type { Age, CharacterKind, Difficulty, Emotion, Gender } from "../data/ty
 
 export const FILTER_QUERY_KEYS = [
   "scenario",
+  "empty",
   "kind",
   "gender",
   "age",
@@ -11,10 +12,11 @@ export const FILTER_QUERY_KEYS = [
 ] as const;
 
 export type FilterQueryKey = (typeof FILTER_QUERY_KEYS)[number];
-export type MultiFilterKey = Exclude<FilterQueryKey, "scenario">;
+export type MultiFilterKey = Exclude<FilterQueryKey, "scenario" | "empty">;
 
 export interface FilterState {
   readonly scenario: string | null;
+  readonly showEmpty: boolean;
   readonly kind: ReadonlySet<CharacterKind>;
   readonly gender: ReadonlySet<Gender>;
   readonly age: ReadonlySet<Age>;
@@ -35,6 +37,7 @@ export interface FilterValueByKey {
 export type FilterQueryIssueCode =
   | "unknown_key"
   | "repeated_scenario"
+  | "repeated_empty"
   | "empty_value"
   | "unknown_value";
 

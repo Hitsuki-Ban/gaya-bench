@@ -12,52 +12,42 @@ import {
   type Gender,
 } from "@/data";
 import {
+  AGE_ORDER,
   CHARACTER_KIND_ORDER,
+  DIFFICULTY_ORDER,
+  EMOTION_ORDER,
   encodeFilterState,
   toggleFilterValue,
+  updateEmptyFilter,
   updateScenarioFilter,
   type FilterState,
 } from "@/filters";
+import { AGE_LABELS, DIFFICULTY_LABELS, EMOTION_LABELS, GENDER_LABELS } from "@/ui-labels";
 
 const characterKindOptions = CHARACTER_KIND_ORDER.map((value) => ({
   value,
   label: CHARACTER_KIND_LABELS[value],
 }));
 
-const genderOptions = [
-  { value: "female", label: "女性" },
-  { value: "male", label: "男性" },
-  { value: "neutral", label: "中性" },
-] as const satisfies readonly { value: Gender; label: string }[];
+const genderOptions = (["female", "male", "neutral"] as const).map((value) => ({
+  value,
+  label: GENDER_LABELS[value],
+})) satisfies readonly { value: Gender; label: string }[];
 
-const ageOptions = [
-  { value: "child", label: "子ども" },
-  { value: "teen", label: "10代" },
-  { value: "young_adult", label: "若年" },
-  { value: "adult", label: "成人" },
-  { value: "middle_aged", label: "中年" },
-  { value: "elderly", label: "高齢" },
-] as const satisfies readonly { value: Age; label: string }[];
+const ageOptions = AGE_ORDER.map((value) => ({
+  value,
+  label: AGE_LABELS[value],
+})) satisfies readonly { value: Age; label: string }[];
 
-const emotionOptions = [
-  { value: "neutral", label: "neutral" },
-  { value: "cheerful", label: "cheerful" },
-  { value: "angry", label: "angry" },
-  { value: "sad", label: "sad" },
-  { value: "fearful", label: "fearful" },
-  { value: "surprised", label: "surprised" },
-  { value: "tired", label: "tired" },
-  { value: "drunk", label: "drunk" },
-  { value: "whisper", label: "whisper" },
-  { value: "shout", label: "shout" },
-  { value: "laughing", label: "laughing" },
-  { value: "pain", label: "pain" },
-] as const satisfies readonly { value: Emotion; label: string }[];
+const emotionOptions = EMOTION_ORDER.map((value) => ({
+  value,
+  label: EMOTION_LABELS[value],
+})) satisfies readonly { value: Emotion; label: string }[];
 
-const difficultyOptions = [
-  { value: "standard", label: "standard" },
-  { value: "hard", label: "hard" },
-] as const satisfies readonly { value: Difficulty; label: string }[];
+const difficultyOptions = DIFFICULTY_ORDER.map((value) => ({
+  value,
+  label: DIFFICULTY_LABELS[value],
+})) satisfies readonly { value: Difficulty; label: string }[];
 
 interface FilterToolbarProps {
   state: FilterState;
@@ -85,7 +75,7 @@ export function FilterToolbar({
             比較フィルタ
           </span>
           <span className="mt-0.5 block text-xs text-muted-foreground" aria-live="polite">
-            {filteredRows}/{totalRows} セリフを表示。選択状態は URL で共有できます。
+            {filteredRows}/{totalRows} セリフを表示。音声のある項目を優先しています。
           </span>
         </span>
         <span className="flex shrink-0 items-center gap-1 whitespace-nowrap text-xs text-muted-foreground">
@@ -101,10 +91,19 @@ export function FilterToolbar({
         <div className="mb-2 flex justify-end">
           <Button disabled={isDefault} onClick={onReset} size="sm" variant="ghost">
             <RotateCcw aria-hidden="true" data-icon="inline-start" />
-            すべて解除
+            既定に戻す
           </Button>
         </div>
         <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-4">
+          <label className="flex min-h-10 cursor-pointer items-center gap-2 rounded border bg-background/55 px-3 text-xs text-muted-foreground has-checked:text-foreground">
+            <input
+              checked={state.showEmpty}
+              onChange={(event) => onChange(updateEmptyFilter(state, event.currentTarget.checked))}
+              type="checkbox"
+            />
+            未収録の行・モデルも表示
+          </label>
+
           <label className="space-y-1 text-xs font-medium">
             <span>シナリオ</span>
             <select

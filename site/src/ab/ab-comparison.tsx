@@ -17,6 +17,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { WaveformProgress } from "@/components/waveform-progress";
+import { DIFFICULTY_LABELS, EMOTION_LABELS } from "@/ui-labels";
 import { resolveAbShortcut, type AbShortcut } from "./keyboard";
 import { useAbSession, type CandidateSide, type PreviousVote } from "./use-ab-session";
 
@@ -98,12 +99,12 @@ export function AbComparison() {
               <div className="flex flex-wrap items-center gap-2">
                 <Badge variant="secondary">{session.presentation.scenarioTitle}</Badge>
                 <Badge variant="outline">{session.presentation.characterName}</Badge>
-                <Badge variant="outline">{session.presentation.emotion}</Badge>
-                <Badge
-                  variant={session.presentation.difficulty === "hard" ? "destructive" : "outline"}
-                >
-                  {session.presentation.difficulty}
-                </Badge>
+                <Badge variant="outline">{EMOTION_LABELS[session.presentation.emotion]}</Badge>
+                {session.presentation.difficulty === "hard" ? (
+                  <Badge variant="destructive">
+                    {DIFFICULTY_LABELS[session.presentation.difficulty]}
+                  </Badge>
+                ) : null}
               </div>
               <CardTitle className="mt-2 text-xl leading-8 sm:text-2xl">
                 {session.presentation.lineText}

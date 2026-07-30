@@ -167,6 +167,13 @@ export function resolveCursor(
     return null;
   }
   if (cursor === null) {
+    for (const { rowIndex } of projection.rows) {
+      for (const { id: modelId } of projection.models) {
+        if (model.getCell({ rowIndex, modelId })?.kind === "selected") {
+          return { rowIndex, modelId };
+        }
+      }
+    }
     return {
       rowIndex: projection.rows[0]!.rowIndex,
       modelId: projection.models[0]!.id,

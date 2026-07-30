@@ -16,6 +16,7 @@ import {
   encodeFilterState,
   projectComparisonModel,
   toggleFilterValue,
+  updateEmptyFilter,
   updateFilterValues,
   updateScenarioFilter,
 } from ".";
@@ -52,6 +53,18 @@ describe("filter query codec", () => {
     expect(encodeFilterState(result.state, data)).toBe(result.canonicalSearch);
     expect([...result.state.kind]).toEqual(["machine"]);
     expect([...result.state.emotion]).toEqual(["neutral", "angry"]);
+  });
+
+  it("未収録表示は明示 query のときだけ有効になる", () => {
+    const data = fixture();
+    const state = updateEmptyFilter(createDefaultFilterState(data), true);
+
+    expect(encodeFilterState(state, data)).toBe("?empty=show");
+    expect(decodeFilterQuery(new URLSearchParams("empty=show"), data)).toEqual({
+      ok: true,
+      state,
+      canonicalSearch: "?empty=show",
+    });
   });
 
   it("scenario は 0/1 件だけ受け付け、unknown/empty query を明示的に拒否する", () => {
@@ -153,7 +166,7 @@ describe("comparison projection", () => {
 
     expect(projection.rows).toEqual([]);
     expect(projection.rowIndexes.size).toBe(0);
-    expect(projection.models.map(({ id }) => id)).toEqual(["alpha", "beta"]);
+    expect(projection.models).toEqual([]);
   });
 
   it("kind の選択を projection key と行投影へ反映する", () => {
@@ -165,6 +178,27 @@ describe("comparison projection", () => {
 
     expect(projection.rows.map(({ row }) => row.line.id)).toEqual(["guard-1"]);
     expect(projection.key).not.toBe(defaultProjection.key);
+  });
+
+  it("既定では音声のない行を隠し、明示指定で再表示する", () => {
+    const data = fixture();
+    const partialData = {
+      ...data,
+      outcomes: data.outcomes.filter(
+        (outcome) => !(outcome.group.scenario === "inn" && outcome.group.line === "keeper-1"),
+      ),
+    };
+    const model = buildComparisonModel(partialData);
+    const defaultState = createDefaultFilterState(partialData);
+
+    expect(
+      projectComparisonModel(model, defaultState).rows.map(({ row }) => row.line.id),
+    ).not.toContain("keeper-1");
+    expect(
+      projectComparisonModel(model, updateEmptyFilter(defaultState, true)).rows.map(
+        ({ row }) => row.line.id,
+      ),
+    ).toContain("keeper-1");
   });
 
   it("外部で組み立てられた不正 state を fail fast で拒否する", () => {

@@ -36,6 +36,7 @@ export function createDefaultFilterState(data: BenchmarkData): FilterState {
   const { modelIds } = getDataFilterValues(data);
   return {
     scenario: null,
+    showEmpty: false,
     kind: new Set(CHARACTER_KIND_ORDER),
     gender: new Set(GENDER_ORDER),
     age: new Set(AGE_ORDER),
@@ -43,6 +44,10 @@ export function createDefaultFilterState(data: BenchmarkData): FilterState {
     difficulty: new Set(DIFFICULTY_ORDER),
     model: new Set(modelIds),
   };
+}
+
+export function updateEmptyFilter(state: FilterState, showEmpty: boolean): FilterState {
+  return { ...state, showEmpty };
 }
 
 export function updateScenarioFilter(

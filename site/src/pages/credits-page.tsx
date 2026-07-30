@@ -67,7 +67,7 @@ export function CreditsPage() {
                   モデルと生成物の条件
                 </h2>
               </div>
-              <span className="font-mono text-xs text-muted-foreground">{modelCount} models</span>
+              <span className="font-mono text-xs text-muted-foreground">モデル {modelCount}</span>
             </div>
             <p className="mb-4 max-w-3xl text-sm leading-6 text-muted-foreground">
               名称・バージョン・条件は固定 manifest の model エントリ、リンクは同じ manifest
@@ -155,7 +155,7 @@ export function CreditsPage() {
                   参照音声のクレジット
                 </h2>
               </div>
-              <span className="font-mono text-xs text-muted-foreground">{voiceCount} voices</span>
+              <span className="font-mono text-xs text-muted-foreground">参照音声 {voiceCount}</span>
             </div>
             <p className="mb-4 max-w-3xl text-sm leading-6 text-muted-foreground">
               <code className="font-mono text-xs text-foreground">assets/voices/metadata.yaml</code>
@@ -310,7 +310,7 @@ export function CreditsPage() {
                   <dd className="font-mono">{playableModels.length}</dd>
                 </div>
                 <div className="flex items-center justify-between gap-3">
-                  <dt className="text-muted-foreground">selected clips</dt>
+                  <dt className="text-muted-foreground">公開音声</dt>
                   <dd className="font-mono">{selectedCandidates.length}</dd>
                 </div>
                 <div className="flex items-center justify-between gap-3">
