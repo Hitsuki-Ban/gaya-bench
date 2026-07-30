@@ -358,6 +358,8 @@ function GroupEditor({
         </CardHeader>
       </Card>
 
+      <CurationJudgmentCriteria candidateCount={group.candidates.length} />
+
       <div className="grid gap-4 xl:grid-cols-2">
         {group.candidates.map((candidate) => {
           const candidateDraft = draftsByTake.get(candidate.takeId)!;
@@ -422,6 +424,59 @@ function GroupEditor({
         </Button>
       </div>
     </section>
+  );
+}
+
+export function CurationJudgmentCriteria({ candidateCount }: { candidateCount: number }) {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>今回の判断基準</CardTitle>
+        <CardDescription>
+          表示された台詞と演技指示を基準に、各項目を独立して判断してください。
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-3 text-sm text-muted-foreground">
+        <p>
+          <span className="font-medium text-foreground">内容は正しい:</span>{" "}
+          欠落・追加・反復がなく、発音と厳密な日本語の音調・アクセントまで正しい場合だけ
+          「はい」。語の読みが理論上正しくても、音調・アクセントが不正確なら「いいえ」です。
+        </p>
+        <p>
+          <span className="font-medium text-foreground">意図一致:</span>{" "}
+          表示された感情、強度、話し方にどれだけ合うかを 1〜5 で評価します。
+        </p>
+        <p>
+          <span className="font-medium text-foreground">役として自然:</span> 表示された場面と役柄の
+          RPG モブとして、声色・間・テンポが自然かを 1〜5 で評価します。
+        </p>
+        <p>
+          <span className="font-medium text-foreground">採用可能:</span>{" "}
+          音割れ、ノイズ、不自然な無音、途切れ、機械的な崩れなどを含む総合品質の判断です。
+          内容や感情が正しくても、単純な品質理由で使えない場合は「いいえ」にして group を skip
+          します。内容の判定とは独立して評価してください。
+        </p>
+        <p>
+          <span className="font-medium text-foreground">提示語の漏洩:</span>{" "}
+          台詞にない感情名、話し方、演技指示、メタ文が音声に混ざって聞こえた場合は、
+          「内容は正しい」「採用可能」をともに「いいえ」にして skip します。
+        </p>
+        <p className="rounded-md border border-primary/20 bg-primary/[0.04] p-3 text-foreground">
+          {candidateCount === 1 ? (
+            <>
+              この group は候補が1件です。「内容は正しい」と「採用可能」がともに
+              「はい」のときだけ候補を選択し、それ以外は skip してください。
+            </>
+          ) : (
+            <>
+              この group は候補が{candidateCount}件です。全候補を個別に評価し、「内容は正しい」と
+              「採用可能」がともに「はい」の候補から、最も適した1件だけを選択してください。
+              該当候補がなければ全候補を見送ってください。
+            </>
+          )}
+        </p>
+      </CardContent>
+    </Card>
   );
 }
 

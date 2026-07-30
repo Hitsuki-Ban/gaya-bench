@@ -38,6 +38,7 @@ from gaya_pipeline.release import (
     ReleaseFinalizeSummary,
     finalize_release,
 )
+from gaya_pipeline.selection import AUTOMATIC_SELECTION_POLICY
 from gaya_pipeline.qc import QCError, QCSummary, run_qc
 from gaya_pipeline.qc_runtime import KanaWhisperQCRuntime
 from gaya_pipeline.validation import default_scenarios_dir, validate_scenarios
@@ -236,7 +237,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     takes_finalize_parser = takes_subparsers.add_parser(
         "finalize",
-        help="fully-curatedな複数runをproduction releaseへ集約する",
+        help="複数runを明示selection policyでproduction releaseへ集約する",
     )
     takes_finalize_parser.add_argument(
         "--run-id",
@@ -255,6 +256,14 @@ def build_parser() -> argparse.ArgumentParser:
         "--projection-plan",
         type=Path,
         help="保持済みreleaseの単一modelを現行targetへ明示投影するcanonical plan",
+    )
+    takes_finalize_parser.add_argument(
+        "--selection-policy",
+        choices=(AUTOMATIC_SELECTION_POLICY,),
+        help=(
+            "未策展N=1 candidateを自動gate metadataで明示選定する"
+            "（省略時はfully-human-curatedのみ）"
+        ),
     )
 
     publish_parser = subparsers.add_parser(
@@ -433,6 +442,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 scenarios_dir=repository_root / "scenarios",
                 output_dir=args.output,
                 projection_plan_path=args.projection_plan,
+                selection_policy=args.selection_policy,
             )
         except ReleaseError as error:
             print(f"ERROR: {error}", file=sys.stderr)

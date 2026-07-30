@@ -31,6 +31,16 @@ from gaya_pipeline.qc_report import (
     validate_qc_report,
 )
 from gaya_pipeline.run_lock import RunLockError, exclusive_run_lock
+from gaya_pipeline.selection import (
+    AUTOMATIC_SELECTION_POLICY,
+    FORMAT_VERSION as SELECTION_FORMAT_VERSION,
+    PROTOCOL as SELECTION_PROTOCOL,
+    automatic_selection_group,
+    canonical_selection_bytes,
+    human_selection_group,
+    selection_group_to_human_curation,
+    validate_selection,
+)
 from gaya_pipeline.take_identity import canonical_json
 from gaya_pipeline.take_ledger import (
     TERMINAL_STATUSES,
@@ -82,7 +92,7 @@ class _SourceRun:
     ledger_sha256: str
     qc_report_sha256: str
     manifest_sha256: str
-    curation_groups: tuple[dict[str, Any], ...]
+    decision_groups: tuple[dict[str, Any], ...]
 
 
 @dataclass(frozen=True)
@@ -160,12 +170,17 @@ def finalize_release(
     scenarios_dir: Path,
     output_dir: Path,
     projection_plan_path: Path | None = None,
+    selection_policy: str | None = None,
 ) -> ReleaseFinalizeSummary:
     ordered_run_ids = sorted(_path_segment(run_id, "run_id") for run_id in run_ids)
     if not ordered_run_ids:
         raise ReleaseError("release finalize には1件以上の run-id が必要です。")
     if len(ordered_run_ids) != len(set(ordered_run_ids)):
         raise ReleaseError("release finalize run-id が重複しています。")
+    if selection_policy not in {None, AUTOMATIC_SELECTION_POLICY}:
+        raise ReleaseError(
+            f"未知のselection policyです: {selection_policy}",
+        )
     if output_dir.exists():
         raise ReleaseError(
             f"release finalize output は既存 path を拒否します: {output_dir}",
@@ -178,7 +193,12 @@ def finalize_release(
 
     takes_root = _require_directory(artifacts_dir / "takes", "takes root")
     scenarios_root = _require_directory(scenarios_dir, "scenarios directory")
-    artifact_root = _require_directory(data_dir / "curation", "curation directory")
+    artifact_root = data_dir.resolve() / "curation"
+    if selection_policy is None:
+        artifact_root = _require_directory(
+            artifact_root,
+            "curation directory",
+        )
     repository_root = data_dir.resolve().parent
     if projection_plan_path is not None:
         layout_root = _projected_repository_root(takes_root)
@@ -211,11 +231,12 @@ def finalize_release(
             for run_root in lock_roots.values():
                 locks.enter_context(exclusive_run_lock(run_root))
             sources = [
-                _load_curated_source_run(
+                _load_release_source_run(
                     run_id=run_id,
                     run_root=run_root,
                     scenarios_dir=scenarios_root,
                     artifact_root=artifact_root,
+                    selection_policy=selection_policy,
                 )
                 for run_id, run_root in zip(
                     ordered_run_ids,
@@ -232,6 +253,7 @@ def finalize_release(
             material = _build_release_material(
                 sources,
                 projection=projection,
+                selection_policy=selection_policy,
             )
             return _write_release(
                 output_dir=output_dir,
@@ -375,12 +397,13 @@ def validate_finalized_release(
     )
 
 
-def _load_curated_source_run(
+def _load_release_source_run(
     *,
     run_id: str,
     run_root: Path,
     scenarios_dir: Path,
     artifact_root: Path,
+    selection_policy: str | None,
 ) -> _SourceRun:
     ledger_path = run_root / "ledger.json"
     qc_report_path = run_root / "qc-report.json"
@@ -470,11 +493,44 @@ def _load_curated_source_run(
         )
     except CurationError as error:
         raise ReleaseError(f"source run curation が不正です: {error}") from error
-    if set(authorities) != set(candidates_by_group):
-        missing = sorted(set(candidates_by_group) - set(authorities))
+    missing_groups = set(candidates_by_group) - set(authorities)
+    if selection_policy is None and missing_groups:
         raise ReleaseError(
-            f"source run に未策展 candidate group があります: {missing}",
+            f"source run に未策展 candidate group があります: "
+            f"{sorted(missing_groups)}",
         )
+    if selection_policy == AUTOMATIC_SELECTION_POLICY:
+        decision_groups = [
+            human_selection_group(authorities[identity]["group"])
+            for identity in sorted(authorities)
+        ]
+        for identity in sorted(missing_groups):
+            candidates = candidates_by_group[identity]
+            if len(candidates) != 1:
+                raise ReleaseError(
+                    "automatic-gate-v1は未策展groupにN=1を要求します: "
+                    f"{identity}",
+                )
+            decision_groups.append(
+                automatic_selection_group(next(iter(candidates.values()))),
+            )
+        try:
+            decision_groups = validate_selection(
+                {
+                    "format_version": SELECTION_FORMAT_VERSION,
+                    "protocol": SELECTION_PROTOCOL,
+                    "candidate_set_sha256": bundle.candidate_set_sha256,
+                    "groups": decision_groups,
+                },
+            )["groups"]
+        except CurationError as error:
+            raise ReleaseError(
+                f"source run automatic selection が不正です: {error}",
+            ) from error
+    else:
+        decision_groups = [
+            authorities[identity]["group"] for identity in sorted(authorities)
+        ]
     return _SourceRun(
         run_id=run_id,
         model=model,
@@ -484,9 +540,7 @@ def _load_curated_source_run(
         ledger_sha256=_file_sha256(ledger_path),
         qc_report_sha256=_file_sha256(qc_report_path),
         manifest_sha256=_file_sha256(manifest_path),
-        curation_groups=tuple(
-            authorities[identity]["group"] for identity in sorted(authorities)
-        ),
+        decision_groups=tuple(decision_groups),
     )
 
 
@@ -576,6 +630,10 @@ def _load_projection_source(
         )
     if source_release.projection_plan is not None:
         raise ReleaseError("projection source release の連鎖投影は受理しません。")
+    if source_release.curation["format_version"] != 1:
+        raise ReleaseError(
+            "projection source release は人評curation format v1が必要です。",
+        )
 
     manifest_sha256 = _file_sha256(source_release_root / "manifest-v4.json")
     provenance_sha256 = _file_sha256(
@@ -706,7 +764,7 @@ def _load_projection_source(
         ledger_sha256=run_record["ledger_sha256"],
         qc_report_sha256=run_record["qc_report_sha256"],
         manifest_sha256=run_record["manifest_sha256"],
-        curation_groups=curation_groups,
+        decision_groups=curation_groups,
     )
     return _ProjectionSource(
         source=source,
@@ -770,6 +828,7 @@ def _build_release_material(
     sources: Sequence[_SourceRun],
     *,
     projection: _ProjectionSource | None = None,
+    selection_policy: str | None,
 ) -> dict[str, Any]:
     by_model = {source.model: source for source in sources}
     if len(by_model) != len(sources):
@@ -855,25 +914,49 @@ def _build_release_material(
     candidate_set_bytes = canonical_candidate_set_bytes(candidate_set)
     candidate_set_sha256 = hashlib.sha256(candidate_set_bytes).hexdigest()
 
-    source_groups = sorted(
-        (
-            dict(group)
-            for source in ordered_sources
-            for group in source.curation_groups
-        ),
-        key=_group_key,
-    )
-    curation_document = {
-        "format_version": 1,
-        "rubric_version": "take-curation-v1",
-        "candidate_set_sha256": candidate_set_sha256,
-        "groups": source_groups,
-    }
-    curation_bytes = canonical_curation_bytes(curation_document)
+    if selection_policy == AUTOMATIC_SELECTION_POLICY:
+        source_groups = sorted(
+            (
+                (
+                    dict(group)
+                    if "authority" in group
+                    else human_selection_group(group)
+                )
+                for source in ordered_sources
+                for group in source.decision_groups
+            ),
+            key=_group_key,
+        )
+        curation_document = {
+            "format_version": SELECTION_FORMAT_VERSION,
+            "protocol": SELECTION_PROTOCOL,
+            "candidate_set_sha256": candidate_set_sha256,
+            "groups": source_groups,
+        }
+        curation_bytes = canonical_selection_bytes(curation_document)
+        normalized_curation = validate_selection(
+            json.loads(curation_bytes.decode("utf-8")),
+        )
+    else:
+        source_groups = sorted(
+            (
+                dict(group)
+                for source in ordered_sources
+                for group in source.decision_groups
+            ),
+            key=_group_key,
+        )
+        curation_document = {
+            "format_version": 1,
+            "rubric_version": "take-curation-v1",
+            "candidate_set_sha256": candidate_set_sha256,
+            "groups": source_groups,
+        }
+        curation_bytes = canonical_curation_bytes(curation_document)
+        normalized_curation = validate_curation(
+            json.loads(curation_bytes.decode("utf-8")),
+        )
     curation_sha256 = hashlib.sha256(curation_bytes).hexdigest()
-    normalized_curation = validate_curation(
-        json.loads(curation_bytes.decode("utf-8")),
-    )
     curations = sorted(
         (
             _projection(group, curation_sha256=curation_sha256)
@@ -1280,7 +1363,7 @@ def _validate_final_projection(
         ledger_sha256=target_record["ledger_sha256"],
         qc_report_sha256=target_record["qc_report_sha256"],
         manifest_sha256=target_record["manifest_sha256"],
-        curation_groups=(),
+        decision_groups=(),
     )
     _validate_projection_against_target(
         projection=projection,
@@ -1295,14 +1378,23 @@ def _validate_final_projection(
         ),
         key=_group_key,
     )
-    final_groups = sorted(
-        (
-            dict(group)
-            for group in curation["groups"]
-            if group["model"] == model
-        ),
-        key=_group_key,
-    )
+    try:
+        final_groups = sorted(
+            (
+                (
+                    selection_group_to_human_curation(group)
+                    if curation["format_version"] == 2
+                    else dict(group)
+                )
+                for group in curation["groups"]
+                if group["model"] == model
+            ),
+            key=_group_key,
+        )
+    except CurationError as error:
+        raise ReleaseError(
+            "projected model のselection authorityが人評ではありません。",
+        ) from error
     if final_groups != projected_groups:
         raise ReleaseError(
             "projected model の curation groups が preserved release と"
@@ -1367,11 +1459,22 @@ def _load_release_curation(
     raw = _read_bytes(path, "release curation")
     if hashlib.sha256(raw).hexdigest() != curation_sha256:
         raise ReleaseError("release curation SHA が filename と一致しません。")
-    document = validate_curation(
-        _read_json_bytes(raw, path, "release curation"),
-    )
-    if raw != canonical_json(document).encode("utf-8"):
-        raise ReleaseError("release curation は canonical bytes が必要です。")
+    decoded = _read_json_bytes(raw, path, "release curation")
+    try:
+        if isinstance(decoded, dict) and decoded.get("format_version") == 1:
+            document = validate_curation(decoded)
+            canonical_bytes = canonical_curation_bytes(document)
+        elif isinstance(decoded, dict) and decoded.get("format_version") == 2:
+            document = validate_selection(decoded)
+            canonical_bytes = canonical_selection_bytes(document)
+        else:
+            raise CurationError(
+                "release decision artifact format_version が不正です。",
+            )
+    except CurationError as error:
+        raise ReleaseError(f"release decision artifact が不正です: {error}") from error
+    if raw != canonical_bytes:
+        raise ReleaseError("release decision artifact は canonical bytes が必要です。")
     if document["candidate_set_sha256"] != candidate_set_sha256:
         raise ReleaseError("release curation は stale candidate set を参照しています。")
 
@@ -1411,6 +1514,14 @@ def _load_release_curation(
                 raise ReleaseError(
                     f"release curation candidate が manifest と一致しません: {take_id}",
                 )
+            if (
+                document["format_version"] == 2
+                and group["authority"]["type"] == "automatic_gate"
+                and item["gate"] != candidate["gate"]
+            ):
+                raise ReleaseError(
+                    f"release automatic gate が manifest と一致しません: {take_id}",
+                )
         expected_projection = _projection(
             group,
             curation_sha256=curation_sha256,
@@ -1420,7 +1531,11 @@ def _load_release_curation(
                 f"release curation projection が manifest と一致しません: {identity}",
             )
         decision = group["decision"]
-        if decision["type"] == "selected":
+        is_human = (
+            document["format_version"] == 1
+            or group["authority"]["type"] == "human"
+        )
+        if is_human and decision["type"] == "selected":
             selected = exported[decision["take_id"]]
             if (
                 not selected["rubric"]["adoptable"]

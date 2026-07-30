@@ -1,6 +1,6 @@
-import { describe, expect, it } from "vite-plus/test";
+import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 
-import { buildCurationJson } from "./export";
+import { buildCurationJson, downloadCurationJson } from "./export";
 import {
   CURATION_STORAGE_KEY,
   createCurationDraft,
@@ -18,6 +18,12 @@ const COMPLETE: Rubric = {
   character_naturalness: 4,
   adoptable: true,
 };
+
+afterEach(() => {
+  vi.useRealTimers();
+  vi.restoreAllMocks();
+  vi.unstubAllGlobals();
+});
 
 describe("curation storage", () => {
   it("stale/corrupt payload を silent reset せず拒否する", () => {
@@ -121,6 +127,43 @@ describe("curation export", () => {
     draft = setGroupDecision(draft, groupKey(first), { type: "skipped" });
     const exported = JSON.parse(buildCurationJson(catalog, draft)) as { groups: unknown[] };
     expect(exported.groups).toHaveLength(1);
+  });
+
+  it("anchorをDOMへ接続し、click後のtaskでBlob URLを破棄する", () => {
+    vi.useFakeTimers();
+    const events: string[] = [];
+    const anchor = {
+      href: "",
+      download: "",
+      click() {
+        events.push("click");
+      },
+      remove() {
+        events.push("remove");
+      },
+    };
+    vi.stubGlobal("document", {
+      createElement: vi.fn(() => anchor),
+      body: {
+        append: vi.fn(() => events.push("append")),
+      },
+    });
+    vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:curation");
+    const revoke = vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => {
+      events.push("revoke");
+    });
+
+    downloadCurationJson("{}");
+
+    expect(anchor).toMatchObject({
+      href: "blob:curation",
+      download: "curation.json",
+    });
+    expect(events).toEqual(["append", "click", "remove"]);
+    expect(revoke).not.toHaveBeenCalled();
+
+    vi.runAllTimers();
+    expect(events).toEqual(["append", "click", "remove", "revoke"]);
   });
 });
 

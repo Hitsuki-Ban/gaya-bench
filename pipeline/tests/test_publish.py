@@ -24,6 +24,7 @@ from gaya_pipeline.publish import (
     create_r2_client,
     run_publish,
 )
+from gaya_pipeline.selection import human_selection_group
 from gaya_pipeline.take_identity import canonical_json, make_take_id
 
 
@@ -546,6 +547,54 @@ def test_local_release不整合はnetwork前に拒否(
     client = FakeS3Client()
 
     with pytest.raises(PublishError):
+        run_publish(release_dir=release, takes_root=takes, client=client)
+
+    assert client.head_calls == []
+    assert client.put_calls == []
+
+
+def test_selection_v2改変はnetwork前に拒否(tmp_path: Path) -> None:
+    release, takes, _candidates = _write_release(tmp_path)
+    old_curation_path = next((release / "curation").glob("*.json"))
+    old_curation = json.loads(old_curation_path.read_bytes())
+    selection = {
+        "format_version": 2,
+        "protocol": "take-selection-v1",
+        "candidate_set_sha256": old_curation["candidate_set_sha256"],
+        "groups": [
+            human_selection_group(group) for group in old_curation["groups"]
+        ],
+    }
+    selection["groups"][0]["authority"]["rubric_version"] = "tampered-rubric"
+    selection_raw = canonical_json(selection).encode("utf-8")
+    selection_sha256 = hashlib.sha256(selection_raw).hexdigest()
+    old_curation_path.unlink()
+    (release / "curation" / f"{selection_sha256}.json").write_bytes(
+        selection_raw,
+    )
+
+    manifest_path = release / "manifest-v4.json"
+    manifest = json.loads(manifest_path.read_bytes())
+    for curation in manifest["curations"]:
+        curation["curation_sha256"] = selection_sha256
+    manifest_raw = _write_canonical(manifest_path, manifest)
+    manifest_sha256 = hashlib.sha256(manifest_raw).hexdigest()
+    (release / "manifest-v4.sha256").write_text(
+        manifest_sha256,
+        encoding="ascii",
+    )
+
+    provenance_path = release / "release-provenance.json"
+    provenance = json.loads(provenance_path.read_bytes())
+    provenance["manifest_sha256"] = manifest_sha256
+    provenance_raw = _write_canonical(provenance_path, provenance)
+    (release / "release-provenance.sha256").write_text(
+        hashlib.sha256(provenance_raw).hexdigest(),
+        encoding="ascii",
+    )
+    client = FakeS3Client()
+
+    with pytest.raises(PublishError, match="rubric_version"):
         run_publish(release_dir=release, takes_root=takes, client=client)
 
     assert client.head_calls == []

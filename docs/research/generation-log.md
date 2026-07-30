@@ -63,3 +63,130 @@ manifest には公開安全な `generation_failed` として残した。
   - SHA-256:
     `01727182ea75fdabd688e16be81cb375b018d23357d2473b62b909c364e82ae9`
   - manifest のSHA-256と一致
+
+## 2026-07-30 — 全量7モデル / 後処理 v7
+
+- 関連: #10、#146、#148、#150、#155
+- 対象: 15シナリオ、161行、`dry` variant
+- 実行環境: Windows 11、NVIDIA GeForce RTX 4070 Ti 12GB、
+  FFmpeg `8.1.1`
+- 後処理: algorithm v7、48kHz mono、Opus 64kbps VBR、
+  distribution true peak上限 -0.9 dBTP
+- 自動QC環境: PyTorch `2.11.0+cu130`、CUDA 13.0、
+  Transformers `5.3.0`、librosa `0.11.0`
+
+各wall timeはledgerの`created_at`から最後の生成audio artifactのmtimeまでを
+集計した。モデル初期化を含むが、後続の一括QC時間とモデル間の準備時間は含まない。
+7本のmain runは合計1,121 groupを処理し、1,116件を生成、5件を
+`generation_failed`として記録した。5件は独立runで再試行し、すべて生成に成功した。
+
+### main run結果
+
+| モデル | run id | 成功 | 失敗 | wall time | 音声尺合計 | 生成時間合計 |
+| --- | --- | ---: | ---: | ---: | ---: | ---: |
+| Chatterbox Multilingual v3 | `20260730T025550491401Z-chatterbox-multilingual-v3-n1` | 160 | 1 | 923.717秒 | 436.520秒 | 805.926秒 |
+| CosyVoice3 0.5B 2512 | `20260730T031948916654Z-cosyvoice3-0.5b-2512-n1` | 159 | 2 | 1,036.375秒 | 434.754秒 | 873.575秒 |
+| GPT-SoVITS v2 Pro Plus | `20260730T034754379749Z-gpt-sovits-v2-pro-plus-n1` | 161 | 0 | 400.118秒 | 505.666秒 | 292.268秒 |
+| Supertonic 3 | `20260730T035734579144Z-supertonic-3-n1` | 161 | 0 | 264.672秒 | 402.009秒 | 153.872秒 |
+| VoxCPM2 | `20260730T044327885372Z-voxcpm2-n1` | 159 | 2 | 2,231.379秒 | 602.473秒 | 2,002.567秒 |
+| Irodori TTS 600M v3 VoiceDesign | `20260730T053323378341Z-irodori-tts-600m-v3-voicedesign-n1` | 161 | 0 | 662.595秒 | 651.567秒 | 532.169秒 |
+| AivisSpeech / Kohaku | `20260730T054806556612Z-aivisspeech-kohaku-n1` | 161 | 0 | 337.341秒 | 458.615秒 | 219.784秒 |
+
+### 性能・資源
+
+| モデル | RTF 最小 / 中央値 / 平均 | RTF P95 / 最大 | peak allocated / reserved |
+| --- | ---: | ---: | ---: |
+| Chatterbox | 1.543 / 1.774 / 1.894 | 2.088 / 17.822 | 3,734.342 / 3,968 MiB |
+| CosyVoice3 | 1.693 / 1.962 / 2.057 | 2.703 / 3.718 | 4,289.491 / 5,256 MiB |
+| GPT-SoVITS | 0.457 / 0.566 / 0.591 | 0.722 / 2.345 | 1,745.761 / 1,794 MiB |
+| Supertonic | 0.304 / 0.383 / 0.388 | 0.465 / 0.541 | CPU / ONNX Runtime |
+| VoxCPM2 | 2.802 / 3.226 / 3.342 | 4.046 / 6.325 | 6,645.411 / 8,696 MiB |
+| Irodori | 0.457 / 0.800 / 0.864 | 1.270 / 6.102 | 2,983.994 / 5,446 MiB |
+| AivisSpeech | 0.390 / 0.468 / 0.484 | 0.586 / 0.655 | CPU、Engine working set最大2,556.8 MiB |
+
+peak値は各sidecarの`phase_peak_vram_mib`の最大値。Chatterboxと
+GPT-SoVITSはそれぞれの隔離runtime、CosyVoice3はCUDA 12.1、
+VoxCPM2はPyTorch `2.10.0+cu130`、IrodoriはPyTorch `2.10.0`を使用した。
+AivisSpeech Engineは`--no-use_gpu`で起動し、終了後にport 10101が閉じたことを
+確認した。
+
+### 固定したupstream
+
+- Chatterbox:
+  `resemble-ai/chatterbox@65b18437192794391a0308a8f705b1e33e633948`、
+  weights `ResembleAI/chatterbox@5bb1f6ee58e50c3b8d408bc82a6d3740c2db6e18`
+- CosyVoice3:
+  `QwenAudio/CosyVoice@074ca6dc9e80a2f424f1f74b48bdd7d3fea531cc`、
+  weights `FunAudioLLM/Fun-CosyVoice3-0.5B-2512@29e01c4e8d000f4bcd70751be16fa94bf3d85a18`
+- GPT-SoVITS:
+  `RVC-Boss/GPT-SoVITS@d523079fc05d9a8028d6085bffe4a2757c32abb6`、
+  weights `lj1995/GPT-SoVITS@336b2ec4e8d4ac74740798dd40af44e74659ecaf`
+- Supertonic:
+  `supertone-inc/supertonic@7e2804f96016a7028cb1ed627353c61c1e9dd281`、
+  weights `Supertone/supertonic-3@724fb5abbf5502583fb520898d45929e62f02c0b`
+- VoxCPM2:
+  `OpenBMB/VoxCPM@616d3d3e630a9c96c2853250eef91b0f39dcd5fa`、
+  weights `openbmb/VoxCPM2@bffb3df5a29440629464e5e839f4d214c8714c3d`
+- Irodori:
+  upstream `eaf74d6a19138f743acb5b71a445fd25a57db987`、
+  checkpoint `e863a3a93e652e09afeff3e84823a206a0a60314`
+- AivisSpeech Engine `1.2.0`、Kohaku model UUID
+  `22e8ed77-94fe-4ef2-871f-a86f94e9a579`、model version `1.1.0`
+
+### 自動QC
+
+すべてのmain / retry runでhard reject 0、blocked 0、pending 0だった。
+main runの`content_review_required`はChatterbox 149、CosyVoice3 154、
+GPT-SoVITS 156、Supertonic 149、VoxCPM2 157、Irodori 153、
+AivisSpeech 155。これは自動読みによる要確認フラグであり、人手策展の
+合否そのものではない。
+
+Opusのsoft loudness target外はmain run合計33件
+（Chatterbox 8、CosyVoice3 4、GPT-SoVITS 6、Supertonic 13、
+VoxCPM2 0、Irodori 1、AivisSpeech 1）。すべてhard gate内で、
+`shortfall: true`として保持した。
+
+### 失敗と独立再試行
+
+| モデル | main runの失敗group | retry run | 結果 |
+| --- | --- | --- | --- |
+| Chatterbox | `chinatown-street/tenshin-okami-002` | `20260730T031215286743Z-chatterbox-multilingual-v3-n1` | eligible |
+| CosyVoice3 | `battlefield-camp/wounded-001` | `20260730T033921577682Z-cosyvoice3-0.5b-2512-n1` | eligible |
+| CosyVoice3 | `west-crowd/isogi-shinshi-002` | `20260730T034055511382Z-cosyvoice3-0.5b-2512-n1` | eligible |
+| VoxCPM2 | `goblin-camp/goblin-cook-001` | `20260730T052150169309Z-voxcpm2-n1` | eligible |
+| VoxCPM2 | `spirit-forest/pixie-003` | `20260730T052357036742Z-voxcpm2-n1` | eligible |
+
+production releaseはmodelごとに単一terminal runを権威入力とするため、retry runを
+main runへ暗黙合成しない。main runの5件は明示的なfailureとして残し、retryは
+再現・診断用の独立evidenceとして保持する。
+
+### Qwen保持投影・R2 publish
+
+Qwenは`20260729T113009679952Z-qwen3-tts-12hz-1.7b-n1`の確定済み
+baselineを再生成せず使用する。現行161行のうち旧sourceにない
+`spirit-forest/spring-sprite-002`だけを`no_eligible_take`として明示する
+projection planを固定した。旧Qwen人評160 group（selected 121 / skipped 39）は
+format v2 selection artifactからformat v1へ再構成した結果、旧artifactとgroup単位で
+exact一致した。
+
+7モデルの未策展N=1候補は`automatic-gate-v1`で確定した。自動authority 1,122
+groupはすべて`mechanical=pass`、`policy_version=take-gates-v2`で、
+`content=pass` 49 / `review_required` 1,073だった。soft signalを人評済みや
+`pass`へ書き換えていない。Qwenの人評authority 160 groupと合わせた最終releaseは
+次のとおり。
+
+- model 8、candidate 1,282、selected 1,243、skipped 39、failure 6
+- group coverage 1,288 = 8 model × 161行
+- aggregate authority: automatic gate 1,122 / human 160
+- manifest SHA-256:
+  `f9dfda542fd1120fe0f74daae3036eab5211d7394d155f7b9953978e59bbe89d`
+- candidate set SHA-256:
+  `91913e08f97497f1f7604f109a6d0f7308742237277f6bbc5483678ac9858cc2`
+- selection artifact SHA-256:
+  `629cc80346160eb8e687757e6f792ef519da9a4fb74f79bdf97eb4d00f56126e`
+
+R2 publishは全1,282 objectの事前HEAD後、1,079件
+（28,179,753 bytes）を条件付き新規uploadし、既存203件
+（5,151,007 bytes）をSHA・size・HTTP metadata一致としてskipした。完了後に
+全1,282 objectを再HEADし、競合・欠落は0だった。custom domainから各modelを1件ずつ
+計8件GETし、すべてHTTP 200、`audio/ogg`、body SHA-256がmanifestと一致した。
