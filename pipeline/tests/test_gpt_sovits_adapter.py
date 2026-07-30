@@ -17,7 +17,6 @@ from gaya_pipeline.adapters.gpt_sovits import (
     MODEL_ID,
     NATIVE_SAMPLE_RATE_HZ,
     PROFILE_VERSION,
-    REFERENCE_ASSIGNMENTS,
     REFERENCE_FRAME_COUNT,
     REFERENCE_SECONDS,
     SEED,
@@ -31,6 +30,9 @@ from gaya_pipeline.adapters.gpt_sovits import (
     _consume_single_result,
     _validate_japanese_dictionary_cache,
     _validate_upstream,
+)
+from gaya_pipeline.adapters.voice_assignments import (
+    CLONE_REFERENCE_ASSIGNMENTS,
 )
 
 TAKE_CONTEXT = GPTSoVITSAdapter().take_recipe().single_take_context()
@@ -213,7 +215,9 @@ def test_profile_registry_and_generation_contract_are_canonical() -> None:
     assert params["parallel_infer"] is False
     assert params["reference_assignments"] == {
         f"{scenario}/{character}": voice
-        for (scenario, character), voice in REFERENCE_ASSIGNMENTS.items()
+        for (scenario, character), voice in (
+            CLONE_REFERENCE_ASSIGNMENTS.items()
+        )
     }
     assert "MIT" in adapter.profile.license_note
     assert "透かしなし" in adapter.profile.license_note
@@ -366,8 +370,8 @@ def test_unknown_null_reference_fails_without_runtime_load(
         upstream_root=tmp_path / "upstream",
     )
     job = _job(
-        scenario_id="castle-gate",
-        character_id="guard-otoko",
+        scenario_id="unknown",
+        character_id="unknown",
         reference_voice=None,
     )
 

@@ -31,6 +31,9 @@ from gaya_pipeline.adapters.chatterbox import (
     ChatterboxAdapter,
     ChatterboxAdapterError,
 )
+from gaya_pipeline.adapters.voice_assignments import (
+    CLONE_REFERENCE_ASSIGNMENTS,
+)
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 REGISTERED_VOICES = {
@@ -278,6 +281,12 @@ def test_profile_registry_and_generation_params_are_canonical() -> None:
     assert params["perth_watermark"] is True
     assert params["exaggeration_by_intensity"] == {
         str(key): value for key, value in EXAGGERATION_BY_INTENSITY.items()
+    }
+    assert params["reference_assignments"] == {
+        f"{scenario}/{character}": voice
+        for (scenario, character), voice in (
+            CLONE_REFERENCE_ASSIGNMENTS.items()
+        )
     }
     assert json.loads(json.dumps(params)) == params
 

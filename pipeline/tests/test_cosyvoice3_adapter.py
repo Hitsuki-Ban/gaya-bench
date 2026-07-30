@@ -28,7 +28,6 @@ from gaya_pipeline.adapters.cosyvoice3 import (
     MODEL_ROOT_ENV,
     OFFLINE_ENVIRONMENT,
     PROFILE_VERSION,
-    REFERENCE_ASSIGNMENTS,
     SAMPLE_RATE_HZ,
     SEED,
     UPSTREAM_REVISION,
@@ -37,6 +36,9 @@ from gaya_pipeline.adapters.cosyvoice3 import (
     CosyVoice3Adapter,
     CosyVoice3AdapterError,
     _NativeRuntime,
+)
+from gaya_pipeline.adapters.voice_assignments import (
+    CLONE_REFERENCE_ASSIGNMENTS,
 )
 
 TAKE_CONTEXT = CosyVoice3Adapter().take_recipe().single_take_context()
@@ -420,7 +422,9 @@ def test_profile_registry_and_generation_params_are_canonical() -> None:
     )
     assert params["reference_assignments"] == {
         f"{scenario}/{character}": voice
-        for (scenario, character), voice in REFERENCE_ASSIGNMENTS.items()
+        for (scenario, character), voice in (
+            CLONE_REFERENCE_ASSIGNMENTS.items()
+        )
     }
     assert not _contains_absolute_path(params)
 

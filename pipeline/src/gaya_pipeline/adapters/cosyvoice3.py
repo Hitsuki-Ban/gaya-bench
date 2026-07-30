@@ -25,6 +25,9 @@ from gaya_pipeline.adapters.base import (
     TakeRecipe,
     require_take_context,
 )
+from gaya_pipeline.adapters.voice_assignments import (
+    CLONE_REFERENCE_ASSIGNMENTS,
+)
 from gaya_pipeline.japanese_reading import (
     JapaneseReadingError,
     resolve_japanese_reading,
@@ -126,14 +129,6 @@ MODEL_FILE_SPECS: Mapping[str, tuple[int, str]] = {
         969_451_503,
         "23236a74175dbdda47afc66dbadd5bcb41303c467a57c261cb8539ad9db9208d",
     ),
-}
-
-REFERENCE_ASSIGNMENTS: Mapping[tuple[str, str], str] = {
-    ("tavern-night", "drunkard"): "hadou-emotion-11",
-    ("tavern-night", "old-regular"): "hadou-emotion-11",
-    ("market-day", "fruit-vendor"): "hadou-emotion-11",
-    ("market-day", "shopper"): "lux-emotion-76",
-    ("market-day", "street-kid"): "tsukuyomi-corpus-94",
 }
 
 INSTRUCTION_END = "<|endofprompt|>"
@@ -615,7 +610,7 @@ class CosyVoice3Adapter:
             "reference_assignments": {
                 f"{scenario_id}/{character_id}": voice_id
                 for (scenario_id, character_id), voice_id in (
-                    REFERENCE_ASSIGNMENTS.items()
+                    CLONE_REFERENCE_ASSIGNMENTS.items()
                 )
             },
             "watermark_disclosed_by_official_source": False,
@@ -836,7 +831,7 @@ def _select_reference_voice(job: LineJob) -> tuple[str, str]:
     key = (scenario_id, character_id)
     try:
         return (
-            REFERENCE_ASSIGNMENTS[key],
+            CLONE_REFERENCE_ASSIGNMENTS[key],
             f"adapter.assignment:{scenario_id}/{character_id}",
         )
     except KeyError as error:

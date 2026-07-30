@@ -24,6 +24,9 @@ from gaya_pipeline.adapters.base import (
     TakeRecipe,
     require_take_context,
 )
+from gaya_pipeline.adapters.voice_assignments import (
+    CLONE_REFERENCE_ASSIGNMENTS,
+)
 from gaya_pipeline.voice_assets import validate_voice_metadata
 
 MODEL_ID = "gpt-sovits-v2-pro-plus"
@@ -157,14 +160,6 @@ USER_DICTIONARY_CSV_MD5 = "878b3caf4d1cd7c2927c26e85072a2f5"
 USER_DICTIONARY_SHA256 = (
     "b44817ce96e24be7bcfdd009d834b5237fe044dc9ed5f2f9709f71da9d506fed"
 )
-
-REFERENCE_ASSIGNMENTS: Mapping[tuple[str, str], str] = {
-    ("tavern-night", "drunkard"): "hadou-emotion-11",
-    ("tavern-night", "old-regular"): "hadou-emotion-11",
-    ("market-day", "fruit-vendor"): "hadou-emotion-11",
-    ("market-day", "shopper"): "lux-emotion-76",
-    ("market-day", "street-kid"): "tsukuyomi-corpus-94",
-}
 
 REFERENCE_START_FRAMES: Mapping[str, int] = {
     "amitaro-countdown": 0,
@@ -550,7 +545,9 @@ class GPTSoVITSAdapter:
             "reference_start_frames": dict(REFERENCE_START_FRAMES),
             "reference_assignments": {
                 f"{scenario}/{character}": voice
-                for (scenario, character), voice in REFERENCE_ASSIGNMENTS.items()
+                for (scenario, character), voice in (
+                    CLONE_REFERENCE_ASSIGNMENTS.items()
+                )
             },
             "prompt_text_mode": "reference-free",
         }
@@ -649,7 +646,7 @@ def _select_reference_voice(job: LineJob) -> tuple[str, str]:
         return value, "character.reference_voice"
     key = (scenario_id, character_id)
     try:
-        return REFERENCE_ASSIGNMENTS[
+        return CLONE_REFERENCE_ASSIGNMENTS[
             key
         ], f"adapter.assignment:{scenario_id}/{character_id}"
     except KeyError as error:
