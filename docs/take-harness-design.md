@@ -524,6 +524,15 @@ runをmodelごとに1件だけ受理し、generic production releaseを新規作
 `gaya gen` から QC runtime を直接 load せず、`gaya qc` は run ledger を入力にできる
 よう拡張する。公開 manifest を候補 inventory として先に作らない。
 
+公開前のN=1全量確認に限り、ownerが
+`--selection-policy automatic-gate-v1`を明示できる。この経路は未策展groupの
+candidate数をexactly 1、gateを`mechanical=pass`、
+`content=pass|review_required`、`policy_version=take-gates-v2`に限定する。
+選定結果はformat v2 `take-selection-v1`へ保存し、各groupのauthorityを
+`human`または`automatic_gate`として区別する。既存の人評rubricと
+selected/skippedは変更せず、`review_required`もsoft signalのまま保持する。
+既定の完全人評経路、N>1、unknown content、暗黙policyには適用しない。
+
 ### 失敗規則
 
 - schema、scenario、model revision、adapter take support、seed recipe、output collision は

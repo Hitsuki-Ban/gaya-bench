@@ -149,6 +149,25 @@ curation / WAV / Opus / sidecar を現行 scenario に対して再検証し、�
 結果 bytes は変わらない。旧 `baseline-provenance`、別名、既定 run、欠損値の
 fallback は受理しない。
 
+N=1の全量生成を人評前に公開候補へまとめる場合は、判断権限を偽装せず
+selection policyを明示する:
+
+```console
+uv run --project pipeline --locked gaya takes finalize \
+  --run-id <model-a-run-id> \
+  --run-id <model-b-run-id> \
+  --selection-policy automatic-gate-v1 \
+  --output <new-release-directory>
+```
+
+この経路は未策展groupにcandidateがexactly 1件あること、mechanical=`pass`、
+content=`pass|review_required`、policy=`take-gates-v2`を要求し、唯一のcandidateを
+自動選定する。`review_required`を`pass`や人評済みに書き換えない。既存の人評
+selected/skippedはrubricとdecisionをそのまま保持し、aggregate decision artifact
+format v2 (`take-selection-v1`) のgroupごとに`human`または`automatic_gate`の
+authorityを記録する。通常経路の既定は引き続き完全人評であり、policyの暗黙適用、
+N>1の自動選択、未知のcontent状態の受理は行わない。
+
 再生成しないと確定した単一modelを、repository内の既存format v1 releaseから
 現行line snapshotへ保持投影する場合だけ、canonical projection planを明示する:
 
