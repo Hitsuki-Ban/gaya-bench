@@ -1,6 +1,6 @@
-import { describe, expect, it } from "vite-plus/test";
+import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 
-import { buildPilotDecisionJson } from "@/pilot/export";
+import { buildPilotDecisionJson, downloadPilotDecisionJson } from "@/pilot/export";
 import {
   PILOT_STORAGE_KEY,
   createPilotDecisionDraft,
@@ -18,6 +18,12 @@ const COMPLETE: PilotRubric = {
   character_naturalness: 4,
   adoptable: false,
 };
+
+afterEach(() => {
+  vi.useRealTimers();
+  vi.restoreAllMocks();
+  vi.unstubAllGlobals();
+});
 
 describe("pilot decision storage", () => {
   it("corrupt / stale payload を silent reset せず拒否する", () => {
@@ -140,6 +146,43 @@ describe("pilot decision export", () => {
     draft = setPilotGroupDecision(draft, draft.groups[0]!.group_id, { type: "skipped" });
 
     expect(() => buildPilotDecisionJson(catalog, draft)).toThrow("全 group");
+  });
+
+  it("anchorをDOMへ接続し、click後のtaskでBlob URLを破棄する", () => {
+    vi.useFakeTimers();
+    const events: string[] = [];
+    const anchor = {
+      href: "",
+      download: "",
+      click() {
+        events.push("click");
+      },
+      remove() {
+        events.push("remove");
+      },
+    };
+    vi.stubGlobal("document", {
+      createElement: vi.fn(() => anchor),
+      body: {
+        append: vi.fn(() => events.push("append")),
+      },
+    });
+    vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:pilot-decision");
+    const revoke = vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => {
+      events.push("revoke");
+    });
+
+    downloadPilotDecisionJson("{}");
+
+    expect(anchor).toMatchObject({
+      href: "blob:pilot-decision",
+      download: "pilot-decision.json",
+    });
+    expect(events).toEqual(["append", "click", "remove"]);
+    expect(revoke).not.toHaveBeenCalled();
+
+    vi.runAllTimers();
+    expect(events).toEqual(["append", "click", "remove", "revoke"]);
   });
 });
 
