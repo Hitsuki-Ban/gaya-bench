@@ -1,0 +1,61 @@
+{
+  "format_version": 1,
+  "experiment": "issue-142-qwen-gender-identity-blind-ab",
+  "completed_at": "2026-07-30T00:39:55.078Z",
+  "pairs": {
+    "guard-onna-001": {
+      "preference": "right",
+      "left": {
+        "speaker": "male",
+        "reading": "incorrect",
+        "delivery": "correct",
+        "leakage": "none"
+      },
+      "right": {
+        "speaker": "female_young_adult",
+        "reading": "correct",
+        "delivery": "correct",
+        "leakage": "none"
+      },
+      "notes": ""
+    },
+    "guard-onna-002": {
+      "preference": "right",
+      "left": {
+        "speaker": "male",
+        "reading": "incorrect",
+        "delivery": "correct",
+        "leakage": "none"
+      },
+      "right": {
+        "speaker": "female_young_adult",
+        "reading": "incorrect",
+        "delivery": "correct",
+        "leakage": "none"
+      },
+      "notes": "这组右边比起13组的年龄感更年轻。「するな！」特殊语调依旧失败"
+    },
+    "guard-onna-003": {
+      "preference": "right",
+      "left": {
+        "speaker": "male",
+        "reading": "correct",
+        "delivery": "incorrect",
+        "leakage": "none"
+      },
+      "right": {
+        "speaker": "female_wrong_age",
+        "reading": "correct",
+        "delivery": "correct",
+        "leakage": "none"
+      },
+      "notes": "拟声词还是略微过于夸张"
+    }
+  },
+  "series": {
+    "left_identity": "drift",
+    "right_identity": "drift",
+    "preference": "right",
+    "notes": "两边都是第二组anger存在明显声线变化"
+  }
+}

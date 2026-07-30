@@ -193,7 +193,7 @@ uv run --project pipeline --locked gaya publish \
 
 ## Qwen3-TTS 12Hz-1.7B
 
-`qwen3-tts-12hz-1.7b` は、VoiceDesign で `(scenario, character, emotion, intensity)` ごとの感情参照音声を設計し、Base の reusable voice clone prompt で該当するセリフへ適用する。Base に逐行 instruction を渡す方式ではなく、VoiceDesign で作った演技参照を ICL clone へ渡す間接制御である。
+`qwen3-tts-12hz-1.7b` には、VoiceDesign で `(scenario, character, emotion, intensity)` ごとの感情参照音声を設計し、Base の reusable voice clone prompt で該当するセリフへ適用する実験経路がある。Base に逐行 instruction を渡す方式ではなく、VoiceDesign で作った演技参照を ICL clone へ渡す間接制御である。#96 / #142 の blind canary は不合格であり、この経路は production の感情制御として有効化しない。
 
 実行環境は Windows 11 / NVIDIA CUDA / BF16 / SDPA の単一経路で、Python 依存関係は Qwen 専用 extra として同期する。
 
@@ -227,7 +227,9 @@ uv run --project pipeline --locked --extra qwen gaya gen --model qwen3-tts-12hz-
 
 Base の現行 API は line ごとの `instruct` を受け取らない。adapter は 12 emotion の reference text と代表 delivery を明示 table で固定し、`line.emotion` と exact `intensity` で bank を選ぶ。全 emotion で `character.voice` / `personality` / `scene.setting` の共通 prefix と「同じ話者の声質・年齢感を保つ」という指示を維持する。逐行の自由記述 `line.delivery` は Base へ直接渡さない。
 
-2026-07-30 に旧 character-only neutral reference を A、感情参照 bank を B とし、`castle-gate/guard-onna-001`〜`003` をすべて実 seed 0 で blind A/B した。neutral は A 優位、angry は同等、whisper は A 優位で、B は angry / whisper のどちらも演技 preference を改善しなかった。全候補で prompt leakage は報告されなかった一方、女衛兵に対して男性声と判定され、逐行の声線一貫性も確認できなかった。したがって [#96 の実験結果](../docs/research/qwen-emotion-bank-ab/README.md) は不合格であり、production manifest の `emotion` capability は `false` のまま維持する。この経路で #10 の Qwen 全量生成を開始してはならない。gender 指定と speaker identity の再設計は [#142](https://github.com/Hitsuki-Ban/gaya-bench/issues/142) で canary から行う。
+2026-07-30 に旧 character-only neutral reference を A、感情参照 bank を B とし、`castle-gate/guard-onna-001`〜`003` をすべて実 seed 0 で blind A/B した。neutral は A 優位、angry は同等、whisper は A 優位で、B は angry / whisper のどちらも演技 preference を改善しなかった。全候補で prompt leakage は報告されなかった一方、女衛兵に対して男性声と判定され、逐行の声線一貫性も確認できなかった。したがって [#96 の実験結果](../docs/research/qwen-emotion-bank-ab/README.md) は不合格である。
+
+続く [#142 の gender / speaker identity canary](../docs/research/qwen-gender-identity-canary/README.md) では、VoiceDesign instruct へ `female` / `young_adult` を明示すると女性指定への追従は改善したが、独立した neutral / angry / whisper reference 間で同一話者性を維持できず、angry の厳密な日本語語調も不合格だった。Qwen は感情制御候補から外し、production manifest の `emotion` capability は `false` のまま維持する。#71 の公開済み baseline は比較用に維持するが、この経路で #10 の Qwen 全量再生成を行わない。
 
 現行 corpus は 58 scenario-scoped character、161行で、実際に使う character-emotion 組み合わせは146、exact intensity を含めると157である。全 `58 × 12 × 3 = 2,088` 件は事前生成しない。旧58参照の実測平均は約30.1秒 / 0.198 MiB だったため、157件の粗い見積もりは約78.8分 / 31.1 MiB、旧方式からの純増は約49.7分 / 19.6 MiBである。#96 が不合格だったため、157件の全量 bank は生成しない。
 
