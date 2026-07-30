@@ -116,6 +116,20 @@ const VOICE_RIGHTS_KEYS = [
 const REDISTRIBUTION_KEYS = ["status", "evidence_url", "notes"] as const;
 const VOICE_PROFILE_KEYS = ["gender", "age", "notes"] as const;
 const VOICE_PROCESSING_KEYS = ["source_member", "source_sha256", "summary"] as const;
+const AIVIS_MODEL_ID = "aivisspeech-kohaku";
+const AIVIS_ENGINE_VERSION = "1.2.0";
+const AIVIS_ENGINE_MANIFEST_VERSION = "0.13.1";
+const AIVIS_ENGINE_MANIFEST_UUID = "1b4a5014-d9fd-11ee-b97d-83c170a68ed3";
+const AIVIS_MODEL_NAME = "コハク";
+const AIVIS_MODEL_UUID = "22e8ed77-94fe-4ef2-871f-a86f94e9a579";
+const AIVIS_MODEL_VERSION = "1.1.0";
+const AIVIS_MODEL_SHA256 = "3f5c08b52bb8a64efd361268580c81510f96c927cd6905aa7dbae6851333270a";
+const AIVIS_MODEL_LICENSE = "ACML-1.0";
+const IRODORI_MODEL_ID = "irodori-tts-600m-v3-voicedesign";
+const IRODORI_UPSTREAM_REPOSITORY = "Aratako/Irodori-TTS";
+const IRODORI_UPSTREAM_REVISION = "eaf74d6a19138f743acb5b71a445fd25a57db987";
+const IRODORI_CHECKPOINT = "Aratako/Irodori-TTS-600M-v3-VoiceDesign";
+const IRODORI_CHECKPOINT_REVISION = "e863a3a93e652e09afeff3e84823a206a0a60314";
 
 interface ModelSourceField {
   readonly repository: string;
@@ -797,6 +811,13 @@ function projectModelCredits(manifest: Manifest): readonly ModelCredit[] {
 function extractModelSources(candidate: Candidate, modelId: string): readonly ModelSourceLink[] {
   const requested = candidate.gen_params.requested;
   assertRecord(requested, `model ${modelId} requested provenance`);
+  if (modelId === AIVIS_MODEL_ID) {
+    return extractAivisSources(requested);
+  }
+  if (modelId === IRODORI_MODEL_ID) {
+    return extractIrodoriSources(requested);
+  }
+
   const sources: ModelSourceLink[] = [];
   for (const field of MODEL_SOURCE_FIELDS) {
     const repositoryValue = requested[field.repository];
@@ -823,6 +844,78 @@ function extractModelSources(candidate: Candidate, modelId: string): readonly Mo
     });
   }
   return sources;
+}
+
+function extractAivisSources(requested: UnknownRecord): readonly ModelSourceLink[] {
+  assertExactValue(requested.engine, "AivisSpeech Engine", "AivisSpeech engine");
+  assertExactValue(requested.engine_version, AIVIS_ENGINE_VERSION, "AivisSpeech engine_version");
+  assertExactValue(
+    requested.engine_manifest_version,
+    AIVIS_ENGINE_MANIFEST_VERSION,
+    "AivisSpeech engine_manifest_version",
+  );
+  assertExactValue(
+    requested.engine_manifest_uuid,
+    AIVIS_ENGINE_MANIFEST_UUID,
+    "AivisSpeech engine_manifest_uuid",
+  );
+  assertExactValue(requested.model_name, AIVIS_MODEL_NAME, "AivisSpeech model_name");
+  assertExactValue(requested.model_uuid, AIVIS_MODEL_UUID, "AivisSpeech model_uuid");
+  assertExactValue(requested.model_version, AIVIS_MODEL_VERSION, "AivisSpeech model_version");
+  assertExactValue(requested.model_sha256, AIVIS_MODEL_SHA256, "AivisSpeech model_sha256");
+  assertExactValue(requested.model_license, AIVIS_MODEL_LICENSE, "AivisSpeech model_license");
+  return [
+    {
+      kind: "code",
+      label: `AivisSpeech Engine ${AIVIS_ENGINE_VERSION}`,
+      repository: "Aivis-Project/AivisSpeech-Engine",
+      revision: AIVIS_ENGINE_VERSION,
+      url: `https://github.com/Aivis-Project/AivisSpeech-Engine/releases/tag/${AIVIS_ENGINE_VERSION}`,
+    },
+    {
+      kind: "weights",
+      label: `${AIVIS_MODEL_NAME} ${AIVIS_MODEL_VERSION}`,
+      repository: `AivisHub/aivm-models/${AIVIS_MODEL_UUID}`,
+      revision: `${AIVIS_MODEL_VERSION}@sha256:${AIVIS_MODEL_SHA256}`,
+      url: `https://hub.aivis-project.com/aivm-models/${AIVIS_MODEL_UUID}`,
+    },
+  ];
+}
+
+function extractIrodoriSources(requested: UnknownRecord): readonly ModelSourceLink[] {
+  assertExactValue(
+    requested.upstream_revision,
+    IRODORI_UPSTREAM_REVISION,
+    "Irodori upstream_revision",
+  );
+  assertExactValue(requested.checkpoint, IRODORI_CHECKPOINT, "Irodori checkpoint");
+  assertExactValue(
+    requested.checkpoint_revision,
+    IRODORI_CHECKPOINT_REVISION,
+    "Irodori checkpoint_revision",
+  );
+  return [
+    {
+      kind: "code",
+      label: "コード",
+      repository: IRODORI_UPSTREAM_REPOSITORY,
+      revision: IRODORI_UPSTREAM_REVISION,
+      url: `https://github.com/${IRODORI_UPSTREAM_REPOSITORY}/tree/${IRODORI_UPSTREAM_REVISION}`,
+    },
+    {
+      kind: "weights",
+      label: "VoiceDesign ウェイト",
+      repository: IRODORI_CHECKPOINT,
+      revision: IRODORI_CHECKPOINT_REVISION,
+      url: `https://huggingface.co/${IRODORI_CHECKPOINT}/tree/${IRODORI_CHECKPOINT_REVISION}`,
+    },
+  ];
+}
+
+function assertExactValue(value: unknown, expected: string, label: string): void {
+  if (value !== expected) {
+    throw new GayaDataError(`${label} は ${expected} が必要です。`);
+  }
 }
 
 function validateReferences(

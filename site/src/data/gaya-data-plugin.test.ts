@@ -126,6 +126,76 @@ describe("loadBenchmarkData v4", () => {
     );
   });
 
+  it("AivisSpeechの固定Engine・コハクprovenanceをcreditsへ投影する", () => {
+    const manifest = manifestForModel("aivisspeech-kohaku", {
+      engine: "AivisSpeech Engine",
+      engine_manifest_uuid: "1b4a5014-d9fd-11ee-b97d-83c170a68ed3",
+      engine_manifest_version: "0.13.1",
+      engine_version: "1.2.0",
+      model_license: "ACML-1.0",
+      model_name: "コハク",
+      model_sha256: "3f5c08b52bb8a64efd361268580c81510f96c927cd6905aa7dbae6851333270a",
+      model_uuid: "22e8ed77-94fe-4ef2-871f-a86f94e9a579",
+      model_version: "1.1.0",
+    });
+
+    const sources = loadBenchmarkData(createFixture(manifest)).credits.model_sources[0]?.sources;
+
+    expect(sources).toEqual([
+      {
+        kind: "code",
+        label: "AivisSpeech Engine 1.2.0",
+        repository: "Aivis-Project/AivisSpeech-Engine",
+        revision: "1.2.0",
+        url: "https://github.com/Aivis-Project/AivisSpeech-Engine/releases/tag/1.2.0",
+      },
+      {
+        kind: "weights",
+        label: "コハク 1.1.0",
+        repository: "AivisHub/aivm-models/22e8ed77-94fe-4ef2-871f-a86f94e9a579",
+        revision: "1.1.0@sha256:3f5c08b52bb8a64efd361268580c81510f96c927cd6905aa7dbae6851333270a",
+        url: "https://hub.aivis-project.com/aivm-models/" + "22e8ed77-94fe-4ef2-871f-a86f94e9a579",
+      },
+    ]);
+
+    manifest.candidates[0]!.gen_params.requested.model_sha256 = "f".repeat(64);
+    expect(() => loadBenchmarkData(createFixture(manifest))).toThrow("AivisSpeech model_sha256");
+  });
+
+  it("Irodoriの固定code・VoiceDesign checkpointをcreditsへ投影する", () => {
+    const manifest = manifestForModel("irodori-tts-600m-v3-voicedesign", {
+      checkpoint: "Aratako/Irodori-TTS-600M-v3-VoiceDesign",
+      checkpoint_revision: "e863a3a93e652e09afeff3e84823a206a0a60314",
+      upstream_revision: "eaf74d6a19138f743acb5b71a445fd25a57db987",
+    });
+
+    const sources = loadBenchmarkData(createFixture(manifest)).credits.model_sources[0]?.sources;
+
+    expect(sources).toEqual([
+      {
+        kind: "code",
+        label: "コード",
+        repository: "Aratako/Irodori-TTS",
+        revision: "eaf74d6a19138f743acb5b71a445fd25a57db987",
+        url:
+          "https://github.com/Aratako/Irodori-TTS/tree/" +
+          "eaf74d6a19138f743acb5b71a445fd25a57db987",
+      },
+      {
+        kind: "weights",
+        label: "VoiceDesign ウェイト",
+        repository: "Aratako/Irodori-TTS-600M-v3-VoiceDesign",
+        revision: "e863a3a93e652e09afeff3e84823a206a0a60314",
+        url:
+          "https://huggingface.co/Aratako/Irodori-TTS-600M-v3-VoiceDesign/tree/" +
+          "e863a3a93e652e09afeff3e84823a206a0a60314",
+      },
+    ]);
+
+    delete manifest.candidates[0]!.gen_params.requested.checkpoint_revision;
+    expect(() => loadBenchmarkData(createFixture(manifest))).toThrow("Irodori checkpoint_revision");
+  });
+
   it("reference voice metadata を exact validation し scenario 参照と結合する", () => {
     const unknownReference = validScenario().replace(
       "voice: Clear",
@@ -313,6 +383,23 @@ function validManifest(): MutableManifest {
       },
     ],
   };
+}
+
+function manifestForModel(modelId: string, requested: Record<string, unknown>): MutableManifest {
+  const manifest = validManifest();
+  manifest.models[0]!.id = modelId;
+  for (const candidate of manifest.candidates) {
+    candidate.model = modelId;
+    candidate.path = candidate.path.replace("audio/takes/model/", `audio/takes/${modelId}/`);
+    candidate.gen_params.requested = structuredClone(requested);
+  }
+  for (const curation of manifest.curations) {
+    curation.model = modelId;
+  }
+  for (const failure of manifest.failures) {
+    failure.model = modelId;
+  }
+  return manifest;
 }
 
 function candidate(variant: string, takeIndex: number, marker: string): MutableCandidate {
