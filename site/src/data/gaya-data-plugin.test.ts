@@ -31,15 +31,17 @@ afterEach(() => {
 describe("virtual:gaya-data integration", () => {
   it("固定 release を strict v4 / selected-only index として公開する", () => {
     expect(benchmarkData.manifest.format_version).toBe(4);
-    expect(benchmarkData.manifest.candidates).toHaveLength(220);
-    expect(selectedCandidates).toHaveLength(166);
-    expect(benchmarkData.outcomes.filter(({ kind }) => kind === "skipped")).toHaveLength(54);
-    expect(benchmarkData.outcomes.filter(({ kind }) => kind === "failure")).toHaveLength(161);
-    expect(manifestModelById.has("dummy")).toBe(true);
+    expect(benchmarkData.manifest.candidates).toHaveLength(1282);
+    expect(selectedCandidates).toHaveLength(1243);
+    expect(benchmarkData.outcomes.filter(({ kind }) => kind === "skipped")).toHaveLength(39);
+    expect(benchmarkData.outcomes.filter(({ kind }) => kind === "failure")).toHaveLength(6);
+    expect(manifestModelById.has("dummy")).toBe(false);
     expect(modelById.has("dummy")).toBe(false);
     expect(benchmarkData.credits.model_sources).toHaveLength(benchmarkData.manifest.models.length);
     expect(benchmarkData.credits.reference_voices).toHaveLength(5);
-    expect(modelCreditById.get("dummy")?.sources).toEqual([]);
+    expect(modelCreditById.has("dummy")).toBe(false);
+    expect(modelCreditById.get("aivisspeech-kohaku")?.sources).toHaveLength(2);
+    expect(modelCreditById.get("irodori-tts-600m-v3-voicedesign")?.sources).toHaveLength(2);
     expect(modelCreditById.get("chatterbox-multilingual-v3")?.sources.length).toBeGreaterThan(0);
     expect(referenceVoiceById.has("tsukuyomi-corpus-94")).toBe(true);
     expect(lineByKey.has("market-day/fruit-vendor-001")).toBe(true);

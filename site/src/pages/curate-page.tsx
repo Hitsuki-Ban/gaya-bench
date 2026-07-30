@@ -358,7 +358,7 @@ function GroupEditor({
         </CardHeader>
       </Card>
 
-      <CurationJudgmentCriteria />
+      <CurationJudgmentCriteria candidateCount={group.candidates.length} />
 
       <div className="grid gap-4 xl:grid-cols-2">
         {group.candidates.map((candidate) => {
@@ -427,7 +427,7 @@ function GroupEditor({
   );
 }
 
-export function CurationJudgmentCriteria() {
+export function CurationJudgmentCriteria({ candidateCount }: { candidateCount: number }) {
   return (
     <Card>
       <CardHeader>
@@ -462,8 +462,18 @@ export function CurationJudgmentCriteria() {
           「内容は正しい」「採用可能」をともに「いいえ」にして skip します。
         </p>
         <p className="rounded-md border border-primary/20 bg-primary/[0.04] p-3 text-foreground">
-          この run は 1 group につき候補が1件です。「内容は正しい」と「採用可能」がともに
-          「はい」のときだけ候補を選択し、それ以外は skip してください。
+          {candidateCount === 1 ? (
+            <>
+              この group は候補が1件です。「内容は正しい」と「採用可能」がともに
+              「はい」のときだけ候補を選択し、それ以外は skip してください。
+            </>
+          ) : (
+            <>
+              この group は候補が{candidateCount}件です。全候補を個別に評価し、「内容は正しい」と
+              「採用可能」がともに「はい」の候補から、最も適した1件だけを選択してください。
+              該当候補がなければ全候補を見送ってください。
+            </>
+          )}
         </p>
       </CardContent>
     </Card>

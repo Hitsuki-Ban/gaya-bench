@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import json
 import shutil
+from copy import deepcopy
 from pathlib import Path
 from typing import Any
 
@@ -20,14 +21,17 @@ from gaya_pipeline.selection import (
     AUTOMATIC_SELECTION_POLICY,
     selection_group_to_human_curation,
 )
-from gaya_pipeline.take_identity import canonical_json
+from gaya_pipeline.take_identity import canonical_json, make_take_id
 from gaya_pipeline.take_ledger import read_ledger, write_ledger_atomic
 from test_curation import (
     SCENARIOS_DIR,
     _add_candidate_groups,
     _curation,
     _curation_for_lines,
+    _rewrite_snapshot_bundle,
     _setup_run,
+    _write_qc_report,
+    _write_take_files,
     _write_input,
 )
 
@@ -40,6 +44,7 @@ def _setup_curated_run(
     audio_bytes: bytes,
     scenarios_dir: Path = SCENARIOS_DIR,
     line_text: str = "はいよっ、エール二つお待ち！",
+    decision: str = "selected",
 ) -> tuple[str, dict[str, Any]]:
     configured_run_id, manifest, _snapshot_path, _audio_path = _setup_run(
         tmp_path,
@@ -51,12 +56,59 @@ def _setup_curated_run(
     )
     apply_curation(
         run_id=configured_run_id,
-        input_path=_write_input(tmp_path, _curation(manifest)),
+        input_path=_write_input(tmp_path, _curation(manifest, decision=decision)),
         artifacts_dir=tmp_path / "artifacts",
         data_dir=tmp_path / "data",
         scenarios_dir=scenarios_dir,
     )
     return configured_run_id, manifest
+
+
+def _add_second_candidate_to_group(
+    *,
+    run_id: str,
+    manifest: dict[str, Any],
+    snapshot_path: Path,
+) -> None:
+    first = manifest["candidates"][0]
+    audio_bytes = b"second candidate opus"
+    audio_sha = hashlib.sha256(audio_bytes).hexdigest()
+    input_sha = "d" * 64
+    second = deepcopy(first)
+    second.update(
+        take_index=2,
+        sha256=audio_sha,
+        generation_input_sha256=input_sha,
+        take_id=make_take_id(
+            generation_input_sha256=input_sha,
+            final_opus_sha256=audio_sha,
+        ),
+        path=(
+            f"audio/takes/{first['model']}/tavern-night/barmaid-001/dry/"
+            f"take-0002-{audio_sha}.opus"
+        ),
+    )
+    manifest["candidates"].append(second)
+    run_root = snapshot_path.parent
+    _audio_path, ledger_audio = _write_take_files(
+        run_root=run_root,
+        run_id=run_id,
+        candidate=second,
+        opus_bytes=audio_bytes,
+    )
+    ledger = read_ledger(run_root / "ledger.json")
+    attempt = deepcopy(ledger["attempts"][0])
+    attempt.update(
+        take_index=2,
+        take_id=second["take_id"],
+        generation_input_sha256=input_sha,
+        audio=ledger_audio,
+    )
+    ledger["source"]["takes"] = 2
+    ledger["attempts"].append(attempt)
+    write_ledger_atomic(run_root / "ledger.json", ledger)
+    _rewrite_snapshot_bundle(manifest=manifest, snapshot_path=snapshot_path)
+    _write_qc_report(run_root=run_root, manifest=manifest)
 
 
 def _finalize(
@@ -165,6 +217,7 @@ def _setup_projection_fixture(
     line_text_drift: bool = False,
     missing_line: str = "barmaid-002",
     curate_target: bool = True,
+    preserved_decision: str = "selected",
 ) -> tuple[str, Path, Path]:
     preserved_scenarios = _copy_scenarios_with_source_drift(
         tmp_path,
@@ -181,6 +234,7 @@ def _setup_projection_fixture(
             if line_text_drift
             else "はいよっ、エール二つお待ち！"
         ),
+        decision=preserved_decision,
     )
     preserved_release = _finalize(
         tmp_path,
@@ -334,12 +388,66 @@ def test_finalizeは自動gateと既存人評decisionを混合して保持する
     assert groups_by_model["model-human"]["decision"] == {"type": "skipped"}
 
 
+def test_finalize自動gateは未策展N2_groupを拒否する(tmp_path: Path) -> None:
+    run_id, manifest, snapshot_path, _audio_path = _setup_run(
+        tmp_path,
+        run_id="automatic-n2-run",
+        model="model-auto",
+    )
+    _add_second_candidate_to_group(
+        run_id=run_id,
+        manifest=manifest,
+        snapshot_path=snapshot_path,
+    )
+
+    with pytest.raises(ReleaseError, match="N=1"):
+        _finalize(
+            tmp_path,
+            run_ids=[run_id],
+            selection_policy=AUTOMATIC_SELECTION_POLICY,
+        )
+
+    assert not (tmp_path / "release").exists()
+
+
+def test_finalize自動gateは不正なgate_policyを拒否する(tmp_path: Path) -> None:
+    run_id, manifest, snapshot_path, _audio_path = _setup_run(
+        tmp_path,
+        run_id="automatic-policy-run",
+        model="model-auto",
+    )
+    manifest["candidates"][0]["gate"]["policy_version"] = "take-gates-v1"
+    _rewrite_snapshot_bundle(manifest=manifest, snapshot_path=snapshot_path)
+    _write_qc_report(run_root=snapshot_path.parent, manifest=manifest)
+
+    with pytest.raises(ReleaseError, match="take-gates-v2"):
+        _finalize(
+            tmp_path,
+            run_ids=[run_id],
+            selection_policy=AUTOMATIC_SELECTION_POLICY,
+        )
+
+    assert not (tmp_path / "release").exists()
+
+
+def test_finalizeは未知のselection_policyを拒否する(tmp_path: Path) -> None:
+    with pytest.raises(ReleaseError, match="未知のselection policy"):
+        _finalize(
+            tmp_path,
+            run_ids=["unused"],
+            selection_policy="automatic-gate-v0",
+        )
+
+    assert not (tmp_path / "release").exists()
+
+
 def test_finalize自動gateはprojection人評をexactに保持する(
     tmp_path: Path,
 ) -> None:
     target_run, preserved_release, plan_path = _setup_projection_fixture(
         tmp_path,
         curate_target=False,
+        preserved_decision="skipped",
     )
     preserved = validate_finalized_release(
         release_dir=preserved_release,
@@ -370,8 +478,8 @@ def test_finalize自動gateはprojection人評をexactに保持する(
         curation_sha256=summary.curation_sha256,
         model_count=2,
         candidate_count=3,
-        selected_count=3,
-        skipped_count=0,
+        selected_count=2,
+        skipped_count=1,
         failure_count=1,
     )
     assert projected_groups == preserved.curation["groups"]
