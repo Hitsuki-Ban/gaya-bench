@@ -11,5 +11,7 @@
 | `opus-true-peak-ceiling.md` | Opus配信用True Peakのエンコード前シーリング実測 | Codex |
 | `generation-log.md` | モデル別の全量生成・公開ログ | Codex |
 | `rekion-download-feasibility.md` | NDL「歴史的音源」の音源取得可否・公開メタデータ集計・代替経路 | Codex |
+| `qwen-emotion-bank-ab/` | Qwen3-TTS 感情参照bankのblind A/B | Codex + Owner |
+| `qwen-gender-identity-canary/` | Qwen3-TTS gender指定と感情間speaker identityのblind canary | Codex + Owner |
 
 ルール: 主張には出典URLを付ける。ライセンスは一次情報 (LICENSE/モデルカード/公式規約) で確認。不確実な点は「要確認」と明記。
