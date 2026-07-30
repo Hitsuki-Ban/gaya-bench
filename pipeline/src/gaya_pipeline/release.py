@@ -65,6 +65,7 @@ class FinalizedRelease:
     curation: dict[str, Any]
     run_roots: dict[str, Path]
     source_manifests: dict[str, dict[str, Any]]
+    projection_plan: dict[str, Any] | None
 
 
 @dataclass(frozen=True)
@@ -80,12 +81,33 @@ class _SourceRun:
     curation_groups: tuple[dict[str, Any], ...]
 
 
+@dataclass(frozen=True)
+class _ProjectionSource:
+    source: _SourceRun
+    plan: dict[str, Any]
+    plan_bytes: bytes
+    plan_sha256: str
+    source_release: FinalizedRelease
+    source_release_path: str
+    source_release_manifest_sha256: str
+    source_release_provenance_sha256: str
+    source_release_curation_sha256: str
+    source_curation_groups_sha256: str
+    target_failures: tuple[dict[str, Any], ...]
+
+
 PROVENANCE_FORMAT_VERSION = 1
-PROVENANCE_ROOT_FIELDS = {
+PROJECTED_PROVENANCE_FORMAT_VERSION = 2
+PROVENANCE_V1_ROOT_FIELDS = {
     "format_version",
     "candidate_set_sha256",
     "manifest_sha256",
     "runs",
+}
+PROVENANCE_V2_ROOT_FIELDS = {
+    *PROVENANCE_V1_ROOT_FIELDS,
+    "projection_plan_sha256",
+    "projection",
 }
 PROVENANCE_RUN_FIELDS = {
     "model",
@@ -95,6 +117,33 @@ PROVENANCE_RUN_FIELDS = {
     "manifest_sha256",
     "candidate_set_sha256",
 }
+PROJECTION_PLAN_ROOT_FIELDS = {
+    "format_version",
+    "target_run_id",
+    "source_release",
+    "target_failures",
+}
+PROJECTION_PLAN_SOURCE_FIELDS = {
+    "path",
+    "model",
+    "manifest_sha256",
+    "candidate_set_sha256",
+    "provenance_sha256",
+    "curation_sha256",
+}
+PROJECTION_PROVENANCE_FIELDS = {
+    "model",
+    "source_release_path",
+    "source_release_manifest_sha256",
+    "source_release_candidate_set_sha256",
+    "source_release_provenance_sha256",
+    "source_release_curation_sha256",
+    "source_curation_groups_sha256",
+    "source_scenario_sha256",
+    "target_scenario_sha256",
+    "target_failures",
+}
+FAILURE_FIELDS = {*GROUP_KEYS, "reason"}
 HEX = frozenset("0123456789abcdef")
 PATH_SEGMENT = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]*")
 
@@ -106,6 +155,7 @@ def finalize_release(
     data_dir: Path,
     scenarios_dir: Path,
     output_dir: Path,
+    projection_plan_path: Path | None = None,
 ) -> ReleaseFinalizeSummary:
     ordered_run_ids = sorted(_path_segment(run_id, "run_id") for run_id in run_ids)
     if not ordered_run_ids:
@@ -125,14 +175,36 @@ def finalize_release(
     takes_root = _require_directory(artifacts_dir / "takes", "takes root")
     scenarios_root = _require_directory(scenarios_dir, "scenarios directory")
     artifact_root = _require_directory(data_dir / "curation", "curation directory")
+    repository_root = data_dir.resolve().parent
+    if projection_plan_path is not None:
+        layout_root = _projected_repository_root(takes_root)
+        if layout_root != repository_root:
+            raise ReleaseError(
+                "projected finalize は data/ と artifacts/takes が同じ"
+                "repository root 配下にある必要があります。",
+            )
     run_roots = [
         _resolve_direct_child(takes_root, run_id, f"source run {run_id}")
         for run_id in ordered_run_ids
     ]
+    projection = (
+        _load_projection_source(
+            projection_plan_path=projection_plan_path,
+            repository_root=repository_root,
+            takes_root=takes_root,
+        )
+        if projection_plan_path is not None
+        else None
+    )
+    lock_roots = {
+        run_root.resolve(): run_root for run_root in run_roots
+    }
+    if projection is not None:
+        lock_roots.setdefault(projection.source.root.resolve(), projection.source.root)
 
     try:
         with ExitStack() as locks:
-            for run_root in run_roots:
+            for run_root in lock_roots.values():
                 locks.enter_context(exclusive_run_lock(run_root))
             sources = [
                 _load_curated_source_run(
@@ -147,7 +219,16 @@ def finalize_release(
                     strict=True,
                 )
             ]
-            material = _build_release_material(sources)
+            if projection_plan_path is not None:
+                projection = _load_projection_source(
+                    projection_plan_path=projection_plan_path,
+                    repository_root=repository_root,
+                    takes_root=takes_root,
+                )
+            material = _build_release_material(
+                sources,
+                projection=projection,
+            )
             return _write_release(
                 output_dir=output_dir,
                 takes_root=takes_root,
@@ -194,6 +275,19 @@ def validate_finalized_release(
         raise ReleaseError(
             "release provenance manifest_sha256 が release と一致しません。",
         )
+    projection_plan = _load_release_projection_plan(
+        release_root=release_root,
+        provenance=provenance,
+    )
+    projection_source = (
+        _load_projection_source(
+            projection_plan_path=release_root / "projection-plan.json",
+            repository_root=_projected_repository_root(takes_root_resolved),
+            takes_root=takes_root_resolved,
+        )
+        if projection_plan is not None
+        else None
+    )
 
     models = {model["id"]: model for model in bundle.manifest["models"]}
     run_by_model = {run["model"]: run for run in provenance["runs"]}
@@ -209,6 +303,7 @@ def validate_finalized_release(
     )
     run_roots: dict[str, Path] = {}
     source_manifests: dict[str, dict[str, Any]] = {}
+    source_bundles: dict[str, SnapshotBundle] = {}
     release_candidates_by_model = _items_by_model(bundle.manifest["candidates"])
     release_failures_by_model = _items_by_model(bundle.manifest["failures"])
     for model, record in run_by_model.items():
@@ -243,9 +338,26 @@ def validate_finalized_release(
             release_candidates=release_candidates,
             release_failures=release_failures_by_model.get(model, []),
             source_manifest=source_bundle.manifest,
+            projected_failures=(
+                projection_source.target_failures
+                if projection_source is not None
+                and projection_source.source.model == model
+                else ()
+            ),
         )
         run_roots[model] = run_root
         source_manifests[model] = source_bundle.manifest
+        source_bundles[model] = source_bundle
+
+    if projection_source is not None:
+        _validate_final_projection(
+            bundle=bundle,
+            curation=curation,
+            provenance=provenance,
+            run_by_model=run_by_model,
+            source_bundles=source_bundles,
+            projection=projection_source,
+        )
 
     return FinalizedRelease(
         root=release_root,
@@ -255,6 +367,7 @@ def validate_finalized_release(
         curation=curation,
         run_roots=run_roots,
         source_manifests=source_manifests,
+        projection_plan=projection_plan,
     )
 
 
@@ -373,24 +486,338 @@ def _load_curated_source_run(
     )
 
 
-def _build_release_material(sources: Sequence[_SourceRun]) -> dict[str, Any]:
+def validate_projection_plan(document: Any) -> dict[str, Any]:
+    root = _exact(document, PROJECTION_PLAN_ROOT_FIELDS, "projection plan")
+    if root["format_version"] != 1:
+        raise ReleaseError("projection plan format_version は1が必要です。")
+    target_run_id = _path_segment(
+        root["target_run_id"],
+        "projection plan target_run_id",
+    )
+    source = _exact(
+        root["source_release"],
+        PROJECTION_PLAN_SOURCE_FIELDS,
+        "projection plan source_release",
+    )
+    source_path = _repository_relative_path(
+        source["path"],
+        "projection plan source_release.path",
+    )
+    model = _path_segment(
+        source["model"],
+        "projection plan source_release.model",
+    )
+    normalized_source = {
+        "path": source_path,
+        "model": model,
+        "manifest_sha256": _sha(
+            source["manifest_sha256"],
+            "projection plan source_release.manifest_sha256",
+        ),
+        "candidate_set_sha256": _sha(
+            source["candidate_set_sha256"],
+            "projection plan source_release.candidate_set_sha256",
+        ),
+        "provenance_sha256": _sha(
+            source["provenance_sha256"],
+            "projection plan source_release.provenance_sha256",
+        ),
+        "curation_sha256": _sha(
+            source["curation_sha256"],
+            "projection plan source_release.curation_sha256",
+        ),
+    }
+    failures = _validate_projected_failures(
+        root["target_failures"],
+        model=model,
+        field="projection plan target_failures",
+    )
+    return {
+        "format_version": 1,
+        "target_run_id": target_run_id,
+        "source_release": normalized_source,
+        "target_failures": failures,
+    }
+
+
+def _load_projection_source(
+    *,
+    projection_plan_path: Path,
+    repository_root: Path,
+    takes_root: Path,
+) -> _ProjectionSource:
+    plan_path = projection_plan_path.resolve()
+    plan_bytes = _read_bytes(plan_path, "projection plan")
+    plan = validate_projection_plan(
+        _read_json_bytes(plan_bytes, plan_path, "projection plan"),
+    )
+    canonical_plan = canonical_json(plan).encode("utf-8")
+    if plan_bytes != canonical_plan:
+        raise ReleaseError("projection plan は canonical bytes が必要です。")
+    plan_sha256 = hashlib.sha256(plan_bytes).hexdigest()
+
+    source_record = plan["source_release"]
+    source_release_root = _resolve_repository_child(
+        repository_root=repository_root,
+        relative_path=source_record["path"],
+        label="projection source release",
+    )
+    source_release = validate_finalized_release(
+        release_dir=source_release_root,
+        takes_root=takes_root,
+    )
+    if source_release.provenance["format_version"] != PROVENANCE_FORMAT_VERSION:
+        raise ReleaseError(
+            "projection source release は format_version=1 の確定releaseが必要です。",
+        )
+    if source_release.projection_plan is not None:
+        raise ReleaseError("projection source release の連鎖投影は受理しません。")
+
+    manifest_sha256 = _file_sha256(source_release_root / "manifest-v4.json")
+    provenance_sha256 = _file_sha256(
+        source_release_root / "release-provenance.json",
+    )
+    curation_hashes = {
+        item["curation_sha256"]
+        for item in source_release.manifest["curations"]
+    }
+    if len(curation_hashes) != 1:
+        raise ReleaseError(
+            "projection source release の curation SHA が一意ではありません。",
+        )
+    source_curation_sha256 = next(iter(curation_hashes))
+    actual_pins = {
+        "manifest_sha256": manifest_sha256,
+        "candidate_set_sha256": source_release.manifest["candidate_set_sha256"],
+        "provenance_sha256": provenance_sha256,
+        "curation_sha256": source_curation_sha256,
+    }
+    for key, actual in actual_pins.items():
+        if source_record[key] != actual:
+            raise ReleaseError(
+                f"projection source release {key} が plan と一致しません。",
+            )
+
+    model = source_record["model"]
+    models = {
+        item["id"]: item for item in source_release.manifest["models"]
+    }
+    if model not in models:
+        raise ReleaseError(
+            f"projection source release に model がありません: {model}",
+        )
+    if model == "dummy":
+        raise ReleaseError("dummy model は preserved projection に使用できません。")
+    record_by_model = {
+        item["model"]: item for item in source_release.provenance["runs"]
+    }
+    run_record = record_by_model[model]
+    run_root = source_release.run_roots[model]
+    try:
+        source_bundle = validate_snapshot_bundle(
+            snapshot_path=run_root / "manifest-v4.json",
+            candidate_set_path=run_root / "candidate-set.json",
+            marker_path=run_root / "candidate-set.sha256",
+        )
+        ledger = read_ledger(run_root / "ledger.json")
+    except (CurationError, TakeLedgerError, OSError, json.JSONDecodeError) as error:
+        raise ReleaseError(
+            f"projection source run を検証できません: {run_record['run_id']}: {error}",
+        ) from error
+    if ledger["run_id"] != run_record["run_id"]:
+        raise ReleaseError("projection source run id が ledger と一致しません。")
+    if ledger["source"]["model"] != model:
+        raise ReleaseError("projection source model が ledger と一致しません。")
+    qc_document = _read_json(
+        run_root / "qc-report.json",
+        "projection source run QC report",
+    )
+    try:
+        qc_authority = validate_qc_report(
+            qc_document,
+            ledger_path=run_root / "ledger.json",
+            ledger=ledger,
+        )
+        if qc_document["generated_at"] != source_bundle.manifest["generated_at"]:
+            raise ReleaseError(
+                "projection source run QC generated_at が manifest と"
+                "一致しません。",
+            )
+        _validate_manifest_against_terminal_ledger(
+            manifest=source_bundle.manifest,
+            ledger=ledger,
+            run_root=run_root,
+            qc_authority=qc_authority,
+        )
+    except (
+        CurationError,
+        QCReportError,
+        TakeManifestError,
+        TakeLedgerError,
+    ) as error:
+        raise ReleaseError(
+            f"projection source run の物理artifact provenanceが不正です: {error}",
+        ) from error
+
+    release_candidates = [
+        item
+        for item in source_release.manifest["candidates"]
+        if item["model"] == model
+    ]
+    release_failures = [
+        item
+        for item in source_release.manifest["failures"]
+        if item["model"] == model
+    ]
+    _validate_release_failures_against_source(
+        model=model,
+        release_candidates=release_candidates,
+        release_failures=release_failures,
+        source_manifest=source_bundle.manifest,
+    )
+    curation_groups = tuple(
+        sorted(
+            (
+                dict(group)
+                for group in source_release.curation["groups"]
+                if group["model"] == model
+            ),
+            key=_group_key,
+        ),
+    )
+    candidate_groups = {
+        _group_key(candidate) for candidate in release_candidates
+    }
+    if {_group_key(group) for group in curation_groups} != candidate_groups:
+        raise ReleaseError(
+            "projection source release の model curation coverage が不正です。",
+        )
+    source_group_bytes = canonical_json(list(curation_groups)).encode("utf-8")
+    source_groups_sha256 = hashlib.sha256(source_group_bytes).hexdigest()
+    source = _SourceRun(
+        run_id=run_record["run_id"],
+        model=model,
+        root=run_root,
+        ledger=ledger,
+        bundle=source_bundle,
+        ledger_sha256=run_record["ledger_sha256"],
+        qc_report_sha256=run_record["qc_report_sha256"],
+        manifest_sha256=run_record["manifest_sha256"],
+        curation_groups=curation_groups,
+    )
+    return _ProjectionSource(
+        source=source,
+        plan=plan,
+        plan_bytes=plan_bytes,
+        plan_sha256=plan_sha256,
+        source_release=source_release,
+        source_release_path=source_record["path"],
+        source_release_manifest_sha256=manifest_sha256,
+        source_release_provenance_sha256=provenance_sha256,
+        source_release_curation_sha256=source_curation_sha256,
+        source_curation_groups_sha256=source_groups_sha256,
+        target_failures=tuple(plan["target_failures"]),
+    )
+
+
+def _validate_projection_against_target(
+    *,
+    projection: _ProjectionSource,
+    target_source: _SourceRun,
+) -> None:
+    source_items = [
+        *projection.source.bundle.manifest["candidates"],
+        *projection.source.bundle.manifest["failures"],
+    ]
+    target_items = [
+        *target_source.bundle.manifest["candidates"],
+        *target_source.bundle.manifest["failures"],
+    ]
+    source_shapes = {_group_shape(item) for item in source_items}
+    target_shapes = {_group_shape(item) for item in target_items}
+    failure_shapes = {
+        _group_shape(item) for item in projection.target_failures
+    }
+    if source_shapes & failure_shapes:
+        raise ReleaseError(
+            "projection target failure が preserved source group と競合しています。",
+        )
+    if source_shapes | failure_shapes != target_shapes:
+        missing = sorted(target_shapes - source_shapes - failure_shapes)
+        extra = sorted((source_shapes | failure_shapes) - target_shapes)
+        raise ReleaseError(
+            "projection group coverage が target run と一致しません: "
+            f"missing={missing}, extra={extra}",
+        )
+
+    target_lines = {
+        (item["scenario"], item["line"]): item
+        for item in target_source.bundle.candidate_set["lines"]
+    }
+    for source_line in projection.source.bundle.candidate_set["lines"]:
+        identity = (source_line["scenario"], source_line["line"])
+        if target_lines.get(identity) != source_line:
+            raise ReleaseError(
+                "projection source/target line snapshot が一致しません: "
+                f"{identity}",
+            )
+
+
+def _build_release_material(
+    sources: Sequence[_SourceRun],
+    *,
+    projection: _ProjectionSource | None = None,
+) -> dict[str, Any]:
     by_model = {source.model: source for source in sources}
     if len(by_model) != len(sources):
         raise ReleaseError("release finalize は model ごとに1 runだけを受理します。")
-    ordered_sources = [by_model[model] for model in sorted(by_model)]
+    if projection is not None:
+        if projection.source.model in by_model:
+            raise ReleaseError(
+                "preserved projection model が通常 source run と重複しています。",
+            )
+        if projection.source.run_id in {source.run_id for source in sources}:
+            raise ReleaseError(
+                "preserved projection run が通常 source run と重複しています。",
+            )
+        target_run_id = projection.plan["target_run_id"]
+        target_sources = [
+            source for source in sources if source.run_id == target_run_id
+        ]
+        if len(target_sources) != 1:
+            raise ReleaseError(
+                "projection plan target_run_id は通常 source run を一意に"
+                "参照する必要があります。",
+            )
+        target_source = target_sources[0]
+    else:
+        target_source = None
+
+    ordered_regular_sources = [by_model[model] for model in sorted(by_model)]
     scenario_sha256s = {
         source.bundle.candidate_set["scenario_sha256"]
-        for source in ordered_sources
+        for source in ordered_regular_sources
     }
     if len(scenario_sha256s) != 1:
         raise ReleaseError(
             "source run の scenario source selection が一致しません。",
         )
     line_sets = [
-        source.bundle.candidate_set["lines"] for source in ordered_sources
+        source.bundle.candidate_set["lines"] for source in ordered_regular_sources
     ]
     if any(lines != line_sets[0] for lines in line_sets[1:]):
         raise ReleaseError("source run の candidate line snapshot が一致しません。")
+    target_scenario_sha256 = next(iter(scenario_sha256s))
+    target_lines = line_sets[0]
+
+    if projection is not None:
+        assert target_source is not None
+        _validate_projection_against_target(
+            projection=projection,
+            target_source=target_source,
+        )
+        by_model[projection.source.model] = projection.source
+    ordered_sources = [by_model[model] for model in sorted(by_model)]
 
     models = [source.bundle.manifest["models"][0] for source in ordered_sources]
     candidates = sorted(
@@ -409,10 +836,15 @@ def _build_release_material(sources: Sequence[_SourceRun]) -> dict[str, Any]:
         ),
         key=_group_key,
     )
+    if projection is not None:
+        failures = sorted(
+            [*failures, *(dict(item) for item in projection.target_failures)],
+            key=_group_key,
+        )
     _require_unique_groups(candidates=candidates, failures=failures)
     candidate_set = build_candidate_set(
-        scenario_sha256=next(iter(scenario_sha256s)),
-        lines=line_sets[0],
+        scenario_sha256=target_scenario_sha256,
+        lines=target_lines,
         models=models,
         candidates=candidates,
         failures=failures,
@@ -461,23 +893,58 @@ def _build_release_material(sources: Sequence[_SourceRun]) -> dict[str, Any]:
     )
     manifest_bytes = canonical_json(manifest).encode("utf-8")
     manifest_sha256 = hashlib.sha256(manifest_bytes).hexdigest()
+    provenance_document: dict[str, Any] = {
+        "format_version": (
+            PROJECTED_PROVENANCE_FORMAT_VERSION
+            if projection is not None
+            else PROVENANCE_FORMAT_VERSION
+        ),
+        "candidate_set_sha256": candidate_set_sha256,
+        "manifest_sha256": manifest_sha256,
+        "runs": [
+            {
+                "model": source.model,
+                "run_id": source.run_id,
+                "ledger_sha256": source.ledger_sha256,
+                "qc_report_sha256": source.qc_report_sha256,
+                "manifest_sha256": source.manifest_sha256,
+                "candidate_set_sha256": source.bundle.candidate_set_sha256,
+            }
+            for source in ordered_sources
+        ],
+    }
+    if projection is not None:
+        provenance_document.update(
+            projection_plan_sha256=projection.plan_sha256,
+            projection={
+                "model": projection.source.model,
+                "source_release_path": projection.source_release_path,
+                "source_release_manifest_sha256": (
+                    projection.source_release_manifest_sha256
+                ),
+                "source_release_candidate_set_sha256": (
+                    projection.source_release.manifest["candidate_set_sha256"]
+                ),
+                "source_release_provenance_sha256": (
+                    projection.source_release_provenance_sha256
+                ),
+                "source_release_curation_sha256": (
+                    projection.source_release_curation_sha256
+                ),
+                "source_curation_groups_sha256": (
+                    projection.source_curation_groups_sha256
+                ),
+                "source_scenario_sha256": (
+                    projection.source.bundle.candidate_set["scenario_sha256"]
+                ),
+                "target_scenario_sha256": target_scenario_sha256,
+                "target_failures": [
+                    dict(item) for item in projection.target_failures
+                ],
+            },
+        )
     provenance = validate_release_provenance(
-        {
-            "format_version": PROVENANCE_FORMAT_VERSION,
-            "candidate_set_sha256": candidate_set_sha256,
-            "manifest_sha256": manifest_sha256,
-            "runs": [
-                {
-                    "model": source.model,
-                    "run_id": source.run_id,
-                    "ledger_sha256": source.ledger_sha256,
-                    "qc_report_sha256": source.qc_report_sha256,
-                    "manifest_sha256": source.manifest_sha256,
-                    "candidate_set_sha256": source.bundle.candidate_set_sha256,
-                }
-                for source in ordered_sources
-            ],
-        },
+        provenance_document,
     )
     provenance_bytes = canonical_json(provenance).encode("utf-8")
     return {
@@ -492,6 +959,10 @@ def _build_release_material(sources: Sequence[_SourceRun]) -> dict[str, Any]:
         "manifest_sha256": manifest_sha256,
         "provenance": provenance,
         "provenance_bytes": provenance_bytes,
+        "projection_plan": projection.plan if projection is not None else None,
+        "projection_plan_bytes": (
+            projection.plan_bytes if projection is not None else None
+        ),
     }
 
 
@@ -530,6 +1001,13 @@ def _write_release(
             stage / "release-provenance.sha256",
             hashlib.sha256(material["provenance_bytes"]).hexdigest().encode("ascii"),
         )
+        projection_plan_bytes = material["projection_plan_bytes"]
+        if projection_plan_bytes is not None:
+            _write_new_file(stage / "projection-plan.json", projection_plan_bytes)
+            _write_new_file(
+                stage / "projection-plan.sha256",
+                hashlib.sha256(projection_plan_bytes).hexdigest().encode("ascii"),
+            )
         validated = validate_finalized_release(
             release_dir=stage,
             takes_root=takes_root,
@@ -539,8 +1017,11 @@ def _write_release(
             or validated.candidate_set != material["candidate_set"]
             or validated.provenance != material["provenance"]
             or validated.curation != material["curation"]
+            or validated.projection_plan != material["projection_plan"]
         ):
-            raise ReleaseError("書き込み後の release 検証結果が入力 material と一致しません。")
+            raise ReleaseError(
+                "書き込み後の release 検証結果が入力 material と一致しません。",
+            )
         os.replace(stage, output_dir)
     except BaseException:
         shutil.rmtree(stage, ignore_errors=True)
@@ -568,9 +1049,23 @@ def _write_release(
 
 
 def validate_release_provenance(document: Any) -> dict[str, Any]:
-    root = _exact(document, PROVENANCE_ROOT_FIELDS, "release provenance")
-    if root["format_version"] != PROVENANCE_FORMAT_VERSION:
-        raise ReleaseError("release provenance format_version は1が必要です。")
+    if not isinstance(document, dict):
+        raise ReleaseError("release provenance は object が必要です。")
+    format_version = document.get("format_version")
+    if format_version == PROVENANCE_FORMAT_VERSION:
+        root = _exact(
+            document,
+            PROVENANCE_V1_ROOT_FIELDS,
+            "release provenance",
+        )
+    elif format_version == PROJECTED_PROVENANCE_FORMAT_VERSION:
+        root = _exact(
+            document,
+            PROVENANCE_V2_ROOT_FIELDS,
+            "release provenance",
+        )
+    else:
+        raise ReleaseError("release provenance format_version は1または2が必要です。")
     candidate_set_sha256 = _sha(
         root["candidate_set_sha256"],
         "release provenance candidate_set_sha256",
@@ -613,12 +1108,75 @@ def validate_release_provenance(document: Any) -> dict[str, Any]:
         raise ReleaseError("release provenance model が重複しています。")
     if len({run["run_id"] for run in runs}) != len(runs):
         raise ReleaseError("release provenance run_id が重複しています。")
-    return {
-        "format_version": PROVENANCE_FORMAT_VERSION,
+    normalized: dict[str, Any] = {
+        "format_version": format_version,
         "candidate_set_sha256": candidate_set_sha256,
         "manifest_sha256": manifest_sha256,
         "runs": runs,
     }
+    if format_version == PROJECTED_PROVENANCE_FORMAT_VERSION:
+        projection = _exact(
+            root["projection"],
+            PROJECTION_PROVENANCE_FIELDS,
+            "release provenance projection",
+        )
+        model = _path_segment(
+            projection["model"],
+            "release provenance projection.model",
+        )
+        failures = _validate_projected_failures(
+            projection["target_failures"],
+            model=model,
+            field="release provenance projection.target_failures",
+        )
+        normalized.update(
+            projection_plan_sha256=_sha(
+                root["projection_plan_sha256"],
+                "release provenance projection_plan_sha256",
+            ),
+            projection={
+                "model": model,
+                "source_release_path": _repository_relative_path(
+                    projection["source_release_path"],
+                    "release provenance projection.source_release_path",
+                ),
+                "source_release_manifest_sha256": _sha(
+                    projection["source_release_manifest_sha256"],
+                    "release provenance projection."
+                    "source_release_manifest_sha256",
+                ),
+                "source_release_candidate_set_sha256": _sha(
+                    projection["source_release_candidate_set_sha256"],
+                    "release provenance projection."
+                    "source_release_candidate_set_sha256",
+                ),
+                "source_release_provenance_sha256": _sha(
+                    projection["source_release_provenance_sha256"],
+                    "release provenance projection."
+                    "source_release_provenance_sha256",
+                ),
+                "source_release_curation_sha256": _sha(
+                    projection["source_release_curation_sha256"],
+                    "release provenance projection."
+                    "source_release_curation_sha256",
+                ),
+                "source_curation_groups_sha256": _sha(
+                    projection["source_curation_groups_sha256"],
+                    "release provenance projection."
+                    "source_curation_groups_sha256",
+                ),
+                "source_scenario_sha256": _sha(
+                    projection["source_scenario_sha256"],
+                    "release provenance projection.source_scenario_sha256",
+                ),
+                "target_scenario_sha256": _sha(
+                    projection["target_scenario_sha256"],
+                    "release provenance projection.target_scenario_sha256",
+                ),
+                "target_failures": failures,
+            },
+        )
+    return normalized
 
 
 def _load_provenance(release_root: Path) -> dict[str, Any]:
@@ -634,6 +1192,150 @@ def _load_provenance(release_root: Path) -> dict[str, Any]:
         "release provenance",
     )
     return provenance
+
+
+def _load_release_projection_plan(
+    *,
+    release_root: Path,
+    provenance: Mapping[str, Any],
+) -> dict[str, Any] | None:
+    plan_path = release_root / "projection-plan.json"
+    marker_path = release_root / "projection-plan.sha256"
+    if provenance["format_version"] == PROVENANCE_FORMAT_VERSION:
+        if plan_path.exists() or marker_path.exists():
+            raise ReleaseError(
+                "format_version=1 release に projection plan は置けません。",
+            )
+        return None
+    if not plan_path.is_file() or not marker_path.is_file():
+        raise ReleaseError(
+            "projected release に projection plan と SHA marker が必要です。",
+        )
+    raw = _read_bytes(plan_path, "release projection plan")
+    plan = validate_projection_plan(
+        _read_json_bytes(raw, plan_path, "release projection plan"),
+    )
+    if raw != canonical_json(plan).encode("utf-8"):
+        raise ReleaseError("release projection plan は canonical bytes が必要です。")
+    plan_sha256 = hashlib.sha256(raw).hexdigest()
+    _verify_marker(marker_path, plan_sha256, "release projection plan")
+    if provenance["projection_plan_sha256"] != plan_sha256:
+        raise ReleaseError(
+            "release provenance projection_plan_sha256 が plan と一致しません。",
+        )
+    return plan
+
+
+def _validate_final_projection(
+    *,
+    bundle: SnapshotBundle,
+    curation: Mapping[str, Any],
+    provenance: Mapping[str, Any],
+    run_by_model: Mapping[str, Mapping[str, str]],
+    source_bundles: Mapping[str, SnapshotBundle],
+    projection: _ProjectionSource,
+) -> None:
+    model = projection.source.model
+    source_record_by_model = {
+        item["model"]: item
+        for item in projection.source_release.provenance["runs"]
+    }
+    if run_by_model.get(model) != source_record_by_model[model]:
+        raise ReleaseError(
+            "projected model の source run provenance が preserved release と"
+            "一致しません。",
+        )
+    target_run_id = projection.plan["target_run_id"]
+    target_models = [
+        item["model"]
+        for item in provenance["runs"]
+        if item["run_id"] == target_run_id
+    ]
+    if len(target_models) != 1 or target_models[0] == model:
+        raise ReleaseError(
+            "projection target_run_id が通常 source run を参照していません。",
+        )
+    target_model = target_models[0]
+    target_bundle = source_bundles[target_model]
+    if (
+        target_bundle.candidate_set["scenario_sha256"]
+        != bundle.candidate_set["scenario_sha256"]
+        or target_bundle.candidate_set["lines"]
+        != bundle.candidate_set["lines"]
+    ):
+        raise ReleaseError(
+            "projected release の target scenario/line snapshot が target run と"
+            "一致しません。",
+        )
+    target_record = run_by_model[target_model]
+    target_source = _SourceRun(
+        run_id=target_record["run_id"],
+        model=target_model,
+        root=Path(),
+        ledger={},
+        bundle=target_bundle,
+        ledger_sha256=target_record["ledger_sha256"],
+        qc_report_sha256=target_record["qc_report_sha256"],
+        manifest_sha256=target_record["manifest_sha256"],
+        curation_groups=(),
+    )
+    _validate_projection_against_target(
+        projection=projection,
+        target_source=target_source,
+    )
+
+    projected_groups = sorted(
+        (
+            dict(group)
+            for group in projection.source_release.curation["groups"]
+            if group["model"] == model
+        ),
+        key=_group_key,
+    )
+    final_groups = sorted(
+        (
+            dict(group)
+            for group in curation["groups"]
+            if group["model"] == model
+        ),
+        key=_group_key,
+    )
+    if final_groups != projected_groups:
+        raise ReleaseError(
+            "projected model の curation groups が preserved release と"
+            "一致しません。",
+        )
+
+    expected_projection = {
+        "model": model,
+        "source_release_path": projection.source_release_path,
+        "source_release_manifest_sha256": (
+            projection.source_release_manifest_sha256
+        ),
+        "source_release_candidate_set_sha256": (
+            projection.source_release.manifest["candidate_set_sha256"]
+        ),
+        "source_release_provenance_sha256": (
+            projection.source_release_provenance_sha256
+        ),
+        "source_release_curation_sha256": (
+            projection.source_release_curation_sha256
+        ),
+        "source_curation_groups_sha256": (
+            projection.source_curation_groups_sha256
+        ),
+        "source_scenario_sha256": (
+            projection.source.bundle.candidate_set["scenario_sha256"]
+        ),
+        "target_scenario_sha256": bundle.candidate_set["scenario_sha256"],
+        "target_failures": [
+            dict(item) for item in projection.target_failures
+        ],
+    }
+    if provenance["projection"] != expected_projection:
+        raise ReleaseError(
+            "release projection provenance が入力materialと一致しません。",
+        )
 
 
 def _load_release_curation(
@@ -733,6 +1435,7 @@ def _validate_release_failures_against_source(
     release_candidates: Sequence[Mapping[str, Any]],
     release_failures: Sequence[Mapping[str, Any]],
     source_manifest: Mapping[str, Any],
+    projected_failures: Sequence[Mapping[str, Any]] = (),
 ) -> None:
     release_candidate_groups = {_group_key(item) for item in release_candidates}
     release_failure_by_group = {
@@ -744,7 +1447,22 @@ def _validate_release_failures_against_source(
     source_failure_by_group = {
         _group_key(item): item for item in source_manifest["failures"]
     }
+    projected_failure_by_group = {
+        _group_key(item): item for item in projected_failures
+    }
+    if len(projected_failure_by_group) != len(projected_failures):
+        raise ReleaseError("projected failure が重複しています。")
+    if set(projected_failure_by_group) & (
+        source_candidate_groups | set(source_failure_by_group)
+    ):
+        raise ReleaseError("projected failure が source group と競合しています。")
     for identity, failure in release_failure_by_group.items():
+        if identity in projected_failure_by_group:
+            if projected_failure_by_group[identity] != failure:
+                raise ReleaseError(
+                    f"projected failure が plan と一致しません: {identity}",
+                )
+            continue
         reason = failure["reason"]
         if reason == "no_eligible_take":
             if source_failure_by_group.get(identity) != failure:
@@ -785,8 +1503,16 @@ def _validate_release_failures_against_source(
         identity
         for identity, failure in release_failure_by_group.items()
         if failure["reason"] == "no_eligible_take"
+        and identity not in projected_failure_by_group
     }:
         raise ReleaseError(f"source failure の release 投影が不完全です: {model}")
+    actual_projected = {
+        identity
+        for identity in release_failure_by_group
+        if identity in projected_failure_by_group
+    }
+    if actual_projected != set(projected_failure_by_group):
+        raise ReleaseError(f"projected failure の release 投影が不完全です: {model}")
 
 
 def _verify_source_record_files(
@@ -832,6 +1558,84 @@ def _items_by_model(
 
 def _group_key(value: Mapping[str, Any]) -> tuple[str, str, str, str]:
     return tuple(str(value[key]) for key in GROUP_KEYS)  # type: ignore[return-value]
+
+
+def _group_shape(value: Mapping[str, Any]) -> tuple[str, str, str]:
+    return (
+        str(value["scenario"]),
+        str(value["line"]),
+        str(value["variant"]),
+    )
+
+
+def _validate_projected_failures(
+    value: Any,
+    *,
+    model: str,
+    field: str,
+) -> list[dict[str, str]]:
+    if not isinstance(value, list) or not value:
+        raise ReleaseError(f"{field} は非空の配列が必要です。")
+    failures: list[dict[str, str]] = []
+    for index, item in enumerate(value):
+        item_field = f"{field}[{index}]"
+        failure = _exact(item, FAILURE_FIELDS, item_field)
+        normalized = {
+            key: _path_segment(failure[key], f"{item_field}.{key}")
+            for key in GROUP_KEYS
+        }
+        if normalized["model"] != model:
+            raise ReleaseError(
+                f"{item_field}.model が preserved model と一致しません。",
+            )
+        if failure["reason"] != "no_eligible_take":
+            raise ReleaseError(
+                f"{item_field}.reason は no_eligible_take が必要です。",
+            )
+        failures.append({**normalized, "reason": "no_eligible_take"})
+    if failures != sorted(failures, key=_group_key):
+        raise ReleaseError(f"{field} は group 順が必要です。")
+    if len({_group_key(item) for item in failures}) != len(failures):
+        raise ReleaseError(f"{field} が重複しています。")
+    return failures
+
+
+def _repository_relative_path(value: Any, field: str) -> str:
+    if not isinstance(value, str) or not value or "\\" in value:
+        raise ReleaseError(f"{field} は repository-relative path が必要です。")
+    segments = value.split("/")
+    if any(PATH_SEGMENT.fullmatch(segment) is None for segment in segments):
+        raise ReleaseError(f"{field} は安全な repository-relative path が必要です。")
+    return "/".join(segments)
+
+
+def _resolve_repository_child(
+    *,
+    repository_root: Path,
+    relative_path: str,
+    label: str,
+) -> Path:
+    root = _require_directory(repository_root, "repository root")
+    candidate = root.joinpath(*relative_path.split("/"))
+    try:
+        resolved = candidate.resolve(strict=True)
+    except (FileNotFoundError, OSError) as error:
+        raise ReleaseError(f"{label} が存在しません: {candidate}") from error
+    if not resolved.is_relative_to(root) or not resolved.is_dir():
+        raise ReleaseError(
+            f"{label} は repository 内の directory が必要です: {candidate}",
+        )
+    return resolved
+
+
+def _projected_repository_root(takes_root: Path) -> Path:
+    resolved = _require_directory(takes_root, "takes root")
+    if resolved.name != "takes" or resolved.parent.name != "artifacts":
+        raise ReleaseError(
+            "projected release は <repository>/artifacts/takes を"
+            "takes root として使用する必要があります。",
+        )
+    return resolved.parent.parent
 
 
 def _resolve_direct_child(root: Path, name: str, label: str) -> Path:

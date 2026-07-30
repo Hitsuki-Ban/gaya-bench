@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import hashlib
 import json
+import shutil
 from pathlib import Path
 from typing import Any
 
@@ -14,6 +16,7 @@ from gaya_pipeline.release import (
     finalize_release,
     validate_finalized_release,
 )
+from gaya_pipeline.take_identity import canonical_json
 from gaya_pipeline.take_ledger import read_ledger, write_ledger_atomic
 from test_curation import (
     SCENARIOS_DIR,
@@ -31,19 +34,23 @@ def _setup_curated_run(
     run_id: str,
     model: str,
     audio_bytes: bytes,
+    scenarios_dir: Path = SCENARIOS_DIR,
+    line_text: str = "はいよっ、エール二つお待ち！",
 ) -> tuple[str, dict[str, Any]]:
     configured_run_id, manifest, _snapshot_path, _audio_path = _setup_run(
         tmp_path,
         run_id=run_id,
         model=model,
         audio_bytes=audio_bytes,
+        scenarios_dir=scenarios_dir,
+        line_text=line_text,
     )
     apply_curation(
         run_id=configured_run_id,
         input_path=_write_input(tmp_path, _curation(manifest)),
         artifacts_dir=tmp_path / "artifacts",
         data_dir=tmp_path / "data",
-        scenarios_dir=SCENARIOS_DIR,
+        scenarios_dir=scenarios_dir,
     )
     return configured_run_id, manifest
 
@@ -53,13 +60,16 @@ def _finalize(
     *,
     run_ids: list[str],
     output_name: str = "release",
+    scenarios_dir: Path = SCENARIOS_DIR,
+    projection_plan_path: Path | None = None,
 ) -> ReleaseFinalizeSummary:
     return finalize_release(
         run_ids=run_ids,
         artifacts_dir=tmp_path / "artifacts",
         data_dir=tmp_path / "data",
-        scenarios_dir=SCENARIOS_DIR,
+        scenarios_dir=scenarios_dir,
         output_dir=tmp_path / output_name,
+        projection_plan_path=projection_plan_path,
     )
 
 
@@ -69,6 +79,141 @@ def _inventory(root: Path) -> dict[str, bytes]:
         for path in sorted(root.rglob("*"))
         if path.is_file()
     }
+
+
+def _copy_scenarios_with_source_drift(
+    tmp_path: Path,
+    *,
+    line_text_drift: bool = False,
+) -> Path:
+    destination = tmp_path / "preserved-scenarios"
+    shutil.copytree(SCENARIOS_DIR, destination)
+    shutil.copytree(
+        SCENARIOS_DIR.parent / "assets" / "voices",
+        tmp_path / "assets" / "voices",
+    )
+    scenario_path = destination / "tavern-night.yaml"
+    contents = scenario_path.read_text(encoding="utf-8")
+    if line_text_drift:
+        contents = contents.replace(
+            "はいよっ、エール二つお待ち！",
+            "はいよっ、別の台詞だよ！",
+        )
+    scenario_path.write_text(
+        f"{contents}\n# preserved source drift\n",
+        encoding="utf-8",
+    )
+    return destination
+
+
+def _write_projection_plan(
+    tmp_path: Path,
+    *,
+    preserved_release: Path,
+    preserved_model: str,
+    target_run_id: str,
+    missing_line: str = "barmaid-002",
+) -> Path:
+    manifest = json.loads(
+        (preserved_release / "manifest-v4.json").read_bytes(),
+    )
+    curation_hashes = {
+        item["curation_sha256"] for item in manifest["curations"]
+    }
+    assert len(curation_hashes) == 1
+    document = {
+        "format_version": 1,
+        "target_run_id": target_run_id,
+        "source_release": {
+            "path": preserved_release.relative_to(tmp_path).as_posix(),
+            "model": preserved_model,
+            "manifest_sha256": hashlib.sha256(
+                (preserved_release / "manifest-v4.json").read_bytes(),
+            ).hexdigest(),
+            "candidate_set_sha256": (
+                preserved_release / "candidate-set.sha256"
+            ).read_text(encoding="ascii"),
+            "provenance_sha256": hashlib.sha256(
+                (preserved_release / "release-provenance.json").read_bytes(),
+            ).hexdigest(),
+            "curation_sha256": next(iter(curation_hashes)),
+        },
+        "target_failures": [
+            {
+                "model": preserved_model,
+                "scenario": "tavern-night",
+                "line": missing_line,
+                "variant": "dry",
+                "reason": "no_eligible_take",
+            },
+        ],
+    }
+    path = tmp_path / "projection-plan.json"
+    path.write_bytes(canonical_json(document).encode("utf-8"))
+    return path
+
+
+def _setup_projection_fixture(
+    tmp_path: Path,
+    *,
+    line_text_drift: bool = False,
+    missing_line: str = "barmaid-002",
+) -> tuple[str, Path, Path]:
+    preserved_scenarios = _copy_scenarios_with_source_drift(
+        tmp_path,
+        line_text_drift=line_text_drift,
+    )
+    preserved_run, _ = _setup_curated_run(
+        tmp_path,
+        run_id="preserved-run",
+        model="model-preserved",
+        audio_bytes=b"preserved opus",
+        scenarios_dir=preserved_scenarios,
+        line_text=(
+            "はいよっ、別の台詞だよ！"
+            if line_text_drift
+            else "はいよっ、エール二つお待ち！"
+        ),
+    )
+    preserved_release = _finalize(
+        tmp_path,
+        run_ids=[preserved_run],
+        output_name="preserved-release",
+        scenarios_dir=preserved_scenarios,
+    ).output_dir
+
+    target_run, target_manifest, target_snapshot, _ = _setup_run(
+        tmp_path,
+        run_id="target-run",
+        model="model-current",
+        audio_bytes=b"current opus",
+    )
+    _add_candidate_groups(
+        manifest=target_manifest,
+        snapshot_path=target_snapshot,
+        line_ids=("barmaid-002",),
+    )
+    apply_curation(
+        run_id=target_run,
+        input_path=_write_input(
+            tmp_path,
+            _curation_for_lines(
+                target_manifest,
+                ("barmaid-001", "barmaid-002"),
+            ),
+        ),
+        artifacts_dir=tmp_path / "artifacts",
+        data_dir=tmp_path / "data",
+        scenarios_dir=SCENARIOS_DIR,
+    )
+    plan_path = _write_projection_plan(
+        tmp_path,
+        preserved_release=preserved_release,
+        preserved_model="model-preserved",
+        target_run_id=target_run,
+        missing_line=missing_line,
+    )
+    return target_run, preserved_release, plan_path
 
 
 def test_finalizeは複数modelをcanonical_releaseへ集約し入力順に非依存(
@@ -122,6 +267,185 @@ def test_finalizeは複数modelをcanonical_releaseへ集約し入力順に非�
     ]
     assert set(release.run_roots) == {"model-a", "model-b"}
     assert release.provenance["manifest_sha256"] == summary_a.manifest_sha256
+
+
+def test_finalizeは保持済みreleaseを現行line_snapshotへ明示投影する(
+    tmp_path: Path,
+) -> None:
+    target_run, preserved_release, plan_path = _setup_projection_fixture(tmp_path)
+
+    summary = _finalize(
+        tmp_path,
+        run_ids=[target_run],
+        output_name="projected-release",
+        projection_plan_path=plan_path,
+    )
+    release = validate_finalized_release(
+        release_dir=summary.output_dir,
+        takes_root=tmp_path / "artifacts" / "takes",
+    )
+
+    assert summary.model_count == 2
+    assert summary.candidate_count == 3
+    assert summary.failure_count == 1
+    assert release.provenance["format_version"] == 2
+    assert release.projection_plan is not None
+    assert release.projection_plan["source_release"]["path"] == (
+        preserved_release.relative_to(tmp_path).as_posix()
+    )
+    assert (
+        release.provenance["projection"]["source_scenario_sha256"]
+        != release.provenance["projection"]["target_scenario_sha256"]
+    )
+    assert release.manifest["failures"] == [
+        {
+            "model": "model-preserved",
+            "scenario": "tavern-night",
+            "line": "barmaid-002",
+            "variant": "dry",
+            "reason": "no_eligible_take",
+        },
+    ]
+    assert (summary.output_dir / "projection-plan.json").read_bytes() == (
+        plan_path.read_bytes()
+    )
+
+
+def test_finalizeは保持sourceとtargetのline_snapshot差異を拒否する(
+    tmp_path: Path,
+) -> None:
+    target_run, _preserved_release, plan_path = _setup_projection_fixture(
+        tmp_path,
+        line_text_drift=True,
+    )
+
+    with pytest.raises(ReleaseError, match="line snapshot"):
+        _finalize(
+            tmp_path,
+            run_ids=[target_run],
+            output_name="projected-release",
+            projection_plan_path=plan_path,
+        )
+
+    assert not (tmp_path / "projected-release").exists()
+
+
+def test_finalizeは未宣言target_missing_groupを拒否する(
+    tmp_path: Path,
+) -> None:
+    target_run, _preserved_release, plan_path = _setup_projection_fixture(
+        tmp_path,
+        missing_line="barmaid-003",
+    )
+
+    with pytest.raises(ReleaseError, match="group coverage"):
+        _finalize(
+            tmp_path,
+            run_ids=[target_run],
+            output_name="projected-release",
+            projection_plan_path=plan_path,
+        )
+
+    assert not (tmp_path / "projected-release").exists()
+
+
+def test_finalizeはprojection_source_digest差異を拒否する(tmp_path: Path) -> None:
+    target_run, _preserved_release, plan_path = _setup_projection_fixture(tmp_path)
+    plan = json.loads(plan_path.read_bytes())
+    plan["source_release"]["manifest_sha256"] = "f" * 64
+    plan_path.write_bytes(canonical_json(plan).encode("utf-8"))
+
+    with pytest.raises(ReleaseError, match="manifest_sha256"):
+        _finalize(
+            tmp_path,
+            run_ids=[target_run],
+            output_name="projected-release",
+            projection_plan_path=plan_path,
+        )
+
+    assert not (tmp_path / "projected-release").exists()
+
+
+def test_finalizeはprojection_sourceの物理audio改変を拒否する(
+    tmp_path: Path,
+) -> None:
+    target_run, _preserved_release, plan_path = _setup_projection_fixture(tmp_path)
+    run_root = tmp_path / "artifacts" / "takes" / "preserved-run"
+    ledger = read_ledger(run_root / "ledger.json")
+    opus_path = run_root / ledger["attempts"][0]["audio"]["opus_path"]
+    opus_path.write_bytes(b"tampered opus")
+
+    with pytest.raises(ReleaseError, match="物理artifact provenance"):
+        _finalize(
+            tmp_path,
+            run_ids=[target_run],
+            output_name="projected-release",
+            projection_plan_path=plan_path,
+        )
+
+    assert not (tmp_path / "projected-release").exists()
+
+
+def test_finalizeは非canonical_projection_planを拒否する(tmp_path: Path) -> None:
+    target_run, _preserved_release, plan_path = _setup_projection_fixture(tmp_path)
+    plan_path.write_bytes(plan_path.read_bytes() + b"\n")
+
+    with pytest.raises(ReleaseError, match="canonical bytes"):
+        _finalize(
+            tmp_path,
+            run_ids=[target_run],
+            output_name="projected-release",
+            projection_plan_path=plan_path,
+        )
+
+    assert not (tmp_path / "projected-release").exists()
+
+
+def test_finalizeはtarget_run_idが通常入力にないplanを拒否する(
+    tmp_path: Path,
+) -> None:
+    target_run, _preserved_release, plan_path = _setup_projection_fixture(tmp_path)
+    plan = json.loads(plan_path.read_bytes())
+    plan["target_run_id"] = "missing-target-run"
+    plan_path.write_bytes(canonical_json(plan).encode("utf-8"))
+
+    with pytest.raises(ReleaseError, match="target_run_id"):
+        _finalize(
+            tmp_path,
+            run_ids=[target_run],
+            output_name="projected-release",
+            projection_plan_path=plan_path,
+        )
+
+    assert not (tmp_path / "projected-release").exists()
+
+
+def test_finalizeはprojected_releaseからの連鎖投影を拒否する(
+    tmp_path: Path,
+) -> None:
+    target_run, _preserved_release, plan_path = _setup_projection_fixture(tmp_path)
+    projected_release = _finalize(
+        tmp_path,
+        run_ids=[target_run],
+        output_name="projected-release",
+        projection_plan_path=plan_path,
+    ).output_dir
+    chained_plan = _write_projection_plan(
+        tmp_path,
+        preserved_release=projected_release,
+        preserved_model="model-preserved",
+        target_run_id=target_run,
+    )
+
+    with pytest.raises(ReleaseError, match="format_version=1"):
+        _finalize(
+            tmp_path,
+            run_ids=[target_run],
+            output_name="chained-release",
+            projection_plan_path=chained_plan,
+        )
+
+    assert not (tmp_path / "chained-release").exists()
 
 
 def test_finalizeは未策展runを拒否しoutputを残さない(tmp_path: Path) -> None:
@@ -315,5 +639,47 @@ def test_finalize_cliはexplicit_run_idsとoutputを渡す(
         "data_dir": tmp_path / "data",
         "scenarios_dir": tmp_path / "scenarios",
         "output_dir": output,
+        "projection_plan_path": None,
     }
     assert "model 2" in capsys.readouterr().out
+
+
+def test_finalize_cliはprojection_planを明示的に渡す(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    captured: dict[str, Any] = {}
+    output = tmp_path / "release"
+    plan = tmp_path / "projection-plan.json"
+
+    def fake_finalize(**kwargs: Any) -> ReleaseFinalizeSummary:
+        captured.update(kwargs)
+        return ReleaseFinalizeSummary(
+            output_dir=output,
+            manifest_sha256="a" * 64,
+            candidate_set_sha256="b" * 64,
+            curation_sha256="c" * 64,
+            model_count=2,
+            candidate_count=2,
+            selected_count=2,
+            skipped_count=0,
+            failure_count=1,
+        )
+
+    monkeypatch.setattr(cli, "finalize_release", fake_finalize)
+    monkeypatch.setattr(cli, "default_scenarios_dir", lambda: tmp_path / "scenarios")
+
+    assert cli.main(
+        [
+            "takes",
+            "finalize",
+            "--run-id",
+            "target-run",
+            "--projection-plan",
+            str(plan),
+            "--output",
+            str(output),
+        ],
+    ) == 0
+
+    assert captured["projection_plan_path"] == plan
