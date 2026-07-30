@@ -311,6 +311,59 @@ def test_finalizeは保持済みreleaseを現行line_snapshotへ明示投影す�
     )
 
 
+def test_finalizeは凍結projection_sourceを別worktreeから検証する(
+    tmp_path: Path,
+) -> None:
+    origin = tmp_path / "origin"
+    origin.mkdir()
+    target_run, _preserved_release, plan_path = _setup_projection_fixture(origin)
+    relocated = tmp_path / "relocated"
+    origin.rename(relocated)
+
+    target_report_path = (
+        relocated / "artifacts" / "takes" / target_run / "qc-report.json"
+    )
+    target_report = json.loads(target_report_path.read_bytes())
+    target_report["source"]["ledger"] = (
+        relocated / "artifacts" / "takes" / target_run / "ledger.json"
+    ).as_posix()
+    target_report_path.write_bytes(
+        canonical_json(target_report).encode("utf-8"),
+    )
+    relocated_plan = relocated / plan_path.relative_to(origin)
+
+    summary = _finalize(
+        relocated,
+        run_ids=[target_run],
+        output_name="projected-release",
+        projection_plan_path=relocated_plan,
+    )
+
+    assert summary.model_count == 2
+    assert summary.candidate_count == 3
+    assert summary.failure_count == 1
+
+
+def test_finalizeは通常runのQC_ledger_path差異を拒否する(
+    tmp_path: Path,
+) -> None:
+    run_id, _ = _setup_curated_run(
+        tmp_path,
+        run_id="run-a",
+        model="model-a",
+        audio_bytes=b"take a",
+    )
+    report_path = tmp_path / "artifacts" / "takes" / run_id / "qc-report.json"
+    report = json.loads(report_path.read_bytes())
+    report["source"]["ledger"] = "C:/different-worktree/ledger.json"
+    report_path.write_bytes(canonical_json(report).encode("utf-8"))
+
+    with pytest.raises(ReleaseError, match="QC report"):
+        _finalize(tmp_path, run_ids=[run_id])
+
+    assert not (tmp_path / "release").exists()
+
+
 def test_finalizeは保持sourceとtargetのline_snapshot差異を拒否する(
     tmp_path: Path,
 ) -> None:

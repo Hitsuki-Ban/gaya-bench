@@ -25,7 +25,11 @@ from gaya_pipeline.curation import (
     validate_curation,
     validate_snapshot_bundle,
 )
-from gaya_pipeline.qc_report import QCReportError, validate_qc_report
+from gaya_pipeline.qc_report import (
+    QCReportError,
+    validate_frozen_qc_report,
+    validate_qc_report,
+)
 from gaya_pipeline.run_lock import RunLockError, exclusive_run_lock
 from gaya_pipeline.take_identity import canonical_json
 from gaya_pipeline.take_ledger import (
@@ -633,9 +637,8 @@ def _load_projection_source(
         "projection source run QC report",
     )
     try:
-        qc_authority = validate_qc_report(
+        qc_authority = validate_frozen_qc_report(
             qc_document,
-            ledger_path=run_root / "ledger.json",
             ledger=ledger,
         )
         if qc_document["generated_at"] != source_bundle.manifest["generated_at"]:

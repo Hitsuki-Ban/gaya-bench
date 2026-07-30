@@ -47,6 +47,28 @@ def validate_qc_report(
     )
 
 
+def validate_frozen_qc_report(
+    document: Any,
+    *,
+    ledger: Mapping[str, Any],
+) -> QCAuthority:
+    if not isinstance(document, dict):
+        raise QCReportError("QC report は object が必要です。")
+    source = document.get("source")
+    if not isinstance(source, dict):
+        raise QCReportError("QC report source は object が必要です。")
+    ledger_reference = source.get("ledger")
+    if not isinstance(ledger_reference, str) or not ledger_reference:
+        raise QCReportError("QC report source.ledger は文字列が必要です。")
+    return _validate_qc_report(
+        document,
+        ledger_path=Path(ledger_reference),
+        ledger=ledger,
+        format_version=2,
+        gate_policy_version=GATE_POLICY_V2,
+    )
+
+
 def validate_qc_report_v1(
     document: Any,
     *,
