@@ -2,10 +2,11 @@ import { benchmarkData } from "virtual:gaya-data";
 
 import type {
   ArtifactOutcome,
-  Candidate,
   Line,
   Model,
   ModelCredit,
+  ModelGenerationProfile,
+  PublishedCandidate,
   ReferenceVoiceCredit,
   Scenario,
 } from "./types";
@@ -34,10 +35,13 @@ export type {
   Model,
   ModelCredit,
   ModelCapabilities,
+  ModelGenerationProfile,
   ModelSourceKind,
   ModelSourceLink,
+  PublishedCandidate,
   ReferenceVoiceCredit,
   ReferenceVoiceSourceFile,
+  ReleaseMetadata,
   Scenario,
   Scene,
   SelectedCuration,
@@ -48,12 +52,12 @@ export const scenarioById: ReadonlyMap<string, Scenario> = new Map(
   benchmarkData.scenarios.map((scenario) => [scenario.id, scenario]),
 );
 
-export const manifestModelById: ReadonlyMap<string, Model> = new Map(
-  benchmarkData.manifest.models.map((model) => [model.id, model]),
+export const releaseModelById: ReadonlyMap<string, Model> = new Map(
+  benchmarkData.release.models.map((model) => [model.id, model]),
 );
 
 export const modelById: ReadonlyMap<string, Model> = new Map(
-  [...manifestModelById.values()]
+  [...releaseModelById.values()]
     .filter((model) =>
       benchmarkData.outcomes.some(
         (outcome) => outcome.kind === "selected" && outcome.candidate.model === model.id,
@@ -86,11 +90,23 @@ for (const outcome of benchmarkData.outcomes) {
   outcomesByScenario.get(outcome.group.scenario)!.push(outcome);
 }
 
-export const selectedCandidates: readonly Candidate[] = benchmarkData.outcomes.flatMap((outcome) =>
-  outcome.kind === "selected" ? [outcome.candidate] : [],
+const mutableGenerationProfilesByModel = new Map<string, ModelGenerationProfile[]>();
+for (const profile of benchmarkData.generation_profiles) {
+  const profiles = mutableGenerationProfilesByModel.get(profile.model);
+  if (profiles) {
+    profiles.push(profile);
+  } else {
+    mutableGenerationProfilesByModel.set(profile.model, [profile]);
+  }
+}
+export const generationProfilesByModel: ReadonlyMap<string, readonly ModelGenerationProfile[]> =
+  mutableGenerationProfilesByModel;
+
+export const selectedCandidates: readonly PublishedCandidate[] = benchmarkData.outcomes.flatMap(
+  (outcome) => (outcome.kind === "selected" ? [outcome.candidate] : []),
 );
 
-export function candidateKey(candidate: Candidate): string {
+export function candidateKey(candidate: PublishedCandidate): string {
   return JSON.stringify([candidate.model, candidate.scenario, candidate.line, candidate.variant]);
 }
 

@@ -84,7 +84,7 @@ describe("A/B session model", () => {
   });
 
   it("勝敗と引分を集計し、5 appearances 未満は順位を出さない", () => {
-    const models = fixture(["alpha", "beta"]).manifest.models;
+    const models = fixture(["alpha", "beta"]).release.models;
     const votes: BlindVote[] = Array.from({ length: 5 }, (_, index) => ({
       matchId: `match-${index}`,
       modelIds: ["alpha", "beta"],
@@ -105,32 +105,20 @@ interface MutableBenchmarkData extends Omit<BenchmarkData, "outcomes"> {
 function fixture(modelIds: readonly string[]): MutableBenchmarkData {
   const models = modelIds.map(model);
   const candidates = modelIds.map((modelId) => candidate(modelId));
-  const curations = candidates.map((item) => ({
-    model: item.model,
-    scenario: item.scenario,
-    line: item.line,
-    variant: item.variant,
-    decision: "selected" as const,
-    take_id: item.take_id,
-    curation_sha256: "c".repeat(64),
-  }));
   return {
-    manifest: {
+    release: {
       format_version: 4,
       generated_at: "2026-07-30T00:00:00Z",
       candidate_set_sha256: "d".repeat(64),
       models,
-      candidates,
-      curations,
-      failures: [],
     },
     scenarios: [scenario()],
-    outcomes: candidates.map((item, index) => ({
+    outcomes: candidates.map((item) => ({
       kind: "selected",
       group: group(item.model, "dry"),
       candidate: item,
-      curation: curations[index]!,
     })),
+    generation_profiles: [],
     credits: { model_sources: [], reference_voices: [] },
   };
 }
@@ -183,26 +171,17 @@ function candidate(modelId: string, variant = "dry"): Candidate {
 }
 
 function skippedOutcome(modelId: string): ArtifactOutcome {
-  const item = candidate(modelId, "skipped");
   const outcomeGroup = group(modelId, "skipped");
   return {
     kind: "skipped",
     group: outcomeGroup,
-    candidates: [item],
-    curation: {
-      ...outcomeGroup,
-      decision: "skipped",
-      curation_sha256: "c".repeat(64),
-    },
   };
 }
 
 function uncuratedOutcome(modelId: string): ArtifactOutcome {
-  const item = candidate(modelId, "uncurated");
   return {
     kind: "uncurated",
     group: group(modelId, "uncurated"),
-    candidates: [item],
   };
 }
 

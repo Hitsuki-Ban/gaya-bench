@@ -1,4 +1,4 @@
-import type { BenchmarkData, Candidate, Line, Model, Scenario } from "../data/types";
+import type { BenchmarkData, Line, Model, PublishedCandidate, Scenario } from "../data/types";
 
 export const MIN_MODEL_APPEARANCES = 5;
 
@@ -10,7 +10,7 @@ export interface DatasetIdentity {
 
 export interface BlindCandidate {
   readonly modelId: string;
-  readonly candidate: Candidate;
+  readonly candidate: PublishedCandidate;
 }
 
 export interface BlindMatch {
@@ -54,14 +54,14 @@ export interface ModelRanking {
 
 export function datasetIdentity(data: BenchmarkData): DatasetIdentity {
   return {
-    formatVersion: data.manifest.format_version,
-    generatedAt: data.manifest.generated_at,
-    candidateSetSha256: data.manifest.candidate_set_sha256,
+    formatVersion: data.release.format_version,
+    generatedAt: data.release.generated_at,
+    candidateSetSha256: data.release.candidate_set_sha256,
   };
 }
 
 export function buildBlindCatalog(data: BenchmarkData): BlindCatalog {
-  const modelsById = uniqueModels(data.manifest.models);
+  const modelsById = uniqueModels(data.release.models);
   const linesByKey = new Map<string, { readonly scenario: Scenario; readonly line: Line }>();
   const scenarioIds = new Set<string>();
 
@@ -81,7 +81,7 @@ export function buildBlindCatalog(data: BenchmarkData): BlindCatalog {
     }
   }
 
-  const candidatesByLine = new Map<string, Candidate[]>();
+  const candidatesByLine = new Map<string, PublishedCandidate[]>();
   const candidateKeys = new Set<string>();
   const selectedModelIds = new Set<string>();
   for (const outcome of data.outcomes) {
@@ -152,7 +152,7 @@ export function buildBlindCatalog(data: BenchmarkData): BlindCatalog {
 
   return {
     matches,
-    models: data.manifest.models.filter((model) => selectedModelIds.has(model.id)),
+    models: data.release.models.filter((model) => selectedModelIds.has(model.id)),
   };
 }
 
@@ -379,7 +379,7 @@ function lineKey(scenarioId: string, lineId: string): string {
   return JSON.stringify([scenarioId, lineId]);
 }
 
-function candidateKey(candidate: Candidate): string {
+function candidateKey(candidate: PublishedCandidate): string {
   return JSON.stringify([candidate.model, candidate.scenario, candidate.line, candidate.variant]);
 }
 

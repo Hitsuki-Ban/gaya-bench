@@ -41,7 +41,7 @@ describe("comparison model v4 outcomes", () => {
 
   it("selected が一件もない manifest model を通常比較から除外する", () => {
     const data = fixture();
-    data.manifest.models.push(model("failure-only"));
+    data.release.models.push(model("failure-only"));
     data.outcomes.push(failure("failure-only", "speaker-002"));
 
     expect(buildComparisonModel(data).models.some(({ id }) => id === "failure-only")).toBe(false);
@@ -81,15 +81,12 @@ describe("comparison model v4 outcomes", () => {
   });
 });
 
-interface MutableBenchmarkData extends Omit<BenchmarkData, "manifest" | "outcomes"> {
-  manifest: {
+interface MutableBenchmarkData extends Omit<BenchmarkData, "outcomes" | "release"> {
+  release: {
     format_version: 4;
     generated_at: string;
     candidate_set_sha256: string;
     models: Model[];
-    candidates: Candidate[];
-    curations: BenchmarkData["manifest"]["curations"];
-    failures: BenchmarkData["manifest"]["failures"];
   };
   outcomes: ArtifactOutcome[];
 }
@@ -105,29 +102,15 @@ function fixture(): MutableBenchmarkData {
   ];
   const outcomes = [...firstRow, ...secondRow];
   return {
-    manifest: {
+    release: {
       format_version: 4,
       generated_at: "2026-07-30T00:00:00Z",
       candidate_set_sha256: "d".repeat(64),
       models: ids.map(model),
-      candidates: outcomes.flatMap((outcome) => {
-        if (outcome.kind === "selected") {
-          return [outcome.candidate];
-        }
-        if (outcome.kind === "failure") {
-          return [];
-        }
-        return [...outcome.candidates];
-      }),
-      curations: outcomes.flatMap((outcome) =>
-        outcome.kind === "selected" || outcome.kind === "skipped" ? [outcome.curation] : [],
-      ),
-      failures: outcomes.flatMap((outcome) =>
-        outcome.kind === "failure" ? [outcome.failure] : [],
-      ),
     },
     scenarios: [scenario()],
     outcomes,
+    generation_profiles: [],
     credits: { model_sources: [], reference_voices: [] },
   };
 }
@@ -142,27 +125,14 @@ function selected(
     kind: "selected",
     group: outcomeGroup,
     candidate: item,
-    curation: {
-      ...outcomeGroup,
-      decision: "selected",
-      take_id: item.take_id,
-      curation_sha256: "c".repeat(64),
-    },
   };
 }
 
 function skipped(modelId: string, lineId: string): ArtifactOutcome {
-  const item = candidate(modelId, lineId);
   const outcomeGroup = group(modelId, lineId);
   return {
     kind: "skipped",
     group: outcomeGroup,
-    candidates: [item],
-    curation: {
-      ...outcomeGroup,
-      decision: "skipped",
-      curation_sha256: "c".repeat(64),
-    },
   };
 }
 
@@ -170,7 +140,6 @@ function uncurated(modelId: string, lineId: string): ArtifactOutcome {
   return {
     kind: "uncurated",
     group: group(modelId, lineId),
-    candidates: [candidate(modelId, lineId)],
   };
 }
 

@@ -14,9 +14,12 @@ import type {
   Manifest,
   Model,
   ModelCredit,
+  ModelGenerationProfile,
   ModelSourceKind,
   ModelSourceLink,
+  PublishedCandidate,
   ReferenceVoiceCredit,
+  ReleaseMetadata,
   Scenario,
 } from "../src/data/types.ts";
 import { isSafeClipPath } from "../src/lib/clip-path.ts";
@@ -214,6 +217,8 @@ const FINAL_INTONATIONS = new Set(["fall", "rise", "free"]);
 const LOUDNESS_SOURCES = new Set(["encoded_opus"]);
 const FAILURE_REASONS = new Set(["no_eligible_take", "test_only_adapter"]);
 const CONTENT_GATE_RESULTS = new Set(["pass", "review_required"]);
+const VARIANTS = new Set(["dry"]);
+const RECIPE_VERSIONS = new Set(["seed-only-v1", "fixed-single-v1"]);
 const REDISTRIBUTION_STATUSES = new Set(["prohibited", "allowed_with_conditions"]);
 const SHA256_PATTERN = /^[0-9a-f]{64}$/;
 const SHA1_PATTERN = /^[0-9a-f]{40}$/;
@@ -277,14 +282,78 @@ export function loadBenchmarkData(repositoryRoot: string, watchFile?: WatchFile)
   validateReferences(manifest, scenarios, referenceVoices);
 
   return {
-    manifest,
+    release: projectReleaseMetadata(manifest),
     scenarios,
     outcomes: projectOutcomes(manifest),
+    generation_profiles: projectGenerationProfiles(manifest),
     credits: {
       model_sources: projectModelCredits(manifest),
       reference_voices: referenceVoices,
     },
   };
+}
+
+function projectReleaseMetadata(manifest: Manifest): ReleaseMetadata {
+  return {
+    format_version: manifest.format_version,
+    generated_at: manifest.generated_at,
+    candidate_set_sha256: manifest.candidate_set_sha256,
+    models: manifest.models,
+  };
+}
+
+function projectPublishedCandidate(candidate: Candidate): PublishedCandidate {
+  return {
+    model: candidate.model,
+    scenario: candidate.scenario,
+    line: candidate.line,
+    variant: candidate.variant,
+    path: candidate.path,
+    duration_sec: candidate.duration_sec,
+    rtf: candidate.rtf,
+    gate: { content: candidate.gate.content },
+  };
+}
+
+function projectGenerationProfiles(manifest: Manifest): readonly ModelGenerationProfile[] {
+  const candidatesByTakeId = new Map(
+    manifest.candidates.map((candidate) => [candidate.take_id, candidate]),
+  );
+  const profiles = new Map<string, ModelGenerationProfile>();
+
+  for (const curation of manifest.curations) {
+    if (curation.decision !== "selected") {
+      continue;
+    }
+    const candidate = candidatesByTakeId.get(curation.take_id);
+    if (!candidate) {
+      throw new GayaDataError(
+        `生成 profile の selected candidate が存在しません: ${curation.take_id}`,
+      );
+    }
+    const key = JSON.stringify([
+      candidate.model,
+      candidate.gen_params.recipe_version,
+      candidate.gen_params.sampling,
+      candidate.gen_params.requested,
+    ]);
+    const existing = profiles.get(key);
+    if (existing) {
+      profiles.set(key, {
+        ...existing,
+        candidate_count: existing.candidate_count + 1,
+      });
+    } else {
+      profiles.set(key, {
+        model: candidate.model,
+        recipe_version: candidate.gen_params.recipe_version,
+        sampling: candidate.gen_params.sampling,
+        requested: candidate.gen_params.requested,
+        candidate_count: 1,
+      });
+    }
+  }
+  return [...profiles.values()];
 }
 
 function loadManifest(manifestPath: string): Manifest {
@@ -376,6 +445,7 @@ function validateCandidate(value: unknown, index: number): Candidate {
   const scenario = value.scenario as string;
   const line = value.line as string;
   const variant = value.variant as string;
+  assertEnum(variant, VARIANTS, `${label}.variant`);
   assertPositiveInteger(value.take_index, `${label}.take_index`);
   assertSha256(value.take_id, `${label}.take_id`);
   assertSha256(value.sha256, `${label}.sha256`);
@@ -402,6 +472,11 @@ function validateCandidate(value: unknown, index: number): Candidate {
     throw new GayaDataError(`${label}.gen_params.seed は整数または null が必要です。`);
   }
   assertNonEmptyString(value.gen_params.recipe_version, `${label}.gen_params.recipe_version`);
+  assertEnum(
+    value.gen_params.recipe_version,
+    RECIPE_VERSIONS,
+    `${label}.gen_params.recipe_version`,
+  );
   for (const key of ["sampling", "requested", "realized"] as const) {
     assertRecord(value.gen_params[key], `${label}.gen_params.${key}`);
   }
@@ -455,6 +530,7 @@ function validateFailure(value: unknown, index: number): GenerationFailure {
   for (const key of GROUP_KEYS) {
     assertPathSegment(value[key], `${label}.${key}`);
   }
+  assertEnum(value.variant, VARIANTS, `${label}.variant`);
   assertEnum(value.reason, FAILURE_REASONS, `${label}.reason`);
   if (value.reason === "test_only_adapter" && value.model !== "dummy") {
     throw new GayaDataError(`${label}.reason=test_only_adapter は model=dummy が必要です。`);
@@ -1256,18 +1332,18 @@ function projectOutcomes(manifest: Manifest): readonly ArtifactOutcome[] {
   for (const [key, { group, candidates }] of candidatesByGroup) {
     const curation = curationsByGroup.get(key);
     if (!curation) {
-      outcomes.push({ kind: "uncurated", group, candidates });
+      outcomes.push({ kind: "uncurated", group });
       continue;
     }
     if (curation.decision === "skipped") {
-      outcomes.push({ kind: "skipped", group, candidates, curation });
+      outcomes.push({ kind: "skipped", group });
       continue;
     }
     const candidate = candidates.find((item) => item.take_id === curation.take_id);
     if (!candidate) {
       throw new GayaDataError(`selected curation の take_id が candidate に存在しません: ${key}`);
     }
-    outcomes.push({ kind: "selected", group, candidate, curation });
+    outcomes.push({ kind: "selected", group, candidate: projectPublishedCandidate(candidate) });
   }
   for (const failure of manifest.failures) {
     outcomes.push({

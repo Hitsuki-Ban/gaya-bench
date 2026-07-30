@@ -3,11 +3,11 @@ import { Pause, Play, TriangleAlert } from "lucide-react";
 import { useAudioPlayer, useAudioProgress } from "@/audio/audio-provider";
 import { AutomaticQualityBadge } from "@/components/automatic-quality-badge";
 import { Button } from "@/components/ui/button";
-import { candidateKey, lineByKey, modelById, scenarioById, type Candidate } from "@/data";
+import { candidateKey, lineByKey, modelById, scenarioById, type PublishedCandidate } from "@/data";
 import { resolveAudioUrl } from "@/lib/audio-url";
 
 interface ClipButtonProps {
-  candidate: Candidate;
+  candidate: PublishedCandidate;
 }
 
 export function ClipButton({ candidate }: ClipButtonProps) {

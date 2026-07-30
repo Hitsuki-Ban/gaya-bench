@@ -6,7 +6,6 @@ import {
   buildModelOutcomeEntries,
   buildScenarioLineEntries,
   calculateRtfStatistics,
-  collectGenerationParameterSets,
 } from "./detail-page-model";
 
 describe("detail page v4 projection", () => {
@@ -29,7 +28,7 @@ describe("detail page v4 projection", () => {
     ).toEqual(["skipped", "uncurated", "failure"]);
   });
 
-  it("selected candidate の RTF と generation parameter set を集計する", () => {
+  it("selected candidate の RTF を集計する", () => {
     const first = candidate();
     const second = { ...candidate(), duration_sec: 3, rtf: 2 };
     expect(calculateRtfStatistics([first, second])).toEqual({
@@ -37,9 +36,6 @@ describe("detail page v4 projection", () => {
       minimum: 0.5,
       maximum: 2,
     });
-    expect(collectGenerationParameterSets([first, second])).toEqual([
-      { parameters: first.gen_params, candidateCount: 2 },
-    ]);
   });
 
   it("未知の scenario / line 参照と非正 duration を拒否する", () => {
@@ -68,28 +64,14 @@ function fixtureOutcomes(): ArtifactOutcome[] {
       kind: "selected",
       group,
       candidate: item,
-      curation: {
-        ...group,
-        decision: "selected",
-        take_id: item.take_id,
-        curation_sha256: "c".repeat(64),
-      },
     },
     {
       kind: "skipped",
       group: { ...group, variant: "skipped" },
-      candidates: [{ ...item, variant: "skipped" }],
-      curation: {
-        ...group,
-        variant: "skipped",
-        decision: "skipped",
-        curation_sha256: "c".repeat(64),
-      },
     },
     {
       kind: "uncurated",
       group: { ...group, variant: "uncurated" },
-      candidates: [{ ...item, variant: "uncurated" }],
     },
     {
       kind: "failure",

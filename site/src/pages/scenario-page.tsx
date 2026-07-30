@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   getOutcomesForScenario,
-  manifestModelById,
+  releaseModelById,
   scenarioById,
   type ArtifactOutcome,
 } from "@/data";
@@ -179,7 +179,7 @@ export function ScenarioPage() {
 }
 
 function ScenarioOutcome({ outcome }: { outcome: ArtifactOutcome }) {
-  const model = manifestModelById.get(outcome.group.model);
+  const model = releaseModelById.get(outcome.group.model);
   if (!model) {
     throw new Error(`outcome が未知の model を参照しています: ${outcome.group.model}`);
   }

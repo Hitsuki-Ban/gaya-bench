@@ -1,12 +1,12 @@
 import { TriangleAlert } from "lucide-react";
 
-import type { Candidate } from "@/data";
+import type { PublishedCandidate } from "@/data";
 
 export function AutomaticQualityBadge({
   candidate,
   compact = false,
 }: {
-  candidate: Candidate;
+  candidate: PublishedCandidate;
   compact?: boolean;
 }) {
   if (candidate.gate.content === "pass") {
