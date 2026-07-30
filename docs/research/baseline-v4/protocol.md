@@ -43,8 +43,9 @@ raw v3 manifest
   -> baseline-curation-v1
   -> baseline finalize
      - release manifest v4
-     - immutable decision
-     - audit/provenance/inventory
+     - take-curation-v1 immutable decision
+     - release-provenance.json
+     - audit/inventory
 ```
 
 各JSONはexact key集合を検証したcanonical UTF-8 JSONで、artifact本体に尾改行を
@@ -118,6 +119,10 @@ candidateを相対的に最良と判断しても、公開baseline decisionは`sk
 `baseline-curation-v1`はcandidate set SHAとbaseline reference SHAの両方を
 固定し、Dummyを除く220 candidate groupにselectedまたはskippedを要求する。
 candidate-zero groupはdecisionへ偽のcandidateを追加せず、pipeline auditで数える。
+これは一回限りの移行時入力である。追跡対象の確定releaseではreference拘束を
+baseline auditへ残し、decision自体は通常経路と同じ`take-curation-v1`へ正規化する。
+publisherが読むprovenanceも`release-provenance.json`だけであり、
+baseline専用の実行時分岐は持たない。
 
 ## finalize条件
 

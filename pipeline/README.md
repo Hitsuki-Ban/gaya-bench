@@ -116,6 +116,29 @@ generation seconds / postprocess / toolchain / loudness を snapshot 確定時�
 既存判断の置換、candidate 0、欠落設定の fallback は行わず、公開中の
 `data/manifest.json` も変更しない。
 
+## production release の確定
+
+策展済みの terminal run を model ごとに1件ずつ指定し、新しい固定 release
+directoryへ集約する:
+
+```console
+uv run --project pipeline --locked gaya takes finalize \
+  --run-id <model-a-run-id> \
+  --run-id <model-b-run-id> \
+  --output <new-release-directory>
+```
+
+全 run は同じ scenario source selection と line snapshot を持つ必要がある。
+finalize は各 ledger / QC report / source snapshot / candidate set / immutable
+curation / WAV / Opus / sidecar を現行 scenario に対して再検証し、未策展 group、
+非 terminal attempt、model 重複、group・take・公開 path の競合を全書込前に拒否する。
+テスト専用 `dummy` run も production 入力として受理しない。
+成功時だけ canonical `candidate-set.json`、単一の aggregate
+`take-curation-v1`、`manifest-v4.json`、`release-provenance.json` と各 SHA marker
+を新規 directory として確定する。既存 output は上書きせず、run 入力順によって
+結果 bytes は変わらない。旧 `baseline-provenance`、別名、既定 run、欠損値の
+fallback は受理しない。
+
 ## N3 pilot calibration
 
 固定 3 model × `battlefield-camp` / `dungeon-entrance` × N3 の terminal run
@@ -180,7 +203,13 @@ publisher credential は `gaya-bench-audio` だけの Object Read & Write に限
 bucket lock を含む bucket configuration の変更権限を与えない。credential は漏洩、
 権限変更、運用主体の変更がない限り継続利用し、該当時は revoke / rotation する。
 
-publisher は固定 release directory の canonical `manifest-v4.json` と raw SHA marker、canonical provenance と markerを検証する。provenance の `run_id` から明示的な takes root 内の source manifest と全 candidate Opus を特定し、candidate exact match、containment、SHA-256、サイズを全件検証してから R2 へ接続する。v3、missing take、rejected/blocked candidate、local-only path、`candidate[0]` fallback は受理しない。
+publisher は固定 release directory の canonical candidate set、単一 aggregate
+curation、`manifest-v4.json`、`release-provenance.json` と全 SHA marker を検証する。
+provenance の `run_id` から明示的な takes root 内の source snapshot と全 candidate
+Opus を特定し、model coverage、candidate/failure exact projection、containment、
+SHA-256、サイズを全件検証してから R2 へ接続する。v3、旧
+`baseline-provenance`、missing take、rejected/blocked candidate、local-only path、
+`candidate[0]` fallback は受理しない。
 
 ```console
 uv run --project pipeline --locked gaya publish \

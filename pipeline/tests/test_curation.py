@@ -228,12 +228,18 @@ def _write_qc_report(
     )
 
 
-def _setup_run(tmp_path: Path) -> tuple[str, dict[str, Any], Path, Path]:
-    run_id = "run-1"
+def _setup_run(
+    tmp_path: Path,
+    *,
+    run_id: str = "run-1",
+    model: str = "dummy",
+    audio_bytes: bytes = b"local opus fixture",
+) -> tuple[str, dict[str, Any], Path, Path]:
     run_root = tmp_path / "artifacts" / "takes" / run_id
     manifest = json.loads(FIXTURE.read_text(encoding="utf-8"))
+    manifest["models"][0]["id"] = model
     candidate = manifest["candidates"][0]
-    audio_bytes = b"local opus fixture"
+    candidate["model"] = model
     audio_sha = hashlib.sha256(audio_bytes).hexdigest()
     input_sha = "a" * 64
     candidate.update(
@@ -244,7 +250,7 @@ def _setup_run(tmp_path: Path) -> tuple[str, dict[str, Any], Path, Path]:
             final_opus_sha256=audio_sha,
         ),
         path=(
-            "audio/takes/dummy/tavern-night/barmaid-001/dry/"
+            f"audio/takes/{model}/tavern-night/barmaid-001/dry/"
             f"take-0001-{audio_sha}.opus"
         ),
     )
@@ -301,13 +307,13 @@ def _setup_run(tmp_path: Path) -> tuple[str, dict[str, Any], Path, Path]:
         "created_at": "2026-07-29T00:00:00Z",
         "source": {
             "scenario_sha256": scenario_sha,
-            "model": "dummy",
+            "model": model,
             "takes": 1,
             "seed_base": 0,
             "recipe_version": "fixed-single-v1",
             "groups": [
                 {
-                    "model": "dummy",
+                    "model": model,
                     "scenario": "tavern-night",
                     "line": "barmaid-001",
                     "variant": "dry",
@@ -316,7 +322,7 @@ def _setup_run(tmp_path: Path) -> tuple[str, dict[str, Any], Path, Path]:
         },
         "attempts": [
             {
-                "model": "dummy",
+                "model": model,
                 "scenario": "tavern-night",
                 "line": "barmaid-001",
                 "variant": "dry",
@@ -395,6 +401,7 @@ def _add_candidate_groups(
     ledger = read_ledger(ledger_path)
     template_candidate = manifest["candidates"][0]
     template_attempt = ledger["attempts"][0]
+    model = template_candidate["model"]
     for line_id in line_ids:
         audio_bytes = f"local opus fixture {line_id}".encode()
         audio_sha = hashlib.sha256(audio_bytes).hexdigest()
@@ -409,13 +416,13 @@ def _add_candidate_groups(
                 final_opus_sha256=audio_sha,
             ),
             path=(
-                f"audio/takes/dummy/tavern-night/{line_id}/dry/"
+                f"audio/takes/{model}/tavern-night/{line_id}/dry/"
                 f"take-0001-{audio_sha}.opus"
             ),
         )
         manifest["candidates"].append(candidate)
         group = {
-            "model": "dummy",
+            "model": model,
             "scenario": "tavern-night",
             "line": line_id,
             "variant": "dry",

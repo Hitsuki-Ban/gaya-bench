@@ -33,6 +33,11 @@ from gaya_pipeline.publish import (
     create_r2_client,
     run_publish,
 )
+from gaya_pipeline.release import (
+    ReleaseError,
+    ReleaseFinalizeSummary,
+    finalize_release,
+)
 from gaya_pipeline.qc import QCError, QCSummary, run_qc
 from gaya_pipeline.qc_runtime import KanaWhisperQCRuntime
 from gaya_pipeline.validation import default_scenarios_dir, validate_scenarios
@@ -221,6 +226,32 @@ def build_parser() -> argparse.ArgumentParser:
         help="新規作成する report directory",
     )
 
+    takes_parser = subparsers.add_parser(
+        "takes",
+        help="terminal run を固定 release に確定する",
+    )
+    takes_subparsers = takes_parser.add_subparsers(
+        dest="takes_command",
+        required=True,
+    )
+    takes_finalize_parser = takes_subparsers.add_parser(
+        "finalize",
+        help="fully-curatedな複数runをproduction releaseへ集約する",
+    )
+    takes_finalize_parser.add_argument(
+        "--run-id",
+        required=True,
+        action="append",
+        dest="run_ids",
+        help="artifacts/takes 配下のterminal run（複数回指定可）",
+    )
+    takes_finalize_parser.add_argument(
+        "--output",
+        required=True,
+        type=Path,
+        help="新規作成するrelease directory",
+    )
+
     publish_parser = subparsers.add_parser(
         "publish",
         help="固定 release manifest v4 の candidate を R2 へ immutable publish する",
@@ -385,6 +416,24 @@ def main(argv: Sequence[str] | None = None) -> int:
             print(f"ERROR: {error}", file=sys.stderr)
             return 1
 
+    if args.command == "takes":
+        if args.takes_command != "finalize":
+            raise AssertionError(f"unknown takes command: {args.takes_command}")
+        repository_root = default_scenarios_dir().parent
+        try:
+            summary = finalize_release(
+                run_ids=args.run_ids,
+                artifacts_dir=repository_root / "artifacts",
+                data_dir=repository_root / "data",
+                scenarios_dir=repository_root / "scenarios",
+                output_dir=args.output,
+            )
+        except ReleaseError as error:
+            print(f"ERROR: {error}", file=sys.stderr)
+            return 1
+        _print_release_finalize_summary(summary)
+        return 0
+
     if args.command == "publish":
         try:
             summary = run_publish(
@@ -434,6 +483,22 @@ def _print_publish_summary(summary: PublishSummary) -> None:
     print(
         f"完了: アップロード {summary.uploaded_count} / "
         f"スキップ {summary.skipped_count}",
+    )
+
+
+def _print_release_finalize_summary(
+    summary: ReleaseFinalizeSummary,
+) -> None:
+    print(f"Release: {summary.output_dir.as_posix()}")
+    print(f"Manifest SHA-256: {summary.manifest_sha256}")
+    print(f"Candidate set SHA-256: {summary.candidate_set_sha256}")
+    print(f"Curation SHA-256: {summary.curation_sha256}")
+    print(
+        f"完了: model {summary.model_count} / "
+        f"candidate {summary.candidate_count} / "
+        f"selected {summary.selected_count} / "
+        f"skipped {summary.skipped_count} / "
+        f"failure {summary.failure_count}",
     )
 
 

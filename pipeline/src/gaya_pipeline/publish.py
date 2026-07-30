@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import base64
 import hashlib
-import json
 import re
 from dataclasses import dataclass
 from pathlib import Path
@@ -12,34 +11,20 @@ import boto3
 from botocore.exceptions import BotoCoreError, ClientError
 from dotenv import dotenv_values
 
-from gaya_pipeline.take_identity import TakeIdentityError, canonical_json
-from gaya_pipeline.take_manifest_v4 import (
-    TakeManifestError,
-    validate_manifest_v4,
+from gaya_pipeline.release import (
+    ReleaseError,
+    validate_finalized_release,
 )
 
 R2_BUCKET = "gaya-bench-audio"
 CONTENT_TYPE = "audio/ogg"
 CACHE_CONTROL = "public, max-age=31536000, immutable"
-_SHA256_PATTERN = re.compile(r"[0-9a-f]{64}")
 _ACCOUNT_ID_PATTERN = re.compile(r"[0-9a-f]{32}")
 _REQUIRED_ENVIRONMENT = (
     "CLOUDFLARE_ACCOUNT_ID",
     "R2_ACCESS_KEY_ID",
     "R2_SECRET_ACCESS_KEY",
 )
-_PROVENANCE_KEYS = {"format_version", "plan_sha256", "runs"}
-_PROVENANCE_RUN_KEYS = {
-    "model",
-    "run_id",
-    "ledger_path",
-    "ledger_sha256",
-    "qc_report_sha256",
-    "manifest_sha256",
-    "candidate_set_sha256",
-}
-
-
 class PublishError(RuntimeError):
     pass
 
@@ -160,65 +145,18 @@ def _collect_publish_objects(
     release_dir: Path,
     takes_root: Path,
 ) -> list[_PublishObject]:
-    release_root = _require_directory(release_dir, "release directory")
-    takes_root_resolved = _require_directory(takes_root, "takes root")
-    manifest = _load_marked_manifest(
-        release_root / "manifest-v4.json",
-        release_root / "manifest-v4.sha256",
-        "release manifest v4",
-    )
-    provenance = _load_provenance(release_root)
-    run_by_model = {run["model"]: run for run in provenance["runs"]}
-    release_models = {model["id"] for model in manifest["models"]}
-    if set(run_by_model) != release_models:
-        raise PublishError(
-            "release provenance model coverage が release manifest と一致しません。",
+    try:
+        release = validate_finalized_release(
+            release_dir=release_dir,
+            takes_root=takes_root,
         )
-
-    source_candidates: dict[str, set[str]] = {}
-    source_roots: dict[str, Path] = {}
-    for model, record in run_by_model.items():
-        run_root = _resolve_child(
-            takes_root_resolved,
-            record["run_id"],
-            f"source run {record['run_id']}",
-        )
-        source_manifest_path = run_root / "manifest-v4.json"
-        source_manifest, raw = _load_source_manifest(
-            source_manifest_path,
-            f"source manifest {record['run_id']}",
-        )
-        if hashlib.sha256(raw).hexdigest() != record["manifest_sha256"]:
-            raise PublishError(
-                f"source manifest SHA が release provenance と一致しません: "
-                f"{record['run_id']}",
-            )
-        if source_manifest["candidate_set_sha256"] != record["candidate_set_sha256"]:
-            raise PublishError(
-                f"source candidate set SHA が release provenance と一致しません: "
-                f"{record['run_id']}",
-            )
-        if [entry["id"] for entry in source_manifest["models"]] != [model]:
-            raise PublishError(
-                f"source manifest model が release provenance と一致しません: "
-                f"{record['run_id']}",
-            )
-        source_candidates[model] = {
-            canonical_json(candidate) for candidate in source_manifest["candidates"]
-        }
-        source_roots[model] = run_root
+    except ReleaseError as error:
+        raise PublishError(f"release bundle が不正です: {error}") from error
 
     objects: list[_PublishObject] = []
     keys: set[str] = set()
-    for candidate in manifest["candidates"]:
+    for candidate in release.manifest["candidates"]:
         model = candidate["model"]
-        if model not in source_candidates:
-            raise PublishError(f"release candidate の source run がありません: {model}")
-        if canonical_json(candidate) not in source_candidates[model]:
-            raise PublishError(
-                "release candidate が provenance source manifest と exact に"
-                f"一致しません: {candidate['path']}",
-            )
         key = candidate["path"]
         if key in keys:
             raise PublishError(f"release candidate key が重複しています: {key}")
@@ -232,7 +170,7 @@ def _collect_publish_objects(
             f"take-{candidate['take_index']:04d}.opus",
         )
         file_path = _resolve_child(
-            source_roots[model],
+            release.run_roots[model],
             local_relative,
             f"release candidate {key}",
         )
@@ -259,145 +197,6 @@ def _collect_publish_objects(
     return sorted(objects, key=lambda item: item.key)
 
 
-def _load_marked_manifest(
-    path: Path,
-    marker_path: Path,
-    label: str,
-) -> dict[str, Any]:
-    manifest, raw = _load_canonical_manifest(path, label)
-    expected_sha = _load_sha_marker(marker_path, label)
-    if hashlib.sha256(raw).hexdigest() != expected_sha:
-        raise PublishError(f"{label} の raw SHA marker が一致しません。")
-    return manifest
-
-
-def _load_canonical_manifest(
-    path: Path,
-    label: str,
-) -> tuple[dict[str, Any], bytes]:
-    raw, document = _load_canonical_json(path, label)
-    try:
-        manifest = validate_manifest_v4(document)
-    except (TakeManifestError, ValueError) as error:
-        raise PublishError(f"{label} が v4 schema を満たしません: {error}") from error
-    try:
-        canonical = canonical_json(manifest).encode("utf-8")
-    except TakeIdentityError as error:
-        raise PublishError(f"{label} を canonicalize できません。") from error
-    if raw != canonical:
-        raise PublishError(f"{label} は canonical bytes が必要です。")
-    return manifest, raw
-
-
-def _load_source_manifest(
-    path: Path,
-    label: str,
-) -> tuple[dict[str, Any], bytes]:
-    raw, document = _load_canonical_json(path, label)
-    try:
-        manifest = validate_manifest_v4(document)
-    except (TakeManifestError, ValueError) as error:
-        raise PublishError(f"{label} が v4 schema を満たしません: {error}") from error
-    return manifest, raw
-
-
-def _load_provenance(release_root: Path) -> dict[str, Any]:
-    path = release_root / "baseline-provenance.json"
-    raw, document = _load_canonical_json(path, "release provenance")
-    _load_and_verify_marker(
-        release_root / "baseline-provenance.sha256",
-        raw,
-        "release provenance",
-    )
-    if not isinstance(document, dict) or set(document) != _PROVENANCE_KEYS:
-        raise PublishError("release provenance の root 項目が不正です。")
-    if document["format_version"] != 1:
-        raise PublishError("release provenance format_version は 1 が必要です。")
-    _require_sha(document["plan_sha256"], "release provenance plan_sha256")
-    if not isinstance(document["runs"], list) or not document["runs"]:
-        raise PublishError("release provenance runs は非空の配列が必要です。")
-
-    runs: list[dict[str, str]] = []
-    for index, value in enumerate(document["runs"]):
-        field = f"release provenance runs[{index}]"
-        if not isinstance(value, dict) or set(value) != _PROVENANCE_RUN_KEYS:
-            raise PublishError(f"{field} の項目が不正です。")
-        if not all(
-            isinstance(value[key], str)
-            for key in _PROVENANCE_RUN_KEYS
-        ):
-            raise PublishError(f"{field} の全項目は文字列が必要です。")
-        run = {key: value[key] for key in _PROVENANCE_RUN_KEYS}
-        for key in ("model", "run_id"):
-            _require_path_segment(run[key], f"{field}.{key}")
-        for key in (
-            "ledger_sha256",
-            "qc_report_sha256",
-            "manifest_sha256",
-            "candidate_set_sha256",
-        ):
-            _require_sha(run[key], f"{field}.{key}")
-        if not run["ledger_path"]:
-            raise PublishError(f"{field}.ledger_path は非空文字列が必要です。")
-        runs.append(run)
-    if runs != sorted(runs, key=lambda run: run["model"]):
-        raise PublishError("release provenance runs は model 順が必要です。")
-    if len({run["model"] for run in runs}) != len(runs):
-        raise PublishError("release provenance model が重複しています。")
-    if len({run["run_id"] for run in runs}) != len(runs):
-        raise PublishError("release provenance run_id が重複しています。")
-    normalized = {
-        "format_version": 1,
-        "plan_sha256": document["plan_sha256"],
-        "runs": runs,
-    }
-    if raw != canonical_json(normalized).encode("utf-8"):
-        raise PublishError("release provenance は canonical bytes が必要です。")
-    return normalized
-
-
-def _load_canonical_json(path: Path, label: str) -> tuple[bytes, Any]:
-    if not path.is_file():
-        raise PublishError(f"{label} が存在しません: {path}")
-    try:
-        raw = path.read_bytes()
-        document = json.loads(raw)
-    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as error:
-        raise PublishError(f"{label} を読み込めません: {path}") from error
-    return raw, document
-
-
-def _load_and_verify_marker(marker_path: Path, raw: bytes, label: str) -> None:
-    marker = _load_sha_marker(marker_path, label)
-    if hashlib.sha256(raw).hexdigest() != marker:
-        raise PublishError(f"{label} の raw SHA marker が一致しません。")
-
-
-def _load_sha_marker(path: Path, label: str) -> str:
-    if not path.is_file():
-        raise PublishError(f"{label} SHA marker が存在しません: {path}")
-    try:
-        marker = path.read_bytes()
-    except OSError as error:
-        raise PublishError(f"{label} SHA marker を読み込めません: {path}") from error
-    try:
-        text = marker.decode("ascii")
-    except UnicodeDecodeError as error:
-        raise PublishError(f"{label} SHA marker が ASCII ではありません。") from error
-    _require_sha(text, f"{label} SHA marker")
-    return text
-
-
-def _require_directory(path: Path, label: str) -> Path:
-    try:
-        resolved = path.resolve(strict=True)
-    except (FileNotFoundError, OSError) as error:
-        raise PublishError(f"{label} が存在しません: {path}") from error
-    if not resolved.is_dir():
-        raise PublishError(f"{label} が directory ではありません: {path}")
-    return resolved
-
-
 def _resolve_child(root: Path, relative: str | Path, label: str) -> Path:
     candidate = root / relative
     try:
@@ -407,24 +206,6 @@ def _resolve_child(root: Path, relative: str | Path, label: str) -> Path:
     if not resolved.is_relative_to(root):
         raise PublishError(f"{label} が root 外を参照しています: {candidate}")
     return resolved
-
-
-def _require_path_segment(value: Any, field: str) -> str:
-    if (
-        not isinstance(value, str)
-        or not value
-        or value in {".", ".."}
-        or "/" in value
-        or "\\" in value
-    ):
-        raise PublishError(f"{field} は安全な path segment が必要です。")
-    return value
-
-
-def _require_sha(value: Any, field: str) -> str:
-    if not isinstance(value, str) or _SHA256_PATTERN.fullmatch(value) is None:
-        raise PublishError(f"{field} は完全な小文字 SHA-256 が必要です。")
-    return value
 
 
 def _head_object(client: S3Client, key: str) -> dict[str, Any] | None:
