@@ -33,6 +33,11 @@ from gaya_pipeline.publish import (
     create_r2_client,
     run_publish,
 )
+from gaya_pipeline.public_audio import (
+    PublicAudioError,
+    PublicAudioSummary,
+    verify_public_audio,
+)
 from gaya_pipeline.release import (
     ReleaseError,
     ReleaseFinalizeSummary,
@@ -288,6 +293,42 @@ def build_parser() -> argparse.ArgumentParser:
         type=Path,
         help="R2 credential を格納する明示的 env file",
     )
+
+    launch_parser = subparsers.add_parser(
+        "launch",
+        help="公開前 QA を実行する",
+    )
+    launch_subparsers = launch_parser.add_subparsers(
+        dest="launch_command",
+        required=True,
+    )
+    launch_audio_parser = launch_subparsers.add_parser(
+        "verify-audio",
+        help="selected 公開音声を全件取得して完全 decode する",
+    )
+    launch_audio_parser.add_argument(
+        "--manifest",
+        required=True,
+        type=Path,
+        help="公開済み release manifest v4",
+    )
+    launch_audio_parser.add_argument(
+        "--base-url",
+        required=True,
+        help="末尾が / の公開音声 HTTPS base URL",
+    )
+    launch_audio_parser.add_argument(
+        "--workers",
+        type=int,
+        default=8,
+        help="並列検証数 (default: 8)",
+    )
+    launch_audio_parser.add_argument(
+        "--timeout-seconds",
+        type=float,
+        default=30.0,
+        help="各 GET / decode の timeout 秒 (default: 30)",
+    )
     return parser
 
 
@@ -463,6 +504,24 @@ def main(argv: Sequence[str] | None = None) -> int:
         _print_publish_summary(summary)
         return 0
 
+    if args.command == "launch":
+        if args.launch_command != "verify-audio":
+            raise AssertionError(
+                f"unknown launch command: {args.launch_command}",
+            )
+        try:
+            summary = verify_public_audio(
+                manifest_path=args.manifest,
+                base_url=args.base_url,
+                workers=args.workers,
+                timeout_seconds=args.timeout_seconds,
+            )
+        except PublicAudioError as error:
+            print(f"ERROR: {error}", file=sys.stderr)
+            return 1
+        _print_public_audio_summary(summary)
+        return 0
+
     raise AssertionError(f"unknown command: {args.command}")
 
 
@@ -499,6 +558,14 @@ def _print_publish_summary(summary: PublishSummary) -> None:
     print(
         f"完了: アップロード {summary.uploaded_count} / "
         f"スキップ {summary.skipped_count}",
+    )
+
+
+def _print_public_audio_summary(summary: PublicAudioSummary) -> None:
+    print(
+        f"検証成功: {summary.verified_count} clips / "
+        f"{summary.total_bytes} bytes / "
+        f"{summary.elapsed_seconds:.3f}s",
     )
 
 

@@ -33,6 +33,7 @@ artifacts/          生成物の一次出力 (git管理外)
 | [docs/content-plan.md](docs/content-plan.md) | テストシナリオのカバレッジ計画・執筆ガイド |
 | [docs/ux-spec.md](docs/ux-spec.md) | ベンチサイトUX仕様 |
 | [docs/model-criteria.md](docs/model-criteria.md) | ベンチ対象モデルの選定基準 |
+| [docs/launch-checklist.md](docs/launch-checklist.md) | 本公開 QA のチェック項目と実施証跡 |
 
 ## 役割分担
 
