@@ -19,12 +19,12 @@ Lighthouse と A11y の網羅確認は公開後改善へ回し、このゲート
 - [x] selected 全 clip を FFmpeg で最後まで decode できる
 - [x] Chrome デスクトップで主要導線と音声再生が動作する
 - [x] Firefox デスクトップで主要導線と音声再生が動作する
-- [ ] モバイル実機 1 台で下記の判断基準を確認する
+- [x] モバイル実機 1 台で下記の判断基準を確認する
 - [x] サイト内導線、外部リンク、存在しない URL の表示を確認する
 - [x] OGP メタデータと OGP 画像を確認する
 - [x] README に公開 URL と本チェックリストへの導線がある
-- [ ] GitHub repository の Website に公開 URL を設定する
-- [ ] Owner が Issue #18 に公開承認をコメントする
+- [x] GitHub repository の Website に公開 URL を設定する
+- [x] Owner が Issue #18 に公開承認をコメントする
 
 ## 1. 公開音声の機械チェック
 
@@ -70,7 +70,7 @@ Firefox を headless で起動した。
 各 route で HTTP 200、可視 `h1`、横 overflow がないことを確認した。
 最初の audio は両ブラウザで再生完了後に `停止` から `再生` へ戻った。
 
-## 3. モバイル実機の判断基準
+## 3. モバイル実機
 
 デスクトップの mobile emulation は実機確認の代わりにしない。
 実機 1 台で次を確認する。
@@ -82,6 +82,9 @@ Firefox を headless で起動した。
 5. `A/B`、scenario、model、クレジットへ移動できる
 6. <https://gaya-bench.pages.dev/__launch-qa-not-found__> で
    「ページが見つかりません」とホームへ戻るリンクが表示される
+
+2026-07-31 (JST) に Owner がスマートフォンと PC の双方で上記の公開サイトを
+確認し、問題なく公開可能と判断した。
 
 補助確認として iPhone 13 emulation では、`/`、`/ab`、scenario、
 model、`/credits`、存在しない URL の 6 route がすべて正常に表示され、
@@ -114,6 +117,7 @@ page を描画する。これは `404.html` を置かない現行 architecture �
 
 ## 6. 公開承認
 
-モバイル実機の確認後、Owner が Issue #18 に承認コメントを残す。
-承認後に repository Website を公開 URL に設定し、本チェックリストの
-残項目を完了させる。
+Owner は 2026-07-31 (JST) にスマートフォン / PC の確認完了と公開承認を
+[Issue #18 のコメント](https://github.com/Hitsuki-Ban/gaya-bench/issues/18#issuecomment-5134714894)
+として記録した。GitHub repository の Website には
+<https://gaya-bench.pages.dev/> を設定済み。
