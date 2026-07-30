@@ -447,17 +447,11 @@ uv run --project pipeline --locked --extra gpt-sovits gaya voices validate-local
 $env:GAYA_GPT_SOVITS_ROOT = (Resolve-Path "models/gpt-sovits/upstream")
 ```
 
-`character.reference_voice` がある場合はその ID を優先する。2つの受け入れシナリオで `null` の character は次の固定割当を使い、表にない `null` は生成前に失敗する。
+`character.reference_voice` がある場合はその ID を優先する。現行15シナリオ58キャラクターでは5件がscenario側で参照音声を明示し、残る`null`の53件は
+[`CLONE_REFERENCE_ASSIGNMENTS`](src/gaya_pipeline/adapters/voice_assignments.py)
+で固定する。この表はChatterbox / CosyVoice3 / GPT-SoVITSの単一authorityであり、scenarioとのexact coverageをテストで固定する。新しい`null`キャラクターを表へ登録しない限り生成前に失敗し、gender / ageから実行時に推測するfallbackは使わない。
 
-| scenario | character | reference voice |
-| --- | --- | --- |
-| `tavern-night` | `drunkard` | `hadou-emotion-11` |
-| `tavern-night` | `old-regular` | `hadou-emotion-11` |
-| `market-day` | `fruit-vendor` | `hadou-emotion-11` |
-| `market-day` | `shopper` | `lux-emotion-76` |
-| `market-day` | `street-kid` | `tsukuyomi-corpus-94` |
-
-現行 kit には elderly male、middle-aged female、child に一致する素材がない。上表は属性推定による fallback ではなく受け入れベンチ用の固定割当であり、男性3役は同じ成人男性声を共有する。
+現行kitにはmale / adultとfemale / teen・young_adult・elderly以外に属性が完全一致する素材がない。53件の選択は既存5素材からキャラクターごとに明示したベンチ用assignmentであり、metadata上の属性coverageを水増ししない。
 
 各 source WAV の先頭から48kHz mono PCM16で正確に5秒を切り出し、source / clip の SHA-256 と frame 範囲を sidecar に記録する。prompt text と文字起こしの不一致を避けるため prompt-free mode とし、上流が未対応の semantic batch inference は明示的に無効化する。`line.reading` が non-empty string ならそれを優先し、それ以外は `line.text` を使う。
 
@@ -562,15 +556,9 @@ adapter は model root が上記5ファイルだけを含むことと、各 size
 
 PerTh の `perth_net/pretrained/implicit/` は model 初期化前に inventory を照合し、`hparams.yaml`（271 bytes、SHA-256 `6e4deab0716a5b647eba52b4df97d93f37e57e283ff67c265fb6fee025f8e2cf`）、`id.txt`（22 bytes、SHA-256 `f4129d0cce1fcd76a01c778dd46aeecc84130e38d83c98402abf2e1b9c49770d`）、`perth_net_250000.pth.tar`（37,429,684 bytes、SHA-256 `a15bce457ebc53ce5e6c9c3f11df78cf7ee2bf9cdab0a798902135b4c4027670`）の3ファイルだけを許可する。checkpoint は pickle 形式であり、PerTh は同 directory 内の最大 step を自動選択するため、追加 checkpoint、symlink、size / hash 不一致があればロードしない。
 
-`character.reference_voice` がある場合はその素材を優先する。2つの受け入れシナリオで `null` の character は次の固定割当を使い、表にない `null` は生成前に失敗する。
-
-| scenario | character | reference voice |
-| --- | --- | --- |
-| `tavern-night` | `drunkard` | `hadou-emotion-11` |
-| `tavern-night` | `old-regular` | `hadou-emotion-11` |
-| `market-day` | `fruit-vendor` | `hadou-emotion-11` |
-| `market-day` | `shopper` | `lux-emotion-76` |
-| `market-day` | `street-kid` | `tsukuyomi-corpus-94` |
+`character.reference_voice` がある場合はその素材を優先する。現行15シナリオ58キャラクターでは5件がscenario側で参照音声を明示し、残る`null`の53件は
+[`CLONE_REFERENCE_ASSIGNMENTS`](src/gaya_pipeline/adapters/voice_assignments.py)
+で固定する。この表はChatterbox / CosyVoice3 / GPT-SoVITSの単一authorityであり、scenarioとのexact coverageをテストで固定する。新しい`null`キャラクターを表へ登録しない限りmodel load前に失敗し、gender / ageから実行時に推測するfallbackは使わない。
 
 参照 WAV は登録 metadata の SHA-256 と照合し、48kHz mono PCM16、10秒以上を必須とする。各 line は必ず `audio_prompt_path` を渡すため、内蔵 condition や reference 欠落時の代替声は使わない。
 
@@ -663,15 +651,9 @@ adapter は model root の非 cache file が次の固定集合と一致するこ
 
 Windows では上流の通常 requirements が CPU 版 ONNX Runtime を選ぶ一方、speech tokenizer は CUDA provider を要求する。本 extra は Microsoft 公式 CUDA 12 feed の `onnxruntime-gpu==1.18.0` を固定し、CPU 版 `onnxruntime` を同居させない。load 後に speech tokenizer の先頭 provider が `CUDAExecutionProvider`、CampPlus が `CPUExecutionProvider` であることを照合する。provider 作成失敗時の CPU fallback は受理しない。上流 text frontend は明示的に無効化し、`HF_HUB_OFFLINE`、`TRANSFORMERS_OFFLINE`、`MODELSCOPE_OFFLINE` を有効にして既存の絶対 model path だけを渡す。
 
-`character.reference_voice` がある場合はその素材を優先する。2つの受け入れシナリオで `null` の character は次の固定割当を使い、表にない `null` は model load 前に失敗する。
-
-| scenario | character | reference voice |
-| --- | --- | --- |
-| `tavern-night` | `drunkard` | `hadou-emotion-11` |
-| `tavern-night` | `old-regular` | `hadou-emotion-11` |
-| `market-day` | `fruit-vendor` | `hadou-emotion-11` |
-| `market-day` | `shopper` | `lux-emotion-76` |
-| `market-day` | `street-kid` | `tsukuyomi-corpus-94` |
+`character.reference_voice` がある場合はその素材を優先する。現行15シナリオ58キャラクターでは5件がscenario側で参照音声を明示し、残る`null`の53件は
+[`CLONE_REFERENCE_ASSIGNMENTS`](src/gaya_pipeline/adapters/voice_assignments.py)
+で固定する。この表はChatterbox / CosyVoice3 / GPT-SoVITSの単一authorityであり、scenarioとのexact coverageをテストで固定する。新しい`null`キャラクターを表へ登録しない限りmodel load前に失敗し、gender / ageから実行時に推測するfallbackは使わない。
 
 参照 WAV は登録 metadata の SHA-256 と照合し、48kHz mono PCM16、30秒以下を必須とする。裁断した派生音声、default speaker、別素材への自動切替は使わない。
 
@@ -734,16 +716,11 @@ $env:GAYA_SUPERTONIC3_ROOT = (
 
 adapter は `.cache/` を除く19ファイル、合計401,297,315 bytesを生成前に size / SHA-256 で照合する。root、固定ファイル、preset voice、SDK / ORT / NumPy / SoundFile version、`tts_version=v1.7.3`、44.1kHz、四つの ONNX session のいずれかが不一致なら model load 前後の該当 gate で失敗する。別 snapshot、network、GPU、別 provider へ切り替えない。take seed は `seed-only-v1` で導出し、固定値は `steps=8`、`speed=1.05`、intra-op 10 threads、inter-op 1 thread である。
 
-| scenario / character | preset |
-| --- | --- |
-| `tavern-night/barmaid` | `F2` |
-| `tavern-night/drunkard` | `M1` |
-| `tavern-night/old-regular` | `M5` |
-| `market-day/fruit-vendor` | `M1` |
-| `market-day/shopper` | `F1` |
-| `market-day/street-kid` | `F2` |
+現行15シナリオ58キャラクターは、公式10 preset（`M1`〜`M5` / `F1`〜`F5`）の声質説明に基づいて
+[`SUPERTONIC3_VOICE_ASSIGNMENTS`](src/gaya_pipeline/adapters/voice_assignments.py)
+へ個別に固定する。scenarioとのexact coverage、preset inventory、既存canary、genderが明示されたキャラクターと`M` / `F` prefixの整合をテストで固定する。この割当はvoice diversityの評価軸には使わず、表にないroleをgender / ageから推測せず失敗する。
 
-この割当は公式 preset description に基づく固定選択であり、voice diversity の評価軸には使わない。表にない role を gender / age から推測せず失敗する。`line.reading` が non-empty string なら実入力として優先し、それ以外は `line.text` をそのまま使う。emotion、intensity、delivery、character voice、reference voice はモデル入力にしない。公式資料は10個の expression tag を述べるが、公開資料で確認できるのは一部だけなので本 adapter では全 tag を禁止し、capability は reading のみ `true` とする。
+`line.reading` がnon-empty stringなら実入力として優先し、それ以外は`line.text`をそのまま使う。emotion、intensity、delivery、character voice、reference voiceはモデル入力にしない。公式資料は10個のexpression tagを述べるが、公開資料で確認できるのは一部だけなので本adapterでは全tagを禁止し、capabilityはreadingのみ`true`とする。
 
 ```console
 uv run --project pipeline --locked --extra supertonic3 gaya gen --model supertonic-3 --scenario tavern-night --takes 1 --seed-base 42
