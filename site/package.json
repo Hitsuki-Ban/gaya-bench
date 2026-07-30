@@ -3,6 +3,10 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
+  "scripts": {
+    "check:public-bundle": "node scripts/assert-public-dist.mjs",
+    "dev:internal": "vp dev --open /internal.html#/curate"
+  },
   "dependencies": {
     "@base-ui/react": "^1.6.0",
     "class-variance-authority": "^0.7.1",

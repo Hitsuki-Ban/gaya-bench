@@ -1,42 +1,33 @@
-import { AudioLines, FlaskConical, LoaderCircle, Scale, SlidersHorizontal } from "lucide-react";
-import { NavLink, Outlet, useLocation } from "react-router";
+import { AudioLines, FolderCheck, ListChecks, LoaderCircle } from "lucide-react";
+import { NavLink, Outlet } from "react-router";
 
 import { AudioProvider } from "@/audio/audio-provider";
 import { Button } from "@/components/ui/button";
 
 const navigation = [
-  { to: "/", label: "比較", icon: SlidersHorizontal, end: true },
-  { to: "/ab", label: "A/B", icon: FlaskConical, end: false },
-  { to: "/credits", label: "クレジット", icon: Scale, end: false },
+  { to: "/curate", label: "音声選定", icon: FolderCheck },
+  { to: "/pilot", label: "事前確認", icon: ListChecks },
 ] as const;
 
-export function AppLayout() {
-  const location = useLocation();
-
+export function InternalLayout() {
   return (
-    <div className="min-h-screen">
+    <div data-internal-ui="gaya-bench-internal-ui-v1" className="min-h-screen">
       <header className="sticky top-0 z-20 border-b bg-background/95 backdrop-blur">
         <div className="mx-auto flex min-h-14 max-w-[1480px] items-center gap-6 px-4 sm:px-6">
-          <NavLink
-            aria-label="比較トップ"
-            className="flex items-center gap-3"
-            to={{ pathname: "/", search: location.search }}
-          >
+          <div className="flex items-center gap-3">
             <span className="grid size-9 place-items-center rounded-md border border-primary/35 bg-primary/10 text-primary">
               <AudioLines aria-hidden="true" className="size-5" />
             </span>
-            <span className="hidden min-[360px]:block">
-              <span className="block font-mono text-sm font-semibold tracking-[0.22em] text-foreground">
+            <span>
+              <span className="block font-mono text-sm font-semibold tracking-[0.18em] text-foreground">
                 GAYA BENCH
               </span>
-              <span className="hidden text-[11px] text-muted-foreground sm:block">
-                日本語 TTS ボイス比較
-              </span>
+              <span className="block text-[11px] text-muted-foreground">ローカル評価ツール</span>
             </span>
-          </NavLink>
+          </div>
 
-          <nav aria-label="メインナビゲーション" className="ml-auto flex items-center gap-1">
-            {navigation.map(({ to, label, icon: Icon, end }) => (
+          <nav aria-label="ローカル評価ナビゲーション" className="ml-auto flex items-center gap-1">
+            {navigation.map(({ to, label, icon: Icon }) => (
               <NavLink
                 aria-label={label}
                 className={({ isActive }) =>
@@ -47,9 +38,8 @@ export function AppLayout() {
                       : "text-muted-foreground hover:bg-muted hover:text-foreground",
                   ].join(" ")
                 }
-                end={end}
                 key={to}
-                to={{ pathname: to, search: location.search }}
+                to={to}
               >
                 <Icon aria-hidden="true" className="size-4" />
                 <span className="hidden sm:inline">{label}</span>
@@ -60,7 +50,12 @@ export function AppLayout() {
       </header>
 
       <main className="mx-auto max-w-[1480px] px-4 py-5 sm:px-6 sm:py-6">
-        <MachineGeneratedAudioNotice />
+        <p
+          className="mb-5 rounded-md border border-primary/25 bg-primary/6 px-3 py-2 text-xs leading-5 text-muted-foreground"
+          role="note"
+        >
+          この画面は公開サイトに含まれないローカル専用の人手評価ツールです。
+        </p>
         <AudioProvider fallback={<AudioBootShell />}>
           <Outlet />
         </AudioProvider>
@@ -69,35 +64,22 @@ export function AppLayout() {
   );
 }
 
-export function MachineGeneratedAudioNotice() {
-  return (
-    <p
-      className="mb-5 rounded-md border border-primary/25 bg-primary/6 px-3 py-2 text-xs leading-5 text-muted-foreground"
-      role="note"
-    >
-      {
-        "掲載音声は AI テキスト読み上げ（TTS）により機械生成されています。品質注記は自動判定であり、人手確認は順次実施中です。"
-      }
-    </p>
-  );
-}
-
 function AudioBootShell() {
   return (
     <section
       aria-busy="true"
-      aria-labelledby="audio-boot-heading"
+      aria-labelledby="internal-audio-boot-heading"
       aria-live="polite"
       className="rounded-md border bg-card p-6 sm:p-8"
     >
-      <p className="font-mono text-[10px] tracking-[0.18em] text-primary uppercase">Audio system</p>
+      <p className="font-mono text-[10px] tracking-[0.18em] text-primary uppercase">Local audio</p>
       <div className="mt-3 flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-xl font-semibold" id="audio-boot-heading">
-            音声プレーヤーを準備中
+          <h1 className="text-xl font-semibold" id="internal-audio-boot-heading">
+            評価用プレーヤーを準備中
           </h1>
           <p className="mt-2 text-sm leading-6 text-muted-foreground">
-            比較データを表示する前に、単一再生プレーヤーを初期化しています。
+            ローカル音声を読み込む前に、単一再生プレーヤーを初期化しています。
           </p>
         </div>
         <Button disabled variant="outline">

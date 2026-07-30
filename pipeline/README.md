@@ -87,6 +87,16 @@ within-speaker z 正規化する。測定数が2未満、または母標準偏�
 
 ## ローカル take 策展の適用
 
+人手で `curation.json` を作る音声選定画面と、N3 pilot の
+`pilot-decision.json` を作る事前確認画面は公開サイトに含めない。ローカルで
+`site/` から次を実行し、`internal.html#/curate` または
+`internal.html#/pilot` を使用する。
+
+```powershell
+$env:VITE_AUDIO_BASE = "/"
+vp run dev:internal
+```
+
 サイトが export した curation format v1 を terminal run に適用する:
 
 ```console

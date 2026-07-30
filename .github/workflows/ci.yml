@@ -120,6 +120,11 @@ jobs:
         working-directory: site
         run: vp build
 
+      - name: 公開 bundle の境界を検証
+        if: steps.site_dir.outputs.exists == 'true'
+        working-directory: site
+        run: vp run check:public-bundle
+
   ci-gate:
     name: CI Gate
     if: always()
