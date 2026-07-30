@@ -17,6 +17,23 @@ $env:VITE_AUDIO_BASE = "/"
 vp dev
 ```
 
+公開サイトは比較マトリクス、シナリオ、モデル、A/B、クレジットだけを含む。
+音声選定と事前確認は production module graph に含めず、ローカル専用 entry を
+明示コマンドで開く。
+
+```powershell
+$env:VITE_AUDIO_BASE = "/"
+vp run dev:internal
+```
+
+ローカルツールは `internal.html#/curate` と `internal.html#/pilot` を提供する。
+通常の `vp build` は `index.html` だけを entry とし、内部 page/module が公開 chunk
+へ到達した場合は build 自体が失敗する。build 後は次の検査も実行する。
+
+```console
+vp run check:public-bundle
+```
+
 本番は R2 custom domain を指定する。
 
 ```dotenv
@@ -62,4 +79,5 @@ manifest v4 の candidate path は take identity に固定された
 vp check
 vp test
 vp build
+vp run check:public-bundle
 ```

@@ -51,6 +51,10 @@ jobs:
         working-directory: site
         run: vp build
 
+      - name: 公開 bundle の境界を検証
+        working-directory: site
+        run: vp run check:public-bundle
+
       - name: Cloudflare Pages へデプロイ
         id: deploy
         uses: cloudflare/wrangler-action@ebbaa1584979971c8614a24965b4405ff95890e0 # v4
