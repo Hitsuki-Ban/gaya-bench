@@ -94,7 +94,13 @@ export interface Candidate {
   readonly duration_sec: number;
   readonly sha256: string;
   readonly generation_input_sha256: string;
-  readonly gen_params: { readonly [key: string]: JsonValue };
+  readonly gen_params: {
+    readonly seed: number | null;
+    readonly recipe_version: string;
+    readonly sampling: { readonly [key: string]: JsonValue };
+    readonly requested: { readonly [key: string]: JsonValue };
+    readonly realized: { readonly [key: string]: JsonValue };
+  };
   readonly rtf: number;
   readonly loudness: {
     readonly source: "encoded_opus";
@@ -155,29 +161,49 @@ export interface ArtifactGroup {
   readonly variant: string;
 }
 
+export interface ReleaseMetadata {
+  readonly format_version: 4;
+  readonly generated_at: string;
+  readonly candidate_set_sha256: string;
+  readonly models: readonly Model[];
+}
+
+export interface PublishedCandidate extends ArtifactGroup {
+  readonly path: string;
+  readonly duration_sec: number;
+  readonly rtf: number;
+  readonly gate: {
+    readonly content: "pass" | "review_required";
+  };
+}
+
 export type ArtifactOutcome =
   | {
       readonly kind: "selected";
       readonly group: ArtifactGroup;
-      readonly candidate: Candidate;
-      readonly curation: SelectedCuration;
+      readonly candidate: PublishedCandidate;
     }
   | {
       readonly kind: "skipped";
       readonly group: ArtifactGroup;
-      readonly candidates: readonly Candidate[];
-      readonly curation: SkippedCuration;
     }
   | {
       readonly kind: "uncurated";
       readonly group: ArtifactGroup;
-      readonly candidates: readonly Candidate[];
     }
   | {
       readonly kind: "failure";
       readonly group: ArtifactGroup;
       readonly failure: GenerationFailure;
     };
+
+export interface ModelGenerationProfile {
+  readonly model: string;
+  readonly recipe_version: string;
+  readonly sampling: { readonly [key: string]: JsonValue };
+  readonly requested: { readonly [key: string]: JsonValue };
+  readonly candidate_count: number;
+}
 
 export type ModelSourceKind = "code" | "weights" | "related";
 
@@ -248,8 +274,9 @@ export interface CreditsData {
 }
 
 export interface BenchmarkData {
-  readonly manifest: Manifest;
+  readonly release: ReleaseMetadata;
   readonly scenarios: readonly Scenario[];
   readonly outcomes: readonly ArtifactOutcome[];
+  readonly generation_profiles: readonly ModelGenerationProfile[];
   readonly credits: CreditsData;
 }

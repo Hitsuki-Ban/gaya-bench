@@ -9,7 +9,6 @@ import { DIFFICULTY_LABELS, EMOTION_LABELS } from "@/ui-labels";
 import { MatrixCell } from "./matrix-cell";
 import type { ComparisonController } from "./use-comparison-controller";
 import type { ComparisonModel, ComparisonRow, Coordinate } from "./model";
-import { useVisibleAudioPrefetch } from "./visible-audio-prefetch";
 
 interface DesktopMatrixProps {
   controller: ComparisonController;
@@ -25,8 +24,6 @@ export function DesktopMatrix({ controller, model, projection, search }: Desktop
     controller.player.currentClipKey === null
       ? undefined
       : model.getCoordinateForCandidateKey(controller.player.currentClipKey);
-  useVisibleAudioPrefetch(scrollRef, scrollRef, projection.key);
-
   return (
     <div
       className="max-h-[70vh] overflow-auto rounded-md border bg-background shadow-2xl shadow-black/20"
@@ -79,7 +76,7 @@ export function DesktopMatrix({ controller, model, projection, search }: Desktop
                     label="N"
                     title="非言語音"
                   />
-                  <CapabilityBadge active={item.capabilities.reading} label="R" title="読み仮名" />
+                  <CapabilityBadge active={item.capabilities.reading} label="R" title="読み指定" />
                 </div>
               </th>
             ))}

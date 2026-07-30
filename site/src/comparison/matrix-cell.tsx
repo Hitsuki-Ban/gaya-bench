@@ -5,7 +5,6 @@ import { AutomaticQualityBadge } from "@/components/automatic-quality-badge";
 import { WaveformProgress } from "@/components/waveform-progress";
 import type { PlaybackStatus } from "@/audio/playback-manager";
 import type { Model } from "@/data";
-import { resolveAudioUrl } from "@/lib/audio-url";
 
 import type { ComparisonCell, Coordinate, NavigationDirection } from "./model";
 import { coordinateKey, focusCoordinate } from "./matrix-focus";
@@ -103,7 +102,6 @@ export const MatrixCell = memo(function MatrixCell({
         isCurrent ? "border-primary bg-primary/12 text-primary" : "",
         isError ? "border-destructive bg-destructive/10 text-destructive" : "",
       ].join(" ")}
-      data-audio-url={candidate ? resolveAudioUrl(candidate.path) : undefined}
       data-matrix-coordinate={coordinateKey(coordinate)}
       onClick={() => {
         if (cell?.kind === "selected") {

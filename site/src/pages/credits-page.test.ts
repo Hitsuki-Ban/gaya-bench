@@ -11,7 +11,7 @@ describe("CreditsPage", () => {
   it("manifest の全 model と metadata の全 reference voice を表示する", () => {
     const markup = renderToStaticMarkup(createElement(CreditsPage));
 
-    for (const model of benchmarkData.manifest.models) {
+    for (const model of benchmarkData.release.models) {
       expect(markup).toContain(`data-model-id="${model.id}"`);
       expect(markup).toContain(model.name);
       expect(markup).toContain(model.license_note);
@@ -33,7 +33,7 @@ describe("CreditsPage", () => {
 
     expect(markup).toContain("CC BY 4.0");
     expect(markup).toContain("MIT License");
-    expect(markup).toContain(benchmarkData.manifest.candidate_set_sha256);
+    expect(markup).toContain(benchmarkData.release.candidate_set_sha256);
     expect(markup).toContain("公開音声はAI生成です");
     expect(markup).not.toContain("Issue #17");
     expect(markup).not.toContain("公開前に統合");

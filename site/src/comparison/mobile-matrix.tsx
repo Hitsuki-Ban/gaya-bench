@@ -1,4 +1,4 @@
-import { useRef, type KeyboardEvent } from "react";
+import type { KeyboardEvent } from "react";
 import { Link } from "react-router";
 
 import { CharacterKindBadge } from "@/components/character-kind-badge";
@@ -9,7 +9,6 @@ import { DIFFICULTY_LABELS, EMOTION_LABELS } from "@/ui-labels";
 import { MatrixCell } from "./matrix-cell";
 import { resolveCursor, type ComparisonModel, type Coordinate } from "./model";
 import type { ComparisonController } from "./use-comparison-controller";
-import { useVisibleAudioPrefetch } from "./visible-audio-prefetch";
 
 interface MobileMatrixProps {
   controller: ComparisonController;
@@ -19,7 +18,6 @@ interface MobileMatrixProps {
 }
 
 export function MobileMatrix({ controller, model, projection, search }: MobileMatrixProps) {
-  const scopeRef = useRef<HTMLDivElement>(null);
   const visibleModels = projection.models;
   const cursor = resolveCursor(model, controller.cursor, projection);
   const selectedModel = visibleModels.find(({ id }) => id === cursor?.modelId);
@@ -27,8 +25,6 @@ export function MobileMatrix({ controller, model, projection, search }: MobileMa
     controller.player.currentClipKey === null
       ? undefined
       : model.getCoordinateForCandidateKey(controller.player.currentClipKey);
-  useVisibleAudioPrefetch(scopeRef, null, `${projection.key}:${selectedModel?.id ?? ""}`);
-
   if (cursor === null) {
     return null;
   }
@@ -53,7 +49,7 @@ export function MobileMatrix({ controller, model, projection, search }: MobileMa
   }
 
   return (
-    <div className="space-y-4" ref={scopeRef}>
+    <div className="space-y-4">
       <div
         aria-label="比較モデル"
         className="grid grid-cols-2 gap-2 rounded-lg border bg-card p-2"

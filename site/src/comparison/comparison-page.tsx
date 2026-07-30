@@ -1,5 +1,5 @@
 import { AlertTriangle, AudioWaveform, ListVideo, Pause, Play, Rows3, Square } from "lucide-react";
-import { useCallback, useEffect, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router";
 
 import { useAudioProgress } from "@/audio/audio-provider";
@@ -25,6 +25,13 @@ import { useComparisonController, type SequenceDirection } from "./use-compariso
 import { useMediaQuery } from "./use-media-query";
 
 const comparisonModel = buildComparisonModel(benchmarkData);
+const capabilityLegend = [
+  ["E", "感情"],
+  ["P", "声質プロンプト"],
+  ["C", "クローン"],
+  ["N", "非言語音"],
+  ["R", "読み指定"],
+] as const;
 
 export function ComparisonPage() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -80,6 +87,12 @@ function FilteredComparisonPage({
   const projection = useMemo(() => projectComparisonModel(comparisonModel, state), [state]);
   const controller = useComparisonController(comparisonModel, projection);
   const isDesktop = useMediaQuery("(min-width: 768px)");
+  const [hasPlaybackStarted, setHasPlaybackStarted] = useState(false);
+  useEffect(() => {
+    if (controller.player.currentClipKey !== null) {
+      setHasPlaybackStarted(true);
+    }
+  }, [controller.player.currentClipKey]);
   const filteredSelectedCount = useMemo(() => countProjectionSelected(projection), [projection]);
   const firstPlayableCoordinate = useMemo(
     () => findFirstPlayableCoordinate(projection),
@@ -160,7 +173,9 @@ function FilteredComparisonPage({
       )}
 
       <KeyboardHelp isDesktop={isDesktop} />
-      <Transport controller={controller} projection={projection} />
+      {isDesktop || hasPlaybackStarted ? (
+        <Transport controller={controller} projection={projection} />
+      ) : null}
     </div>
   );
 }
@@ -177,9 +192,22 @@ function MatrixToolbar({
       <div className="flex flex-wrap items-center gap-2">
         <Badge variant="outline">
           <AudioWaveform aria-hidden="true" data-icon="inline-start" />
-          <span title="-18 LUFS 目標 / mono / 48kHz">音量を揃えて比較</span>
+          <span title="-18 LUFS 目標 / モノラル / 48 kHz">比較用に音量調整済み</span>
         </Badge>
         <Badge variant="secondary">表示モデル {visibleModelCount}</Badge>
+        <details className="text-xs text-muted-foreground">
+          <summary className="cursor-pointer text-foreground">対応機能の記号</summary>
+          <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 rounded border bg-background px-2 py-1.5">
+            {capabilityLegend.map(([key, label]) => (
+              <span className="flex items-center gap-1.5" key={key}>
+                <span className="grid size-5 place-items-center rounded border border-primary/55 bg-primary/10 font-mono text-[9px] text-primary">
+                  {key}
+                </span>
+                {label}
+              </span>
+            ))}
+          </div>
+        </details>
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
@@ -250,15 +278,15 @@ function KeyboardHelp({ isDesktop }: { isDesktop: boolean }) {
       id="matrix-keyboard-help"
     >
       <span className="font-mono text-[10px] tracking-wider text-foreground uppercase">
-        Shortcuts
+        キー操作
       </span>
       {isDesktop ? (
         <>
-          <Shortcut keys="← →" label="モデル移動 + 再生" />
-          <Shortcut keys="↑ ↓" label="セリフ移動 + 再生" />
+          <Shortcut keys="← →" label="モデル移動" />
+          <Shortcut keys="↑ ↓" label="セリフ移動" />
         </>
       ) : (
-        <Shortcut keys="← → / ↑ ↓" label="モデル / セリフ移動" />
+        <Shortcut keys="← →" label="モデルタブ移動" />
       )}
       <Shortcut keys="Space" label="再生 / 一時停止" />
       <Shortcut keys="Enter" label="連続再生 / 停止" />

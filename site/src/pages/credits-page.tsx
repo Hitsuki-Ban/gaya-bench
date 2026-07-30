@@ -38,7 +38,7 @@ function EvidenceLink({ href, children }: { href: string; children: React.ReactN
 }
 
 export function CreditsPage() {
-  const modelCount = benchmarkData.manifest.models.length;
+  const modelCount = benchmarkData.release.models.length;
   const voiceCount = benchmarkData.credits.reference_voices.length;
 
   return (
@@ -47,11 +47,11 @@ export function CreditsPage() {
         aside={
           <div className="flex items-center gap-2 border-l-2 border-primary pl-3 font-mono text-[11px] tracking-[0.12em] text-muted-foreground uppercase">
             <Fingerprint aria-hidden="true" className="size-4 text-primary" />
-            Release dossier
+            公開記録
           </div>
         }
         description="公開中の固定リリースについて、モデル、参照音声、シナリオ、コードの出所と利用条件を追跡できる記録です。"
-        eyebrow="Provenance / Release record"
+        eyebrow="出所・公開記録"
         title="クレジットとライセンス"
       />
 
@@ -61,7 +61,7 @@ export function CreditsPage() {
             <div className="mb-3 flex items-end justify-between gap-4">
               <div>
                 <p className="font-mono text-[10px] tracking-[0.18em] text-primary uppercase">
-                  01 / Model inventory
+                  01 / モデル一覧
                 </p>
                 <h2 className="mt-1 text-xl font-semibold" id="models-heading">
                   モデルと生成物の条件
@@ -70,9 +70,8 @@ export function CreditsPage() {
               <span className="font-mono text-xs text-muted-foreground">モデル {modelCount}</span>
             </div>
             <p className="mb-4 max-w-3xl text-sm leading-6 text-muted-foreground">
-              名称・バージョン・条件は固定 manifest の model エントリ、リンクは同じ manifest
-              内の生成時 provenance
-              から自動表示しています。生成音声には各モデルの条件に加え、使用した参照音声の条件も適用されます。
+              名称・バージョン・条件と出典リンクは、公開時に固定した生成記録から表示しています。
+              生成音声には各モデルの条件に加え、使用した参照音声の条件も適用されます。
             </p>
 
             <Card className="py-0">
@@ -85,18 +84,18 @@ export function CreditsPage() {
                   <thead className="border-b bg-muted/45 font-mono text-[10px] tracking-[0.12em] text-muted-foreground uppercase">
                     <tr>
                       <th className="px-4 py-3 font-medium" scope="col">
-                        Model / version
+                        モデル / バージョン
                       </th>
                       <th className="px-4 py-3 font-medium" scope="col">
-                        License & output conditions
+                        ライセンスと生成物の条件
                       </th>
                       <th className="px-4 py-3 font-medium" scope="col">
-                        Pinned sources
+                        固定した出典
                       </th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border">
-                    {benchmarkData.manifest.models.map((model) => {
+                    {benchmarkData.release.models.map((model) => {
                       const credit = getModelCredit(model.id);
                       return (
                         <tr
@@ -149,7 +148,7 @@ export function CreditsPage() {
             <div className="mb-3 flex items-end justify-between gap-4">
               <div>
                 <p className="font-mono text-[10px] tracking-[0.18em] text-primary uppercase">
-                  02 / Reference voices
+                  02 / 参照音声
                 </p>
                 <h2 className="mt-1 text-xl font-semibold" id="voices-heading">
                   参照音声のクレジット
@@ -158,8 +157,7 @@ export function CreditsPage() {
               <span className="font-mono text-xs text-muted-foreground">参照音声 {voiceCount}</span>
             </div>
             <p className="mb-4 max-w-3xl text-sm leading-6 text-muted-foreground">
-              <code className="font-mono text-xs text-foreground">assets/voices/metadata.yaml</code>
-              の全エントリを自動表示しています。原音声そのものは本サイトから再配布しません。
+              公開記録に含まれる全参照音声を表示しています。原音声そのものは本サイトから再配布しません。
             </p>
 
             <div className="grid gap-4 xl:grid-cols-2">
@@ -179,7 +177,7 @@ export function CreditsPage() {
                   <CardContent className="space-y-4">
                     <div className="border-l-2 border-primary/70 pl-3">
                       <p className="font-mono text-[10px] tracking-[0.12em] text-muted-foreground uppercase">
-                        Required credit
+                        必須クレジット
                       </p>
                       <p className="mt-1 whitespace-pre-line text-sm leading-6">
                         {voice.credit_text}
@@ -235,7 +233,7 @@ export function CreditsPage() {
           <section aria-labelledby="project-heading" id="project">
             <div className="mb-4">
               <p className="font-mono text-[10px] tracking-[0.18em] text-primary uppercase">
-                03 / Project materials
+                03 / プロジェクト成果物
               </p>
               <h2 className="mt-1 text-xl font-semibold" id="project-heading">
                 プロジェクト成果物
@@ -262,8 +260,7 @@ export function CreditsPage() {
                 </CardHeader>
                 <CardContent className="space-y-3 text-sm leading-6 text-muted-foreground">
                   <p>
-                    <code className="font-mono text-xs text-foreground">scenarios/</code>{" "}
-                    の台詞・設定は CC BY 4.0
+                    本プロジェクトの台詞・設定は CC BY 4.0
                     です。利用時は適切なクレジット、ライセンスへのリンク、変更の表示が必要です。
                   </p>
                   <EvidenceLink href={SCENARIO_LICENSE_URL}>CC BY 4.0 を確認</EvidenceLink>
@@ -297,16 +294,16 @@ export function CreditsPage() {
           <Card>
             <CardHeader className="border-b">
               <Box aria-hidden="true" className="size-5 text-primary" />
-              <CardTitle>Release identity</CardTitle>
+              <CardTitle>公開リリース</CardTitle>
             </CardHeader>
             <CardContent>
               <dl className="space-y-3 text-xs">
                 <div className="flex items-center justify-between gap-3">
-                  <dt className="text-muted-foreground">manifest models</dt>
+                  <dt className="text-muted-foreground">掲載モデル</dt>
                   <dd className="font-mono">{modelCount}</dd>
                 </div>
                 <div className="flex items-center justify-between gap-3">
-                  <dt className="text-muted-foreground">playable models</dt>
+                  <dt className="text-muted-foreground">再生可能モデル</dt>
                   <dd className="font-mono">{playableModels.length}</dd>
                 </div>
                 <div className="flex items-center justify-between gap-3">
@@ -314,19 +311,19 @@ export function CreditsPage() {
                   <dd className="font-mono">{selectedCandidates.length}</dd>
                 </div>
                 <div className="flex items-center justify-between gap-3">
-                  <dt className="text-muted-foreground">reference voices</dt>
+                  <dt className="text-muted-foreground">参照音声</dt>
                   <dd className="font-mono">{voiceCount}</dd>
                 </div>
                 <div className="border-t pt-3">
-                  <dt className="text-muted-foreground">release marker</dt>
+                  <dt className="text-muted-foreground">公開日時</dt>
                   <dd className="mt-1 break-all font-mono text-[10px]">
-                    {benchmarkData.manifest.generated_at}
+                    {benchmarkData.release.generated_at}
                   </dd>
                 </div>
                 <div>
-                  <dt className="text-muted-foreground">candidate set SHA-256</dt>
+                  <dt className="text-muted-foreground">音声セット SHA-256</dt>
                   <dd className="mt-1 break-all font-mono text-[10px] leading-4">
-                    {benchmarkData.manifest.candidate_set_sha256}
+                    {benchmarkData.release.candidate_set_sha256}
                   </dd>
                 </div>
               </dl>
@@ -336,7 +333,7 @@ export function CreditsPage() {
           <Card>
             <CardHeader className="border-b">
               <Mic2 aria-hidden="true" className="size-5 text-primary" />
-              <CardTitle>Contents</CardTitle>
+              <CardTitle>目次</CardTitle>
             </CardHeader>
             <CardContent>
               <nav aria-label="ページ内目次">

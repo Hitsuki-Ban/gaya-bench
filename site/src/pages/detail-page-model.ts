@@ -1,4 +1,4 @@
-import type { ArtifactOutcome, Candidate, Character, JsonValue, Line, Scenario } from "@/data";
+import type { ArtifactOutcome, Character, Line, PublishedCandidate, Scenario } from "@/data";
 
 export interface ScenarioLineEntry {
   readonly line: Line;
@@ -7,7 +7,7 @@ export interface ScenarioLineEntry {
 }
 
 export interface ModelCandidateEntry {
-  readonly candidate: Candidate;
+  readonly candidate: PublishedCandidate;
   readonly scenario: Scenario;
   readonly line: Line;
   readonly character: Character;
@@ -24,11 +24,6 @@ export interface RtfStatistics {
   readonly weightedMean: number;
   readonly minimum: number;
   readonly maximum: number;
-}
-
-export interface GenerationParameterSet {
-  readonly parameters: { readonly [key: string]: JsonValue };
-  readonly candidateCount: number;
 }
 
 export function buildScenarioLineEntries(
@@ -106,7 +101,7 @@ export function buildModelOutcomeEntries(
 }
 
 export function calculateRtfStatistics(
-  candidates: readonly Pick<Candidate, "duration_sec" | "rtf">[],
+  candidates: readonly Pick<PublishedCandidate, "duration_sec" | "rtf">[],
 ): RtfStatistics | null {
   if (candidates.length === 0) {
     return null;
@@ -132,30 +127,6 @@ export function calculateRtfStatistics(
     minimum,
     maximum,
   };
-}
-
-export function collectGenerationParameterSets(
-  candidates: readonly Pick<Candidate, "gen_params">[],
-): readonly GenerationParameterSet[] {
-  const sets = new Map<
-    string,
-    {
-      readonly parameters: { readonly [key: string]: JsonValue };
-      candidateCount: number;
-    }
-  >();
-
-  for (const { gen_params: parameters } of candidates) {
-    const key = JSON.stringify(parameters);
-    const existing = sets.get(key);
-    if (existing) {
-      existing.candidateCount += 1;
-    } else {
-      sets.set(key, { parameters, candidateCount: 1 });
-    }
-  }
-
-  return [...sets.values()];
 }
 
 interface IndexedScenario {

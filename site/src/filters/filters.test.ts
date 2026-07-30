@@ -235,16 +235,7 @@ function fixture(): BenchmarkData {
       models.map((fixtureModel) => candidate(fixtureModel.id, fixtureScenario.id, fixtureLine.id)),
     ),
   );
-  const curations = candidates.map((item) => ({
-    model: item.model,
-    scenario: item.scenario,
-    line: item.line,
-    variant: item.variant,
-    decision: "selected" as const,
-    take_id: item.take_id,
-    curation_sha256: "c".repeat(64),
-  }));
-  const outcomes: ArtifactOutcome[] = candidates.map((item, index) => ({
+  const outcomes: ArtifactOutcome[] = candidates.map((item) => ({
     kind: "selected",
     group: {
       model: item.model,
@@ -253,20 +244,17 @@ function fixture(): BenchmarkData {
       variant: item.variant,
     },
     candidate: item,
-    curation: curations[index]!,
   }));
   return {
-    manifest: {
+    release: {
       format_version: 4,
       generated_at: "2026-07-30T00:00:00Z",
       candidate_set_sha256: "d".repeat(64),
       models,
-      candidates,
-      curations,
-      failures: [],
     },
     scenarios,
     outcomes,
+    generation_profiles: [],
     credits: { model_sources: [], reference_voices: [] },
   };
 }

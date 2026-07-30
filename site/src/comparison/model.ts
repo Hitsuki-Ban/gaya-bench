@@ -1,10 +1,10 @@
 import type {
   ArtifactOutcome,
   BenchmarkData,
-  Candidate,
   Character,
   Line,
   Model,
+  PublishedCandidate,
   Scenario,
 } from "../data/types";
 import type { ComparisonProjection } from "../filters";
@@ -24,7 +24,7 @@ export type NavigationDirection = "left" | "right" | "up" | "down";
 
 export interface QueueItem {
   readonly coordinate: Coordinate;
-  readonly candidate: Candidate;
+  readonly candidate: PublishedCandidate;
 }
 
 export interface PlaybackQueue {
@@ -42,13 +42,13 @@ export interface ComparisonModel {
 }
 
 export function buildComparisonModel(data: BenchmarkData): ComparisonModel {
-  const manifestModelIds = uniqueModelIds(data.manifest.models);
+  const manifestModelIds = uniqueModelIds(data.release.models);
   const selectedModelIds = new Set(
     data.outcomes.flatMap((outcome) =>
       outcome.kind === "selected" ? [outcome.candidate.model] : [],
     ),
   );
-  const models = data.manifest.models.filter((model) => selectedModelIds.has(model.id));
+  const models = data.release.models.filter((model) => selectedModelIds.has(model.id));
   const modelIds = new Set(models.map((model) => model.id));
   const scenarioIds = new Set<string>();
   const rowIndexByLine = new Map<string, number>();
@@ -361,6 +361,6 @@ function lineKey(scenarioId: string, lineId: string): string {
   return JSON.stringify([scenarioId, lineId]);
 }
 
-function comparisonCandidateKey(candidate: Candidate): string {
+function comparisonCandidateKey(candidate: PublishedCandidate): string {
   return JSON.stringify([candidate.model, candidate.scenario, candidate.line, candidate.variant]);
 }

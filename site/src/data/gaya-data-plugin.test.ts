@@ -13,10 +13,10 @@ import {
   candidateKey,
   getOutcomesForScenario,
   lineByKey,
-  manifestModelById,
   modelCreditById,
   modelById,
   referenceVoiceById,
+  releaseModelById,
   selectedCandidates,
 } from "./index";
 
@@ -30,14 +30,30 @@ afterEach(() => {
 
 describe("virtual:gaya-data integration", () => {
   it("固定 release を strict v4 / selected-only index として公開する", () => {
-    expect(benchmarkData.manifest.format_version).toBe(4);
-    expect(benchmarkData.manifest.candidates).toHaveLength(1282);
+    expect(benchmarkData.release.format_version).toBe(4);
     expect(selectedCandidates).toHaveLength(1243);
     expect(benchmarkData.outcomes.filter(({ kind }) => kind === "skipped")).toHaveLength(39);
     expect(benchmarkData.outcomes.filter(({ kind }) => kind === "failure")).toHaveLength(6);
-    expect(manifestModelById.has("dummy")).toBe(false);
+    expect(
+      benchmarkData.generation_profiles.reduce(
+        (count, profile) => count + profile.candidate_count,
+        0,
+      ),
+    ).toBe(1243);
+    expect("manifest" in benchmarkData).toBe(false);
+    expect(Object.keys(selectedCandidates[0]!).sort()).toEqual([
+      "duration_sec",
+      "gate",
+      "line",
+      "model",
+      "path",
+      "rtf",
+      "scenario",
+      "variant",
+    ]);
+    expect(releaseModelById.has("dummy")).toBe(false);
     expect(modelById.has("dummy")).toBe(false);
-    expect(benchmarkData.credits.model_sources).toHaveLength(benchmarkData.manifest.models.length);
+    expect(benchmarkData.credits.model_sources).toHaveLength(benchmarkData.release.models.length);
     expect(benchmarkData.credits.reference_voices).toHaveLength(5);
     expect(modelCreditById.has("dummy")).toBe(false);
     expect(modelCreditById.get("aivisspeech-kohaku")?.sources).toHaveLength(2);
@@ -62,7 +78,7 @@ describe("loadBenchmarkData v4", () => {
       "failure",
     ]);
     const selected = data.outcomes.find(({ kind }) => kind === "selected");
-    expect(selected?.kind === "selected" ? selected.candidate.take_index : null).toBe(2);
+    expect(selected?.kind === "selected" ? selected.candidate.path : null).toContain("take-0002");
     expect(data.scenarios[0]?.characters[0]?.kind).toBe("human");
     expect(data.scenarios[0]?.lines[0]).toMatchObject({
       intensity: 2,
@@ -239,6 +255,26 @@ describe("loadBenchmarkData v4", () => {
     expect(() => loadBenchmarkData(createFixture(manifest))).toThrow("空でない文字列");
   });
 
+  it("公開UIで扱えない variant と生成レシピを build 時に拒否する", () => {
+    const variant = validManifest();
+    variant.candidates[0]!.variant = "wet";
+    expect(() => loadBenchmarkData(createFixture(variant))).toThrow(
+      "manifest candidates[0].variant が許可された値ではありません",
+    );
+
+    const failureVariant = validManifest();
+    failureVariant.failures[0]!.variant = "wet";
+    expect(() => loadBenchmarkData(createFixture(failureVariant))).toThrow(
+      "manifest failures[0].variant が許可された値ではありません",
+    );
+
+    const recipe = validManifest();
+    recipe.candidates[0]!.gen_params.recipe_version = "seed-only-v2";
+    expect(() => loadBenchmarkData(createFixture(recipe))).toThrow(
+      "manifest candidates[0].gen_params.recipe_version が許可された値ではありません",
+    );
+  });
+
   it("不足ファイルと壊れた YAML を fail fast する", () => {
     const missingRoot = createEmptyRoot();
     expect(() => loadBenchmarkData(missingRoot)).toThrow("manifest を読み込めません");
@@ -332,10 +368,10 @@ function createFixture(
 }
 
 function validManifest(): MutableManifest {
-  const selectedFirst = candidate("dry", 1, "1");
-  const selectedSecond = candidate("dry", 2, "2");
-  const skipped = candidate("skipped", 1, "3");
-  const uncurated = candidate("uncurated", 1, "4");
+  const selectedFirst = candidate("speaker-001", 1, "1");
+  const selectedSecond = candidate("speaker-001", 2, "2");
+  const skipped = candidate("speaker-002", 1, "3");
+  const uncurated = candidate("speaker-003", 1, "4");
   return {
     format_version: 4,
     generated_at: "2026-07-30T00:00:00Z",
@@ -369,8 +405,8 @@ function validManifest(): MutableManifest {
       {
         model: "model",
         scenario: "sample",
-        line: "speaker-001",
-        variant: "skipped",
+        line: "speaker-002",
+        variant: "dry",
         decision: "skipped",
         curation_sha256: "c".repeat(64),
       },
@@ -379,8 +415,8 @@ function validManifest(): MutableManifest {
       {
         model: "model",
         scenario: "sample",
-        line: "speaker-001",
-        variant: "failed",
+        line: "speaker-004",
+        variant: "dry",
         reason: "no_eligible_take",
       },
     ],
@@ -404,7 +440,7 @@ function manifestForModel(modelId: string, requested: Record<string, unknown>): 
   return manifest;
 }
 
-function candidate(variant: string, takeIndex: number, marker: string): MutableCandidate {
+function candidate(line: string, takeIndex: number, marker: string): MutableCandidate {
   const generationInputSha = marker.repeat(64);
   const audioSha = (Number(marker) + 4).toString().repeat(64);
   const takeId = createHash("sha256")
@@ -418,12 +454,12 @@ function candidate(variant: string, takeIndex: number, marker: string): MutableC
   return {
     model: "model",
     scenario: "sample",
-    line: "speaker-001",
-    variant,
+    line,
+    variant: "dry",
     take_index: takeIndex,
     take_id: takeId,
     path:
-      `audio/takes/model/sample/speaker-001/${variant}/` +
+      `audio/takes/model/sample/${line}/dry/` +
       `take-${String(takeIndex).padStart(4, "0")}-${audioSha}.opus`,
     duration_sec: 1,
     sha256: audioSha,
@@ -470,6 +506,21 @@ lines:
   - id: speaker-001
     character: speaker
     text: Hello
+    emotion: neutral
+    delivery: Plain
+  - id: speaker-002
+    character: speaker
+    text: Skip
+    emotion: neutral
+    delivery: Plain
+  - id: speaker-003
+    character: speaker
+    text: Pending
+    emotion: neutral
+    delivery: Plain
+  - id: speaker-004
+    character: speaker
+    text: Failure
     emotion: neutral
     delivery: Plain
 `;

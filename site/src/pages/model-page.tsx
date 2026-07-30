@@ -5,12 +5,11 @@ import { ClipButton } from "@/components/clip-button";
 import { PageIntro } from "@/components/page-intro";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { benchmarkData, modelById } from "@/data";
+import { benchmarkData, generationProfilesByModel, modelById } from "@/data";
 import {
   buildModelCandidateEntries,
   buildModelOutcomeEntries,
   calculateRtfStatistics,
-  collectGenerationParameterSets,
 } from "@/pages/detail-page-model";
 import { NotFoundPage } from "@/pages/not-found-page";
 import { EMOTION_LABELS } from "@/ui-labels";
@@ -43,7 +42,7 @@ export function ModelPage() {
     benchmarkData.scenarios,
   );
   const rtf = calculateRtfStatistics(candidates);
-  const parameterSets = collectGenerationParameterSets(candidates);
+  const generationProfiles = generationProfilesByModel.get(model.id) ?? [];
 
   return (
     <div className="space-y-5">
@@ -56,7 +55,7 @@ export function ModelPage() {
             比較へ戻る
           </Link>
         }
-        description={`${model.version} · ${model.license_note}`}
+        description="対応機能・生成条件と、このモデルの公開音声を確認できます。"
         eyebrow="モデル"
         title={model.name}
       />
@@ -138,28 +137,42 @@ export function ModelPage() {
       </section>
 
       <section aria-labelledby="parameters-heading" className="space-y-3">
-        <SectionHeading id="parameters-heading" title="生成パラメータ" />
-        {parameterSets.length > 0 ? (
+        <SectionHeading id="parameters-heading" title="生成条件" />
+        {generationProfiles.length > 0 ? (
           <div className="grid gap-3 lg:grid-cols-2">
-            {parameterSets.map(({ parameters, candidateCount }, index) => (
-              <Card key={JSON.stringify(parameters)} size="sm">
+            {generationProfiles.map((profile, index) => (
+              <Card key={`${profile.model}:${profile.recipe_version}:${index}`} size="sm">
                 <CardHeader>
                   <CardTitle className="flex items-center justify-between gap-3">
-                    <span>設定 {index + 1}</span>
-                    <Badge variant="outline">公開音声 {candidateCount}</Badge>
+                    <span>{generationProfileLabel(profile.recipe_version, index)}</span>
+                    <Badge variant="outline">公開音声 {profile.candidate_count}</Badge>
                   </CardTitle>
                 </CardHeader>
-                <CardContent>
-                  <pre className="overflow-x-auto rounded-md bg-background p-3 font-mono text-xs leading-5 text-muted-foreground">
-                    {JSON.stringify(parameters, null, 2)}
-                  </pre>
+                <CardContent className="space-y-3 text-sm text-muted-foreground">
+                  <p>{generationRecipeDescription(profile.recipe_version)}</p>
+                  <details className="rounded-md border bg-background px-3 py-2">
+                    <summary className="cursor-pointer font-medium text-foreground">
+                      サンプリング設定を表示
+                    </summary>
+                    <pre className="mt-3 overflow-x-auto border-t pt-3 font-mono text-xs leading-5">
+                      {JSON.stringify(profile.sampling, null, 2)}
+                    </pre>
+                  </details>
+                  <details className="rounded-md border bg-background px-3 py-2">
+                    <summary className="cursor-pointer font-medium text-foreground">
+                      モデル設定の詳細を表示
+                    </summary>
+                    <pre className="mt-3 max-h-96 overflow-auto border-t pt-3 font-mono text-xs leading-5">
+                      {JSON.stringify(profile.requested, null, 2)}
+                    </pre>
+                  </details>
                 </CardContent>
               </Card>
             ))}
           </div>
         ) : (
           <p className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">
-            生成済みクリップがないため、パラメータは記録されていません。
+            生成済みクリップがないため、生成条件は記録されていません。
           </p>
         )}
       </section>
@@ -259,6 +272,23 @@ export function ModelPage() {
   );
 }
 
+function generationProfileLabel(recipeVersion: string, index: number): string {
+  if (recipeVersion === "seed-only-v1" || recipeVersion === "fixed-single-v1") {
+    return `設定 ${index + 1}`;
+  }
+  throw new Error(`表示説明が未定義の生成レシピです: ${recipeVersion}`);
+}
+
+function generationRecipeDescription(recipeVersion: string): string {
+  if (recipeVersion === "seed-only-v1") {
+    return "モデルごとの固定設定を使い、音声ごとに再現可能なシードを割り当てています。";
+  }
+  if (recipeVersion === "fixed-single-v1") {
+    return "モデルごとの固定設定を使い、シード指定なしで生成しています。";
+  }
+  throw new Error(`表示説明が未定義の生成レシピです: ${recipeVersion}`);
+}
+
 function variantLabel(variant: string): string {
   if (variant === "dry") {
     return "無加工";
@@ -278,7 +308,7 @@ function Row({ label, value }: { label: string; value: string }) {
   return (
     <div className="grid grid-cols-[6rem_1fr] gap-3 border-b pb-2 last:border-0">
       <span className="font-mono text-xs text-muted-foreground">{label}</span>
-      <span className="text-right text-xs break-words">{value}</span>
+      <span className="min-w-0 text-right text-xs [overflow-wrap:anywhere]">{value}</span>
     </div>
   );
 }
