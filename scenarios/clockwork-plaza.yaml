@@ -153,6 +153,7 @@ lines:
     text: おひとつ、いか——いかがですカ
     emotion: cheerful
     intensity: 2
+    final_intonation: free
     delivery: >-
       途中で音が一瞬完全に途切れ(音飛び)、直後から言い直す。
       最後の一音だけ音程が跳ね上がって歪む。全体は営業用の明るい高い声を保つ。
@@ -189,6 +190,7 @@ lines:
     text: あなたに、良き日が、訪れます……きっと。
     emotion: cheerful
     intensity: 2
+    final_intonation: rise
     delivery: >-
       音楽的な抑揚で語尾を持ち上げる。機械の中では滑らかな部類だが、
       それでも一定のリズムからは外れない。歌と朗読の中間のような発話。

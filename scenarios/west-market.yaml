@@ -54,6 +54,7 @@ lines:
     text: 朝摘みの薔薇、いかがですかー？
     emotion: cheerful
     intensity: 2
+    final_intonation: rise
     delivery: 歌うような節のついた呼び込み。語尾を柔らかく伸ばす。
     situation: 花束を掲げて通行人に声をかける。
     difficulty: standard
@@ -94,6 +95,7 @@ lines:
     text: ふふん、これはうちの自慢でね。
     emotion: laughing
     intensity: 1
+    final_intonation: free
     delivery: 得意げな含み笑い。胸を張る間が語尾に出る。
     situation: 客に看板商品を褒められて上機嫌。
     difficulty: hard
@@ -124,6 +126,7 @@ lines:
     text: テラス席、空いてますよー！
     emotion: cheerful
     intensity: 2
+    final_intonation: rise
     delivery: 通りへ向けた明るい案内の声。忙しさの中でも軽やか。
     situation: 席を探す通行人を呼び込む。
     difficulty: standard

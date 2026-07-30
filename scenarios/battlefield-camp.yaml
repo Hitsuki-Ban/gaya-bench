@@ -65,6 +65,7 @@ lines:
     reading: モー……タテソーニナイ……
     emotion: sad
     intensity: 1
+    final_intonation: free
     delivery: 力なく掠れた声。ほとんど息だけで発する。
     situation: 体力を使い果たし、戦線復帰を諦めかけている。
     difficulty: hard
@@ -98,6 +99,7 @@ lines:
     reading: カズガオースギマス……コノママデワ……
     emotion: fearful
     intensity: 2
+    final_intonation: free
     delivery: 声が震え、途切れがち。恐怖で早口になる。
     situation: 敵の規模を目にした恐怖を報告に滲ませている。
     difficulty: hard
@@ -175,6 +177,7 @@ lines:
     reading: ダイジョーブ、スグラクニナリマスカラ
     emotion: neutral
     intensity: 1
+    final_intonation: free
     delivery: 努めて冷静な優しい声。安心させるようゆっくり話す。
     situation: 怯える負傷者を落ち着かせようとしている。
     difficulty: standard

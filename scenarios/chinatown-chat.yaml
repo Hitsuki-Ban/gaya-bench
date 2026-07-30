@@ -84,6 +84,7 @@ lines:
     text: 角の家の息子、嫁をもらったんだってさ。
     emotion: cheerful
     intensity: 2
+    final_intonation: free
     delivery: 噂話の口火を切る早口。声をわずかに落として身を乗り出す。
     situation: 仕入れたばかりの近所の噂を披露する。
     difficulty: standard
@@ -94,6 +95,7 @@ lines:
     text: ここだけの話だけどねぇ……。
     emotion: whisper
     intensity: 1
+    final_intonation: free
     delivery: 声を潜めた前置き。もったいぶって語尾を引く。
     situation: とっておきの話に入る前の間。
     difficulty: hard
@@ -104,6 +106,7 @@ lines:
     text: あんた、飲茶もせずに帰る気かい？
     emotion: surprised
     intensity: 2
+    final_intonation: rise
     delivery: 呆れ半分の呼び止め。語尾が跳ね上がる。
     situation: 席を立とうとした顔なじみを引き留める。
     difficulty: standard
@@ -114,6 +117,7 @@ lines:
     text: 店長、今度は薬膳粥を始めるってさ。
     emotion: neutral
     intensity: 2
+    final_intonation: free
     delivery: 仕事終わりの気の抜けた報告。世間話の相槌を待つ調子。
     situation: 店の新メニューの話題を輪に持ち込む。
     difficulty: standard
@@ -124,6 +128,7 @@ lines:
     text: ええっ、あの二人がですか！？
     emotion: surprised
     intensity: 3
+    final_intonation: rise
     delivery: 声が裏返る驚き。身を乗り出す勢い。
     situation: ばあさんの噂話の核心に驚く。
     difficulty: hard

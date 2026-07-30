@@ -68,6 +68,7 @@ lines:
     text: みぃつけた、みぃつけた！
     emotion: cheerful
     intensity: 3
+    final_intonation: rise
     delivery: >-
       通常の子供声より明らかに高い音域で、限界まで早口。二度の繰り返しを一息で、
       間を空けずに繋げる。音量は小さいまま音の鋭さだけで届かせる。
@@ -80,6 +81,7 @@ lines:
     text: ねえねえ、こっちこっち！
     emotion: cheerful
     intensity: 2
+    final_intonation: rise
     delivery: >-
       同じ超高音を保ったまま、速度をわずかに落として誘う調子に。
       語尾を跳ね上げる。喋りながら移動しているように音の位置が定まらない。
@@ -116,6 +118,7 @@ lines:
     text: 千年、待っておる……。
     emotion: tired
     intensity: 1
+    final_intonation: free
     delivery: >-
       さらに遅く。語尾を極端に長く伸ばし、息が尽きるように音量を落として消す。
       疲れは声色ではなく持続時間の長さだけで表す。
@@ -140,6 +143,7 @@ lines:
     text: こっちへ……おいで……
     emotion: whisper
     intensity: 1
+    final_intonation: free
     delivery: >-
       声帯を鳴らさず息だけで発音する。子音の摩擦だけが聞こえ、母音は霞ませる。
       非常に遅く、語尾を息の流れに溶かして終える。耳のすぐ横で鳴るように。
@@ -152,6 +156,7 @@ lines:
     text: 帰れ。ここは墓場だ。
     emotion: whisper
     intensity: 2
+    final_intonation: free
     delivery: >-
       息だけの発声を保ったまま、勢いだけを強める。決して声を出さず、
       吐く息の量を増やして圧を作る。二文とも短く断ち切る。
@@ -164,6 +169,7 @@ lines:
     text: さむい……さむいよ……
     emotion: sad
     intensity: 1
+    final_intonation: free
     delivery: >-
       息だけの囁きに、かすかな震えだけを足す。二度の繰り返しは同じ息の長さで。
       音高を持たせず、泣き声にも聞こえないぎりぎりの線を保つ。
@@ -176,6 +182,7 @@ lines:
     text: 水が、澄んでいるでしょう。
     emotion: cheerful
     intensity: 1
+    final_intonation: free
     delivery: >-
       澄んだ中高音。話しているのに旋律が聞こえるよう、語尾を持ち上げてから
       ゆっくり下ろす。息継ぎを感じさせず、一息で滑らかに繋げる。

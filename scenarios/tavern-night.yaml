@@ -45,6 +45,7 @@ lines:
     text: はいよっ、エール二つお待ち！
     emotion: cheerful
     intensity: 2
+    final_intonation: rise
     delivery: 客へ呼びかける。喧騒に負けないやや大きめの声。語尾が弾む。
     situation: 両手にジョッキを持ってテーブルへ運んでいる。
     difficulty: standard
@@ -75,6 +76,7 @@ lines:
     text: うぃっ……もう一杯だけ、な？
     emotion: drunk
     intensity: 3
+    final_intonation: rise
     delivery: しゃっくり混じり。哀願するような上ずった声。
     situation: 空のジョッキを掲げて給仕を呼び止める。
     difficulty: hard

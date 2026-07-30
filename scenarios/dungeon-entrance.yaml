@@ -87,6 +87,7 @@ lines:
     reading: ネー……ホントーニダイジョーブカナ……。
     emotion: fearful
     intensity: 2
+    final_intonation: free
     delivery: 声が細かく震える。語尾がかすれて消え入りそうになる。
     situation: 入口の暗闇を覗き込んで不安を漏らす。
     difficulty: hard
@@ -109,6 +110,7 @@ lines:
     reading: ヒッ……ナ、ナニカキコエタ！
     emotion: fearful
     intensity: 3
+    final_intonation: free
     delivery: 短い悲鳴のような震え声。語尾が掠れて途切れる。
     situation: 物音に驚いて思わず声を漏らす。
     difficulty: hard

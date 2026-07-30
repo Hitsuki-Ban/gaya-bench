@@ -73,6 +73,7 @@ lines:
     text: ……今日は列が長いな。
     emotion: tired
     intensity: 1
+    final_intonation: free
     delivery: 気だるい独り言。誰にともなくぼそっと呟いて語尾が消える。
     situation: 単調な検問が続き、つい本音が漏れる。
     difficulty: hard
@@ -113,6 +114,7 @@ lines:
     text: ……ふぁ……いかん、いかん……
     emotion: whisper
     intensity: 1
+    final_intonation: free
     delivery: あくびを噛み殺した直後の小声の独り言。ほとんど息だけ。
     situation: 直立不動のまま眠気と闘っている。
     difficulty: hard
@@ -153,6 +155,7 @@ lines:
     text: は、はい、これが通行証で！
     emotion: fearful
     intensity: 2
+    final_intonation: free
     delivery: 慌てて懐を探りながら上ずった声で答える。噛み気味。
     situation: 急な検問で書類を焦って取り出す。
     difficulty: hard
@@ -163,6 +166,7 @@ lines:
     text: 毎度お世話になります、隊長様！
     emotion: cheerful
     intensity: 2
+    final_intonation: rise
     delivery: 愛想笑いを浮かべた揉み手のような声。語尾が上がる。
     situation: ようやく通行許可が出てほっとしつつ媚びる。
     difficulty: standard
