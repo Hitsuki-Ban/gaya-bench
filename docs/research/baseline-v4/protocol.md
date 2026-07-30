@@ -124,6 +124,15 @@ baseline auditへ残し、decision自体は通常経路と同じ`take-curation-v
 publisherが読むprovenanceも`release-provenance.json`だけであり、
 baseline専用の実行時分岐は持たない。
 
+後続の全量releaseで再生成禁止と確定した単一modelをこの確定baselineから保持する
+場合は、通常のsource runとして暗黙再利用しない。`gaya takes finalize
+--projection-plan`へcanonical planを渡し、保持元releaseのrepository-relative
+pathとmanifest / candidate set / provenance / curation SHA、target run、現行側で
+補う`no_eligible_take` failureを固定する。finalizerは保持元format v1 releaseと
+元runを再検証し、共有line snapshotのexact一致とtarget全group coverageを要求する。
+成功したreleaseはplanを同梱したgeneric provenance format v2であり、
+baseline専用publisherやcandidate fallbackは追加しない。
+
 ## finalize条件
 
 - raw plan、7 source run、220 candidate + 161 `test_only_adapter` failureからなる

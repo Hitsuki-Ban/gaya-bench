@@ -139,6 +139,39 @@ curation / WAV / Opus / sidecar を現行 scenario に対して再検証し、�
 結果 bytes は変わらない。旧 `baseline-provenance`、別名、既定 run、欠損値の
 fallback は受理しない。
 
+再生成しないと確定した単一modelを、repository内の既存format v1 releaseから
+現行line snapshotへ保持投影する場合だけ、canonical projection planを明示する:
+
+```console
+uv run --project pipeline --locked gaya takes finalize \
+  --run-id <current-model-a-run-id> \
+  --run-id <current-model-b-run-id> \
+  --projection-plan <canonical-projection-plan.json> \
+  --output <new-release-directory>
+```
+
+planは`target_run_id`、保持元releaseのrepository-relative path、model、固定
+manifest / candidate set / provenance / curation SHA-256、現行側で補う
+`no_eligible_take` failureをexact schemaで持つ。保持元candidate/failureと明示
+failureを合わせたgroup集合はtarget runのgroup集合と完全一致し、保持元に存在する
+lineの`scenario_title` / `text` / `delivery`もtargetとexact一致しなければならない。
+未宣言missing group、余分なgroup、source digest差異、投影済みreleaseからの連鎖、
+非canonical planは全書込前に拒否する。
+
+planの正規化後schemaは次のとおり。実ファイルはPython canonical JSON bytesで保存する:
+
+```json
+{"format_version":1,"source_release":{"candidate_set_sha256":"<sha256>","curation_sha256":"<sha256>","manifest_sha256":"<sha256>","model":"<model-id>","path":"<repository-relative-release-directory>","provenance_sha256":"<sha256>"},"target_failures":[{"line":"<line-id>","model":"<model-id>","reason":"no_eligible_take","scenario":"<scenario-id>","variant":"dry"}],"target_run_id":"<current-run-id>"}
+```
+
+投影releaseはplan bytesとmarkerを同梱し、provenance format v2へsource/target
+scenario SHA、保持元releaseの全digest、model単位curation group digest、
+明示failureを記録する。publisherは保持元format v1 release、元run、最終releaseを
+再検証する。このためprojected finalize / publishのtakes rootは
+`<repository>/artifacts/takes`に固定し、planのrepository-relative pathも同じroot
+から解決する。`--projection-plan`を指定しない通常経路はprovenance format v1の
+ままであり、暗黙に保持元releaseを探索しない。
+
 ## N3 pilot calibration
 
 固定 3 model × `battlefield-camp` / `dungeon-entrance` × N3 の terminal run

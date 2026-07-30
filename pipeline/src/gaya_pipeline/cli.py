@@ -251,6 +251,11 @@ def build_parser() -> argparse.ArgumentParser:
         type=Path,
         help="新規作成するrelease directory",
     )
+    takes_finalize_parser.add_argument(
+        "--projection-plan",
+        type=Path,
+        help="保持済みreleaseの単一modelを現行targetへ明示投影するcanonical plan",
+    )
 
     publish_parser = subparsers.add_parser(
         "publish",
@@ -427,6 +432,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 data_dir=repository_root / "data",
                 scenarios_dir=repository_root / "scenarios",
                 output_dir=args.output,
+                projection_plan_path=args.projection_plan,
             )
         except ReleaseError as error:
             print(f"ERROR: {error}", file=sys.stderr)

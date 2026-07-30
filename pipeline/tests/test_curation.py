@@ -234,6 +234,8 @@ def _setup_run(
     run_id: str = "run-1",
     model: str = "dummy",
     audio_bytes: bytes = b"local opus fixture",
+    scenarios_dir: Path = SCENARIOS_DIR,
+    line_text: str = "はいよっ、エール二つお待ち！",
 ) -> tuple[str, dict[str, Any], Path, Path]:
     run_root = tmp_path / "artifacts" / "takes" / run_id
     manifest = json.loads(FIXTURE.read_text(encoding="utf-8"))
@@ -257,7 +259,7 @@ def _setup_run(
     candidate["gate"]["policy_version"] = "take-gates-v2"
     manifest["curations"] = []
     manifest["failures"] = []
-    scenario_path = SCENARIOS_DIR / "tavern-night.yaml"
+    scenario_path = scenarios_dir / "tavern-night.yaml"
     source_sha = hashlib.sha256(scenario_path.read_bytes()).hexdigest()
     scenario_sha = hashlib.sha256(
         canonical_json(
@@ -271,7 +273,7 @@ def _setup_run(
                 "scenario": "tavern-night",
                 "line": "barmaid-001",
                 "scenario_title": "酒場・夜の喧騒",
-                "text": "はいよっ、エール二つお待ち！",
+                "text": line_text,
                 "delivery": (
                     "客へ呼びかける。喧騒に負けないやや大きめの声。語尾が弾む。"
                 ),
