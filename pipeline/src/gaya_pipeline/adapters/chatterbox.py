@@ -11,6 +11,7 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from importlib import metadata
 from pathlib import Path
+from types import MappingProxyType
 from typing import Any, Protocol
 
 import yaml
@@ -67,11 +68,13 @@ TEMPERATURE = 0.8
 REPETITION_PENALTY = 1.2
 MIN_P = 0.05
 TOP_P = 1.0
-EXAGGERATION_BY_INTENSITY = {
-    1: 0.3,
-    2: 0.5,
-    3: 0.8,
-}
+EXAGGERATION_BY_INTENSITY: Mapping[int, float] = MappingProxyType(
+    {
+        1: 0.3,
+        2: 0.5,
+        3: 0.8,
+    },
+)
 
 MODEL_FILE_SPECS: dict[str, tuple[int, str]] = {
     "Cangjie5_TC.json": (
@@ -124,8 +127,93 @@ _SHA256 = re.compile(r"^[0-9a-f]{64}$")
 _MIB = 1024 * 1024
 
 
+def _validated_generation_setting(
+    value: Any,
+    *,
+    field: str,
+    minimum: float,
+    maximum: float | None = None,
+) -> float:
+    if isinstance(value, bool) or not isinstance(value, int | float):
+        raise TypeError(f"{field} は数値が必要です。")
+    numeric = float(value)
+    if (
+        not math.isfinite(numeric)
+        or numeric < minimum
+        or (maximum is not None and numeric > maximum)
+    ):
+        expected = (
+            f"{minimum}〜{maximum}"
+            if maximum is not None
+            else f"{minimum} 以上"
+        )
+        raise ValueError(
+            f"{field} は有限な {expected} が必要です。",
+        )
+    return numeric
+
+
 class ChatterboxAdapterError(RuntimeError):
     pass
+
+
+@dataclass(frozen=True)
+class ChatterboxGenerationSettings:
+    cfg_weight: float
+    exaggeration_by_intensity: Mapping[int, float]
+
+    def __post_init__(self) -> None:
+        object.__setattr__(
+            self,
+            "cfg_weight",
+            _validated_generation_setting(
+                self.cfg_weight,
+                field="cfg_weight",
+                minimum=0.0,
+                maximum=1.0,
+            ),
+        )
+        mapping = self.exaggeration_by_intensity
+        if not isinstance(mapping, Mapping):
+            raise TypeError(
+                "exaggeration_by_intensity は mapping が必要です。",
+            )
+        items = tuple(mapping.items())
+        if (
+            len(items) != 3
+            or any(
+                isinstance(intensity, bool) or not isinstance(intensity, int)
+                for intensity, _ in items
+            )
+            or {intensity for intensity, _ in items} != {1, 2, 3}
+        ):
+            raise ValueError(
+                "exaggeration_by_intensity は intensity 1, 2, 3 "
+                "をそれぞれ一度だけ指定する必要があります。",
+            )
+        frozen_mapping: dict[int, float] = {}
+        for intensity, exaggeration in items:
+            frozen_mapping[intensity] = _validated_generation_setting(
+                exaggeration,
+                field=f"exaggeration_by_intensity[{intensity}]",
+                minimum=0.0,
+            )
+        object.__setattr__(
+            self,
+            "exaggeration_by_intensity",
+            MappingProxyType(
+                {
+                    intensity: frozen_mapping[intensity]
+                    for intensity in (1, 2, 3)
+                },
+            ),
+        )
+
+
+DEFAULT_GENERATION_SETTINGS = ChatterboxGenerationSettings(
+    cfg_weight=CFG_WEIGHT,
+    exaggeration_by_intensity=EXAGGERATION_BY_INTENSITY,
+)
 
 
 @dataclass(frozen=True)
@@ -141,6 +229,7 @@ class _PreparedInput:
     text: str
     emotion: str
     intensity: int
+    cfg_weight: float
     exaggeration: float
     reference: _Reference
 
@@ -149,6 +238,7 @@ class _PreparedInput:
             "text": self.text,
             "language_id": LANGUAGE_ID,
             "intensity": self.intensity,
+            "cfg_weight": self.cfg_weight,
             "exaggeration": self.exaggeration,
             "reference_selection_source": self.reference.selection_source,
             "reference_voice": self.reference.voice_id,
@@ -167,6 +257,7 @@ class _Runtime(Protocol):
         *,
         text: str,
         reference_wav: Path,
+        cfg_weight: float,
         exaggeration: float,
         seed: int,
     ) -> Any: ...
@@ -339,6 +430,7 @@ class _NativeRuntime:
         *,
         text: str,
         reference_wav: Path,
+        cfg_weight: float,
         exaggeration: float,
         seed: int,
     ) -> Any:
@@ -351,7 +443,7 @@ class _NativeRuntime:
             language_id=LANGUAGE_ID,
             audio_prompt_path=str(reference_wav),
             exaggeration=exaggeration,
-            cfg_weight=CFG_WEIGHT,
+            cfg_weight=cfg_weight,
             temperature=TEMPERATURE,
             repetition_penalty=REPETITION_PENALTY,
             min_p=MIN_P,
@@ -431,7 +523,7 @@ class ChatterboxAdapter:
             single_take_seed=SEED,
             seed_range=(0, 2**32 - 1),
             sampling=(
-                ("cfg_weight", CFG_WEIGHT),
+                ("cfg_weight", self.generation_settings.cfg_weight),
                 ("min_p", MIN_P),
                 ("repetition_penalty", REPETITION_PENALTY),
                 ("temperature", TEMPERATURE),
@@ -445,13 +537,29 @@ class ChatterboxAdapter:
         *,
         runtime: _Runtime | None = None,
         model_root: Path | None = None,
+        generation_settings: ChatterboxGenerationSettings = (
+            DEFAULT_GENERATION_SETTINGS
+        ),
     ) -> None:
+        if not isinstance(
+            generation_settings,
+            ChatterboxGenerationSettings,
+        ):
+            raise TypeError(
+                "generation_settings は ChatterboxGenerationSettings "
+                "が必要です。",
+            )
+        self._generation_settings = generation_settings
         self._runtime = runtime if runtime is not None else _NativeRuntime()
         self._model_root = model_root
         self._model: Any | None = None
         self._runtime_load_peak: dict[str, float] | None = None
         self._prepared_inputs: dict[tuple[str, str], _PreparedInput] = {}
         self._prepared = False
+
+    @property
+    def generation_settings(self) -> ChatterboxGenerationSettings:
+        return self._generation_settings
 
     def prepare(
         self,
@@ -471,7 +579,10 @@ class ChatterboxAdapter:
                 raise ChatterboxAdapterError(
                     f"同じ line job が重複しています: {key[0]}/{key[1]}",
                 )
-            text, emotion, intensity, exaggeration = _line_input(job)
+            text, emotion, intensity, exaggeration = _line_input(
+                job,
+                self.generation_settings,
+            )
             voice_id, selection_source = _select_reference_voice(job)
             reference_key = (voice_id, selection_source)
             reference = references.get(reference_key)
@@ -493,6 +604,7 @@ class ChatterboxAdapter:
                 text=text,
                 emotion=emotion,
                 intensity=intensity,
+                cfg_weight=self.generation_settings.cfg_weight,
                 exaggeration=exaggeration,
                 reference=reference,
             )
@@ -532,14 +644,16 @@ class ChatterboxAdapter:
             "pykakasi_version": PYKAKASI_VERSION,
             "safetensors_version": SAFETENSORS_VERSION,
             "s3tokenizer_version": S3TOKENIZER_VERSION,
-            "cfg_weight": CFG_WEIGHT,
+            "cfg_weight": self.generation_settings.cfg_weight,
             "temperature": TEMPERATURE,
             "repetition_penalty": REPETITION_PENALTY,
             "min_p": MIN_P,
             "top_p": TOP_P,
             "exaggeration_by_intensity": {
                 str(intensity): exaggeration
-                for intensity, exaggeration in EXAGGERATION_BY_INTENSITY.items()
+                for intensity, exaggeration in (
+                    self.generation_settings.exaggeration_by_intensity.items()
+                )
             },
             "reference_assignments": {
                 f"{scenario}/{character}": voice
@@ -580,6 +694,7 @@ class ChatterboxAdapter:
                 model,
                 text=prepared.text,
                 reference_wav=prepared.reference.wav_path,
+                cfg_weight=prepared.cfg_weight,
                 exaggeration=prepared.exaggeration,
                 seed=seed,
             ),
@@ -610,6 +725,7 @@ class ChatterboxAdapter:
             "language_id": LANGUAGE_ID,
             "line_emotion_audit": prepared.emotion,
             "intensity": prepared.intensity,
+            "cfg_weight": prepared.cfg_weight,
             "exaggeration": prepared.exaggeration,
             "reference_selection_source": prepared.reference.selection_source,
             "reference_voice": prepared.reference.voice_id,
@@ -671,7 +787,10 @@ class ChatterboxAdapter:
             raise ChatterboxAdapterError(f"{phase} に失敗しました: {error}") from error
 
 
-def _line_input(job: LineJob) -> tuple[str, str, int, float]:
+def _line_input(
+    job: LineJob,
+    generation_settings: ChatterboxGenerationSettings,
+) -> tuple[str, str, int, float]:
     if job.locale != "ja":
         raise ChatterboxAdapterError(
             f"Chatterbox Multilingual V3 adapter は Japanese 固定です: "
@@ -683,7 +802,7 @@ def _line_input(job: LineJob) -> tuple[str, str, int, float]:
     if isinstance(intensity, bool) or not isinstance(intensity, int):
         raise ChatterboxAdapterError("line.intensity は 1〜3 の整数が必要です。")
     try:
-        exaggeration = EXAGGERATION_BY_INTENSITY[intensity]
+        exaggeration = generation_settings.exaggeration_by_intensity[intensity]
     except KeyError as error:
         raise ChatterboxAdapterError(
             f"line.intensity は 1〜3 が必要です: {intensity}",

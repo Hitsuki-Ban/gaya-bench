@@ -13,5 +13,6 @@
 | `rekion-download-feasibility.md` | NDL「歴史的音源」の音源取得可否・公開メタデータ集計・代替経路 | Codex |
 | `qwen-emotion-bank-ab/` | Qwen3-TTS 感情参照bankのblind A/B | Codex + Owner |
 | `qwen-gender-identity-canary/` | Qwen3-TTS gender指定と感情間speaker identityのblind canary | Codex + Owner |
+| `chatterbox-v3-diagnostic/` | Chatterbox V3 日本語声線・演技・G2Pの5参照診断 | Codex + Owner |
 
 ルール: 主張には出典URLを付ける。ライセンスは一次情報 (LICENSE/モデルカード/公式規約) で確認。不確実な点は「要確認」と明記。

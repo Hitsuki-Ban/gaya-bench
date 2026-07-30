@@ -6,6 +6,7 @@ import math
 import struct
 import wave
 from collections.abc import Mapping
+from dataclasses import FrozenInstanceError
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
@@ -17,6 +18,7 @@ from gaya_pipeline.adapters.base import LineJob, TakeContext
 from gaya_pipeline.adapters.chatterbox import (
     ARCHITECTURE,
     CFG_WEIGHT,
+    DEFAULT_GENERATION_SETTINGS,
     DEVICE,
     DTYPE,
     EXAGGERATION_BY_INTENSITY,
@@ -30,6 +32,7 @@ from gaya_pipeline.adapters.chatterbox import (
     WEIGHTS_REVISION,
     ChatterboxAdapter,
     ChatterboxAdapterError,
+    ChatterboxGenerationSettings,
 )
 from gaya_pipeline.adapters.voice_assignments import (
     CLONE_REFERENCE_ASSIGNMENTS,
@@ -81,6 +84,7 @@ class FakeRuntime:
         *,
         text: str,
         reference_wav: Path,
+        cfg_weight: float,
         exaggeration: float,
         seed: int,
     ) -> Any:
@@ -89,6 +93,7 @@ class FakeRuntime:
             {
                 "text": text,
                 "reference_wav": reference_wav,
+                "cfg_weight": cfg_weight,
                 "exaggeration": exaggeration,
                 "seed": seed,
             },
@@ -260,6 +265,11 @@ def test_profile_registry_and_generation_params_are_canonical() -> None:
     assert recipe.single_take_seed == SEED
     assert recipe.seed_range == (0, 2**32 - 1)
     assert recipe.supports_multiple is True
+    assert adapter.generation_settings is DEFAULT_GENERATION_SETTINGS
+    assert adapter.generation_settings.cfg_weight == CFG_WEIGHT
+    assert dict(adapter.generation_settings.exaggeration_by_intensity) == dict(
+        EXAGGERATION_BY_INTENSITY,
+    )
     assert dict(recipe.sampling) == {
         "cfg_weight": CFG_WEIGHT,
         "min_p": 0.05,
@@ -291,6 +301,122 @@ def test_profile_registry_and_generation_params_are_canonical() -> None:
     assert json.loads(json.dumps(params)) == params
 
 
+def test_explicit_generation_settings_drive_all_generation_surfaces(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    settings = ChatterboxGenerationSettings(
+        cfg_weight=0.3,
+        exaggeration_by_intensity={
+            1: 0.7,
+            2: 0.7,
+            3: 0.7,
+        },
+    )
+    runtime = FakeRuntime()
+    adapter = ChatterboxAdapter(
+        runtime=runtime,
+        model_root=_model_root(tmp_path, monkeypatch),
+        generation_settings=settings,
+    )
+    jobs = [
+        _job(line_id=f"barmaid-00{intensity}", intensity=intensity)
+        for intensity in (1, 2, 3)
+    ]
+    adapter.prepare(
+        jobs,
+        tmp_path / "artifacts",
+        _voices_dir(tmp_path),
+    )
+    recipe = adapter.take_recipe()
+
+    assert adapter.generation_settings is settings
+    assert dict(recipe.sampling)["cfg_weight"] == 0.3
+    assert adapter.generation_params()["cfg_weight"] == 0.3
+    assert adapter.generation_params()["exaggeration_by_intensity"] == {
+        "1": 0.7,
+        "2": 0.7,
+        "3": 0.7,
+    }
+    generation_inputs = [
+        adapter.generation_input(job, recipe.single_take_context())
+        for job in jobs
+    ]
+    assert [item["cfg_weight"] for item in generation_inputs] == [0.3] * 3
+    assert [item["exaggeration"] for item in generation_inputs] == [0.7] * 3
+
+    realized = adapter.generate(
+        jobs[-1],
+        recipe.single_take_context(),
+        tmp_path / "candidate.wav",
+    )
+
+    assert runtime.synthesize_calls[-1]["cfg_weight"] == 0.3
+    assert runtime.synthesize_calls[-1]["exaggeration"] == 0.7
+    assert realized["cfg_weight"] == 0.3
+    assert realized["exaggeration"] == 0.7
+
+
+def test_generation_settings_are_deeply_immutable() -> None:
+    source = {1: 0.3, 2: 0.5, 3: 0.8}
+    settings = ChatterboxGenerationSettings(
+        cfg_weight=0.5,
+        exaggeration_by_intensity=source,
+    )
+    source[3] = 1.5
+
+    assert settings.exaggeration_by_intensity[3] == 0.8
+    with pytest.raises(FrozenInstanceError):
+        settings.cfg_weight = 0.3  # type: ignore[misc]
+    with pytest.raises(TypeError):
+        settings.exaggeration_by_intensity[3] = 0.7  # type: ignore[index]
+    adapter = ChatterboxAdapter(generation_settings=settings)
+    with pytest.raises(AttributeError):
+        adapter.generation_settings = DEFAULT_GENERATION_SETTINGS  # type: ignore[misc]
+
+
+@pytest.mark.parametrize(
+    ("cfg_weight", "exaggeration_by_intensity", "error"),
+    [
+        (True, {1: 0.3, 2: 0.5, 3: 0.8}, TypeError),
+        ("0.3", {1: 0.3, 2: 0.5, 3: 0.8}, TypeError),
+        (math.nan, {1: 0.3, 2: 0.5, 3: 0.8}, ValueError),
+        (-0.1, {1: 0.3, 2: 0.5, 3: 0.8}, ValueError),
+        (1.1, {1: 0.3, 2: 0.5, 3: 0.8}, ValueError),
+        (0.3, {1: 0.3, 2: 0.5}, ValueError),
+        (0.3, {1: 0.3, 2: 0.5, 3: 0.8, 4: 1.0}, ValueError),
+        (0.3, {True: 0.3, 2: 0.5, 3: 0.8}, ValueError),
+        (0.3, {1: -0.1, 2: 0.5, 3: 0.8}, ValueError),
+        (0.3, {1: 0.3, 2: math.inf, 3: 0.8}, ValueError),
+        (0.3, {1: 0.3, 2: 0.5, 3: "0.8"}, TypeError),
+    ],
+)
+def test_invalid_generation_settings_fail_fast(
+    cfg_weight: Any,
+    exaggeration_by_intensity: Any,
+    error: type[Exception],
+) -> None:
+    with pytest.raises(error):
+        ChatterboxGenerationSettings(
+            cfg_weight=cfg_weight,
+            exaggeration_by_intensity=exaggeration_by_intensity,
+        )
+
+
+def test_adapter_rejects_unvalidated_generation_settings() -> None:
+    with pytest.raises(TypeError, match="ChatterboxGenerationSettings"):
+        ChatterboxAdapter(
+            generation_settings={
+                "cfg_weight": 0.3,
+                "exaggeration_by_intensity": {
+                    1: 0.7,
+                    2: 0.7,
+                    3: 0.7,
+                },
+            },  # type: ignore[arg-type]
+        )
+
+
 @pytest.mark.parametrize(
     ("intensity", "expected"),
     [(1, 0.3), (2, 0.5), (3, 0.8)],
@@ -311,6 +437,7 @@ def test_intensity_maps_to_exaggeration_and_reading_is_ignored(
     assert generation_input["text"] == "乾杯しよう！"
     assert generation_input["language_id"] == "ja"
     assert generation_input["intensity"] == intensity
+    assert generation_input["cfg_weight"] == CFG_WEIGHT
     assert generation_input["exaggeration"] == expected
     assert "reading" not in generation_input
     assert "emotion" not in generation_input
@@ -493,6 +620,7 @@ def test_generate_is_lazy_clones_and_writes_native_pcm(
             "reference_wav": (
                 voices_dir.resolve() / "amitaro-countdown" / "reference.wav"
             ),
+            "cfg_weight": CFG_WEIGHT,
             "exaggeration": 0.8,
             "seed": SEED,
         },
@@ -507,6 +635,8 @@ def test_generate_is_lazy_clones_and_writes_native_pcm(
     }
     assert realized["line_emotion_audit"] == "cheerful"
     assert realized["seed"] == SEED
+    assert realized["cfg_weight"] == CFG_WEIGHT
+    assert realized["exaggeration"] == 0.8
     assert realized["perth_watermark_stage_executed"] is True
 
 
@@ -689,6 +819,52 @@ def test_native_runtime_cangjie_download_is_local_and_restored(
     assert model.tokenizer.cangjie_converter.word2cj
     assert tokenizer_module.hf_hub_download is original
     assert FakeConverter._init_segmenter is original_segmenter_init
+
+
+def test_native_runtime_forwards_explicit_cfg_weight() -> None:
+    import gaya_pipeline.adapters.chatterbox as module
+
+    seed_calls: list[tuple[str, int]] = []
+    generation_calls: list[tuple[tuple[Any, ...], dict[str, Any]]] = []
+    runtime = module._NativeRuntime()
+    runtime._torch = SimpleNamespace(
+        manual_seed=lambda seed: seed_calls.append(("cpu", seed)),
+        cuda=SimpleNamespace(
+            manual_seed_all=lambda seed: seed_calls.append(("cuda", seed)),
+        ),
+    )
+
+    class FakeModel:
+        def generate(self, *args: Any, **kwargs: Any) -> str:
+            generation_calls.append((args, kwargs))
+            return "waveform"
+
+    result = runtime.synthesize(
+        FakeModel(),
+        text="乾杯しよう！",
+        reference_wav=Path("reference.wav"),
+        cfg_weight=0.3,
+        exaggeration=0.7,
+        seed=123,
+    )
+
+    assert result == "waveform"
+    assert seed_calls == [("cpu", 123), ("cuda", 123)]
+    assert generation_calls == [
+        (
+            ("乾杯しよう！",),
+            {
+                "language_id": LANGUAGE_ID,
+                "audio_prompt_path": "reference.wav",
+                "exaggeration": 0.7,
+                "cfg_weight": 0.3,
+                "temperature": 0.8,
+                "repetition_penalty": 1.2,
+                "min_p": 0.05,
+                "top_p": 1.0,
+            },
+        ),
+    ]
 
 
 def test_native_runtime_rejects_non_python_312(
