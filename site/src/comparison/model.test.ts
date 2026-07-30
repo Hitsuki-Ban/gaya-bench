@@ -66,6 +66,19 @@ describe("comparison model v4 outcomes", () => {
       2,
     );
   });
+
+  it("初期 cursor は表示範囲の最初の再生可能セルへ置く", () => {
+    const model = buildComparisonModel(fixture());
+    const sparse: ComparisonProjection = {
+      rows: [{ row: model.rows[1]!, rowIndex: 1 }],
+      models: [model.models[4]!, model.models[0]!],
+      rowIndexes: new Set([1]),
+      modelIds: new Set(["epsilon", "alpha"]),
+      key: "sparse",
+    };
+
+    expect(resolveCursor(model, null, sparse)).toEqual({ rowIndex: 1, modelId: "alpha" });
+  });
 });
 
 interface MutableBenchmarkData extends Omit<BenchmarkData, "manifest" | "outcomes"> {

@@ -7,6 +7,7 @@ export {
   EMOTION_ORDER,
   GENDER_ORDER,
   toggleFilterValue,
+  updateEmptyFilter,
   updateFilterValues,
   updateScenarioFilter,
 } from "./schema";

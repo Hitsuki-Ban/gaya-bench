@@ -26,10 +26,22 @@ export function projectComparisonModel(
 ): ComparisonProjection {
   assertProjectionState(model, state);
 
-  const rows = model.rows.flatMap((row, rowIndex) =>
+  const matchingRows = model.rows.flatMap((row, rowIndex) =>
     rowMatches(row, state) ? [{ row, rowIndex }] : [],
   );
-  const models = model.models.filter(({ id }) => state.model.has(id));
+  const selectedModels = model.models.filter(({ id }) => state.model.has(id));
+  const models = state.showEmpty
+    ? selectedModels
+    : selectedModels.filter(({ id }) =>
+        matchingRows.some(
+          ({ rowIndex }) => model.getCell({ rowIndex, modelId: id })?.kind === "selected",
+        ),
+      );
+  const rows = state.showEmpty
+    ? matchingRows
+    : matchingRows.filter(({ rowIndex }) =>
+        models.some(({ id }) => model.getCell({ rowIndex, modelId: id })?.kind === "selected"),
+      );
   const rowIndexes = new Set(rows.map(({ rowIndex }) => rowIndex));
   const modelIds = new Set(models.map(({ id }) => id));
 
@@ -97,5 +109,6 @@ function createProjectionKey(model: ComparisonModel, state: FilterState): string
     EMOTION_ORDER.filter((value) => state.emotion.has(value)),
     DIFFICULTY_ORDER.filter((value) => state.difficulty.has(value)),
     model.models.filter(({ id }) => state.model.has(id)).map(({ id }) => id),
+    state.showEmpty,
   ]);
 }

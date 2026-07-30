@@ -13,6 +13,7 @@ import {
   collectGenerationParameterSets,
 } from "@/pages/detail-page-model";
 import { NotFoundPage } from "@/pages/not-found-page";
+import { EMOTION_LABELS } from "@/ui-labels";
 
 const capabilityEntries = [
   ["emotion", "感情"],
@@ -56,7 +57,7 @@ export function ModelPage() {
           </Link>
         }
         description={`${model.version} · ${model.license_note}`}
-        eyebrow={`Model / ${model.id}`}
+        eyebrow="モデル"
         title={model.name}
       />
 
@@ -88,13 +89,15 @@ export function ModelPage() {
             <CardTitle>生成情報</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3 text-sm">
-            <Row label="version" value={model.version} />
-            <Row label="license" value={model.license_note} />
-            <Row label="selected" value={String(candidateEntries.length)} />
-            <Row label="non-selected" value={String(nonSelectedEntries.length)} />
+            <Row label="バージョン" value={model.version} />
+            <Row label="ライセンス" value={model.license_note} />
+            <Row label="公開音声" value={String(candidateEntries.length)} />
+            <Row label="未収録・失敗" value={String(nonSelectedEntries.length)} />
             <Row
-              label="variants"
-              value={[...new Set(candidates.map(({ variant }) => variant))].join(", ")}
+              label="音声形式"
+              value={[...new Set(candidates.map(({ variant }) => variantLabel(variant)))].join(
+                ", ",
+              )}
             />
           </CardContent>
         </Card>
@@ -110,7 +113,7 @@ export function ModelPage() {
               </div>
               <div>
                 <p className="font-mono text-[10px] tracking-wider text-muted-foreground uppercase">
-                  duration-weighted RTF
+                  音声時間加重 RTF
                 </p>
                 <p className="mt-1 font-mono text-2xl text-foreground">
                   {rtf ? rtf.weightedMean.toFixed(3) : "未計測"}
@@ -143,7 +146,7 @@ export function ModelPage() {
                 <CardHeader>
                   <CardTitle className="flex items-center justify-between gap-3">
                     <span>設定 {index + 1}</span>
-                    <Badge variant="outline">{candidateCount} selected</Badge>
+                    <Badge variant="outline">公開音声 {candidateCount}</Badge>
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
@@ -162,11 +165,7 @@ export function ModelPage() {
       </section>
 
       <section aria-labelledby="selected-heading" className="space-y-3">
-        <SectionHeading
-          count={candidateEntries.length}
-          id="selected-heading"
-          title="公開 selected 音声"
-        />
+        <SectionHeading count={candidateEntries.length} id="selected-heading" title="公開音声" />
         {candidateEntries.length > 0 ? (
           <div className="grid gap-3 lg:grid-cols-2">
             {candidateEntries.map(({ candidate, scenario, line, character }) => (
@@ -187,8 +186,7 @@ export function ModelPage() {
                       {scenario.title}
                     </Badge>
                     <Badge variant="outline">{character.name}</Badge>
-                    <Badge variant="outline">{line.emotion}</Badge>
-                    <Badge variant="outline">{candidate.variant}</Badge>
+                    <Badge variant="outline">{EMOTION_LABELS[line.emotion]}</Badge>
                   </div>
                   <CardTitle className="mt-2 leading-7">{line.text}</CardTitle>
                 </CardHeader>
@@ -205,7 +203,7 @@ export function ModelPage() {
           </div>
         ) : (
           <p className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">
-            このモデルには selected candidate がありません。
+            このモデルの公開音声はありません。
           </p>
         )}
       </section>
@@ -214,7 +212,7 @@ export function ModelPage() {
         <SectionHeading
           count={nonSelectedEntries.length}
           id="outcomes-heading"
-          title="非 selected outcome"
+          title="未収録・生成失敗"
         />
         {nonSelectedEntries.length > 0 ? (
           <div className="grid gap-3 lg:grid-cols-2">
@@ -239,27 +237,41 @@ export function ModelPage() {
                       {scenario.title}
                     </Badge>
                     <Badge variant="outline">{character.name}</Badge>
-                    <Badge variant="outline">{outcome.group.variant}</Badge>
                     <Badge variant={outcome.kind === "failure" ? "destructive" : "secondary"}>
-                      {outcome.kind}
+                      {outcomeLabel(outcome.kind)}
                     </Badge>
                   </div>
                   <CardTitle className="mt-2 leading-7">{line.text}</CardTitle>
                 </CardHeader>
                 <CardContent className="text-xs leading-5 text-muted-foreground">
-                  この outcome は再生・連続再生・A/B 比較の対象外です。
+                  このセリフの公開音声はありません。
                 </CardContent>
               </Card>
             ))}
           </div>
         ) : (
           <p className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">
-            非 selected outcome はありません。
+            未収録・生成失敗はありません。
           </p>
         )}
       </section>
     </div>
   );
+}
+
+function variantLabel(variant: string): string {
+  if (variant === "dry") {
+    return "無加工";
+  }
+  throw new Error(`表示ラベルが未定義の音声形式です: ${variant}`);
+}
+
+function outcomeLabel(kind: "skipped" | "uncurated" | "failure"): string {
+  return {
+    skipped: "未収録",
+    uncurated: "準備中",
+    failure: "生成失敗",
+  }[kind];
 }
 
 function Row({ label, value }: { label: string; value: string }) {

@@ -1,6 +1,7 @@
 import { Pause, Play, TriangleAlert } from "lucide-react";
 
 import { useAudioPlayer, useAudioProgress } from "@/audio/audio-provider";
+import { AutomaticQualityBadge } from "@/components/automatic-quality-badge";
 import { Button } from "@/components/ui/button";
 import { candidateKey, lineByKey, modelById, scenarioById, type Candidate } from "@/data";
 import { resolveAudioUrl } from "@/lib/audio-url";
@@ -44,6 +45,7 @@ export function ClipButton({ candidate }: ClipButtonProps) {
             <Play aria-hidden="true" className="size-3.5" />
           )}
           {model.name}
+          <AutomaticQualityBadge candidate={candidate} compact />
         </span>
         {isCurrent ? (
           <ClipProgress fallbackDuration={candidate.duration_sec} />

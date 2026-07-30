@@ -14,6 +14,7 @@ import {
 } from "@/data";
 import { buildScenarioLineEntries } from "@/pages/detail-page-model";
 import { NotFoundPage } from "@/pages/not-found-page";
+import { AGE_LABELS, DIFFICULTY_LABELS, EMOTION_LABELS, GENDER_LABELS } from "@/ui-labels";
 
 export function ScenarioPage() {
   const { id } = useParams();
@@ -38,7 +39,7 @@ export function ScenarioPage() {
           </Link>
         }
         description={scenario.scene.setting}
-        eyebrow={`Scenario / ${scenario.id}`}
+        eyebrow="シナリオ"
         title={scenario.title}
       />
 
@@ -76,13 +77,17 @@ export function ScenarioPage() {
       >
         <AudioWaveform aria-hidden="true" className="mt-0.5 size-5 shrink-0 text-primary" />
         <div>
-          <h2 className="text-sm font-semibold">試聴条件</h2>
+          <h2 className="text-sm font-semibold">音量を揃えて比較できます</h2>
           <p className="mt-1 text-sm leading-6 text-muted-foreground">
-            全クリップはモデル間の音量差を抑えるため、変換後に -18 LUFS 目標 / peak -1 dBTP / mono /
-            48kHz へ正規化しています。囁きなどピーク制約で目標に届かない音声は -18±1.5 LUFS
-            の範囲でベストエフォートとしています。意図的な音量差も均されるため、音質・発音・
-            演技を中心に比較してください。v1 は距離感や残響を加えない dry 音声です。
+            モデルごとの音量差を抑えています。音質・発音・演技を中心に聴き比べてください。
           </p>
+          <details className="mt-2 text-xs text-muted-foreground">
+            <summary className="cursor-pointer">試聴条件の詳細</summary>
+            <p className="mt-2 leading-5">
+              -18 LUFS 目標 / peak -1 dBTP / mono / 48kHz
+              へ正規化しています。距離感や残響は加えていません。
+            </p>
+          </details>
         </div>
       </aside>
 
@@ -98,8 +103,8 @@ export function ScenarioPage() {
               <CardHeader>
                 <div className="flex flex-wrap gap-2">
                   <CharacterKindBadge kind={character.kind} />
-                  <Badge variant="secondary">{character.gender}</Badge>
-                  <Badge variant="outline">{character.age}</Badge>
+                  <Badge variant="secondary">{GENDER_LABELS[character.gender]}</Badge>
+                  <Badge variant="outline">{AGE_LABELS[character.age]}</Badge>
                   {character.archetype ? (
                     <Badge variant="outline">{character.archetype}</Badge>
                   ) : null}
@@ -131,11 +136,11 @@ export function ScenarioPage() {
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex flex-wrap gap-2">
                       <Badge variant="secondary">{character.name}</Badge>
-                      <Badge variant="outline">{line.emotion}</Badge>
+                      <Badge variant="outline">{EMOTION_LABELS[line.emotion]}</Badge>
                       <Badge variant="outline">強度 {line.intensity}</Badge>
-                      <Badge variant={line.difficulty === "hard" ? "destructive" : "outline"}>
-                        {line.difficulty}
-                      </Badge>
+                      {line.difficulty === "hard" ? (
+                        <Badge variant="destructive">{DIFFICULTY_LABELS[line.difficulty]}</Badge>
+                      ) : null}
                     </div>
                     <span className="shrink-0 font-mono text-[10px] text-muted-foreground">
                       {String(lineIndex + 1).padStart(2, "0")}
@@ -160,7 +165,7 @@ export function ScenarioPage() {
                   ) : null}
                   {lineOutcomes.length === 0 ? (
                     <p className="rounded-md border border-dashed p-3 text-xs text-muted-foreground">
-                      このセリフには group がありません。
+                      未収録
                     </p>
                   ) : null}
                 </CardContent>
@@ -183,14 +188,14 @@ function ScenarioOutcome({ outcome }: { outcome: ArtifactOutcome }) {
   }
   const presentation = {
     skipped: {
-      label: "策展スキップ",
-      detail: "候補は公開対象に選ばれませんでした。",
-      className: "border-amber-500/40 bg-amber-500/5 text-amber-700 dark:text-amber-300",
+      label: "未収録",
+      detail: "公開音声はありません。",
+      className: "border-border bg-muted/20 text-muted-foreground",
     },
     uncurated: {
-      label: "未策展",
-      detail: "候補の策展判断がまだありません。",
-      className: "border-sky-500/40 bg-sky-500/5 text-sky-700 dark:text-sky-300",
+      label: "準備中",
+      detail: "公開準備を進めています。",
+      className: "border-border bg-muted/20 text-muted-foreground",
     },
     failure: {
       label: "生成失敗",
@@ -202,7 +207,7 @@ function ScenarioOutcome({ outcome }: { outcome: ArtifactOutcome }) {
     <div className={`rounded-md border p-3 text-xs ${presentation.className}`}>
       <p className="font-medium">{presentation.label}</p>
       <p className="mt-1 text-muted-foreground">
-        {model.name} · {outcome.group.variant} · {presentation.detail}
+        {model.name} · {presentation.detail}
       </p>
     </div>
   );

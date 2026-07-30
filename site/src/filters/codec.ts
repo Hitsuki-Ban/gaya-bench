@@ -3,6 +3,7 @@ import {
   createDefaultFilterState,
   getAllowedValues,
   getDataFilterValues,
+  updateEmptyFilter,
   updateFilterValues,
   updateScenarioFilter,
 } from "./schema";
@@ -40,7 +41,17 @@ export function decodeFilterQuery(params: URLSearchParams, data: BenchmarkData):
   }
   validateValues("scenario", scenarioValues, scenarioIds, issues);
 
-  for (const key of FILTER_QUERY_KEYS.slice(1) as readonly MultiFilterKey[]) {
+  const emptyValues = params.getAll("empty");
+  if (emptyValues.length > 1) {
+    issues.push({
+      code: "repeated_empty",
+      key: "empty",
+      message: "empty query は 1 件だけ指定できます。",
+    });
+  }
+  validateValues("empty", emptyValues, ["show"], issues);
+
+  for (const key of FILTER_QUERY_KEYS.slice(2) as readonly MultiFilterKey[]) {
     validateValues(key, params.getAll(key), getAllowedValues(key, data), issues);
   }
 
@@ -52,7 +63,10 @@ export function decodeFilterQuery(params: URLSearchParams, data: BenchmarkData):
   if (scenarioValues.length === 1) {
     state = updateScenarioFilter(state, scenarioValues[0]!, data);
   }
-  for (const key of FILTER_QUERY_KEYS.slice(1) as readonly MultiFilterKey[]) {
+  if (emptyValues.length === 1) {
+    state = updateEmptyFilter(state, true);
+  }
+  for (const key of FILTER_QUERY_KEYS.slice(2) as readonly MultiFilterKey[]) {
     const values = params.getAll(key);
     if (values.length > 0) {
       state = updateFilterValues(state, key, values, data);
@@ -72,8 +86,11 @@ export function encodeFilterState(state: FilterState, data: BenchmarkData): stri
   if (validatedState.scenario !== null) {
     params.append("scenario", validatedState.scenario);
   }
+  if (validatedState.showEmpty) {
+    params.append("empty", "show");
+  }
 
-  for (const key of FILTER_QUERY_KEYS.slice(1) as readonly MultiFilterKey[]) {
+  for (const key of FILTER_QUERY_KEYS.slice(2) as readonly MultiFilterKey[]) {
     const allowedValues = getAllowedValues(key, data);
     const selectedValues = validatedState[key] as ReadonlySet<string>;
     if (selectedValues.size === allowedValues.length) {
@@ -92,7 +109,8 @@ export function encodeFilterState(state: FilterState, data: BenchmarkData): stri
 
 function normalizeFilterState(state: FilterState, data: BenchmarkData): FilterState {
   let normalized = updateScenarioFilter(state, state.scenario, data);
-  for (const key of FILTER_QUERY_KEYS.slice(1) as readonly MultiFilterKey[]) {
+  normalized = updateEmptyFilter(normalized, state.showEmpty);
+  for (const key of FILTER_QUERY_KEYS.slice(2) as readonly MultiFilterKey[]) {
     normalized = updateFilterValues(normalized, key, normalized[key] as ReadonlySet<string>, data);
   }
   return normalized;

@@ -49,7 +49,7 @@ export function PilotPage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState(
-    "pilot bundle を選択すると、検証後にブラインド評価を開始します。",
+    "事前確認フォルダーを選ぶと、検証後にブラインド評価を開始します。",
   );
 
   useEffect(() => {
@@ -65,7 +65,7 @@ export function PilotPage() {
     loadTokenRef.current = loadToken;
     setBusy(true);
     setError(null);
-    setNotice("pilot set と全候補音声を検証しています…");
+    setNotice("候補セットと全候補音声を検証しています…");
     playbackManager.stop();
     catalogRef.current?.dispose();
     catalogRef.current = null;
@@ -82,7 +82,7 @@ export function PilotPage() {
       setGroupIndex(0);
       try {
         setDraft(readPilotDecisionDraft(localStorage, loaded));
-        setNotice(`${loaded.groups.length} group のブラインド評価を読み込みました。`);
+        setNotice(`${loaded.groups.length} 項目のブラインド評価を読み込みました。`);
       } catch (reason: unknown) {
         setError(errorMessage(reason));
         setNotice(
@@ -94,9 +94,9 @@ export function PilotPage() {
         return;
       }
       setError(
-        "pilot bundle の完全性検証に失敗しました。bundle を再生成してから選択し直してください。",
+        "事前確認データの完全性検証に失敗しました。データを再生成してから選択し直してください。",
       );
-      setNotice("pilot bundle を読み込めませんでした。");
+      setNotice("事前確認フォルダーを読み込めませんでした。");
     } finally {
       if (loadToken === loadTokenRef.current) {
         setBusy(false);
@@ -126,7 +126,7 @@ export function PilotPage() {
       resetPilotDecisionDraft(localStorage);
       setDraft(createPilotDecisionDraft(catalog));
       setError(null);
-      setNotice("この pilot set のローカル draft を明示的にリセットしました。");
+      setNotice("この候補セットの一時保存をリセットしました。");
     } catch (reason: unknown) {
       setError(errorMessage(reason));
     }
@@ -139,7 +139,7 @@ export function PilotPage() {
     try {
       downloadPilotDecisionJson(buildPilotDecisionJson(catalog, draft));
       setError(null);
-      setNotice("全 group の deterministic pilot-decision.json をダウンロードしました。");
+      setNotice("全項目の判断結果を pilot-decision.json としてダウンロードしました。");
     } catch (reason: unknown) {
       setError(errorMessage(reason));
     }
@@ -161,23 +161,22 @@ export function PilotPage() {
   return (
     <div className="space-y-5">
       <PageIntro
-        description="N=3 pilot bundle の候補を A/B/C のまま評価し、全候補 rubric と各 group の判断を pilot set に拘束して保存します。"
-        eyebrow="Pre-gate pilot"
-        title="Pilot ブラインド評価"
+        description="A/B/C の候補音声を、ページに示した基準で匿名評価します。ファイルは外部へ送信されません。"
+        eyebrow="事前確認"
+        title="公開前のブラインド確認"
       />
 
       <Card className="ring-primary/25">
         <CardHeader>
-          <CardTitle>pilot bundle を選択</CardTitle>
+          <CardTitle>事前確認フォルダーを選択</CardTitle>
           <CardDescription>
-            pilot-set.json と audio/ を含む bundle root
-            を選択してください。ファイルはサーバーへ送信されません。
+            pilot-set.json と audio/ を含むフォルダーを選択してください。
           </CardDescription>
         </CardHeader>
         <CardContent>
           <label className="inline-flex min-h-9 cursor-pointer items-center gap-2 rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground hover:bg-primary/80">
             <FolderOpen aria-hidden="true" className="size-4" />
-            {busy ? "検証中…" : "pilot bundle を選択"}
+            {busy ? "検証中…" : "事前確認フォルダーを選択"}
             <input
               accept=".json,.opus"
               className="sr-only"
@@ -234,13 +233,13 @@ export function PilotPage() {
             onClearDecision={() =>
               commitDraft(
                 clearPilotGroupDecision(draft, catalogGroup.groupId),
-                "group を未評価へ戻しました。",
+                "項目を未評価へ戻しました。",
               )
             }
             onDecision={(decision) =>
               commitDraft(
                 setPilotGroupDecision(draft, catalogGroup.groupId, decision),
-                decision.type === "skipped" ? "group を skip しました。" : "候補を選択しました。",
+                decision.type === "skipped" ? "項目を見送りました。" : "候補を選択しました。",
               )
             }
             onNext={() => setGroupIndex((index) => Math.min(index + 1, catalog.groups.length - 1))}
@@ -248,7 +247,7 @@ export function PilotPage() {
             onRubric={(candidateId, rubric) =>
               commitDraft(
                 updatePilotCandidateRubric(draft, catalogGroup.groupId, candidateId, rubric),
-                "rubric をローカル保存しました。",
+                "判断基準をローカル保存しました。",
               )
             }
             player={player}
@@ -290,11 +289,11 @@ function PilotSummary({
               {current + 1} / {total}
             </Badge>
             <Badge variant="outline">選択 {progress.selected}</Badge>
-            <Badge variant="outline">skip {progress.skipped}</Badge>
+            <Badge variant="outline">見送り {progress.skipped}</Badge>
             <Badge variant="outline">未評価 {progress.undecided}</Badge>
           </div>
           <div
-            aria-label="pilot 評価進捗"
+            aria-label="事前確認の進捗"
             aria-valuemax={total}
             aria-valuemin={0}
             aria-valuenow={decided}
@@ -314,11 +313,11 @@ function PilotSummary({
           </Button>
           <Button disabled={progress.undecided > 0} onClick={onExport} variant="outline">
             <Download aria-hidden="true" />
-            pilot-decision.json
+            判断結果を保存
           </Button>
           <Button onClick={onReset} variant="destructive">
             <RotateCcw aria-hidden="true" />
-            draft をリセット
+            一時保存をリセット
           </Button>
         </div>
       </CardContent>
@@ -379,7 +378,7 @@ export function PilotGroupEditor({
 
       <Card>
         <CardHeader>
-          <CardTitle>rubric の独立した意味</CardTitle>
+          <CardTitle>今回の判断基準</CardTitle>
           <CardDescription className="space-y-1">
             <span className="block">
               「内容は正しい」は厳密な日本語の音調・アクセントまで含みます。語の読みが理論上正しくても、
@@ -438,11 +437,10 @@ export function PilotGroupEditor({
 
       <Card>
         <CardHeader>
-          <CardTitle>group の判断</CardTitle>
+          <CardTitle>この項目の判断</CardTitle>
           <CardDescription>
-            A/B/C 全候補の rubric が揃うと、相対的に最良の1候補を選択できます。
-            選択は絶対的な合格を意味しません。相対的な winner を選べない場合だけ group を skip
-            してください。
+            A/B/C 全候補の判断基準が揃うと、相対的に最良の1候補を選択できます。
+            選択は絶対的な合格を意味しません。最良候補を選べない場合だけ項目を見送ってください。
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-wrap items-center gap-2">
@@ -452,13 +450,13 @@ export function PilotGroupEditor({
             variant="outline"
           >
             <SkipForward aria-hidden="true" />
-            group を skip
+            この項目を見送る
           </Button>
           {draft.decision ? (
             <>
               <Badge variant="secondary">
                 {draft.decision.type === "skipped"
-                  ? "評価済み: skipped"
+                  ? "評価済み: 見送り"
                   : `評価済み: 候補 ${selectedLabel}`}
               </Badge>
               <Button onClick={onClearDecision} variant="ghost">
@@ -473,10 +471,10 @@ export function PilotGroupEditor({
 
       <div className="flex justify-between gap-3">
         <Button disabled={position === 0} onClick={onPrevious} variant="outline">
-          前の group
+          前の項目
         </Button>
         <Button disabled={position + 1 >= total} onClick={onNext} variant="outline">
-          次の group
+          次の項目
         </Button>
       </div>
     </section>
