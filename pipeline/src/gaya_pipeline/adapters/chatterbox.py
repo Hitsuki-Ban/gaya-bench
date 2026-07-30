@@ -23,6 +23,9 @@ from gaya_pipeline.adapters.base import (
     TakeRecipe,
     require_take_context,
 )
+from gaya_pipeline.adapters.voice_assignments import (
+    CLONE_REFERENCE_ASSIGNMENTS,
+)
 from gaya_pipeline.voice_assets import validate_voice_metadata
 
 MODEL_ID = "chatterbox-multilingual-v3"
@@ -114,14 +117,6 @@ PERTH_BUNDLE_FILE_SPECS: dict[str, tuple[int, str]] = {
         PERTH_CHECKPOINT_SIZE,
         PERTH_CHECKPOINT_SHA256,
     ),
-}
-
-REFERENCE_ASSIGNMENTS: Mapping[tuple[str, str], str] = {
-    ("tavern-night", "drunkard"): "hadou-emotion-11",
-    ("tavern-night", "old-regular"): "hadou-emotion-11",
-    ("market-day", "fruit-vendor"): "hadou-emotion-11",
-    ("market-day", "shopper"): "lux-emotion-76",
-    ("market-day", "street-kid"): "tsukuyomi-corpus-94",
 }
 
 _IDENTIFIER = re.compile(r"^[a-z0-9][a-z0-9-]*$")
@@ -546,6 +541,12 @@ class ChatterboxAdapter:
                 str(intensity): exaggeration
                 for intensity, exaggeration in EXAGGERATION_BY_INTENSITY.items()
             },
+            "reference_assignments": {
+                f"{scenario}/{character}": voice
+                for (scenario, character), voice in (
+                    CLONE_REFERENCE_ASSIGNMENTS.items()
+                )
+            },
             "emotion_control": "exaggeration_only",
             "perth_watermark": True,
         }
@@ -703,7 +704,7 @@ def _select_reference_voice(job: LineJob) -> tuple[str, str]:
     key = (scenario_id, character_id)
     try:
         return (
-            REFERENCE_ASSIGNMENTS[key],
+            CLONE_REFERENCE_ASSIGNMENTS[key],
             f"adapter.assignment:{scenario_id}/{character_id}",
         )
     except KeyError as error:

@@ -20,6 +20,9 @@ from gaya_pipeline.adapters.base import (
     TakeRecipe,
     require_take_context,
 )
+from gaya_pipeline.adapters.voice_assignments import (
+    SUPERTONIC3_VOICE_ASSIGNMENTS,
+)
 
 MODEL_ID = "supertonic-3"
 MODEL_NAME = "Supertonic 3"
@@ -135,15 +138,6 @@ MODEL_FILES: dict[str, tuple[int, str]] = {
         291_469,
         "dd22b92740314321f8ae11c5e87f8dd60d060f15dd3a632b5adf77f471f77af2",
     ),
-}
-
-VOICE_ASSIGNMENTS = {
-    ("tavern-night", "barmaid"): "F2",
-    ("tavern-night", "drunkard"): "M1",
-    ("tavern-night", "old-regular"): "M5",
-    ("market-day", "fruit-vendor"): "M1",
-    ("market-day", "shopper"): "F1",
-    ("market-day", "street-kid"): "F2",
 }
 
 PROFILE_VERSION = (
@@ -461,7 +455,9 @@ class Supertonic3Adapter:
             "inter_op_num_threads": INTER_OP_THREADS,
             "voice_assignments": {
                 f"{scenario}/{character}": voice
-                for (scenario, character), voice in VOICE_ASSIGNMENTS.items()
+                for (scenario, character), voice in (
+                    SUPERTONIC3_VOICE_ASSIGNMENTS.items()
+                )
             },
             "expression_tags": False,
             "voice_builder": False,
@@ -550,7 +546,7 @@ def _prepare_input(job: LineJob) -> _PreparedInput:
     character_id = _required_string(job.character, "id", "character")
     assignment_key = (job.scenario_id, character_id)
     try:
-        voice_style = VOICE_ASSIGNMENTS[assignment_key]
+        voice_style = SUPERTONIC3_VOICE_ASSIGNMENTS[assignment_key]
     except KeyError as error:
         raise Supertonic3AdapterError(
             "固定 voice assignment がありません: "
