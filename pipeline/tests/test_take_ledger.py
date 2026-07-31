@@ -1,11 +1,14 @@
 from __future__ import annotations
 
+import errno
 import json
+import sys
 from copy import deepcopy
 from pathlib import Path
 
 import pytest
 
+import gaya_pipeline.take_ledger as take_ledger
 from gaya_pipeline.take_ledger import (
     TakeLedgerError,
     transition_attempt,
@@ -78,6 +81,12 @@ def _ledger(attempt: dict[str, object] | None = None) -> dict[str, object]:
         },
         "attempts": [attempt or _planned()],
     }
+
+
+def _winerror(code: int, message: str) -> OSError:
+    error = OSError(message)
+    error.winerror = code
+    return error
 
 
 def test_ledger_v1のexact_contractと合法遷移() -> None:
@@ -246,25 +255,150 @@ def test_run_idのpath_escapeを拒否() -> None:
         validate_ledger(ledger)
 
 
-def test_atomic_replace失敗時に既存bytesを保持(
+@pytest.mark.parametrize(
+    "winerrors",
+    [
+        [5],
+        [32, 5, 32],
+    ],
+)
+def test_atomic_replaceは一時的なWindows競合後に成功(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    winerrors: list[int],
+) -> None:
+    path = tmp_path / "ledger.json"
+    path.write_text('{"stable":true}\n', encoding="utf-8")
+    original_replace = Path.replace
+    errors = [_winerror(code, f"replace failed: {code}") for code in winerrors]
+    sleeps: list[float] = []
+    calls = 0
+
+    def flaky_replace(source: Path, target: Path) -> Path:
+        nonlocal calls
+        if source.name == ".ledger.json.pending" and calls < len(errors):
+            error = errors[calls]
+            calls += 1
+            raise error
+        return original_replace(source, target)
+
+    monkeypatch.setattr(Path, "replace", flaky_replace)
+    monkeypatch.setattr(take_ledger.time, "sleep", sleeps.append)
+
+    write_ledger_atomic(path, _ledger())
+
+    assert json.loads(path.read_text(encoding="utf-8"))["format_version"] == 1
+    assert calls == len(errors)
+    assert sleeps == [0.01, 0.02, 0.04][: len(errors)]
+    assert not (tmp_path / ".ledger.json.pending").exists()
+
+
+def test_atomic_replaceは5回のWindows競合後に最後の原例外を送出(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     path = tmp_path / "ledger.json"
     path.write_text('{"stable":true}\n', encoding="utf-8")
     before = path.read_bytes()
-    original_replace = Path.replace
+    errors = [_winerror(5, f"replace failed: {index}") for index in range(5)]
+    sleeps: list[float] = []
+    calls = 0
 
     def fail_replace(source: Path, target: Path) -> Path:
-        if source.name == ".ledger.json.pending":
-            raise OSError("replace failed")
-        return original_replace(source, target)
+        nonlocal calls
+        error = errors[calls]
+        calls += 1
+        raise error
 
     monkeypatch.setattr(Path, "replace", fail_replace)
-    with pytest.raises(OSError, match="replace failed"):
+    monkeypatch.setattr(take_ledger.time, "sleep", sleeps.append)
+
+    with pytest.raises(OSError) as caught:
         write_ledger_atomic(path, _ledger())
 
+    assert caught.value is errors[-1]
+    assert calls == 5
+    assert sleeps == [0.01, 0.02, 0.04, 0.08]
     assert path.read_bytes() == before
+    assert not (tmp_path / ".ledger.json.pending").exists()
+
+
+@pytest.mark.parametrize(
+    "error",
+    [
+        _winerror(33, "lock violation"),
+        OSError(errno.ENOSPC, "disk full"),
+        OSError(errno.EACCES, "permission denied"),
+        OSError("I/O failed"),
+    ],
+)
+def test_atomic_replaceは対象外OSErrorを即時送出(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    error: OSError,
+) -> None:
+    path = tmp_path / "ledger.json"
+    path.write_text('{"stable":true}\n', encoding="utf-8")
+    before = path.read_bytes()
+    calls = 0
+
+    def fail_replace(source: Path, target: Path) -> Path:
+        nonlocal calls
+        calls += 1
+        raise error
+
+    monkeypatch.setattr(Path, "replace", fail_replace)
+    monkeypatch.setattr(
+        take_ledger.time,
+        "sleep",
+        lambda delay: pytest.fail(f"sleep must not be called: {delay}"),
+    )
+
+    with pytest.raises(OSError) as caught:
+        write_ledger_atomic(path, _ledger())
+
+    assert caught.value is error
+    assert calls == 1
+    assert path.read_bytes() == before
+    assert not (tmp_path / ".ledger.json.pending").exists()
+
+
+def test_invalid_ledgerはI_O前に失敗(tmp_path: Path) -> None:
+    path = tmp_path / "not-created" / "ledger.json"
+    ledger = _ledger()
+    ledger["format_version"] = 2
+
+    with pytest.raises(TakeLedgerError, match="format_version"):
+        write_ledger_atomic(path, ledger)
+
+    assert not path.parent.exists()
+
+
+@pytest.mark.skipif(
+    sys.platform != "win32",
+    reason="Windows の open reader と replace の競合を実ファイルで検証するため",
+)
+def test_atomic_replaceは開いているWindows_readerの解放後に成功(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    path = tmp_path / "ledger.json"
+    path.write_text('{"stable":true}\n', encoding="utf-8")
+    reader = path.open("rb")
+    sleeps: list[float] = []
+
+    def release_reader(delay: float) -> None:
+        sleeps.append(delay)
+        reader.close()
+
+    monkeypatch.setattr(take_ledger.time, "sleep", release_reader)
+    try:
+        write_ledger_atomic(path, _ledger())
+    finally:
+        reader.close()
+
+    assert sleeps == [0.01]
+    assert json.loads(path.read_text(encoding="utf-8"))["format_version"] == 1
     assert not (tmp_path / ".ledger.json.pending").exists()
 
 

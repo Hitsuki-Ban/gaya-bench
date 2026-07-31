@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import math
+import time
 from copy import deepcopy
 from pathlib import Path, PurePosixPath
 from typing import Any
@@ -57,6 +58,8 @@ ATTEMPT_KEYS = {
     "features",
     "status",
 }
+_RETRYABLE_REPLACE_WINERRORS = {5, 32}
+_REPLACE_RETRY_DELAYS_SECONDS = (0.01, 0.02, 0.04, 0.08)
 
 
 def _exact_keys(value: Any, expected: set[str], field: str) -> dict[str, Any]:
@@ -312,6 +315,21 @@ def read_ledger(path: Path) -> dict[str, Any]:
     return validate_ledger(json.loads(path.read_text(encoding="utf-8")))
 
 
+def _replace_ledger_pending(temporary: Path, path: Path) -> None:
+    for attempt in range(len(_REPLACE_RETRY_DELAYS_SECONDS) + 1):
+        try:
+            temporary.replace(path)
+            return
+        except OSError as error:
+            if (
+                getattr(error, "winerror", None)
+                not in _RETRYABLE_REPLACE_WINERRORS
+                or attempt == len(_REPLACE_RETRY_DELAYS_SECONDS)
+            ):
+                raise
+            time.sleep(_REPLACE_RETRY_DELAYS_SECONDS[attempt])
+
+
 def write_ledger_atomic(path: Path, ledger: dict[str, Any]) -> None:
     validate_ledger(ledger)
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -321,6 +339,6 @@ def write_ledger_atomic(path: Path, ledger: dict[str, Any]) -> None:
             json.dumps(ledger, ensure_ascii=False, indent=2) + "\n",
             encoding="utf-8",
         )
-        temporary.replace(path)
+        _replace_ledger_pending(temporary, path)
     finally:
         temporary.unlink(missing_ok=True)
