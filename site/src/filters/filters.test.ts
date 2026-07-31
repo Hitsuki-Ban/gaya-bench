@@ -15,6 +15,7 @@ import {
   decodeFilterQuery,
   encodeFilterState,
   projectComparisonModel,
+  resetNarrowingFilters,
   toggleFilterValue,
   updateEmptyFilter,
   updateFilterValues,
@@ -32,6 +33,25 @@ describe("filter query codec", () => {
       state,
       canonicalSearch: "",
     });
+  });
+
+  it("scenario を canonical URL から復元し、切替と絞り込み初期化でも唯一の状態源にする", () => {
+    const data = fixture();
+    const restored = decodeFilterQuery(new URLSearchParams("scenario=market&emotion=angry"), data);
+    expect(restored.ok).toBe(true);
+    if (!restored.ok) {
+      return;
+    }
+    expect(restored.state.scenario).toBe("market");
+    expect(restored.canonicalSearch).toBe("?scenario=market&emotion=angry");
+
+    const switched = updateScenarioFilter(restored.state, "inn", data);
+    expect(encodeFilterState(switched, data)).toBe("?scenario=inn&emotion=angry");
+
+    const resetNarrowing = resetNarrowingFilters(switched, data);
+    expect(resetNarrowing.scenario).toBe("inn");
+    expect(encodeFilterState(resetNarrowing, data)).toBe("?scenario=inn");
+    expect(encodeFilterState(updateScenarioFilter(resetNarrowing, null, data), data)).toBe("");
   });
 
   it("schema/data 順で canonicalize し、重複値と入力順を正規化する", () => {
@@ -167,6 +187,12 @@ describe("comparison projection", () => {
     expect(projection.rows).toEqual([]);
     expect(projection.rowIndexes.size).toBe(0);
     expect(projection.models).toEqual([]);
+
+    const reset = resetNarrowingFilters(state, data);
+    expect(encodeFilterState(reset, data)).toBe("?scenario=inn");
+    expect(projectComparisonModel(model, reset).rows.map(({ row }) => row.line.id)).toEqual([
+      "keeper-1",
+    ]);
   });
 
   it("kind の選択を projection key と行投影へ反映する", () => {

@@ -7,6 +7,7 @@ import type { ComparisonProjection } from "@/filters";
 import { DIFFICULTY_LABELS, EMOTION_LABELS } from "@/ui-labels";
 
 import { MatrixCell } from "./matrix-cell";
+import { ScenarioContextLink } from "./scenario-context-link";
 import { resolveCursor, type ComparisonModel, type Coordinate } from "./model";
 import type { ComparisonController } from "./use-comparison-controller";
 
@@ -105,20 +106,16 @@ export function MobileMatrix({ controller, model, projection, search }: MobileMa
           return (
             <article
               className={[
-                "rounded-lg border bg-card p-4",
+                "relative rounded-lg border bg-card p-4",
+                isScenarioStart
+                  ? "before:pointer-events-none before:absolute before:inset-x-0 before:top-0 before:h-0.5 before:bg-primary before:content-['']"
+                  : "",
                 cursor.rowIndex === rowIndex ? "border-primary/70" : "",
                 isCurrent ? "shadow-[inset_3px_0_0_var(--primary)]" : "",
               ].join(" ")}
               key={`${row.scenario.id}/${row.line.id}`}
             >
-              {isScenarioStart ? (
-                <Link
-                  className="mb-2 block font-mono text-[10px] tracking-[0.14em] text-primary uppercase hover:underline"
-                  to={{ pathname: `/scenario/${row.scenario.id}`, search }}
-                >
-                  {row.scenario.title}
-                </Link>
-              ) : null}
+              <ScenarioContextLink density="card" scenario={row.scenario} search={search} />
               {isCharacterStart ? (
                 <div className="flex flex-wrap items-center gap-1.5">
                   <p className="text-xs font-semibold text-primary">{row.character.name}</p>
@@ -137,7 +134,7 @@ export function MobileMatrix({ controller, model, projection, search }: MobileMa
                 ) : null}
               </div>
               <MatrixCell
-                accessibleLabel={`${row.character.name}「${row.line.text}」`}
+                accessibleLabel={`${row.scenario.title} / ${row.character.name}「${row.line.text}」`}
                 cell={model.getCell(coordinate)}
                 coordinate={coordinate}
                 isCurrent={isCurrent}

@@ -62,6 +62,10 @@ export function updateScenarioFilter(
   return { ...state, scenario };
 }
 
+export function resetNarrowingFilters(state: FilterState, data: BenchmarkData): FilterState {
+  return updateScenarioFilter(createDefaultFilterState(data), state.scenario, data);
+}
+
 export function toggleFilterValue<K extends MultiFilterKey>(
   state: FilterState,
   key: K,

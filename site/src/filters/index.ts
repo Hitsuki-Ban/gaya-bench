@@ -6,6 +6,7 @@ export {
   DIFFICULTY_ORDER,
   EMOTION_ORDER,
   GENDER_ORDER,
+  resetNarrowingFilters,
   toggleFilterValue,
   updateEmptyFilter,
   updateFilterValues,

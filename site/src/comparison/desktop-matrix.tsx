@@ -7,6 +7,7 @@ import type { ComparisonProjection } from "@/filters";
 import { DIFFICULTY_LABELS, EMOTION_LABELS } from "@/ui-labels";
 
 import { MatrixCell } from "./matrix-cell";
+import { ScenarioContextLink } from "./scenario-context-link";
 import type { ComparisonController } from "./use-comparison-controller";
 import type { ComparisonModel, ComparisonRow, Coordinate } from "./model";
 
@@ -166,30 +167,21 @@ const MatrixRow = memo(function MatrixRow({
   return (
     <tr
       aria-rowindex={displayRowIndex + 2}
-      className={[
-        "group/row",
-        isScenarioStart ? "border-t-2 border-t-border" : "",
-        isActiveRow ? "bg-primary/[0.065]" : "",
-      ].join(" ")}
+      className={["group/row", isActiveRow ? "bg-primary/[0.065]" : ""].join(" ")}
       role="row"
     >
       <th
         className={[
           "sticky left-0 z-10 w-[300px] border-r border-b bg-background px-3 py-2.5 text-left align-top",
+          isScenarioStart ? "border-t-2" : "",
           isActiveRow
             ? "bg-[#18140d] shadow-[inset_0_1px_0_rgba(245,166,35,0.55),inset_0_-1px_0_rgba(245,166,35,0.4)]"
             : "",
         ].join(" ")}
         role="rowheader"
+        style={isScenarioStart ? { borderTopColor: "var(--primary)" } : undefined}
       >
-        {isScenarioStart ? (
-          <Link
-            className="mb-2 block font-mono text-[10px] tracking-[0.14em] text-primary uppercase hover:underline"
-            to={{ pathname: `/scenario/${row.scenario.id}`, search }}
-          >
-            {row.scenario.title}
-          </Link>
-        ) : null}
+        <ScenarioContextLink density="compact" scenario={row.scenario} search={search} />
         {isCharacterStart ? (
           <div className="mb-1 flex flex-wrap items-center gap-1.5">
             <p className="text-xs font-semibold text-primary">{row.character.name}</p>
@@ -215,6 +207,7 @@ const MatrixRow = memo(function MatrixRow({
           <td
             className={[
               "w-[132px] border-r border-b p-1 align-middle last:border-r-0",
+              isScenarioStart ? "border-t-2" : "",
               playingModelId === item.id
                 ? "bg-primary/[0.085] shadow-[inset_0_1px_0_rgba(245,166,35,0.55),inset_0_-1px_0_rgba(245,166,35,0.4)]"
                 : isActiveRow
@@ -223,9 +216,10 @@ const MatrixRow = memo(function MatrixRow({
             ].join(" ")}
             key={item.id}
             role="gridcell"
+            style={isScenarioStart ? { borderTopColor: "var(--primary)" } : undefined}
           >
             <MatrixCell
-              accessibleLabel={`${row.character.name}「${row.line.text}」`}
+              accessibleLabel={`${row.scenario.title} / ${row.character.name}「${row.line.text}」`}
               cell={model.getCell(coordinate)}
               coordinate={coordinate}
               isCurrent={playingModelId === item.id}

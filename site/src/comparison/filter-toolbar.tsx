@@ -19,7 +19,6 @@ import {
   encodeFilterState,
   toggleFilterValue,
   updateEmptyFilter,
-  updateScenarioFilter,
   type FilterState,
 } from "@/filters";
 import { AGE_LABELS, DIFFICULTY_LABELS, EMOTION_LABELS, GENDER_LABELS } from "@/ui-labels";
@@ -64,7 +63,7 @@ export function FilterToolbar({
   onChange,
   onReset,
 }: FilterToolbarProps) {
-  const isDefault = encodeFilterState(state, benchmarkData) === "";
+  const isDefault = encodeFilterState({ ...state, scenario: null }, benchmarkData) === "";
 
   return (
     <details className="group rounded-md border bg-card">
@@ -91,7 +90,7 @@ export function FilterToolbar({
         <div className="mb-2 flex justify-end">
           <Button disabled={isDefault} onClick={onReset} size="sm" variant="ghost">
             <RotateCcw aria-hidden="true" data-icon="inline-start" />
-            既定に戻す
+            絞り込みを戻す
           </Button>
         </div>
         <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-4">
@@ -102,30 +101,6 @@ export function FilterToolbar({
               type="checkbox"
             />
             未収録の行・モデルも表示
-          </label>
-
-          <label className="space-y-1 text-xs font-medium">
-            <span>シナリオ</span>
-            <select
-              className="min-h-8 w-full rounded border bg-background px-2 text-sm"
-              onChange={(event) =>
-                onChange(
-                  updateScenarioFilter(
-                    state,
-                    event.currentTarget.value.length === 0 ? null : event.currentTarget.value,
-                    benchmarkData,
-                  ),
-                )
-              }
-              value={state.scenario ?? ""}
-            >
-              <option value="">すべてのシナリオ</option>
-              {benchmarkData.scenarios.map((scenario) => (
-                <option key={scenario.id} value={scenario.id}>
-                  {scenario.title}
-                </option>
-              ))}
-            </select>
           </label>
 
           <FilterCheckboxGroup
