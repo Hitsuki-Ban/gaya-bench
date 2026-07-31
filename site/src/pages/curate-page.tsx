@@ -163,7 +163,10 @@ export function CuratePage() {
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-wrap items-center gap-3">
-          <label className="inline-flex min-h-9 cursor-pointer items-center gap-2 rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground hover:bg-primary/80">
+          <label
+            className="inline-flex min-h-9 cursor-pointer items-center gap-2 rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground hover:bg-primary/80"
+            data-slot="file-trigger"
+          >
             <FolderOpen aria-hidden="true" className="size-4" />
             {busy ? "検証中…" : "生成フォルダーを選択"}
             <input
@@ -500,7 +503,7 @@ function CandidateEditor({
   const status = player.currentClipKey === candidate.audio.key ? player.status : "idle";
   const active = status === "loading" || status === "playing" || status === "paused";
   return (
-    <Card className={selected ? "ring-primary/70" : "ring-primary/20"}>
+    <Card className={selected ? "ring-primary/70" : "ring-primary/20"} data-selected={selected}>
       <CardHeader>
         <div className="flex items-center justify-between gap-3">
           <span className="grid size-12 place-items-center rounded-full border border-primary/35 bg-primary/[0.06] font-mono text-2xl font-semibold text-primary">
@@ -520,6 +523,8 @@ function CandidateEditor({
       <CardContent className="space-y-5">
         <Button
           className="w-full"
+          data-active={active}
+          data-playback-status={status}
           onClick={() => void player.toggle(candidate.audio)}
           variant={active ? "secondary" : "outline"}
         >
