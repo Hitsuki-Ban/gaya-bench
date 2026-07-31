@@ -33,6 +33,7 @@ from gaya_pipeline.curation import (
 )
 from gaya_pipeline.japanese_reading import (
     JapaneseReadingError,
+    character_error_rate,
     find_ambiguous_japanese_readings,
     normalize_japanese_reading,
     resolve_japanese_reading,
@@ -944,7 +945,7 @@ def _content_gate(
             "average_log_probability": inspection.average_log_probability,
         },
         "reading": {
-            "character_error_rate": _character_error_rate(
+            "character_error_rate": character_error_rate(
                 expected_normalized,
                 actual,
             ),
@@ -1538,25 +1539,6 @@ def _require_path_segment(value: Any, field: str) -> str:
     ):
         raise QCError(f"{field} は安全な path segment が必要です。")
     return value
-
-
-def _character_error_rate(expected: str, actual: str) -> float:
-    if not expected:
-        return 0.0 if not actual else 1.0
-    previous = list(range(len(actual) + 1))
-    for expected_index, expected_character in enumerate(expected, start=1):
-        current = [expected_index]
-        for actual_index, actual_character in enumerate(actual, start=1):
-            current.append(
-                min(
-                    current[-1] + 1,
-                    previous[actual_index] + 1,
-                    previous[actual_index - 1]
-                    + (expected_character != actual_character),
-                ),
-            )
-        previous = current
-    return round(previous[-1] / len(expected), 6)
 
 
 def _utc_now() -> str:

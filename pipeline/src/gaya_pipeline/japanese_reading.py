@@ -127,6 +127,25 @@ def normalize_japanese_reading(text: str) -> str:
     return "".join(output)
 
 
+def character_error_rate(expected: str, actual: str) -> float:
+    if not expected:
+        return 0.0 if not actual else 1.0
+    previous = list(range(len(actual) + 1))
+    for expected_index, expected_character in enumerate(expected, start=1):
+        current = [expected_index]
+        for actual_index, actual_character in enumerate(actual, start=1):
+            current.append(
+                min(
+                    current[-1] + 1,
+                    previous[actual_index] + 1,
+                    previous[actual_index - 1]
+                    + (expected_character != actual_character),
+                ),
+            )
+        previous = current
+    return round(previous[-1] / len(expected), 6)
+
+
 def _pyopenjtalk_kana(text: str) -> str:
     try:
         pyopenjtalk = importlib.import_module("pyopenjtalk")

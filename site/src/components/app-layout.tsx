@@ -97,7 +97,7 @@ function AudioBootShell() {
             音声プレーヤーを準備中
           </h1>
           <p className="mt-2 text-sm leading-6 text-muted-foreground">
-            比較データを表示する前に、単一再生プレーヤーを初期化しています。
+            比較データを表示する前に、音声再生システムを初期化しています。
           </p>
         </div>
         <Button disabled variant="outline">

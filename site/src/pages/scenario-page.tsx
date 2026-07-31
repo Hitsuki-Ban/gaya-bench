@@ -14,6 +14,7 @@ import {
 } from "@/data";
 import { buildScenarioLineEntries } from "@/pages/detail-page-model";
 import { NotFoundPage } from "@/pages/not-found-page";
+import { SceneMixerPanel } from "@/pages/scene-mixer-panel";
 import { AGE_LABELS, DIFFICULTY_LABELS, EMOTION_LABELS, GENDER_LABELS } from "@/ui-labels";
 
 export function ScenarioPage() {
@@ -70,6 +71,8 @@ export function ScenarioPage() {
           </div>
         ) : null}
       </section>
+
+      <SceneMixerPanel key={scenario.id} outcomes={outcomes} scenario={scenario} />
 
       <aside
         className="flex gap-3 rounded-md border border-primary/30 bg-primary/5 p-4"

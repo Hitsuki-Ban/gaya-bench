@@ -15,5 +15,6 @@
 | `qwen-gender-identity-canary/` | Qwen3-TTS gender指定と感情間speaker identityのblind canary | Codex + Owner |
 | `reference-bundles/` | 参照バンドル v1 の公開/非公開分離、8 adapter 入力要件、58役 coverage、権利・収録・移行設計 (#179 Phase 1) | Codex |
 | `full-baseline-completion/` | 非 selected 45スロットをN=4で補録し、全1,288スロットを公開する契約 | Codex + Owner |
+| `kana-asr-calibration/` | Chatterbox 人工誤読7件に対する期待 reading・上流G2P・Kana ASR・現行判定の再校正 (#159) | Codex + Owner |
 
 ルール: 主張には出典URLを付ける。ライセンスは一次情報 (LICENSE/モデルカード/公式規約) で確認。不確実な点は「要確認」と明記。
