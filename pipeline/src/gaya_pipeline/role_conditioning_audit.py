@@ -19,7 +19,7 @@ from gaya_pipeline.adapters.voice_assignments import CLONE_REFERENCE_ASSIGNMENTS
 from gaya_pipeline.validation import validate_scenarios
 from gaya_pipeline.voice_assets import validate_voice_metadata
 
-FORMAT_VERSION = 2
+FORMAT_VERSION = 3
 ROLE_FIELDS = (
     "name",
     "kind",
@@ -79,7 +79,11 @@ def build_role_source_audit(repository_root: Path) -> dict[str, Any]:
         expected_models=set(MODEL_ADAPTER_FILES),
         jobs=jobs,
     )
-    production_inputs, audit_voice_sha256s = _prepare_production_generation_inputs(
+    (
+        production_inputs,
+        audit_voice_sha256s,
+        reading_capabilities,
+    ) = _prepare_production_generation_inputs(
         root=root,
         jobs=jobs,
     )
@@ -97,6 +101,7 @@ def build_role_source_audit(repository_root: Path) -> dict[str, Any]:
                     (model, job.scenario_id, job.line_id)
                 ],
                 audit_voice_sha256s=audit_voice_sha256s,
+                reading_supported=reading_capabilities[model],
             )
             published_item = published[(model, job.scenario_id, job.line_id)]
             comparison = _compare_published_conditioning(
@@ -120,6 +125,7 @@ def build_role_source_audit(repository_root: Path) -> dict[str, Any]:
                     "preset": source_conditioning["preset"],
                     "reference": source_conditioning["reference"],
                     "prompt": source_conditioning["prompt"],
+                    "reading": source_conditioning["reading"],
                     "input_identity": source_conditioning["input_identity"],
                     "published_provenance": published_item,
                     "published_comparison": comparison,
@@ -144,6 +150,30 @@ def build_role_source_audit(repository_root: Path) -> dict[str, Any]:
         "line_count": len(jobs),
         "model_count": len(MODEL_ADAPTER_FILES),
         "conditioning_receipt_count": len(receipts),
+        "reading_receipt_count": len(receipts),
+        "explicit_reading_line_count": sum(
+            truth["reading"] is not None for truth in map(_line_truth, jobs)
+        ),
+        "explicit_reading_receipt_count": sum(
+            receipt["reading"]["declared_reading"] is not None
+            for receipt in receipts
+        ),
+        "explicit_reading_applied_receipt_count": sum(
+            receipt["reading"]["status"] == "applied"
+            for receipt in receipts
+        ),
+        "explicit_reading_unsupported_receipt_count": sum(
+            receipt["reading"]["status"] == "unsupported"
+            for receipt in receipts
+        ),
+        "surface_text_receipt_count": sum(
+            receipt["reading"]["status"] == "surface_text"
+            for receipt in receipts
+        ),
+        "model_required_auto_kana_receipt_count": sum(
+            receipt["reading"]["status"] == "model_required_auto_kana"
+            for receipt in receipts
+        ),
         "explicit_reference_character_count": sum(
             item["source"] == "scenario" for item in references
         ),
@@ -774,6 +804,7 @@ def _prepare_production_generation_inputs(
 ) -> tuple[
     dict[tuple[str, str, str], Mapping[str, Any]],
     dict[str, str],
+    dict[str, bool],
 ]:
     from gaya_pipeline.adapters import (
         aivisspeech,
@@ -787,6 +818,7 @@ def _prepare_production_generation_inputs(
     )
 
     result: dict[tuple[str, str, str], Mapping[str, Any]] = {}
+    reading_capabilities: dict[str, bool] = {}
     with tempfile.TemporaryDirectory(prefix="gaya-role-audit-") as raw_temp:
         temporary_root = Path(raw_temp)
         voices_dir = temporary_root / "voices"
@@ -816,7 +848,6 @@ def _prepare_production_generation_inputs(
             "irodori-tts-600m-v3-voicedesign": (
                 irodori_tts.IrodoriTTSAdapter(
                     runtime=_IrodoriAuditRuntime(),
-                    reading_converter=lambda text: text,
                 )
             ),
             "qwen3-tts-12hz-1.7b": qwen3_tts.Qwen3TTSAdapter(
@@ -827,11 +858,15 @@ def _prepare_production_generation_inputs(
             ),
             "voxcpm2": voxcpm2.VoxCPM2Adapter(
                 runtime=_VoxAuditRuntime(),
-                reading_converter=lambda text: text,
                 model_root=vox_root,
             ),
         }
         for model, adapter in adapters.items():
+            if adapter.profile.id != model:
+                raise RoleConditioningAuditError(
+                    f"adapter profile ID が model key と一致しません: {model}",
+                )
+            reading_capabilities[model] = adapter.profile.capabilities.reading
             artifacts_dir = temporary_root / "artifacts" / model
             if model == "supertonic-3":
                 with mock.patch.dict(
@@ -861,7 +896,7 @@ def _prepare_production_generation_inputs(
         raise RoleConditioningAuditError(
             "production generation_input receipt coverage が不足しています。",
         )
-    return result, audit_voice_sha256s
+    return result, audit_voice_sha256s, reading_capabilities
 
 
 def _source_conditioning_receipt(
@@ -872,6 +907,7 @@ def _source_conditioning_receipt(
     voices: Mapping[str, Mapping[str, Any]],
     production_input: Mapping[str, Any],
     audit_voice_sha256s: Mapping[str, str],
+    reading_supported: bool,
 ) -> dict[str, Any]:
     unsupported = {field: "unsupported" for field in CONDITIONING_FIELDS}
     speaker: dict[str, Any] | None = None
@@ -879,6 +915,12 @@ def _source_conditioning_receipt(
     reference: dict[str, Any] | None = None
     prompt: dict[str, Any] | None = None
     payload = dict(production_input)
+    reading = _reading_receipt(
+        model=model,
+        truth=truth,
+        payload=payload,
+        reading_supported=reading_supported,
+    )
 
     if model == "aivisspeech-kohaku":
         style = payload.get("speaker_style")
@@ -1257,11 +1299,213 @@ def _source_conditioning_receipt(
         "preset": preset,
         "reference": reference,
         "prompt": prompt,
+        "reading": reading,
         "input_identity": {
             "sha256": _sha256_json(payload),
             "payload": payload,
         },
     }
+
+
+def _reading_receipt(
+    *,
+    model: str,
+    truth: Mapping[str, Any],
+    payload: Mapping[str, Any],
+    reading_supported: bool,
+) -> dict[str, Any]:
+    surface = _required_string(truth, "text", f"{model}.role_truth")
+    declared = truth.get("reading")
+    if declared is not None and (
+        not isinstance(declared, str) or not declared.strip()
+    ):
+        raise RoleConditioningAuditError(
+            f"{model} の line.reading が不正です。",
+        )
+
+    expected_capability = model in {
+        "aivisspeech-kohaku",
+        "cosyvoice3-0.5b-2512",
+    }
+    if reading_supported is not expected_capability:
+        raise RoleConditioningAuditError(
+            f"{model} の reading capability が公式 input contract と一致しません。",
+        )
+
+    reading_field: str | None = None
+    reading_input: str | None = None
+    if model == "aivisspeech-kohaku":
+        model_text_field = "text"
+        model_text = _required_string(payload, model_text_field, model)
+        _require_reading_value(model, model_text_field, model_text, surface)
+        _require_reading_value(
+            model,
+            "reading_source",
+            _required_string(payload, "reading_source", model),
+            "line.reading" if declared is not None else "line.text",
+        )
+        surface_transport = "audio_query.text"
+        if declared is not None:
+            reading_field = "reading"
+            reading_input = _required_string(payload, reading_field, model)
+            _require_reading_value(model, reading_field, reading_input, declared)
+            _require_reading_value(
+                model,
+                "reading_control",
+                _required_string(payload, "reading_control", model),
+                "accent_phrases",
+            )
+            status = "applied"
+            reading_transport = "accent_phrases"
+        else:
+            if "reading" in payload or "reading_control" in payload:
+                raise RoleConditioningAuditError(
+                    "AivisSpeech の未指定行に reading control が混入しています。",
+                )
+            status = "surface_text"
+            reading_transport = "engine_g2p_from_surface"
+    elif model == "cosyvoice3-0.5b-2512":
+        _require_reading_value(
+            model,
+            "source_text",
+            _required_string(payload, "source_text", model),
+            surface,
+        )
+        model_text_field = "tts_text"
+        model_text = _required_string(payload, model_text_field, model)
+        reading_field = model_text_field
+        reading_input = model_text
+        surface_transport = "source_text"
+        source = _required_string(payload, "reading_source", model)
+        if declared is not None:
+            _require_reading_value(model, model_text_field, model_text, declared)
+            _require_reading_value(model, "reading_source", source, "line.reading")
+            status = "applied"
+            reading_transport = "line.reading_to_tts_text"
+        else:
+            _require_reading_value(
+                model,
+                "reading_source",
+                source,
+                "pyopenjtalk.g2p(kana=True)",
+            )
+            status = "model_required_auto_kana"
+            reading_transport = "pyopenjtalk_to_tts_text"
+    else:
+        if reading_supported:
+            raise RoleConditioningAuditError(
+                f"{model} は外部 reading input を持ちません。",
+            )
+        if "reading" in payload or "reading_control" in payload:
+            raise RoleConditioningAuditError(
+                f"{model} に未対応 reading control が混入しています。",
+            )
+        reading_source = payload.get("reading_source")
+        if reading_source is not None:
+            _require_reading_value(
+                model,
+                "reading_source",
+                reading_source,
+                "line.text",
+            )
+
+        if model in {
+            "chatterbox-multilingual-v3",
+            "gpt-sovits-v2-pro-plus",
+            "qwen3-tts-12hz-1.7b",
+        }:
+            model_text_field = "text"
+            model_text = _required_string(payload, model_text_field, model)
+            _require_reading_value(model, model_text_field, model_text, surface)
+            surface_transport = model_text_field
+        elif model == "irodori-tts-600m-v3-voicedesign":
+            emoji = payload.get("emotion_emoji")
+            if emoji is not None and (
+                not isinstance(emoji, str) or not emoji
+            ):
+                raise RoleConditioningAuditError(
+                    "Irodori emotion_emoji は string または null が必要です。",
+                )
+            model_text_field = "text"
+            model_text = _required_string(payload, model_text_field, model)
+            _require_reading_value(
+                model,
+                model_text_field,
+                model_text,
+                f"{emoji or ''}{surface}",
+            )
+            surface_transport = (
+                "emotion_emoji_prefixed_text" if emoji is not None else "text"
+            )
+        elif model == "supertonic-3":
+            _require_reading_value(
+                model,
+                "source_text",
+                _required_string(payload, "source_text", model),
+                surface,
+            )
+            model_text_field = "tts_text"
+            model_text = _required_string(payload, model_text_field, model)
+            _require_reading_value(model, model_text_field, model_text, surface)
+            surface_transport = "source_text_and_tts_text"
+        elif model == "voxcpm2":
+            _require_reading_value(
+                model,
+                "source_text",
+                _required_string(payload, "source_text", model),
+                surface,
+            )
+            _require_reading_value(
+                model,
+                "text",
+                _required_string(payload, "text", model),
+                surface,
+            )
+            control = _required_string(payload, "control", model)
+            model_text_field = "model_text"
+            model_text = _required_string(payload, model_text_field, model)
+            _require_reading_value(
+                model,
+                model_text_field,
+                model_text,
+                f"({control}){surface}",
+            )
+            surface_transport = "control_prefixed_model_text"
+        else:
+            raise RoleConditioningAuditError(f"未対応 model です: {model}")
+
+        status = "unsupported" if declared is not None else "surface_text"
+        reading_transport = (
+            "unsupported"
+            if declared is not None
+            else "model_text_frontend_from_surface"
+        )
+
+    return {
+        "surface_text": surface,
+        "declared_reading": declared,
+        "capability_reading": reading_supported,
+        "model_text_field": model_text_field,
+        "model_text": model_text,
+        "surface_transport": surface_transport,
+        "reading_field": reading_field,
+        "reading_input": reading_input,
+        "reading_transport": reading_transport,
+        "status": status,
+    }
+
+
+def _require_reading_value(
+    model: str,
+    field: str,
+    actual: Any,
+    expected: Any,
+) -> None:
+    if actual != expected:
+        raise RoleConditioningAuditError(
+            f"{model} の reading contract が不正です: "
+            f"{field}={actual!r}, expected={expected!r}",
+        )
 
 
 def _require_role_identity(

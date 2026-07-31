@@ -11,7 +11,9 @@ from typing import Any
 import pytest
 
 from gaya_pipeline.adapters import (
+    aivisspeech,
     chatterbox,
+    gpt_sovits,
     irodori_tts,
     qwen3_tts,
     voxcpm2,
@@ -41,6 +43,13 @@ def test_current_role_truth_reference_split_and_8x161_receipts() -> None:
         "line_count": 161,
         "model_count": 8,
         "conditioning_receipt_count": 1288,
+        "reading_receipt_count": 1288,
+        "explicit_reading_line_count": 25,
+        "explicit_reading_receipt_count": 200,
+        "explicit_reading_applied_receipt_count": 50,
+        "explicit_reading_unsupported_receipt_count": 150,
+        "surface_text_receipt_count": 952,
+        "model_required_auto_kana_receipt_count": 136,
         "explicit_reference_character_count": 5,
         "assigned_reference_character_count": 53,
         "all_reference_character_count": 58,
@@ -103,10 +112,79 @@ def test_current_role_truth_reference_split_and_8x161_receipts() -> None:
             "scene_setting",
         }
         assert receipt["input_identity"]["sha256"]
+        assert receipt["reading"]["status"] in {
+            "applied",
+            "unsupported",
+            "surface_text",
+            "model_required_auto_kana",
+        }
         assert receipt["published_provenance"]["status"] in {
             "candidate",
             "failure",
         }
+
+    explicit = {
+        receipt["model"]: receipt["reading"]
+        for receipt in receipts
+        if receipt["scenario"] == "battlefield-camp"
+        and receipt["line"] == "wounded-001"
+    }
+    surface = "ぐっ……そこは触るな……"
+    declared = "グッ……ソコワサワルナ……"
+    assert explicit["aivisspeech-kohaku"] == {
+        "surface_text": surface,
+        "declared_reading": declared,
+        "capability_reading": True,
+        "model_text_field": "text",
+        "model_text": surface,
+        "surface_transport": "audio_query.text",
+        "reading_field": "reading",
+        "reading_input": declared,
+        "reading_transport": "accent_phrases",
+        "status": "applied",
+    }
+    assert explicit["cosyvoice3-0.5b-2512"] == {
+        "surface_text": surface,
+        "declared_reading": declared,
+        "capability_reading": True,
+        "model_text_field": "tts_text",
+        "model_text": declared,
+        "surface_transport": "source_text",
+        "reading_field": "tts_text",
+        "reading_input": declared,
+        "reading_transport": "line.reading_to_tts_text",
+        "status": "applied",
+    }
+    unsupported_models = set(explicit) - {
+        "aivisspeech-kohaku",
+        "cosyvoice3-0.5b-2512",
+    }
+    assert len(unsupported_models) == 6
+    for model in unsupported_models:
+        reading = explicit[model]
+        assert reading["status"] == "unsupported"
+        assert reading["capability_reading"] is False
+        assert reading["reading_field"] is None
+        assert reading["reading_input"] is None
+        assert surface in reading["model_text"]
+
+    implicit = {
+        receipt["model"]: receipt["reading"]
+        for receipt in receipts
+        if receipt["scenario"] == "castle-gate"
+        and receipt["line"] == "guard-otoko-001"
+    }
+    assert implicit["cosyvoice3-0.5b-2512"]["status"] == (
+        "model_required_auto_kana"
+    )
+    assert implicit["cosyvoice3-0.5b-2512"]["model_text"] == (
+        "トマレ！ナニモノダ、ナヲナノレ！"
+    )
+    assert all(
+        reading["status"] == "surface_text"
+        for model, reading in implicit.items()
+        if model != "cosyvoice3-0.5b-2512"
+    )
 
     receptionist = {
         receipt["model"]: receipt
@@ -182,6 +260,55 @@ def test_adapter_role_receipt_drops_gender_fails_fast(
         RoleConditioningAuditError,
         match="prompt へ伝達していません",
     ):
+        build_role_source_audit(REPOSITORY_ROOT)
+
+
+def test_aivis_production_generation_input_drops_reading_fails_fast(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    original = aivisspeech.AivisSpeechAdapter.generation_input
+
+    def without_reading(
+        self: aivisspeech.AivisSpeechAdapter,
+        *args: Any,
+        **kwargs: Any,
+    ) -> Mapping[str, Any]:
+        result = dict(original(self, *args, **kwargs))
+        result.pop("reading", None)
+        return result
+
+    monkeypatch.setattr(
+        aivisspeech.AivisSpeechAdapter,
+        "generation_input",
+        without_reading,
+    )
+    with pytest.raises(RoleConditioningAuditError, match="reading"):
+        build_role_source_audit(REPOSITORY_ROOT)
+
+
+def test_gpt_production_generation_input_substitutes_reading_fails_fast(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    original = gpt_sovits.GPTSoVITSAdapter.generation_input
+
+    def substitute_reading(
+        self: gpt_sovits.GPTSoVITSAdapter,
+        job: Any,
+        *args: Any,
+        **kwargs: Any,
+    ) -> Mapping[str, Any]:
+        result = dict(original(self, job, *args, **kwargs))
+        reading = job.line.get("reading")
+        if reading is not None:
+            result["text"] = reading
+        return result
+
+    monkeypatch.setattr(
+        gpt_sovits.GPTSoVITSAdapter,
+        "generation_input",
+        substitute_reading,
+    )
+    with pytest.raises(RoleConditioningAuditError, match="reading contract"):
         build_role_source_audit(REPOSITORY_ROOT)
 
 

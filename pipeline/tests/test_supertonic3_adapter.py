@@ -143,7 +143,7 @@ def test_profile_params_and_registry_are_exact() -> None:
         "voice_prompt": False,
         "clone": False,
         "nonverbal": False,
-        "reading": True,
+        "reading": False,
     }
     recipe = adapter.take_recipe()
     assert recipe.version == "seed-only-v1"
@@ -210,7 +210,7 @@ def test_fixed_voice_assignments(
     )
 
 
-def test_reading_priority_and_unused_metadata_do_not_change_model_input(
+def test_explicit_reading_and_unused_metadata_do_not_change_surface_input(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
@@ -223,7 +223,7 @@ def test_reading_priority_and_unused_metadata_do_not_change_model_input(
     )
     second = _job(
         line_id="barmaid-002",
-        reading="ハイヨッ、エールフタツオマチ！",
+        reading="別の読み指定",
         emotion="cheerful",
         intensity=3,
         delivery="叫ぶ。",
@@ -231,10 +231,11 @@ def test_reading_priority_and_unused_metadata_do_not_change_model_input(
     adapter, _runtime = _prepare(monkeypatch, tmp_path, [first, second])
     first_input = dict(adapter.generation_input(first, TAKE_CONTEXT))
     second_input = dict(adapter.generation_input(second, TAKE_CONTEXT))
-    assert first_input == second_input
     assert first_input["source_text"] == "はいよっ、エール二つお待ち！"
-    assert first_input["tts_text"] == "ハイヨッ、エールフタツオマチ！"
-    assert first_input["reading_source"] == "line.reading"
+    assert first_input["tts_text"] == "はいよっ、エール二つお待ち！"
+    assert first_input["reading_source"] == "line.text"
+    assert second_input["tts_text"] == first_input["tts_text"]
+    assert second_input["reading_source"] == "line.text"
     assert "emotion" not in first_input
     assert "intensity" not in first_input
     assert "delivery" not in first_input
@@ -253,14 +254,15 @@ def test_missing_reading_uses_original_japanese_text(
     assert generation_input["reading_source"] == "line.text"
 
 
-@pytest.mark.parametrize("reading", ["", "   ", 123, False])
-def test_invalid_explicit_reading_fails(
+@pytest.mark.parametrize("reading", ["カンパイシヨウ！", "", 123, False])
+def test_reading_metadata_is_ignored(
     reading: object,
 ) -> None:
     job = _job()
     job.line["reading"] = reading
-    with pytest.raises(Supertonic3AdapterError, match="line.reading"):
-        _prepare_input(job)
+    prepared = _prepare_input(job)
+    assert prepared.tts_text == job.line["text"]
+    assert prepared.reading_source == "line.text"
 
 
 @pytest.mark.parametrize(
@@ -346,13 +348,13 @@ def test_generate_uses_exact_prepared_input_and_requires_output(
     realized = adapter.generate(job, TAKE_CONTEXT, output)
     assert runtime.calls == [
         {
-            "text": "ハイヨッ、エールフタツオマチ！",
+            "text": "はいよっ、エール二つお待ち！",
             "voice_style": "F2",
             "output_wav": output,
             "seed": SEED,
         },
     ]
-    assert realized["reading_source"] == "line.reading"
+    assert realized["reading_source"] == "line.text"
     assert realized["voice_style"] == "F2"
     assert realized["voice_style_sha256"] == MODEL_FILES[
         "voice_styles/F2.json"

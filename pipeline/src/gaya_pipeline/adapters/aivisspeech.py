@@ -104,6 +104,7 @@ def _loopback_opener() -> Callable[..., Any]:
 @dataclass(frozen=True)
 class _PreparedInput:
     text: str
+    reading: str | None
     reading_source: str
     emotion: str
     intensity: int
@@ -113,7 +114,7 @@ class _PreparedInput:
     tempo_dynamics_scale: float
 
     def as_generation_input(self) -> dict[str, Any]:
-        return {
+        result = {
             "text": self.text,
             "reading_source": self.reading_source,
             "model_uuid": MODEL_UUID,
@@ -127,6 +128,10 @@ class _PreparedInput:
             "intonation_scale": self.intonation_scale,
             "tempo_dynamics_scale": self.tempo_dynamics_scale,
         }
+        if self.reading is not None:
+            result["reading"] = self.reading
+            result["reading_control"] = "accent_phrases"
+        return result
 
 
 class _Runtime(Protocol):
@@ -136,6 +141,7 @@ class _Runtime(Protocol):
         self,
         *,
         text: str,
+        reading: str | None,
         speaker_id: int,
         intonation_scale: float,
         tempo_dynamics_scale: float,
@@ -177,6 +183,7 @@ class _HttpRuntime:
         self,
         *,
         text: str,
+        reading: str | None,
         speaker_id: int,
         intonation_scale: float,
         tempo_dynamics_scale: float,
@@ -199,6 +206,30 @@ class _HttpRuntime:
             raise AivisSpeechAdapterError(
                 "AivisSpeech Engine /audio_query の応答が不正です。",
             )
+        if reading is not None:
+            accent_phrases = self._request_json(
+                "POST",
+                "/accent_phrases",
+                query={
+                    "text": reading,
+                    "speaker": speaker_id,
+                    "is_kana": "false",
+                },
+            )
+            if (
+                not isinstance(accent_phrases, list)
+                or not accent_phrases
+                or any(
+                    not isinstance(phrase, Mapping)
+                    or not isinstance(phrase.get("moras"), list)
+                    or not phrase["moras"]
+                    for phrase in accent_phrases
+                )
+            ):
+                raise AivisSpeechAdapterError(
+                    "AivisSpeech Engine /accent_phrases の応答が不正です。",
+                )
+            query["accent_phrases"] = accent_phrases
         query["intonationScale"] = intonation_scale
         query["tempoDynamicsScale"] = tempo_dynamics_scale
         query["outputSamplingRate"] = SAMPLE_RATE_HZ
@@ -407,6 +438,7 @@ class AivisSpeechAdapter:
         try:
             realized = self._runtime.synthesize(
                 text=prepared.text,
+                reading=prepared.reading,
                 speaker_id=prepared.style_id,
                 intonation_scale=prepared.intonation_scale,
                 tempo_dynamics_scale=prepared.tempo_dynamics_scale,
@@ -423,13 +455,18 @@ class AivisSpeechAdapter:
             raise AivisSpeechAdapterError(
                 f"adapter 出力がありません: {output_wav}",
             )
-        return {
+        receipt = {
             **dict(realized),
             "speaker_style_name": prepared.style_name,
             "speaker_style_id": prepared.style_id,
             "intonation_scale": prepared.intonation_scale,
             "tempo_dynamics_scale": prepared.tempo_dynamics_scale,
         }
+        if prepared.reading is not None:
+            receipt["reading"] = prepared.reading
+            receipt["reading_source"] = prepared.reading_source
+            receipt["reading_control"] = "accent_phrases"
+        return receipt
 
     def _prepared_input(self, job: LineJob) -> _PreparedInput:
         if not self._prepared:
@@ -451,10 +488,8 @@ def _prepare_input(job: LineJob) -> _PreparedInput:
     text = _required_string(job.line, "text", "line")
     reading = job.line.get("reading")
     if reading is None:
-        synthesis_text = text
         reading_source = "line.text"
     elif isinstance(reading, str) and reading.strip():
-        synthesis_text = reading
         reading_source = "line.reading"
     else:
         raise AivisSpeechAdapterError(
@@ -481,7 +516,8 @@ def _prepare_input(job: LineJob) -> _PreparedInput:
         ) from error
 
     return _PreparedInput(
-        text=synthesis_text,
+        text=text,
+        reading=reading,
         reading_source=reading_source,
         emotion=emotion,
         intensity=intensity,

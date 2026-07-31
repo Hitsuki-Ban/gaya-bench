@@ -58,13 +58,16 @@ lines:
 | `character.reference_voice` | ゼロショットクローン系モデルへの参照音声。`assets/voices/metadata.yaml` に登録された権利確認済み素材ID（`^[a-z0-9]+(?:-[a-z0-9]+)*$`）のみ許可 |
 | `line.emotion` + `intensity` | 機械可読な感情ラベル。感情タグ対応モデルへ直接マップ、フィルタUIにも使用 |
 | `line.delivery` | 演技指示の散文。instruct系モデル (自然文で演技指示できるもの) へ渡す |
-| `line.reading` | 漢字の誤読対策。読み指定対応モデ用。非対応モデルには使わない (誤読も品質差として観測する) |
+| `line.reading` | 漢字の誤読対策。AivisSpeech / CosyVoice の読み指定に使う。他の6モデルには渡さず原文を維持する (誤読も品質差として観測する) |
 | `line.difficulty` | `hard` = 方言・叫び・笑い混じり・囁き・フィラー・非言語音などTTSの苦手要素を含む行。集計分析用 |
 | `line.final_intonation` | 発話末尾のイントネーション要件。`fall / rise / free`。任意で、省略時は `fall` として扱う |
 
 `辛い / 行った / 人気 / 大分` のように文脈で読みが変わる語を含む場合、
 `line.reading` を省略すると `gaya validate` が warning を出す。自動 G2P
 の推定を正解として採用せず、発話意図に合う全文のかな読みを明記する。
+AivisSpeech は原文で `audio_query` を作った後に reading 由来の `accent_phrases` を適用し、
+CosyVoice は reading を `tts_text` として使う。非対応モデルで `line.reading` を原文の
+代替として渡してはならない。
 
 ## emotion enum
 

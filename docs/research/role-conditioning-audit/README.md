@@ -9,7 +9,7 @@
 は `female / young_adult / 受付` と定義され、`lux-emotion-76` も同じ
 `female / young_adult` の実音声である。
 
-確認できた実装上の欠陥は次の3点である。
+役柄 conditioning で確認できた実装上の欠陥は次の3点である。
 
 1. Qwen3-TTS は `reference_voice` を捨て、gender / age / archetype / name を含まない
    VoiceDesign を感情・強度ごとに作っていた。既存 #142 blind canary でも、gender / age
@@ -27,13 +27,18 @@ anchor を同一役の全台詞で再利用する。clone assignment の4件は�
 child / teen がないため、年齢近似より binary gender の一致を優先して成人男性
 `hadou-emotion-11` に直す。これは年齢まで exact になったという意味ではない。
 
+同じ手法で日本語 reading も全量監査した結果、AivisSpeech、GPT-SoVITS、
+Irodori-TTS、Supertonic 3、VoxCPM2 の5実装がモデル固有の入力仕様と一致して
+いなかった。詳細と再生成境界は後述する。
+
 ## Source truth の全量監査
 
 [`source-audit.json`](source-audit.json) は schema 検証済みの全15シナリオを展開し、
 scenario file SHA、58役の全 role field、161行の所属、5参照素材の SHA、および
 clone reference の対応を記録する。さらに8モデル×161行=1,288件を逐条展開し、
 各行の role truth、adapter が実際に使う speaker / preset / reference / prompt、
-伝達可能・unsupported な field、入力 identity、adapter source SHA を記録する。
+伝達可能・unsupported な field、モデルへ渡る原文と reading、入力 identity、
+adapter source SHA を記録する。
 公開中 `data/manifest.json` の1,282 candidate / 6 failure についても、sidecar 由来の
 `generation_input_sha256`、take/audio SHA、requested/realized params SHA と conditioning
 evidence を同じ行で対照する。生成コマンドは次のとおり。
@@ -69,6 +74,10 @@ uv run --project pipeline --locked --no-sync python -m gaya_pipeline.role_condit
 | assignment 53参照: age が一致 / 近似 | 16役 / 37役 |
 | assignment 53参照: gender と age がともに一致 | 13役 |
 | conditioning receipt | 1,288件 |
+| reading receipt | 1,288件 |
+| `line.reading` 明示行 | 25行 |
+| 明示 reading receipt: 適用 / 非対応 | 50件 / 150件 |
+| 未指定行: 原文入力 / CosyVoice 用自動かな変換 | 952件 / 136件 |
 | 公開 candidate / failure | 1,282件 / 6件 |
 | 公開 conditioning evidence が現行 source と一致 | 780件 |
 | 再生成前のため現行 source と不一致 | 357件 |
@@ -83,7 +92,38 @@ VoxCPM2 の145件は source 側では role-design identity を検証できるが
 `match` とせず `unverifiable` とした。これらを committed snapshot に隠さず記録し、
 再生成・公開 provenance 更新後に解消する。
 `source-audit.json` SHA-256 は
-`31deb7bc0e9a32b5400623d87f9154fb5fda0697302373188187f3cf884981bb`。
+`646cbbbf23abe7249a5311bdbf698edb8f80d5faf92c16c8b6e697cbdf1a07ed`。
+
+## 日本語 reading の全量監査
+
+`line.text` / `line.reading`、adapter が宣言する `capabilities.reading`、実際の
+`generation_input()`、実ランタイムへ渡す引数を8モデル×161行で照合した。
+監査側で別の読み変換を再実装せず、production adapter が作る payload 本体を receipt
+に保存する。AivisSpeech と CosyVoice だけが外部 reading を適用し、残る6モデルは
+原文を保持する。
+
+| model | production の日本語入力 | `line.reading` |
+| --- | --- | --- |
+| AivisSpeech Kohaku | 原文で `/audio_query` を作り、指定時だけ読みから作った `accent_phrases` を置換 | 対応 |
+| Chatterbox multilingual v3 | 原文と `language_id=ja` | 非対応 |
+| CosyVoice3 | 指定時は `line.reading`、未指定時は `pyopenjtalk.g2p(kana=True)` を `tts_text` へ渡す | 対応 |
+| GPT-SoVITS | 原文と日本語 language mode | 非対応 |
+| Irodori-TTS | emotion emoji と原文 | 非対応 |
+| Qwen3-TTS | 原文と `language=Japanese` | 非対応 |
+| Supertonic 3 | 原文と `lang=ja` | 非対応 |
+| VoxCPM2 | control prefix と原文、`normalize=False` | 非対応 |
+
+修正前は、AivisSpeech が `line.reading` を原文欄へ直接入れ、GPT-SoVITS と
+Supertonic も明示 reading を原文の代わりに使っていた。Irodori-TTS と VoxCPM2 は
+さらに reading 未指定の136行まで `pyopenjtalk` で片仮名化していた。加えて旧 source
+audit は Irodori / Vox の converter を `lambda text: text` に差し替えていたため、
+production と異なる272件を正しい入力として記録していた。これを削除し、監査が
+production payload と違えば fail fast するようにした。
+
+reading 修正だけで音声入力が変わるのは397件である。内訳は AivisSpeech 25、
+GPT-SoVITS 25、Irodori-TTS 161、Supertonic 25、VoxCPM2 161。Chatterbox と Qwen は
+従来から原文、CosyVoice は従来から正しいかな入力だったため reading 起因の再生成は
+不要である。
 
 ## モデル別の実入力
 
@@ -161,12 +201,14 @@ clean-process 単独生成、通常順、逆順、A-B-A 挿入順を同じ seed 
 
 ## 再生成境界
 
-- Qwen3-TTS: role identity と reference lifecycle が変わるため全161行を N>=3。
-- Irodori-TTS: no-reference role lifecycle と全 caption identity が変わるため全161行を N>=3。
-- Chatterbox / CosyVoice / GPT-SoVITS: 修正した4役12行を各モデル N>=3。
-- AivisSpeech / Supertonic: unsupported な役柄を再生成しても入力は変わらないため対象外。
-- VoxCPM2: 現行の役別 reference contract に欠陥が見つからないため、汚染 canary が
-  不合格にならない限り再生成しない。
+役柄 conditioning と reading 修正の union は594件である。
+
+- Qwen3-TTS / Irodori-TTS / VoxCPM2: 各161行を N>=3。Qwen / Irodori は役柄、
+  Irodori / Vox は reading 入力が全行で変わる。
+- GPT-SoVITS: role assignment 12行と reading 明示25行に重複がないため37行を N>=3。
+- Chatterbox / CosyVoice: role assignment を修正した12行を各モデル N>=3。
+- AivisSpeech / Supertonic: reading 明示25行を各モデルで再生成する。AivisSpeech は
+  deterministic single-take engine のため各行1件、Supertonic は N>=3。
 
 全候補は機械 QC 後、gender、age、archetype、同一役の跨行 identity、日本語 reading /
 pitch accent、delivery、prompt / reference leakage を明示した画面で選ぶ。production は
@@ -178,3 +220,11 @@ pitch accent、delivery、prompt / reference leakage を明示した画面で選
 - [Irodori-TTS v3 VoiceDesign model card](https://huggingface.co/Aratako/Irodori-TTS-600M-v3-VoiceDesign)
 - [Chatterbox upstream `audio_prompt_path` conditionals](https://github.com/resemble-ai/chatterbox/blob/master/src/chatterbox/tts.py)
 - [CosyVoice #1400 `zero_shot_spk_id` contamination condition](https://github.com/QwenAudio/CosyVoice/issues/1400)
+- [AivisSpeech Engine: `audio_query` と `accent_phrases`](https://github.com/Aivis-Project/AivisSpeech-Engine/blob/45048e0f7588bd1f39e0b4ab3eb06fee99514a3a/voicevox_engine/app/routers/tts_pipeline.py#L86-L244)
+- [Chatterbox multilingual tokenizer の Japanese normalizer](https://github.com/resemble-ai/chatterbox/blob/65b18437192794391a0308a8f705b1e33e633948/src/chatterbox/models/tokenizers/tokenizer.py#L75-L110)
+- [CosyVoice3 公式 inference 例](https://github.com/FunAudioLLM/CosyVoice/blob/074ca6dc9e80a2f424f1f74b48bdd7d3fea531cc/example.py#L71-L102)
+- [GPT-SoVITS API v2 の `text` / language contract](https://github.com/RVC-Boss/GPT-SoVITS/blob/d523079fc05d9a8028d6085bffe4a2757c32abb6/api_v2.py#L154-L176)
+- [Irodori-TTS `synthesize()` input](https://github.com/Aratako/Irodori-TTS/blob/eaf74d6a19138f743acb5b71a445fd25a57db987/irodori_tts/inference_runtime.py#L857-L963)
+- [Qwen3-TTS VoiceDesign API](https://github.com/QwenLM/Qwen3-TTS/blob/022e286b98fbec7e1e916cb940cdf532cd9f488e/qwen_tts/inference/qwen3_tts_model.py#L637-L727)
+- [Supertonic Japanese text input](https://github.com/supertone-inc/supertonic-py/blob/908a56486e821e833a80530ff0cae3ad0b046fce/supertonic/core.py#L108-L292)
+- [VoxCPM2 `generate()` text contract](https://github.com/OpenBMB/VoxCPM/blob/616d3d3e630a9c96c2853250eef91b0f39dcd5fa/src/voxcpm/core.py#L183-L220)

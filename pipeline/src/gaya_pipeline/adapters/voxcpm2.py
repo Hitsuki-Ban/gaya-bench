@@ -24,10 +24,6 @@ from gaya_pipeline.adapters.base import (
     TakeRecipe,
     require_take_context,
 )
-from gaya_pipeline.japanese_reading import (
-    JapaneseReadingError,
-    resolve_japanese_reading,
-)
 from gaya_pipeline.voice_assets import validate_voice_metadata
 
 MODEL_ID = "voxcpm2"
@@ -382,7 +378,7 @@ class VoxCPM2Adapter:
             voice_prompt=True,
             clone=True,
             nonverbal=False,
-            reading=True,
+            reading=False,
         ),
     )
 
@@ -403,11 +399,9 @@ class VoxCPM2Adapter:
         self,
         *,
         runtime: _Runtime | None = None,
-        reading_converter: Callable[[str], str] | None = None,
         model_root: Path | None = None,
     ) -> None:
         self._runtime = _NativeRuntime() if runtime is None else runtime
-        self._reading_converter = reading_converter
         self._model_root = model_root
         self._model: Any | None = None
         self._runtime_load_peak: dict[str, float] | None = None
@@ -459,10 +453,7 @@ class VoxCPM2Adapter:
                 character_identities[character_key] = design_identity
             character_jobs.setdefault(character_key, job)
             has_explicit_reference = has_explicit_reference or reference_value is not None
-            prepared_lines[line_key] = _line_input(
-                job,
-                reading_converter=self._reading_converter,
-            )
+            prepared_lines[line_key] = _line_input(job)
 
         reference_entries = (
             _load_reference_entries(voices_dir) if has_explicit_reference else {}
@@ -731,22 +722,9 @@ class VoxCPM2Adapter:
         )
 
 
-def _line_input(
-    job: LineJob,
-    *,
-    reading_converter: Callable[[str], str] | None,
-) -> dict[str, Any]:
+def _line_input(job: LineJob) -> dict[str, Any]:
     _line_key(job)
     source_text = _required_string(job.line, "text", "line")
-    try:
-        reading = resolve_japanese_reading(
-            text=source_text,
-            reading=job.line.get("reading"),
-            converter=reading_converter,
-        )
-    except JapaneseReadingError as error:
-        raise VoxCPM2AdapterError(str(error)) from error
-
     emotion = _required_string(job.line, "emotion", "line")
     try:
         emotion_instruction = EMOTION_INSTRUCTIONS[emotion]
@@ -771,13 +749,13 @@ def _line_input(
     )
     return {
         "source_text": source_text,
-        "text": reading.text,
-        "reading_source": reading.source,
+        "text": source_text,
+        "reading_source": "line.text",
         "emotion": emotion,
         "intensity": intensity,
         "delivery": delivery,
         "control": control,
-        "model_text": f"({control}){reading.text}",
+        "model_text": f"({control}){source_text}",
     }
 
 

@@ -22,7 +22,6 @@ from gaya_pipeline.adapters.base import (
     TakeRecipe,
     require_take_context,
 )
-from gaya_pipeline.japanese_reading import resolve_japanese_reading
 from gaya_pipeline.voice_assets import validate_voice_metadata
 
 MODEL_ID = "irodori-tts-600m-v3-voicedesign"
@@ -38,7 +37,6 @@ TOKENIZER_REVISION = "b112feef602fff752e4dac4c30af6a2c2fa41c7a"
 SILENTCIPHER_MODEL_ID = "sony/silentcipher"
 SILENTCIPHER_MODEL_REVISION = "a1c4d021905e0dc5b24be5f68db5fc4dba410ee1"
 SILENTCIPHER_VERSION = "1.0.5"
-PYOPENJTALK_VERSION = "0.4.1.post8"
 TORCH_VERSION = "2.10.0"
 TORCHAUDIO_VERSION = "2.10.0"
 TORCHCODEC_VERSION = "0.10.0"
@@ -525,7 +523,7 @@ class IrodoriTTSAdapter:
             voice_prompt=True,
             clone=True,
             nonverbal=True,
-            reading=True,
+            reading=False,
         ),
     )
 
@@ -551,10 +549,8 @@ class IrodoriTTSAdapter:
         self,
         *,
         runtime: _Runtime | None = None,
-        reading_converter: Callable[[str], str] | None = None,
     ) -> None:
         self._runtime = runtime if runtime is not None else _NativeRuntime()
-        self._reading_converter = reading_converter
         self._prepared_inputs: dict[tuple[str, str], _PreparedInput] = {}
         self._load_peak: dict[str, float] | None = None
         self._prepared = False
@@ -668,7 +664,6 @@ class IrodoriTTSAdapter:
                 self._prepared_inputs[_job_key(job)] = _prepare_input(
                     job,
                     reference=reference,
-                    reading_converter=self._reading_converter,
                 )
 
         self._prepared = True
@@ -687,7 +682,6 @@ class IrodoriTTSAdapter:
             "silentcipher_model": SILENTCIPHER_MODEL_ID,
             "silentcipher_model_revision": SILENTCIPHER_MODEL_REVISION,
             "silentcipher_version": SILENTCIPHER_VERSION,
-            "pyopenjtalk_plus_version": PYOPENJTALK_VERSION,
             "torch_version": TORCH_VERSION,
             "torchaudio_version": TORCHAUDIO_VERSION,
             "torchcodec_version": TORCHCODEC_VERSION,
@@ -784,6 +778,7 @@ class IrodoriTTSAdapter:
         }
         result["seed"] = seed
         result["sampling"] = take_context.sampling_dict()
+        result["reading_source"] = prepared.reading_source
         result["role_identity"] = dict(prepared.role_identity)
         result["caption"] = prepared.caption
         result["reference_control"] = REFERENCE_CONTROL
@@ -897,16 +892,9 @@ def _prepare_input(
     job: LineJob,
     *,
     reference: _RoleReference,
-    reading_converter: Callable[[str], str] | None,
 ) -> _PreparedInput:
     _job_key(job)
     text = _required_string(job.line, "text", "line")
-    reading_value = job.line.get("reading")
-    reading = resolve_japanese_reading(
-        text=text,
-        reading=reading_value,
-        converter=reading_converter,
-    )
     emotion = _required_string(job.line, "emotion", "line")
     try:
         emoji = EMOTION_EMOJI[emotion]
@@ -937,10 +925,10 @@ def _prepare_input(
         ),
     )
 
-    spoken_text = f"{emoji}{reading.text}" if emoji is not None else reading.text
+    spoken_text = f"{emoji}{text}" if emoji is not None else text
     return _PreparedInput(
         text=spoken_text,
-        reading_source=reading.source,
+        reading_source="line.text",
         emotion=emotion,
         emoji=emoji,
         caption=caption,
