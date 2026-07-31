@@ -4,10 +4,10 @@ import { buildComparisonModel } from "../comparison/model";
 import type {
   ArtifactOutcome,
   BenchmarkData,
-  Candidate,
   Character,
   Line,
   Model,
+  PublishedCandidate,
   Scenario,
 } from "../data/types";
 import {
@@ -341,36 +341,18 @@ function ttsModel(id: string): Model {
   };
 }
 
-function candidate(model: string, scenario: string, lineId: string): Candidate {
+function candidate(model: string, scenario: string, lineId: string): PublishedCandidate {
   return {
     model,
     scenario,
     line: lineId,
     variant: "dry",
-    take_index: 1,
-    take_id: "a".repeat(64),
     path: `audio/takes/${model}/${scenario}/${lineId}/dry/take-0001-${"b".repeat(64)}.opus`,
     duration_sec: 1,
-    sha256: "b".repeat(64),
-    generation_input_sha256: "c".repeat(64),
-    gen_params: {
-      seed: 1,
-      recipe_version: "test-v1",
-      sampling: {},
-      requested: {},
-      realized: {},
-    },
+    reference_conditioning: { kind: "none" },
     rtf: 0.1,
-    loudness: {
-      source: "encoded_opus",
-      i_lufs: -18,
-      tp_dbtp: -1,
-      shortfall: false,
-    },
     gate: {
-      mechanical: "pass",
       content: "review_required",
-      policy_version: "test-v1",
     },
   };
 }

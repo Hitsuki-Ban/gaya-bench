@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vite-plus/test";
 
+import type { PublishedCandidate } from "../data/types";
 import type { BlindCatalog, BlindVote, DatasetIdentity } from "./model";
 import {
   AB_STORAGE_KEY,
@@ -142,36 +143,18 @@ function validVote(): BlindVote {
   };
 }
 
-function candidate(model: string) {
+function candidate(model: string): PublishedCandidate {
   return {
     model,
     scenario: "sample",
     line: "speaker-001",
     variant: "dry",
-    take_index: 1,
-    take_id: "a".repeat(64),
     path: `audio/takes/${model}/sample/speaker-001/dry/take-0001-${"b".repeat(64)}.opus`,
     duration_sec: 1,
-    sha256: "b".repeat(64),
-    generation_input_sha256: "c".repeat(64),
-    gen_params: {
-      seed: 1,
-      recipe_version: "test-v1",
-      sampling: {},
-      requested: {},
-      realized: {},
-    },
+    reference_conditioning: { kind: "none" },
     rtf: 0.5,
-    loudness: {
-      source: "encoded_opus" as const,
-      i_lufs: -18,
-      tp_dbtp: -1,
-      shortfall: false,
-    },
     gate: {
-      mechanical: "pass" as const,
-      content: "review_required" as const,
-      policy_version: "test-v1",
+      content: "review_required",
     },
   };
 }

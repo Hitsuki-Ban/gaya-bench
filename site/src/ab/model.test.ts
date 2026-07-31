@@ -3,10 +3,10 @@ import { describe, expect, it } from "vite-plus/test";
 import type {
   ArtifactOutcome,
   BenchmarkData,
-  Candidate,
   Character,
   Line,
   Model,
+  PublishedCandidate,
   Scenario,
 } from "../data/types";
 import {
@@ -139,33 +139,15 @@ function model(id: string): Model {
   };
 }
 
-function candidate(modelId: string, variant = "dry"): Candidate {
+function candidate(modelId: string, variant = "dry"): PublishedCandidate {
   return {
     ...group(modelId, variant),
-    take_index: 1,
-    take_id: `${modelId.charCodeAt(0).toString(16).padStart(2, "0")}`.repeat(32),
     path: `audio/takes/${modelId}/sample/speaker-001/${variant}/take-0001-${"b".repeat(64)}.opus`,
     duration_sec: 1,
-    sha256: "b".repeat(64),
-    generation_input_sha256: "a".repeat(64),
-    gen_params: {
-      seed: 1,
-      recipe_version: "test-v1",
-      sampling: {},
-      requested: {},
-      realized: {},
-    },
+    reference_conditioning: { kind: "none" },
     rtf: 0.5,
-    loudness: {
-      source: "encoded_opus",
-      i_lufs: -18,
-      tp_dbtp: -1,
-      shortfall: false,
-    },
     gate: {
-      mechanical: "pass",
       content: "review_required",
-      policy_version: "test-gate-v1",
     },
   };
 }

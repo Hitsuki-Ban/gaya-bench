@@ -3,10 +3,10 @@ import { describe, expect, it } from "vite-plus/test";
 import type {
   ArtifactOutcome,
   BenchmarkData,
-  Candidate,
   Character,
   Line,
   Model,
+  PublishedCandidate,
   Scenario,
 } from "../data/types";
 import type { ComparisonProjection } from "../filters";
@@ -156,33 +156,15 @@ function group(model: string, line: string) {
   return { model, scenario: "sample", line, variant: "dry" };
 }
 
-function candidate(modelId: string, lineId: string): Candidate {
+function candidate(modelId: string, lineId: string): PublishedCandidate {
   return {
     ...group(modelId, lineId),
-    take_index: 1,
-    take_id: "a".repeat(64),
     path: `audio/takes/${modelId}/sample/${lineId}/dry/take-0001-${"b".repeat(64)}.opus`,
     duration_sec: 1,
-    sha256: "b".repeat(64),
-    generation_input_sha256: "c".repeat(64),
-    gen_params: {
-      seed: 1,
-      recipe_version: "test-v1",
-      sampling: {},
-      requested: {},
-      realized: {},
-    },
+    reference_conditioning: { kind: "none" },
     rtf: 0.5,
-    loudness: {
-      source: "encoded_opus",
-      i_lufs: -18,
-      tp_dbtp: -1,
-      shortfall: false,
-    },
     gate: {
-      mechanical: "pass",
       content: "review_required",
-      policy_version: "test-v1",
     },
   };
 }
