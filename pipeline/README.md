@@ -201,6 +201,83 @@ scenario SHA、保持元releaseの全digest、model単位curation group digest�
 から解決する。`--projection-plan`を指定しない通常経路はprovenance format v1の
 ままであり、暗黙に保持元releaseを探索しない。
 
+## 公開済み基準線の欠項補録
+
+公開 manifest の全非 selected slot を固定 plan に従って補う場合だけ、独立した
+`completion` commandを使う。各pathは絶対pathが必須で、repository、artifacts、
+reference voice、model cacheを現在のworktreeから推測しない。
+
+modelごとの生成:
+
+```console
+uv run --project <pipeline> --locked --extra <model-extra> gaya completion generate \
+  --plan <absolute-plan.json> \
+  --base-manifest <absolute-data-manifest.json> \
+  --model <model-id> \
+  --artifacts <absolute-durable-artifacts> \
+  --scenarios <absolute-scenarios> \
+  --voices <absolute-reference-voices>
+```
+
+plan loaderがbase raw SHA、Git blob、candidate set、旧 selection、全targetを検証し、
+planの`takes`、`seed_base`、model別の離散line集合だけを生成器へ渡す。model extraは
+相互に混在させず、modelごとに独立したuv environmentを使う。
+
+生成後はmodel extraを含まない独立QC environmentで各runを処理する:
+
+```console
+uv run --project <pipeline> --locked --extra qc gaya completion qc \
+  --run-id <run-id> \
+  --artifacts <absolute-durable-artifacts> \
+  --scenarios <absolute-scenarios> \
+  --voices <absolute-reference-voices> \
+  --qc-model-root <absolute-kana-whisper-root>
+```
+
+全runがterminalになった後、専用listening bundleを作る:
+
+```console
+uv run --project <pipeline> --locked gaya completion listen \
+  --plan <absolute-plan.json> \
+  --base-manifest <absolute-data-manifest.json> \
+  --run-id <run-id> --run-id <run-id> \
+  --artifacts <absolute-durable-artifacts> \
+  --scenarios <absolute-scenarios> \
+  --voices <absolute-reference-voices> \
+  --output <absolute-new-listening-directory>
+```
+
+bundleはplan全modelを各1runでexact被覆し、各groupにmechanical-pass candidateが
+planの最低数以上ある場合だけ作成する。ownerの全候補評価と
+`best_available` decisionが完了した後、公開baseとのstandalone releaseを確定する:
+
+```console
+uv run --project <pipeline> --locked gaya completion finalize \
+  --base-manifest <absolute-data-manifest.json> \
+  --qwen-curation <absolute-original-qwen-curation.json> \
+  --plan <absolute-plan.json> \
+  --decision <absolute-completion-decision.json> \
+  --run-id <run-id> --run-id <run-id> \
+  --artifacts <absolute-durable-artifacts> \
+  --scenarios <absolute-scenarios> \
+  --voices <absolute-reference-voices> \
+  --output <absolute-new-release-directory>
+```
+
+増分publisherはinherited candidateをremote-only HEAD検証し、supplement candidate
+だけを`If-None-Match: *`付きでPUTする:
+
+```console
+uv run --project <pipeline> --locked gaya completion publish \
+  --release <absolute-completion-release> \
+  --artifacts <absolute-durable-artifacts> \
+  --env-file <absolute-r2-credential-file>
+```
+
+契約、判断基準、published-base overlay、R2条件付き公開の詳細は
+[全モデル完全基準線の補録プロトコル](../docs/research/full-baseline-completion/protocol.md)
+を参照する。
+
 ## N3 pilot calibration
 
 固定 3 model × `battlefield-camp` / `dungeon-entrance` × N3 の terminal run

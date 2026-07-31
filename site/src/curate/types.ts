@@ -24,10 +24,17 @@ export interface ExportCandidate {
   readonly takeId: string;
   readonly path: string;
   readonly audioSha256: string;
+  readonly gate?: {
+    readonly mechanical: "pass";
+    readonly content: GateContent;
+    readonly policy_version: string;
+  };
 }
 
 export interface CurateCatalog {
   readonly candidateSetSha256: string;
+  readonly manifestCurationCount: number;
+  readonly manifestFailureCount: number;
   readonly groups: readonly CurateGroup[];
   readonly exportCandidatesByGroup: ReadonlyMap<string, readonly ExportCandidate[]>;
   dispose(): void;

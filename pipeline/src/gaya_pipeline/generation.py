@@ -4,6 +4,7 @@ import hashlib
 import json
 import math
 import time
+from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
@@ -124,19 +125,30 @@ def run_generation(
     model_id: str,
     scenarios_dir: Path,
     artifacts_dir: Path,
+    voices_dir: Path | None = None,
     scenario_id: str | None = None,
     line_id: str | None = None,
+    target_lines: Sequence[tuple[str, str]] | None = None,
     takes: int,
     seed_base: int,
     force: bool = False,
 ) -> GenerationSummary:
-    _validate_cli_inputs(
+    normalized_targets = _validate_cli_inputs(
         scenario_id=scenario_id,
         line_id=line_id,
+        target_lines=target_lines,
         takes=takes,
         seed_base=seed_base,
     )
-    validation = validate_scenarios(scenarios_dir)
+    effective_voices_dir = (
+        voices_dir
+        if voices_dir is not None
+        else scenarios_dir.parent / "assets" / "voices"
+    )
+    validation = validate_scenarios(
+        scenarios_dir,
+        voices_dir=effective_voices_dir,
+    )
     if validation.problems:
         details = "\n".join(str(problem) for problem in validation.problems)
         raise GenerationError(f"シナリオ検証に失敗しました:\n{details}")
@@ -147,6 +159,7 @@ def run_generation(
             scenarios_dir,
             scenario_id=scenario_id,
             line_id=line_id,
+            target_lines=normalized_targets,
         )
         recipe = adapter.take_recipe()
         requested_params = dict(adapter.generation_params())
@@ -173,7 +186,7 @@ def run_generation(
         adapter.prepare(
             jobs,
             artifacts_dir,
-            scenarios_dir.parent / "assets" / "voices",
+            effective_voices_dir,
         )
     except Exception as error:
         raise GenerationError(f"adapter 準備に失敗しました: {error}") from error
@@ -332,15 +345,44 @@ def _validate_cli_inputs(
     *,
     scenario_id: str | None,
     line_id: str | None,
+    target_lines: Sequence[tuple[str, str]] | None,
     takes: int,
     seed_base: int,
-) -> None:
+) -> tuple[tuple[str, str], ...] | None:
+    normalized_targets: tuple[tuple[str, str], ...] | None = None
+    if target_lines is not None:
+        if scenario_id is not None or line_id is not None:
+            raise GenerationError(
+                "target_lines は scenario_id/line_id と同時に指定できません。",
+            )
+        if isinstance(target_lines, str | bytes) or not isinstance(
+            target_lines,
+            Sequence,
+        ):
+            raise GenerationError("target_lines は (scenario, line) の配列が必要です。")
+        if not target_lines:
+            raise GenerationError("target_lines は空にできません。")
+        validated: list[tuple[str, str]] = []
+        for index, target in enumerate(target_lines):
+            if (
+                not isinstance(target, tuple)
+                or len(target) != 2
+                or not all(isinstance(value, str) and value for value in target)
+            ):
+                raise GenerationError(
+                    f"target_lines[{index}] は空でない (scenario, line) が必要です。",
+                )
+            validated.append(target)
+        if len(set(validated)) != len(validated):
+            raise GenerationError("target_lines に重複があります。")
+        normalized_targets = tuple(sorted(validated))
     if line_id is not None and scenario_id is None:
         raise GenerationError("--line には --scenario が必要です。")
     if isinstance(takes, bool) or not isinstance(takes, int) or takes < 1:
         raise GenerationError("--takes は 1 以上の整数が必要です。")
     if isinstance(seed_base, bool) or not isinstance(seed_base, int):
         raise GenerationError("--seed-base は整数が必要です。")
+    return normalized_targets
 
 
 def _load_jobs(
@@ -348,7 +390,14 @@ def _load_jobs(
     *,
     scenario_id: str | None,
     line_id: str | None,
+    target_lines: tuple[tuple[str, str], ...] | None = None,
 ) -> tuple[list[LineJob], tuple[_ScenarioSource, ...]]:
+    target_set = set(target_lines) if target_lines is not None else None
+    target_scenarios = (
+        {target[0] for target in target_lines}
+        if target_lines is not None
+        else None
+    )
     documents: list[tuple[dict[str, Any], _ScenarioSource]] = []
     for scenario_path in sorted(scenarios_dir.glob("*.yaml")):
         source_bytes = scenario_path.read_bytes()
@@ -357,7 +406,13 @@ def _load_jobs(
             raise GenerationError(
                 f"シナリオが object ではありません: {scenario_path}",
             )
-        if scenario_id is None or document["id"] == scenario_id:
+        if (
+            target_scenarios is not None
+            and document["id"] in target_scenarios
+        ) or (
+            target_scenarios is None
+            and (scenario_id is None or document["id"] == scenario_id)
+        ):
             documents.append(
                 (
                     document,
@@ -383,6 +438,9 @@ def _load_jobs(
             character["id"]: character for character in document["characters"]
         }
         for line in document["lines"]:
+            identity = (str(document["id"]), str(line["id"]))
+            if target_set is not None and identity not in target_set:
+                continue
             if line_id is not None and line["id"] != line_id:
                 continue
             jobs.append(
@@ -393,6 +451,12 @@ def _load_jobs(
                     locale=document["locale"],
                 ),
             )
+    if target_set is not None:
+        jobs.sort(key=lambda job: (job.scenario_id, job.line_id))
+        actual = {(job.scenario_id, job.line_id) for job in jobs}
+        missing = sorted(target_set - actual)
+        if missing:
+            raise GenerationError(f"target line が見つかりません: {missing}")
     if not jobs:
         raise GenerationError(
             f"line id が見つかりません: {scenario_id}/{line_id}",

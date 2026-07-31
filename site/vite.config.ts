@@ -15,7 +15,12 @@ const INTERNAL_MODULE_FILES = new Set([
   "src/pages/curate-page.tsx",
   "src/pages/pilot-page.tsx",
 ]);
-const INTERNAL_MODULE_DIRECTORIES = ["src/curate/", "src/internal/", "src/pilot/"];
+const INTERNAL_MODULE_DIRECTORIES = [
+  "src/completion/",
+  "src/curate/",
+  "src/internal/",
+  "src/pilot/",
+];
 
 // https://vite.dev/config/
 export default defineConfig({

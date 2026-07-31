@@ -11,6 +11,25 @@ from gaya_pipeline.curation import (
     CurationSummary,
     apply_curation,
 )
+from gaya_pipeline.completion_listen import (
+    CompletionListeningError,
+    CompletionListeningSummary,
+    build_completion_listening_bundle,
+)
+from gaya_pipeline.completion_plan import (
+    CompletionPlanError,
+    load_completion_plan,
+)
+from gaya_pipeline.completion_publish import (
+    CompletionPublishError,
+    CompletionPublishSummary,
+    run_completion_publish,
+)
+from gaya_pipeline.completion_release import (
+    CompletionReleaseError,
+    CompletionReleaseSummary,
+    finalize_completion_release,
+)
 from gaya_pipeline.generation import (
     GenerationError,
     GenerationSummary,
@@ -161,6 +180,172 @@ def build_parser() -> argparse.ArgumentParser:
         "--run-id",
         required=True,
         help="artifacts/takes 配下の generation run id",
+    )
+
+    completion_parser = subparsers.add_parser(
+        "completion",
+        help="公開済み基準線の非 selected slot を厳密に補録する",
+    )
+    completion_subparsers = completion_parser.add_subparsers(
+        dest="completion_command",
+        required=True,
+    )
+    completion_generate_parser = completion_subparsers.add_parser(
+        "generate",
+        help="canonical plan の対象をmodel単位でN=4生成する",
+    )
+    completion_generate_parser.add_argument("--plan", required=True, type=Path)
+    completion_generate_parser.add_argument(
+        "--base-manifest",
+        required=True,
+        type=Path,
+    )
+    completion_generate_parser.add_argument("--model", required=True)
+    completion_generate_parser.add_argument(
+        "--artifacts",
+        required=True,
+        type=Path,
+    )
+    completion_generate_parser.add_argument(
+        "--scenarios",
+        required=True,
+        type=Path,
+    )
+    completion_generate_parser.add_argument(
+        "--voices",
+        required=True,
+        type=Path,
+    )
+    completion_generate_parser.add_argument("--force", action="store_true")
+
+    completion_qc_parser = completion_subparsers.add_parser(
+        "qc",
+        help="補録runへQCを実行する",
+    )
+    completion_qc_parser.add_argument("--run-id", required=True)
+    completion_qc_parser.add_argument(
+        "--artifacts",
+        required=True,
+        type=Path,
+    )
+    completion_qc_parser.add_argument(
+        "--scenarios",
+        required=True,
+        type=Path,
+    )
+    completion_qc_parser.add_argument(
+        "--voices",
+        required=True,
+        type=Path,
+    )
+    completion_qc_parser.add_argument(
+        "--qc-model-root",
+        required=True,
+        type=Path,
+    )
+
+    completion_listen_parser = completion_subparsers.add_parser(
+        "listen",
+        help="全補録runから専用listening bundleを構築する",
+    )
+    completion_listen_parser.add_argument("--plan", required=True, type=Path)
+    completion_listen_parser.add_argument(
+        "--base-manifest",
+        required=True,
+        type=Path,
+    )
+    completion_listen_parser.add_argument(
+        "--run-id",
+        action="append",
+        dest="run_ids",
+        required=True,
+    )
+    completion_listen_parser.add_argument(
+        "--artifacts",
+        required=True,
+        type=Path,
+    )
+    completion_listen_parser.add_argument(
+        "--scenarios",
+        required=True,
+        type=Path,
+    )
+    completion_listen_parser.add_argument(
+        "--voices",
+        required=True,
+        type=Path,
+    )
+    completion_listen_parser.add_argument(
+        "--output",
+        required=True,
+        type=Path,
+    )
+
+    completion_finalize_parser = completion_subparsers.add_parser(
+        "finalize",
+        help="公開済みbaseと補録decisionから完全releaseを確定する",
+    )
+    completion_finalize_parser.add_argument(
+        "--base-manifest",
+        required=True,
+        type=Path,
+    )
+    completion_finalize_parser.add_argument(
+        "--qwen-curation",
+        required=True,
+        type=Path,
+    )
+    completion_finalize_parser.add_argument("--plan", required=True, type=Path)
+    completion_finalize_parser.add_argument(
+        "--decision",
+        required=True,
+        type=Path,
+    )
+    completion_finalize_parser.add_argument(
+        "--run-id",
+        action="append",
+        dest="run_ids",
+        required=True,
+    )
+    completion_finalize_parser.add_argument(
+        "--artifacts",
+        required=True,
+        type=Path,
+    )
+    completion_finalize_parser.add_argument(
+        "--scenarios",
+        required=True,
+        type=Path,
+    )
+    completion_finalize_parser.add_argument(
+        "--voices",
+        required=True,
+        type=Path,
+    )
+    completion_finalize_parser.add_argument(
+        "--output",
+        required=True,
+        type=Path,
+    )
+
+    completion_publish_parser = completion_subparsers.add_parser(
+        "publish",
+        help="旧objectを変更せず補録candidateだけをR2へ公開する",
+    )
+    completion_publish_parser.add_argument(
+        "--release",
+        required=True,
+        type=Path,
+    )
+    completion_publish_parser.add_argument(
+        "--artifacts",
+        required=True,
+        type=Path,
+    )
+    completion_publish_parser.add_argument(
+        "--env-file",
+        required=True,
+        type=Path,
     )
 
     intonation_parser = subparsers.add_parser(
@@ -472,6 +657,152 @@ def main(argv: Sequence[str] | None = None) -> int:
         _print_qc_summary(summary)
         return 1 if summary.blocked_count or summary.pending_count else 0
 
+    if args.command == "completion":
+        path_names = {
+            "generate": (
+                "plan",
+                "base_manifest",
+                "artifacts",
+                "scenarios",
+                "voices",
+            ),
+            "qc": (
+                "artifacts",
+                "scenarios",
+                "voices",
+                "qc_model_root",
+            ),
+            "listen": (
+                "plan",
+                "base_manifest",
+                "artifacts",
+                "scenarios",
+                "voices",
+                "output",
+            ),
+            "finalize": (
+                "base_manifest",
+                "qwen_curation",
+                "plan",
+                "decision",
+                "artifacts",
+                "scenarios",
+                "voices",
+                "output",
+            ),
+            "publish": ("release", "artifacts", "env_file"),
+        }[args.completion_command]
+        relative_paths = [
+            f"--{name.replace('_', '-')}"
+            for name in path_names
+            if not getattr(args, name).is_absolute()
+        ]
+        if relative_paths:
+            print(
+                "ERROR: completion path は絶対pathが必要です: "
+                + ", ".join(relative_paths),
+                file=sys.stderr,
+            )
+            return 1
+
+        if args.completion_command == "generate":
+            try:
+                plan = load_completion_plan(
+                    args.plan,
+                    base_manifest_path=args.base_manifest,
+                )
+                target_lines = plan.target_lines_for_model(args.model)
+                if not target_lines:
+                    raise GenerationError(
+                        f"completion plan 対象外 model です: {args.model}",
+                    )
+                summary = run_generation(
+                    model_id=args.model,
+                    scenarios_dir=args.scenarios,
+                    artifacts_dir=args.artifacts,
+                    voices_dir=args.voices,
+                    target_lines=target_lines,
+                    takes=plan.takes,
+                    seed_base=plan.seed_base,
+                    force=args.force,
+                )
+            except (CompletionPlanError, GenerationError) as error:
+                print(f"ERROR: {error}", file=sys.stderr)
+                return 1
+            _print_generation_summary(summary)
+            return 1 if summary.failed_count else 0
+
+        if args.completion_command == "qc":
+            try:
+                summary = run_qc(
+                    run_id=args.run_id,
+                    scenarios_dir=args.scenarios,
+                    artifacts_dir=args.artifacts,
+                    voices_dir=args.voices,
+                    runtime=KanaWhisperQCRuntime(args.qc_model_root),
+                )
+            except QCError as error:
+                print(f"ERROR: {error}", file=sys.stderr)
+                return 1
+            _print_qc_summary(summary)
+            return 1 if summary.blocked_count or summary.pending_count else 0
+
+        if args.completion_command == "listen":
+            try:
+                plan = load_completion_plan(
+                    args.plan,
+                    base_manifest_path=args.base_manifest,
+                )
+                summary = build_completion_listening_bundle(
+                    plan=plan,
+                    run_ids=args.run_ids,
+                    artifacts_dir=args.artifacts,
+                    scenarios_dir=args.scenarios,
+                    voices_dir=args.voices,
+                    output_dir=args.output,
+                )
+            except (CompletionPlanError, CompletionListeningError) as error:
+                print(f"ERROR: {error}", file=sys.stderr)
+                return 1
+            _print_completion_listening_summary(summary)
+            return 0
+
+        if args.completion_command == "finalize":
+            try:
+                summary = finalize_completion_release(
+                    base_manifest_path=args.base_manifest,
+                    qwen_curation_path=args.qwen_curation,
+                    completion_plan_path=args.plan,
+                    decision_path=args.decision,
+                    supplement_run_ids=args.run_ids,
+                    artifacts_dir=args.artifacts,
+                    scenarios_dir=args.scenarios,
+                    voices_dir=args.voices,
+                    output_dir=args.output,
+                )
+            except CompletionReleaseError as error:
+                print(f"ERROR: {error}", file=sys.stderr)
+                return 1
+            _print_completion_release_summary(summary)
+            return 0
+
+        if args.completion_command == "publish":
+            try:
+                summary = run_completion_publish(
+                    release_dir=args.release,
+                    artifacts_dir=args.artifacts,
+                    client=create_r2_client(args.env_file),
+                )
+            except (CompletionPublishError, PublishError) as error:
+                print(f"ERROR: {error}", file=sys.stderr)
+                return 1
+            _print_completion_publish_summary(summary)
+            return 0
+
+        raise AssertionError(
+            f"unknown completion command: {args.completion_command}",
+        )
+
     if args.command == "intonation":
         if args.intonation_command != "report":
             raise AssertionError(
@@ -610,6 +941,41 @@ def _print_generation_summary(summary: GenerationSummary) -> None:
         f"スキップ {summary.skipped_count} / "
         f"失敗 {summary.failed_count} / "
         f"所要時間 {summary.elapsed_seconds:.3f}s",
+    )
+
+
+def _print_completion_listening_summary(
+    summary: CompletionListeningSummary,
+) -> None:
+    print(f"Listening bundle: {summary.output_dir.as_posix()}")
+    print(f"Candidate set SHA-256: {summary.candidate_set_sha256}")
+    print(
+        f"完了: model {summary.model_count} / group {summary.group_count} / "
+        f"candidate {summary.candidate_count}",
+    )
+
+
+def _print_completion_release_summary(
+    summary: CompletionReleaseSummary,
+) -> None:
+    print(f"Release: {summary.output_dir.as_posix()}")
+    print(f"Manifest SHA-256: {summary.manifest_sha256}")
+    print(f"Candidate set SHA-256: {summary.candidate_set_sha256}")
+    print(f"Selection SHA-256: {summary.selection_sha256}")
+    print(
+        f"完了: candidate {summary.candidate_count} / "
+        f"selected {summary.selected_count} / "
+        f"supplement candidate {summary.supplement_candidate_count}",
+    )
+
+
+def _print_completion_publish_summary(
+    summary: CompletionPublishSummary,
+) -> None:
+    print(
+        f"完了: inherited検証 {summary.inherited_count} / "
+        f"新規upload {summary.uploaded_count} / "
+        f"既存supplement {summary.skipped_count}",
     )
 
 

@@ -34,7 +34,11 @@ def default_scenarios_dir() -> Path:
     return Path(__file__).resolve().parents[3] / "scenarios"
 
 
-def validate_scenarios(scenarios_dir: Path) -> ValidationResult:
+def validate_scenarios(
+    scenarios_dir: Path,
+    *,
+    voices_dir: Path | None = None,
+) -> ValidationResult:
     scenarios_dir = scenarios_dir.resolve()
     if not scenarios_dir.is_dir():
         return ValidationResult(
@@ -52,12 +56,18 @@ def validate_scenarios(scenarios_dir: Path) -> ValidationResult:
             ),
         )
 
-    return _validate_scenario_files(scenarios_dir, scenario_files)
+    return _validate_scenario_files(
+        scenarios_dir,
+        scenario_files,
+        voices_dir=voices_dir,
+    )
 
 
 def validate_scenario_ids(
     scenarios_dir: Path,
     scenario_ids: list[str],
+    *,
+    voices_dir: Path | None = None,
 ) -> ValidationResult:
     scenarios_dir = scenarios_dir.resolve()
     if not scenarios_dir.is_dir():
@@ -71,12 +81,18 @@ def validate_scenario_ids(
         scenarios_dir / f"{scenario_id}.yaml"
         for scenario_id in sorted(set(scenario_ids))
     )
-    return _validate_scenario_files(scenarios_dir, scenario_files)
+    return _validate_scenario_files(
+        scenarios_dir,
+        scenario_files,
+        voices_dir=voices_dir,
+    )
 
 
 def _validate_scenario_files(
     scenarios_dir: Path,
     scenario_files: tuple[Path, ...],
+    *,
+    voices_dir: Path | None,
 ) -> ValidationResult:
     schema_path = scenarios_dir / "schema" / "scenario.schema.json"
     if not schema_path.is_file():
@@ -95,7 +111,11 @@ def _validate_scenario_files(
 
     validator = Draft202012Validator(schema)
     voice_result = validate_voice_metadata(
-        scenarios_dir.parent / "assets" / "voices",
+        (
+            voices_dir
+            if voices_dir is not None
+            else scenarios_dir.parent / "assets" / "voices"
+        ),
     )
     problems: list[Problem] = [
         Problem(problem.file, problem.target, problem.reason)

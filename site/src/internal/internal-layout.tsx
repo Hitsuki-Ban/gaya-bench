@@ -1,4 +1,4 @@
-import { AudioLines, FolderCheck, ListChecks, LoaderCircle } from "lucide-react";
+import { AudioLines, FolderCheck, ListChecks, ListTodo, LoaderCircle } from "lucide-react";
 import { NavLink, Outlet } from "react-router";
 
 import { AudioProvider } from "@/audio/audio-provider";
@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 
 const navigation = [
   { to: "/curate", label: "音声選定", icon: FolderCheck },
+  { to: "/completion", label: "基準線補録", icon: ListTodo },
   { to: "/pilot", label: "事前確認", icon: ListChecks },
 ] as const;
 

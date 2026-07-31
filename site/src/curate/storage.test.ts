@@ -207,6 +207,8 @@ function makeCatalog(lines: readonly string[]): CurateCatalog {
   );
   return {
     candidateSetSha256: "d".repeat(64),
+    manifestCurationCount: 0,
+    manifestFailureCount: 0,
     groups,
     exportCandidatesByGroup: new Map(
       groups.map((group) => [
