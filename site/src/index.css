@@ -21,7 +21,7 @@
   --accent-foreground: #15100a;
   --destructive: #ef6b61;
   --border: #26343f;
-  --input: #26343f;
+  --input: #5a6873;
   --ring: #f5a623;
   --radius: 0.375rem;
 }
@@ -103,5 +103,268 @@ input[type="radio"] {
 
   .gaya-progress {
     transition-duration: 0ms !important;
+  }
+}
+
+@media (forced-colors: active) {
+  :root {
+    --background: Canvas;
+    --foreground: CanvasText;
+    --card: Canvas;
+    --card-foreground: CanvasText;
+    --popover: Canvas;
+    --popover-foreground: CanvasText;
+    --primary: LinkText;
+    --primary-foreground: Canvas;
+    --secondary: ButtonFace;
+    --secondary-foreground: ButtonText;
+    --muted: Canvas;
+    --muted-foreground: CanvasText;
+    --accent: Highlight;
+    --accent-foreground: HighlightText;
+    --destructive: CanvasText;
+    --border: CanvasText;
+    --input: ButtonBorder;
+    --ring: Highlight;
+  }
+
+  html {
+    color-scheme: light dark;
+  }
+
+  body {
+    background: Canvas;
+    background-image: none;
+  }
+
+  ::selection {
+    background: Highlight;
+    color: HighlightText;
+  }
+
+  a[href] {
+    color: LinkText;
+    text-decoration-color: LinkText;
+  }
+
+  [data-slot="card"] {
+    border: 1px solid CanvasText;
+    background: Canvas;
+    color: CanvasText;
+    box-shadow: none;
+  }
+
+  [data-slot="button"] {
+    border-color: ButtonBorder;
+    background: ButtonFace;
+    color: ButtonText;
+    box-shadow: none;
+  }
+
+  [data-slot="button"][data-variant="default"],
+  [data-slot="button"][aria-pressed="true"],
+  [role="tab"][aria-selected="true"],
+  a[href][aria-current="page"]:not([data-navigation-brand]) {
+    border-color: Highlight;
+    background: Highlight;
+    color: HighlightText;
+  }
+
+  [data-slot="button"][data-variant="destructive"],
+  [data-slot="badge"][data-variant="destructive"],
+  [data-visual-intent="warning"] {
+    border: 2px double MarkText;
+    background: Mark;
+    color: MarkText;
+  }
+
+  [data-slot="badge"] {
+    border-color: CanvasText;
+    background: Canvas;
+    color: CanvasText;
+  }
+
+  [data-slot="badge"][data-variant="default"] {
+    border-color: Highlight;
+    background: Highlight;
+    color: HighlightText;
+  }
+
+  [data-slot="badge"][data-variant="secondary"] {
+    border-color: ButtonBorder;
+    background: ButtonFace;
+    color: ButtonText;
+  }
+
+  :where(input, select, textarea) {
+    border-color: ButtonBorder;
+    background: Field;
+    color: FieldText;
+    box-shadow: none;
+  }
+
+  select {
+    appearance: auto !important;
+  }
+
+  select + svg[aria-hidden="true"] {
+    display: none;
+  }
+
+  input[type="checkbox"],
+  input[type="radio"] {
+    accent-color: auto !important;
+  }
+
+  :where(button, a[href], input, select, textarea, summary, [tabindex]):focus-visible {
+    outline: 3px solid Highlight !important;
+    outline-offset: 2px;
+    box-shadow: none !important;
+  }
+
+  :where(button, input, select, textarea):disabled,
+  [aria-disabled="true"] {
+    border-color: GrayText !important;
+    border-style: dashed !important;
+    background: Canvas !important;
+    color: GrayText !important;
+    opacity: 1 !important;
+  }
+
+  [data-selected="true"],
+  [data-current="true"] {
+    border-color: Highlight !important;
+    outline: 2px solid Highlight;
+    outline-offset: -2px;
+  }
+
+  [data-active="true"] {
+    border-color: Highlight !important;
+    border-width: 2px;
+  }
+
+  [data-matrix-coordinate][data-current="true"] {
+    border: 2px solid Highlight !important;
+    background: Highlight !important;
+    color: HighlightText !important;
+  }
+
+  [data-matrix-coordinate][data-cursor="true"]:not([data-current="true"]) {
+    outline: 3px solid Highlight;
+    outline-offset: -3px;
+  }
+
+  [data-cell-kind="failure"],
+  [data-playback-status="error"],
+  [data-visual-intent="error"] {
+    border: 2px double Mark !important;
+    background: Canvas !important;
+    color: CanvasText !important;
+  }
+
+  [data-slot="button"][data-playback-status="error"],
+  [data-matrix-coordinate][data-playback-status="error"] {
+    border: 2px double Mark !important;
+    background: Canvas !important;
+    color: CanvasText !important;
+  }
+
+  [data-cell-kind="unavailable"],
+  [data-visual-intent="unavailable"] {
+    border: 1px dashed GrayText !important;
+    background: Canvas !important;
+    color: GrayText !important;
+  }
+
+  [data-matrix-row][data-active="true"] > * {
+    border-top-color: Highlight;
+    border-bottom-color: Highlight;
+  }
+
+  [data-model-column-current="true"],
+  [data-mobile-card][data-current="true"] {
+    border: 2px solid Highlight !important;
+  }
+
+  [data-capability-supported="true"] {
+    border-color: Highlight !important;
+    background: Highlight;
+    color: HighlightText;
+  }
+
+  [data-capability-supported="false"] {
+    border-style: dashed;
+    border-color: GrayText !important;
+    color: GrayText;
+  }
+
+  [data-slot="button"][data-variant="default"],
+  [data-slot="button"][data-variant="destructive"],
+  [data-slot="button"][aria-pressed="true"],
+  [data-slot="badge"][data-variant="default"],
+  [data-slot="badge"][data-variant="destructive"],
+  [role="tab"][aria-selected="true"],
+  a[href][aria-current="page"]:not([data-navigation-brand]),
+  [data-visual-intent="warning"],
+  [data-matrix-coordinate][data-current="true"],
+  [data-capability-supported="true"] {
+    forced-color-adjust: none;
+  }
+
+  [role="progressbar"] {
+    border: 1px solid CanvasText;
+    background: Canvas !important;
+  }
+
+  [role="progressbar"] > * {
+    background: Highlight !important;
+  }
+
+  [data-slot="waveform"] {
+    border-top: 1px solid CanvasText;
+    border-bottom: 1px solid CanvasText;
+  }
+
+  [data-slot="waveform-bar"][data-progress="elapsed"] {
+    background: Highlight !important;
+  }
+
+  [data-slot="waveform-bar"][data-progress="future"] {
+    border-top: 1px solid CanvasText;
+    border-bottom: 1px solid CanvasText;
+    background: Canvas !important;
+  }
+
+  .gaya-progress {
+    border-right: 3px solid HighlightText;
+    background: transparent !important;
+  }
+
+  [role="progressbar"] > .gaya-progress {
+    border-right-color: Highlight;
+    background: Highlight !important;
+  }
+
+  [role="alert"] {
+    outline: 2px solid Mark;
+    outline-offset: 2px;
+  }
+
+  [data-slot="file-trigger"] {
+    border: 1px solid ButtonBorder;
+    background: ButtonFace;
+    color: ButtonText;
+  }
+
+  [data-slot="file-trigger"]:has(input:focus-visible) {
+    outline: 3px solid Highlight;
+    outline-offset: 2px;
+  }
+
+  [data-slot="file-trigger"]:has(input:disabled) {
+    border-color: GrayText;
+    border-style: dashed;
+    background: Canvas;
+    color: GrayText;
   }
 }

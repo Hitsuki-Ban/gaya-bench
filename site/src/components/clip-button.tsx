@@ -35,6 +35,8 @@ export function ClipButton({ candidate }: ClipButtonProps) {
       <Button
         aria-label={`${character.name}「${line.text}」${model.name} を${isPlaying ? "停止" : "再生"}`}
         className="relative w-full justify-between overflow-hidden font-mono"
+        data-current={isCurrent}
+        data-playback-status={isCurrent ? player.status : "idle"}
         onClick={() => void player.toggle({ key, url: resolveAudioUrl(candidate.path) })}
         variant={isCurrent ? "default" : "outline"}
       >

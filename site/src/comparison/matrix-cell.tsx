@@ -47,6 +47,7 @@ export const MatrixCell = memo(function MatrixCell({
   const isPlaying = isCurrent && (status === "playing" || status === "loading");
   const isPaused = isCurrent && status === "paused";
   const isError = isCurrent && status === "error";
+  const cellKind = unavailableLabel ? "unavailable" : generationFailure ? "failure" : "available";
 
   function handleKeyDown(event: KeyboardEvent<HTMLButtonElement>): void {
     const direction = keyToDirection(event.key);
@@ -102,7 +103,11 @@ export const MatrixCell = memo(function MatrixCell({
         isCurrent ? "border-primary bg-primary/12 text-primary" : "",
         isError ? "border-destructive bg-destructive/10 text-destructive" : "",
       ].join(" ")}
+      data-cell-kind={cellKind}
+      data-current={isCurrent}
+      data-cursor={isCursor}
       data-matrix-coordinate={coordinateKey(coordinate)}
+      data-playback-status={status}
       onClick={() => {
         if (cell?.kind === "selected") {
           selectAndToggle(coordinate);

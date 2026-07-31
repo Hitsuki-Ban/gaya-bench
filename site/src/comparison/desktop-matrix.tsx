@@ -55,6 +55,7 @@ export function DesktopMatrix({ controller, model, projection, search }: Desktop
                   "w-[132px] border-r border-b bg-background px-2 py-2 text-left last:border-r-0",
                   playingCoordinate?.modelId === item.id ? "bg-primary/12" : "",
                 ].join(" ")}
+                data-model-column-current={playingCoordinate?.modelId === item.id}
                 key={item.id}
                 role="columnheader"
               >
@@ -168,6 +169,8 @@ const MatrixRow = memo(function MatrixRow({
     <tr
       aria-rowindex={displayRowIndex + 2}
       className={["group/row", isActiveRow ? "bg-primary/[0.065]" : ""].join(" ")}
+      data-active={isActiveRow}
+      data-matrix-row=""
       role="row"
     >
       <th
@@ -214,6 +217,7 @@ const MatrixRow = memo(function MatrixRow({
                   ? "shadow-[inset_0_1px_0_rgba(245,166,35,0.4),inset_0_-1px_0_rgba(245,166,35,0.28)]"
                   : "",
             ].join(" ")}
+            data-model-column-current={playingModelId === item.id}
             key={item.id}
             role="gridcell"
             style={isScenarioStart ? { borderTopColor: "var(--primary)" } : undefined}
@@ -257,6 +261,7 @@ function CapabilityBadge({
           ? "border-primary/55 bg-primary/10 text-primary"
           : "border-border text-muted-foreground/55",
       ].join(" ")}
+      data-capability-supported={active}
       title={`${title}: ${active ? "対応" : "非対応"}`}
     >
       {label}

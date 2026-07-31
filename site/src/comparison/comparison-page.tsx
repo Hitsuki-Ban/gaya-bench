@@ -427,7 +427,10 @@ function InvalidFilterQuery({
         eyebrow="聴き比べ / フィルタ指定エラー"
         title="共有リンクの条件が無効です。"
       />
-      <div className="rounded-lg border border-destructive/40 bg-destructive/5 p-5">
+      <div
+        className="rounded-lg border border-destructive/40 bg-destructive/5 p-5"
+        data-visual-intent="error"
+      >
         <h2 className="flex items-center gap-2 text-sm font-semibold text-destructive">
           <AlertTriangle aria-hidden="true" className="size-4" />
           フィルタ指定を確認してください
