@@ -11,6 +11,7 @@ import {
   decodeFilterQuery,
   encodeFilterState,
   projectComparisonModel,
+  resetNarrowingFilters,
   type ComparisonProjection,
   type FilterQueryIssue,
   type FilterState,
@@ -21,6 +22,7 @@ import { FilterToolbar } from "./filter-toolbar";
 import { focusCoordinate } from "./matrix-focus";
 import { buildComparisonModel, type Coordinate } from "./model";
 import { MobileMatrix } from "./mobile-matrix";
+import { ScenarioSelector } from "./scenario-selector";
 import { useComparisonController, type SequenceDirection } from "./use-comparison-controller";
 import { useMediaQuery } from "./use-media-query";
 
@@ -67,7 +69,6 @@ export function ComparisonPage() {
           preventScrollReset: true,
         })
       }
-      onReset={resetFilters}
       state={result.state}
     />
   );
@@ -76,12 +77,10 @@ export function ComparisonPage() {
 function FilteredComparisonPage({
   canonicalSearch,
   onChange,
-  onReset,
   state,
 }: {
   canonicalSearch: string;
   onChange: (state: FilterState) => void;
-  onReset: () => void;
   state: FilterState;
 }) {
   const projection = useMemo(() => projectComparisonModel(comparisonModel, state), [state]);
@@ -105,6 +104,10 @@ function FilteredComparisonPage({
     controller.selectAndToggle(firstPlayableCoordinate);
     focusCoordinate(firstPlayableCoordinate);
   }, [controller, firstPlayableCoordinate]);
+  const resetNarrowing = useCallback(
+    () => onChange(resetNarrowingFilters(state, benchmarkData)),
+    [onChange, state],
+  );
 
   return (
     <div className="space-y-4">
@@ -136,10 +139,12 @@ function FilteredComparisonPage({
         title="日本語TTSのゲームガヤ演技を聴き比べる"
       />
 
+      <ScenarioSelector onChange={onChange} search={canonicalSearch} state={state} />
+
       <FilterToolbar
         filteredRows={projection.rows.length}
         onChange={onChange}
-        onReset={onReset}
+        onReset={resetNarrowing}
         state={state}
         totalRows={comparisonModel.rows.length}
       />
@@ -152,8 +157,8 @@ function FilteredComparisonPage({
           <p className="mt-2 text-sm text-muted-foreground">
             シナリオまたはキャラクター・感情・難易度の条件を緩めてください。
           </p>
-          <Button className="mt-4" onClick={onReset} variant="outline">
-            フィルタを初期化
+          <Button className="mt-4" onClick={resetNarrowing} variant="outline">
+            絞り込みを戻す
           </Button>
         </div>
       ) : isDesktop ? (
