@@ -2,8 +2,10 @@ from __future__ import annotations
 
 import hashlib
 import importlib
+import json
 import re
 import sys
+import wave
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from importlib import metadata
@@ -59,6 +61,11 @@ MAX_SECONDS = 30.0
 MAX_REF_SECONDS = 30.0
 REF_NORMALIZE_DB = -16.0
 WATERMARK_PAYLOAD = "IRDTS"
+ROLE_REFERENCE_CACHE_FORMAT_VERSION = 1
+ROLE_REFERENCE_CACHE_DIRECTORY = "irodori-role-references-v1"
+ROLE_ANCHOR_TEXT = "そらにはくもがうかび、とおくでかぜのおとがきこえます。"
+ROLE_ANCHOR_SEED = 0
+REFERENCE_CONTROL = "character-stable-reference-audio-v1"
 
 PROFILE_VERSION = (
     f"Irodori-TTS {IRODORI_TTS_VERSION}@{UPSTREAM_REVISION}; "
@@ -99,6 +106,28 @@ _EMOTION_LABEL: dict[str, str] = {
     "pain": "苦痛",
 }
 
+_KIND_LABEL: dict[str, str] = {
+    "human": "人間",
+    "machine": "機械",
+    "creature": "生物",
+    "spirit": "霊的存在",
+}
+
+_GENDER_LABEL: dict[str, str] = {
+    "female": "女性",
+    "male": "男性",
+    "neutral": "中性的",
+}
+
+_AGE_LABEL: dict[str, str] = {
+    "child": "子ども",
+    "teen": "10代",
+    "young_adult": "若い成人",
+    "adult": "成人",
+    "middle_aged": "中年",
+    "elderly": "高齢者",
+}
+
 _IDENTIFIER = re.compile(r"^[a-z0-9][a-z0-9-]*$")
 _MIB = 1024 * 1024
 _T = TypeVar("_T")
@@ -109,15 +138,31 @@ class IrodoriTTSAdapterError(RuntimeError):
 
 
 @dataclass(frozen=True)
+class _RoleReference:
+    source: str
+    voice_id: str | None
+    wav_path: Path
+    sha256: str
+    caption: str | None
+    text: str | None
+    phase_peak_vram_mib: Mapping[str, Mapping[str, float]]
+
+
+@dataclass(frozen=True)
 class _PreparedInput:
     text: str
     reading_source: str
     emotion: str
     emoji: str | None
     caption: str
+    role_identity: Mapping[str, str]
+    reference_source: str
     reference_voice: str | None
-    reference_wav: Path | None
-    reference_sha256: str | None
+    reference_wav: Path
+    reference_sha256: str
+    reference_caption: str | None
+    reference_text: str | None
+    reference_phase_peak_vram_mib: Mapping[str, Mapping[str, float]]
 
     def as_generation_input(self) -> dict[str, Any]:
         return {
@@ -126,8 +171,13 @@ class _PreparedInput:
             "emotion": self.emotion,
             "emotion_emoji": self.emoji,
             "caption": self.caption,
+            "role_identity": dict(self.role_identity),
+            "reference_control": REFERENCE_CONTROL,
+            "reference_source": self.reference_source,
             "reference_voice": self.reference_voice,
             "reference_sha256": self.reference_sha256,
+            "reference_caption": self.reference_caption,
+            "reference_text": self.reference_text,
         }
 
 
@@ -515,24 +565,111 @@ class IrodoriTTSAdapter:
         artifacts_dir: Path,
         voices_dir: Path,
     ) -> None:
-        del artifacts_dir
         self._prepared = False
         self._prepared_inputs.clear()
-        self._load_peak = None
 
         reference_entries = _load_reference_entries(voices_dir)
+        jobs_by_character: dict[tuple[str, str], list[LineJob]] = {}
+        role_identities: dict[tuple[str, str], dict[str, str]] = {}
+        reference_voice_by_character: dict[tuple[str, str], str | None] = {}
+        line_keys: set[tuple[str, str]] = set()
         for job in jobs:
-            key = _job_key(job)
-            if key in self._prepared_inputs:
+            line_key = _job_key(job)
+            if line_key in line_keys:
                 raise IrodoriTTSAdapterError(
-                    f"同じ line job が重複しています: {key[0]}/{key[1]}",
+                    f"同じ line job が重複しています: {line_key[0]}/{line_key[1]}",
                 )
-            self._prepared_inputs[key] = _prepare_input(
-                job,
-                voices_dir=voices_dir,
-                reference_entries=reference_entries,
-                reading_converter=self._reading_converter,
+            line_keys.add(line_key)
+            character_key = _character_key(job)
+            identity = _role_identity(job)
+            previous_identity = role_identities.get(character_key)
+            if previous_identity is not None and previous_identity != identity:
+                raise IrodoriTTSAdapterError(
+                    "同じ scenario/character に異なる役柄情報があります: "
+                    f"{character_key[0]}/{character_key[1]}",
+                )
+            role_identities[character_key] = identity
+            reference_voice = _reference_voice_value(job)
+            if (
+                character_key in reference_voice_by_character
+                and reference_voice_by_character[character_key] != reference_voice
+            ):
+                raise IrodoriTTSAdapterError(
+                    "同じ scenario/character に異なる reference_voice があります: "
+                    f"{character_key[0]}/{character_key[1]}",
+                )
+            reference_voice_by_character[character_key] = reference_voice
+            jobs_by_character.setdefault(character_key, []).append(job)
+
+        references: dict[tuple[str, str], _RoleReference] = {}
+        missing_anchors: list[tuple[str, str]] = []
+        anchor_identities: dict[tuple[str, str], dict[str, Any]] = {}
+        anchor_paths: dict[tuple[str, str], tuple[Path, Path]] = {}
+        for character_key in sorted(jobs_by_character):
+            voice_id = reference_voice_by_character[character_key]
+            if voice_id is not None:
+                try:
+                    entry = reference_entries[voice_id]
+                except KeyError as error:
+                    raise IrodoriTTSAdapterError(
+                        f"未登録の reference_voice です: {voice_id}",
+                    ) from error
+                wav_path, sha256 = _resolve_reference_wav(voices_dir, entry)
+                references[character_key] = _RoleReference(
+                    source="voice-asset",
+                    voice_id=voice_id,
+                    wav_path=wav_path,
+                    sha256=sha256,
+                    caption=None,
+                    text=None,
+                    phase_peak_vram_mib={},
+                )
+                continue
+
+            identity = _role_anchor_cache_identity(
+                character_key,
+                role_identities[character_key],
             )
+            reference_dir = (
+                artifacts_dir
+                / ROLE_REFERENCE_CACHE_DIRECTORY
+                / MODEL_ID
+                / character_key[0]
+                / character_key[1]
+            )
+            wav_path = reference_dir / "anchor.wav"
+            metadata_path = reference_dir / "anchor.json"
+            anchor_identities[character_key] = identity
+            anchor_paths[character_key] = (wav_path, metadata_path)
+            cached = _read_role_anchor_cache(
+                wav_path=wav_path,
+                metadata_path=metadata_path,
+                identity=identity,
+            )
+            if cached is None:
+                missing_anchors.append(character_key)
+            else:
+                references[character_key] = cached
+
+        if missing_anchors:
+            self._ensure_runtime_loaded()
+            for character_key in missing_anchors:
+                wav_path, metadata_path = anchor_paths[character_key]
+                references[character_key] = self._generate_role_anchor(
+                    character_key=character_key,
+                    identity=anchor_identities[character_key],
+                    wav_path=wav_path,
+                    metadata_path=metadata_path,
+                )
+
+        for character_key, character_jobs in jobs_by_character.items():
+            reference = references[character_key]
+            for job in character_jobs:
+                self._prepared_inputs[_job_key(job)] = _prepare_input(
+                    job,
+                    reference=reference,
+                    reading_converter=self._reading_converter,
+                )
 
         self._prepared = True
 
@@ -579,6 +716,17 @@ class IrodoriTTSAdapter:
                 "ensure_max": True,
                 "max_seconds": MAX_REF_SECONDS,
             },
+            "role_reference": {
+                "control": REFERENCE_CONTROL,
+                "key": ["scenario", "character"],
+                "cache_format_version": ROLE_REFERENCE_CACHE_FORMAT_VERSION,
+                "cache_directory": ROLE_REFERENCE_CACHE_DIRECTORY,
+                "anchor_text": ROLE_ANCHOR_TEXT,
+                "anchor_caption_policy": "complete-role-identity-neutral-performance",
+                "anchor_seed": ROLE_ANCHOR_SEED,
+                "anchor_sampling": _role_anchor_sampling(),
+                "explicit_asset_policy": "strict-metadata-wav-sha256",
+            },
             "decode_mode": "sequential",
             "codec_deterministic_encode": True,
             "codec_deterministic_decode": True,
@@ -607,9 +755,7 @@ class IrodoriTTSAdapter:
         seed = take_context.seed
         assert seed is not None
         prepared = self._prepared_input(job)
-        if self._load_peak is None:
-            peak = self._run_phase("Irodori runtime load", self._runtime.prepare)
-            self._load_peak = _copy_peak(peak)
+        self._ensure_runtime_loaded()
         realized = self._run_phase(
             f"Irodori generation ({job.scenario_id}/{job.line_id})",
             lambda: self._runtime.synthesize(
@@ -627,18 +773,101 @@ class IrodoriTTSAdapter:
         assert self._load_peak is not None
 
         result = dict(realized)
-        peaks = result.get("phase_peak_vram_mib")
-        if not isinstance(peaks, Mapping):
-            raise IrodoriTTSAdapterError(
-                "runtime の phase_peak_vram_mib が不正です。",
-            )
+        peaks = _validate_target_receipt(realized, seed=seed)
         result["phase_peak_vram_mib"] = {
             "runtime_load": _copy_peak(self._load_peak),
+            **{
+                str(name): _copy_peak(peak)
+                for name, peak in prepared.reference_phase_peak_vram_mib.items()
+            },
             **{str(name): _copy_peak(peak) for name, peak in peaks.items()},
         }
         result["seed"] = seed
         result["sampling"] = take_context.sampling_dict()
+        result["role_identity"] = dict(prepared.role_identity)
+        result["caption"] = prepared.caption
+        result["reference_control"] = REFERENCE_CONTROL
+        result["reference_source"] = prepared.reference_source
+        result["reference_voice"] = prepared.reference_voice
+        result["reference_sha256"] = prepared.reference_sha256
+        result["reference_caption"] = prepared.reference_caption
+        result["reference_text"] = prepared.reference_text
         return result
+
+    def _ensure_runtime_loaded(self) -> None:
+        if self._load_peak is not None:
+            return
+        peak = self._run_phase("Irodori runtime load", self._runtime.prepare)
+        self._load_peak = _copy_peak(peak)
+
+    def _generate_role_anchor(
+        self,
+        *,
+        character_key: tuple[str, str],
+        identity: Mapping[str, Any],
+        wav_path: Path,
+        metadata_path: Path,
+    ) -> _RoleReference:
+        if self._load_peak is None:
+            raise IrodoriTTSAdapterError(
+                "role anchor 生成前に runtime load profile がありません。",
+            )
+        wav_path.parent.mkdir(parents=True, exist_ok=True)
+        pending_wav = wav_path.with_name(".anchor.pending.wav")
+        pending_metadata = metadata_path.with_name(".anchor.pending.json")
+        if pending_wav.exists() or pending_metadata.exists():
+            raise IrodoriTTSAdapterError(
+                f"role anchor cache の pending file が残っています: {wav_path.parent}",
+            )
+        try:
+            realized = self._run_phase(
+                (
+                    "Irodori role anchor generation "
+                    f"({character_key[0]}/{character_key[1]})"
+                ),
+                lambda: self._runtime.synthesize(
+                    text=ROLE_ANCHOR_TEXT,
+                    caption=str(identity["anchor_caption"]),
+                    reference_wav=None,
+                    output_wav=pending_wav,
+                    seed=ROLE_ANCHOR_SEED,
+                ),
+            )
+            if not pending_wav.is_file():
+                raise IrodoriTTSAdapterError(
+                    f"role anchor WAV が書き込まれませんでした: {pending_wav}",
+                )
+            _validate_pcm16_wav(pending_wav)
+            phase_peaks = _validate_role_anchor_receipt(realized)
+            cache_peaks = {
+                "role_anchor_runtime_load": _copy_peak(self._load_peak),
+                "role_anchor_generate": _copy_peak(phase_peaks["generation"]),
+            }
+            wav_sha256 = _sha256_file(pending_wav)
+            metadata = {
+                **identity,
+                "phase_peak_vram_mib": cache_peaks,
+                "wav_sha256": wav_sha256,
+            }
+            pending_metadata.write_text(
+                json.dumps(metadata, ensure_ascii=False, indent=2) + "\n",
+                encoding="utf-8",
+            )
+            pending_wav.replace(wav_path)
+            pending_metadata.replace(metadata_path)
+        finally:
+            pending_wav.unlink(missing_ok=True)
+            pending_metadata.unlink(missing_ok=True)
+
+        return _RoleReference(
+            source="generated-role-anchor",
+            voice_id=None,
+            wav_path=wav_path,
+            sha256=wav_sha256,
+            caption=str(identity["anchor_caption"]),
+            text=ROLE_ANCHOR_TEXT,
+            phase_peak_vram_mib=cache_peaks,
+        )
 
     def _prepared_input(self, job: LineJob) -> _PreparedInput:
         if not self._prepared:
@@ -667,8 +896,7 @@ class IrodoriTTSAdapter:
 def _prepare_input(
     job: LineJob,
     *,
-    voices_dir: Path,
-    reference_entries: Mapping[str, Mapping[str, Any]],
+    reference: _RoleReference,
     reading_converter: Callable[[str], str] | None,
 ) -> _PreparedInput:
     _job_key(job)
@@ -688,7 +916,8 @@ def _prepare_input(
             f"未対応の line.emotion です: {emotion}",
         ) from error
 
-    voice = _required_string(job.character, "voice", "character")
+    role_identity = _role_identity(job)
+    setting = _required_string(job.scene, "setting", "scene")
     delivery = _required_string(job.line, "delivery", "line")
     intensity = job.line.get("intensity")
     if (
@@ -701,39 +930,12 @@ def _prepare_input(
         )
     caption = "\n".join(
         (
-            "架空のキャラクターとして、実在の人物や声優を模倣せずに話す。",
-            f"声質: {voice}",
+            _role_caption(role_identity),
+            f"場面: {setting}",
             f"感情: {emotion_label}（強度 {intensity}/3）",
             f"演技: {delivery}",
         ),
     )
-
-    reference_voice_value = job.character.get("reference_voice")
-    reference_voice: str | None
-    reference_wav: Path | None
-    reference_sha256: str | None
-    if reference_voice_value is None:
-        reference_voice = None
-        reference_wav = None
-        reference_sha256 = None
-    else:
-        if not isinstance(reference_voice_value, str) or not _IDENTIFIER.fullmatch(
-            reference_voice_value,
-        ):
-            raise IrodoriTTSAdapterError(
-                "character.reference_voice は voice id または null が必要です。",
-            )
-        reference_voice = reference_voice_value
-        try:
-            entry = reference_entries[reference_voice]
-        except KeyError as error:
-            raise IrodoriTTSAdapterError(
-                f"未登録の reference_voice です: {reference_voice}",
-            ) from error
-        reference_wav, reference_sha256 = _resolve_reference_wav(
-            voices_dir,
-            entry,
-        )
 
     spoken_text = f"{emoji}{reading.text}" if emoji is not None else reading.text
     return _PreparedInput(
@@ -742,10 +944,153 @@ def _prepare_input(
         emotion=emotion,
         emoji=emoji,
         caption=caption,
-        reference_voice=reference_voice,
-        reference_wav=reference_wav,
-        reference_sha256=reference_sha256,
+        role_identity=role_identity,
+        reference_source=reference.source,
+        reference_voice=reference.voice_id,
+        reference_wav=reference.wav_path,
+        reference_sha256=reference.sha256,
+        reference_caption=reference.caption,
+        reference_text=reference.text,
+        reference_phase_peak_vram_mib=reference.phase_peak_vram_mib,
     )
+
+
+def _character_key(job: LineJob) -> tuple[str, str]:
+    scenario_id, _line_id = _job_key(job)
+    character_id = _required_identifier(job.character, "id", "character")
+    return scenario_id, character_id
+
+
+def _role_identity(job: LineJob) -> dict[str, str]:
+    scenario_id, character_id = _character_key(job)
+    name = _required_string(job.character, "name", "character")
+    # scenario schema が省略時 human と定義している optional field。
+    kind_value = job.character["kind"] if "kind" in job.character else "human"
+    if not isinstance(kind_value, str) or kind_value not in _KIND_LABEL:
+        raise IrodoriTTSAdapterError(
+            f"未対応の character.kind です: {kind_value!r}",
+        )
+    gender = _required_string(job.character, "gender", "character")
+    if gender not in _GENDER_LABEL:
+        raise IrodoriTTSAdapterError(
+            f"未対応の character.gender です: {gender}",
+        )
+    age = _required_string(job.character, "age", "character")
+    if age not in _AGE_LABEL:
+        raise IrodoriTTSAdapterError(
+            f"未対応の character.age です: {age}",
+        )
+    return {
+        "scenario": scenario_id,
+        "character": character_id,
+        "name": name,
+        "kind": kind_value,
+        "gender": gender,
+        "age": age,
+        "archetype": _required_string(job.character, "archetype", "character"),
+        "voice": _required_string(job.character, "voice", "character"),
+        "personality": _required_string(job.character, "personality", "character"),
+    }
+
+
+def _role_caption(identity: Mapping[str, str]) -> str:
+    return "\n".join(
+        (
+            "架空のキャラクターとして、実在の人物や声優を模倣せずに話す。",
+            f"名前: {identity['name']}",
+            f"種別: {_KIND_LABEL[identity['kind']]}（{identity['kind']}）",
+            f"性別: {_GENDER_LABEL[identity['gender']]}（{identity['gender']}）",
+            f"年齢: {_AGE_LABEL[identity['age']]}（{identity['age']}）",
+            f"役柄: {identity['archetype']}",
+            f"声質: {identity['voice']}",
+            f"性格: {identity['personality']}",
+        ),
+    )
+
+
+def _role_anchor_caption(identity: Mapping[str, str]) -> str:
+    return "\n".join(
+        (
+            _role_caption(identity),
+            "発声: この役柄の声の同一性を定める中立な読み。"
+            "場面固有の感情や演技を加えない。",
+        ),
+    )
+
+
+def _role_anchor_sampling() -> dict[str, Any]:
+    return {
+        "sample_rate_hz": SAMPLE_RATE_HZ,
+        "no_ref": True,
+        "ref_normalize_db": REF_NORMALIZE_DB,
+        "ref_ensure_max": True,
+        "num_candidates": 1,
+        "decode_mode": "sequential",
+        "seconds": None,
+        "num_steps": NUM_STEPS,
+        "cfg_scale_text": CFG_SCALE_TEXT,
+        "cfg_scale_caption": CFG_SCALE_CAPTION,
+        "cfg_scale_speaker": CFG_SCALE_SPEAKER,
+        "cfg_guidance_mode": CFG_GUIDANCE_MODE,
+        "cfg_min_t": CFG_MIN_T,
+        "cfg_max_t": CFG_MAX_T,
+        "duration_scale": DURATION_SCALE,
+        "min_seconds": MIN_SECONDS,
+        "max_seconds": MAX_SECONDS,
+        "max_ref_seconds": MAX_REF_SECONDS,
+        "context_kv_cache": True,
+        "speaker_uncond_mode": "mask",
+        "t_schedule_mode": "linear",
+        "sway_coeff": -1.0,
+        "trim_tail": True,
+        "tail_window_size": 20,
+        "tail_std_threshold": 0.05,
+        "tail_mean_threshold": 0.1,
+    }
+
+
+def _role_anchor_cache_identity(
+    character_key: tuple[str, str],
+    role_identity: Mapping[str, str],
+) -> dict[str, Any]:
+    if (
+        role_identity["scenario"] != character_key[0]
+        or role_identity["character"] != character_key[1]
+    ):
+        raise IrodoriTTSAdapterError(
+            "role anchor identity の scenario/character が key と一致しません。",
+        )
+    return {
+        "format_version": ROLE_REFERENCE_CACHE_FORMAT_VERSION,
+        "model": MODEL_ID,
+        "profile_version": PROFILE_VERSION,
+        "upstream_revision": UPSTREAM_REVISION,
+        "checkpoint": CHECKPOINT_ID,
+        "checkpoint_revision": CHECKPOINT_REVISION,
+        "codec": CODEC_ID,
+        "codec_revision": CODEC_REVISION,
+        "role_identity": dict(role_identity),
+        "anchor_text": ROLE_ANCHOR_TEXT,
+        "anchor_caption": _role_anchor_caption(role_identity),
+        "anchor_seed": ROLE_ANCHOR_SEED,
+        "anchor_sampling": _role_anchor_sampling(),
+        "watermark_payload": WATERMARK_PAYLOAD,
+    }
+
+
+def _reference_voice_value(job: LineJob) -> str | None:
+    if "reference_voice" not in job.character:
+        raise IrodoriTTSAdapterError(
+            "character.reference_voice は voice id または null が必要です。",
+        )
+    value = job.character["reference_voice"]
+    if value is None:
+        return None
+    if not isinstance(value, str) or not _IDENTIFIER.fullmatch(value):
+        raise IrodoriTTSAdapterError(
+            "character.reference_voice は voice id または null が必要です。",
+        )
+    return value
 
 
 def _load_reference_entries(
@@ -813,6 +1158,177 @@ def _resolve_reference_wav(
             f"expected={expected_sha256}, actual={actual_sha256}",
         )
     return audio_path, expected_sha256
+
+
+def _read_role_anchor_cache(
+    *,
+    wav_path: Path,
+    metadata_path: Path,
+    identity: Mapping[str, Any],
+) -> _RoleReference | None:
+    pending_wav = wav_path.with_name(".anchor.pending.wav")
+    pending_metadata = metadata_path.with_name(".anchor.pending.json")
+    if pending_wav.exists() or pending_metadata.exists():
+        raise IrodoriTTSAdapterError(
+            f"role anchor cache の pending file が残っています: {wav_path.parent}",
+        )
+    wav_exists = wav_path.exists()
+    metadata_exists = metadata_path.exists()
+    if not wav_exists and not metadata_exists:
+        return None
+    if wav_exists != metadata_exists:
+        raise IrodoriTTSAdapterError(
+            f"role anchor cache の WAV/metadata pair が壊れています: {wav_path.parent}",
+        )
+    if (
+        not wav_path.is_file()
+        or not metadata_path.is_file()
+        or wav_path.is_symlink()
+        or metadata_path.is_symlink()
+    ):
+        raise IrodoriTTSAdapterError(
+            f"role anchor cache は通常ファイルの pair が必要です: {wav_path.parent}",
+        )
+    try:
+        cached = json.loads(metadata_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as error:
+        raise IrodoriTTSAdapterError(
+            f"role anchor cache metadata が不正です: {metadata_path}",
+        ) from error
+    if not isinstance(cached, dict):
+        raise IrodoriTTSAdapterError(
+            f"role anchor cache metadata は object が必要です: {metadata_path}",
+        )
+    expected_keys = set(identity) | {"phase_peak_vram_mib", "wav_sha256"}
+    if set(cached) != expected_keys:
+        raise IrodoriTTSAdapterError(
+            f"role anchor cache metadata の項目が一致しません: {metadata_path}",
+        )
+    if any(cached[key] != value for key, value in identity.items()):
+        raise IrodoriTTSAdapterError(
+            f"role anchor cache identity が一致しません: {metadata_path}",
+        )
+    peaks = cached["phase_peak_vram_mib"]
+    if (
+        not isinstance(peaks, Mapping)
+        or set(peaks) != {"role_anchor_runtime_load", "role_anchor_generate"}
+    ):
+        raise IrodoriTTSAdapterError(
+            f"role anchor cache の phase receipt が不正です: {metadata_path}",
+        )
+    copied_peaks = {
+        str(name): _copy_peak(peak)
+        for name, peak in peaks.items()
+        if isinstance(peak, Mapping)
+    }
+    if len(copied_peaks) != 2:
+        raise IrodoriTTSAdapterError(
+            f"role anchor cache の phase receipt が不正です: {metadata_path}",
+        )
+    wav_sha256 = cached["wav_sha256"]
+    if not isinstance(wav_sha256, str) or not re.fullmatch(
+        r"[0-9a-f]{64}",
+        wav_sha256,
+    ):
+        raise IrodoriTTSAdapterError(
+            f"role anchor cache の wav_sha256 が不正です: {metadata_path}",
+        )
+    _validate_pcm16_wav(wav_path)
+    if _sha256_file(wav_path) != wav_sha256:
+        raise IrodoriTTSAdapterError(
+            f"role anchor cache の WAV SHA-256 が一致しません: {wav_path}",
+        )
+    return _RoleReference(
+        source="generated-role-anchor",
+        voice_id=None,
+        wav_path=wav_path,
+        sha256=wav_sha256,
+        caption=str(identity["anchor_caption"]),
+        text=ROLE_ANCHOR_TEXT,
+        phase_peak_vram_mib=copied_peaks,
+    )
+
+
+def _validate_role_anchor_receipt(
+    realized: Mapping[str, Any],
+) -> dict[str, dict[str, float]]:
+    if realized.get("silentcipher_watermark_stage_executed") is not True:
+        raise IrodoriTTSAdapterError(
+            "role anchor で SilentCipher watermark stage が確認できません。",
+        )
+    if realized.get("seed") != ROLE_ANCHOR_SEED:
+        raise IrodoriTTSAdapterError(
+            "role anchor の realized seed が一致しません。",
+        )
+    if realized.get("sample_rate_hz") != SAMPLE_RATE_HZ:
+        raise IrodoriTTSAdapterError(
+            "role anchor の realized sample rate が一致しません。",
+        )
+    peaks = realized.get("phase_peak_vram_mib")
+    if not isinstance(peaks, Mapping) or set(peaks) != {"generation"}:
+        raise IrodoriTTSAdapterError(
+            "role anchor の phase_peak_vram_mib が不正です。",
+        )
+    generation_peak = peaks["generation"]
+    if not isinstance(generation_peak, Mapping):
+        raise IrodoriTTSAdapterError(
+            "role anchor generation peak が不正です。",
+        )
+    return {"generation": _copy_peak(generation_peak)}
+
+
+def _validate_target_receipt(
+    realized: Mapping[str, Any],
+    *,
+    seed: int,
+) -> dict[str, dict[str, float]]:
+    if realized.get("silentcipher_watermark_stage_executed") is not True:
+        raise IrodoriTTSAdapterError(
+            "target generation で SilentCipher watermark stage が確認できません。",
+        )
+    if realized.get("seed") != seed:
+        raise IrodoriTTSAdapterError(
+            "target generation の realized seed が一致しません。",
+        )
+    if realized.get("sample_rate_hz") != SAMPLE_RATE_HZ:
+        raise IrodoriTTSAdapterError(
+            "target generation の realized sample rate が一致しません。",
+        )
+    peaks = realized.get("phase_peak_vram_mib")
+    if not isinstance(peaks, Mapping) or set(peaks) != {"generation"}:
+        raise IrodoriTTSAdapterError(
+            "target generation の phase_peak_vram_mib が不正です。",
+        )
+    generation_peak = peaks["generation"]
+    if not isinstance(generation_peak, Mapping):
+        raise IrodoriTTSAdapterError(
+            "target generation peak が不正です。",
+        )
+    return {"generation": _copy_peak(generation_peak)}
+
+
+def _validate_pcm16_wav(path: Path) -> None:
+    try:
+        with wave.open(str(path), "rb") as wav_file:
+            channels = wav_file.getnchannels()
+            sample_width = wav_file.getsampwidth()
+            sample_rate = wav_file.getframerate()
+            frame_count = wav_file.getnframes()
+    except (OSError, EOFError, wave.Error) as error:
+        raise IrodoriTTSAdapterError(
+            f"role anchor WAV が不正です: {path}: {error}",
+        ) from error
+    if (
+        channels != 1
+        or sample_width != 2
+        or sample_rate != SAMPLE_RATE_HZ
+        or frame_count < 1
+    ):
+        raise IrodoriTTSAdapterError(
+            "role anchor WAV format が不正です: "
+            f"channels={channels}, sample_width={sample_width}, "
+            f"sample_rate={sample_rate}, frames={frame_count}",
+        )
 
 
 def _job_key(job: LineJob) -> tuple[str, str]:
