@@ -1,7 +1,9 @@
 import { useEffect, useState, type ReactNode } from "react";
 
-import { PlaybackManagerContext } from "./audio-context";
+import { AudioSessionCoordinator } from "./audio-session-coordinator";
+import { PlaybackManagerContext, SceneMixerContext, type SceneMixerRuntime } from "./audio-context";
 import { PlaybackManager } from "./playback-manager";
+import { createBrowserSceneMixerManager } from "./scene-mixer-manager";
 
 interface AudioProviderProps {
   children: ReactNode;
@@ -9,22 +11,37 @@ interface AudioProviderProps {
 }
 
 export function AudioProvider({ children, fallback }: AudioProviderProps) {
-  const [manager, setManager] = useState<PlaybackManager | null>(null);
+  const [runtime, setRuntime] = useState<
+    (SceneMixerRuntime & { readonly playbackManager: PlaybackManager }) | null
+  >(null);
 
   useEffect(() => {
-    const mountedManager = new PlaybackManager(new Audio());
-    setManager(mountedManager);
+    const playbackManager = new PlaybackManager(new Audio());
+    const manager = createBrowserSceneMixerManager();
+    const coordinator = new AudioSessionCoordinator(playbackManager, manager);
+    const stopWhenHidden = () => {
+      if (document.hidden) {
+        void coordinator.stopSceneMix();
+      }
+    };
+    document.addEventListener("visibilitychange", stopWhenHidden);
+    setRuntime({ coordinator, manager, playbackManager });
 
     return () => {
-      mountedManager.dispose();
+      document.removeEventListener("visibilitychange", stopWhenHidden);
+      coordinator.dispose();
+      void manager.dispose();
+      playbackManager.dispose();
     };
   }, []);
 
-  if (manager === null) {
+  if (runtime === null) {
     return fallback;
   }
 
   return (
-    <PlaybackManagerContext.Provider value={manager}>{children}</PlaybackManagerContext.Provider>
+    <PlaybackManagerContext.Provider value={runtime.playbackManager}>
+      <SceneMixerContext.Provider value={runtime}>{children}</SceneMixerContext.Provider>
+    </PlaybackManagerContext.Provider>
   );
 }

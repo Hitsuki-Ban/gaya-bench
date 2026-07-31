@@ -8,5 +8,12 @@ export type {
   PlaybackStatus,
   PlaybackTermination,
 } from "./playback-manager";
+export type {
+  SceneMixerState,
+  SceneMixerStatus,
+  SceneMixerTrack,
+  SceneMixRequest,
+} from "./scene-mixer-manager";
 export { useAudioPlayer, usePlaybackManager } from "./use-audio-player";
 export { useAudioProgress } from "./use-audio-progress";
+export { useSceneMixer } from "./use-scene-mixer";
