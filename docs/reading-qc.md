@@ -103,3 +103,15 @@ Kana Whisper の公式 model card は片仮名 transcript と Kana-CER の評価
 [Sarashina2.2-TTS](https://arxiv.org/html/2606.25369) も強い話し方では
 人が理解できる音声を Kana-ASR が誤認識し得ると報告している。このため ASR evidence
 は順位 score にも使用せず、人間の `content_correct` 判定を置き換えない。
+
+## Chatterbox 人工誤読による再校正
+
+[#159 の固定7検体](research/kana-asr-calibration/README.md)では、人手証拠のバッチ集計が
+語彙誤読7件・自動検出2件・差分5件を記録する一方、normalized exact match が pass に
+した5件の Kana-CER は0だった。現行判定は数値 threshold を持たないため、この
+漏検は距離調整では解消しない。production policy は `review_required` の soft signal の
+まま維持し、hard reject、別 ASR、silent fallback を追加しない。
+
+Chatterbox の上流 G2P が `退がれ` を `たいがれ` にする生成前の決定的差分は、
+期待 `サガレ` と別に fixture へ残す。上流入力監査、生成後 ASR、人手の語彙判断、
+同じ Kana 列では検出できない pitch accent 判断を混同しない。
