@@ -24,10 +24,10 @@ describe("Phase B Python / site cross contract", () => {
       );
       const produced = spawnSync(
         "uv",
-        ["run", "--project", pipelineRoot, "python", generator, fixtureRoot],
+        ["run", "--project", pipelineRoot, "--locked", "python", generator, fixtureRoot],
         { encoding: "utf8" },
       );
-      expect(produced.status, `${produced.stdout}\n${produced.stderr}`).toBe(0);
+      expect(produced.status, processFailure(produced)).toBe(0);
 
       const bundleRoot = join(fixtureRoot, "bundle");
       const catalog = await loadBaselineCatalog(diskDirectoryFiles(bundleRoot), NOOP_OBJECT_URLS);
@@ -68,6 +68,7 @@ describe("Phase B Python / site cross contract", () => {
           "run",
           "--project",
           pipelineRoot,
+          "--locked",
           "python",
           "-c",
           [
@@ -78,7 +79,7 @@ describe("Phase B Python / site cross contract", () => {
         ],
         { encoding: "utf8", input: decision },
       );
-      expect(validation.status, validation.stderr).toBe(0);
+      expect(validation.status, processFailure(validation)).toBe(0);
       expect(validation.stdout).toBe(decision);
       catalog.dispose();
     } finally {
@@ -123,3 +124,13 @@ const NOOP_OBJECT_URLS: ObjectUrlFactory = {
   },
   revoke() {},
 };
+
+function processFailure(result: {
+  readonly error?: Error;
+  readonly stderr: string | null;
+  readonly stdout: string | null;
+}): string {
+  return [result.error?.message, result.stdout, result.stderr]
+    .filter((value): value is string => Boolean(value))
+    .join("\n");
+}
