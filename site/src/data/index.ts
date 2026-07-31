@@ -39,6 +39,7 @@ export type {
   ModelSourceKind,
   ModelSourceLink,
   PublishedCandidate,
+  ReferenceConditioning,
   ReferenceVoiceCredit,
   ReferenceVoiceSourceFile,
   ReleaseMetadata,

@@ -6,6 +6,7 @@ import { CreditsPage } from "@/pages/credits-page";
 import { HomePage } from "@/pages/home-page";
 import { ModelPage } from "@/pages/model-page";
 import { NotFoundPage } from "@/pages/not-found-page";
+import { ReferenceVoicesPage } from "@/pages/reference-voices-page";
 import { ScenarioPage } from "@/pages/scenario-page";
 
 export default function App() {
@@ -16,6 +17,7 @@ export default function App() {
         <Route path="scenario/:id" element={<ScenarioPage />} />
         <Route path="models/:id" element={<ModelPage />} />
         <Route path="ab" element={<AbPage />} />
+        <Route path="reference-voices" element={<ReferenceVoicesPage />} />
         <Route path="credits" element={<CreditsPage />} />
         <Route path="*" element={<NotFoundPage />} />
       </Route>

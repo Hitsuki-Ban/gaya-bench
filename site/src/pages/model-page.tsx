@@ -2,7 +2,9 @@ import { Check, Gauge, Minus } from "lucide-react";
 import { Link, useLocation, useParams } from "react-router";
 
 import { ClipButton } from "@/components/clip-button";
+import { ModelMethodBadge } from "@/components/model-method-badge";
 import { PageIntro } from "@/components/page-intro";
+import { ReferenceConditioningBadge } from "@/components/reference-conditioning-badge";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { benchmarkData, generationProfilesByModel, modelById } from "@/data";
@@ -65,22 +67,28 @@ export function ModelPage() {
           <CardHeader>
             <CardTitle>対応機能</CardTitle>
           </CardHeader>
-          <CardContent className="grid gap-2 sm:grid-cols-2">
-            {capabilityEntries.map(([key, label]) => {
-              const supported = model.capabilities[key];
-              return (
-                <div
-                  className="flex items-center justify-between rounded-md border px-3 py-2"
-                  key={key}
-                >
-                  <span className="text-sm">{label}</span>
-                  <Badge variant={supported ? "default" : "outline"}>
-                    {supported ? <Check aria-hidden="true" /> : <Minus aria-hidden="true" />}
-                    {supported ? "対応" : "非対応"}
-                  </Badge>
-                </div>
-              );
-            })}
+          <CardContent className="space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-primary/35 bg-primary/6 px-3 py-2">
+              <span className="text-sm font-medium">生成方式</span>
+              <ModelMethodBadge capabilities={model.capabilities} />
+            </div>
+            <div className="grid gap-2 sm:grid-cols-2">
+              {capabilityEntries.map(([key, label]) => {
+                const supported = model.capabilities[key];
+                return (
+                  <div
+                    className="flex items-center justify-between rounded-md border px-3 py-2"
+                    key={key}
+                  >
+                    <span className="text-sm">{label}</span>
+                    <Badge variant={supported ? "default" : "outline"}>
+                      {supported ? <Check aria-hidden="true" /> : <Minus aria-hidden="true" />}
+                      {supported ? "対応" : "非対応"}
+                    </Badge>
+                  </div>
+                );
+              })}
+            </div>
           </CardContent>
         </Card>
         <Card>
@@ -206,6 +214,7 @@ export function ModelPage() {
                 <CardContent className="space-y-2">
                   <p className="text-xs leading-5 text-muted-foreground">{line.delivery}</p>
                   <ClipButton candidate={candidate} />
+                  <ReferenceConditioningBadge conditioning={candidate.reference_conditioning} />
                   <div className="flex justify-between font-mono text-[10px] text-muted-foreground">
                     <span>RTF {candidate.rtf.toFixed(3)}</span>
                     <span>{candidate.duration_sec.toFixed(2)}s</span>

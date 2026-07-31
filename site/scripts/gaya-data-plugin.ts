@@ -18,6 +18,7 @@ import type {
   ModelSourceKind,
   ModelSourceLink,
   PublishedCandidate,
+  ReferenceConditioning,
   ReferenceVoiceCredit,
   ReleaseMetadata,
   Scenario,
@@ -83,6 +84,36 @@ const GENERATION_PARAMETER_KEYS = [
 ] as const;
 const LOUDNESS_KEYS = ["source", "i_lufs", "tp_dbtp", "shortfall"] as const;
 const GATE_KEYS = ["mechanical", "content", "policy_version"] as const;
+const SELECTED_ANCHOR_KEYS = [
+  "anchor_selection_sha256",
+  "anchor_plan_sha256",
+  "anchor_candidate_set_sha256",
+  "anchor_id",
+  "anchor_attempt",
+  "anchor_seed",
+  "anchor_audio_sha256",
+  "anchor_text_sha256",
+  "anchor_decision_sha256",
+  "role_identity_sha256",
+  "role_epoch_sha256",
+] as const;
+const KNOWN_REFERENCE_RECEIPT_KEYS = new Set([
+  "reference_control",
+  "reference_source",
+  "reference_kind",
+  "reference_voice",
+  "reference_sha256",
+  "reference_selection_source",
+  "reference_source_id",
+  "reference_source_sha256",
+  "reference_clip_sha256",
+  "reference_text",
+  "reference_caption",
+  "reference_samples",
+  "reference_duration_sec",
+  "reference_clip_frame_count",
+  "reference_clip_start_frame",
+]);
 const GROUP_KEYS = ["model", "scenario", "line", "variant"] as const;
 const SELECTED_CURATION_KEYS = [...GROUP_KEYS, "decision", "take_id", "curation_sha256"] as const;
 const SKIPPED_CURATION_KEYS = [...GROUP_KEYS, "decision", "curation_sha256"] as const;
@@ -336,7 +367,7 @@ export function loadBenchmarkData(repositoryRoot: string, watchFile?: WatchFile)
   return {
     release: projectReleaseMetadata(manifest),
     scenarios,
-    outcomes: projectOutcomes(manifest, qualitySignals),
+    outcomes: projectOutcomes(manifest, qualitySignals, referenceVoices),
     generation_profiles: projectGenerationProfiles(manifest),
     credits: {
       model_sources: projectModelCredits(manifest),
@@ -357,6 +388,8 @@ function projectReleaseMetadata(manifest: Manifest): ReleaseMetadata {
 function projectPublishedCandidate(
   candidate: Candidate,
   roleQuality: PublishedCandidate["role_quality"],
+  model: Model,
+  referenceVoices: ReadonlyMap<string, ReferenceVoiceCredit>,
 ): PublishedCandidate {
   return {
     model: candidate.model,
@@ -366,9 +399,470 @@ function projectPublishedCandidate(
     path: candidate.path,
     duration_sec: candidate.duration_sec,
     rtf: candidate.rtf,
+    reference_conditioning: projectReferenceConditioning(
+      candidate.gen_params.realized,
+      model,
+      referenceVoices,
+      `selected candidate ${candidate.take_id}`,
+    ),
     gate: { content: candidate.gate.content },
     role_quality: roleQuality,
   };
+}
+
+function projectReferenceConditioning(
+  realized: Candidate["gen_params"]["realized"],
+  model: Model,
+  referenceVoices: ReadonlyMap<string, ReferenceVoiceCredit>,
+  label: string,
+): ReferenceConditioning {
+  validateKnownReferenceReceiptKeys(realized, label);
+
+  const hasReferenceKind = "reference_kind" in realized;
+  const hasReferenceSource = "reference_source" in realized;
+  const qwenReferenceControl =
+    realized.reference_control === "voice_asset" ||
+    realized.reference_control === "selected_voice_design_anchor";
+  const hasGptHash = "reference_source_sha256" in realized || "reference_clip_sha256" in realized;
+  if ("reference_control" in realized && !hasReferenceSource && !qwenReferenceControl) {
+    throw new GayaDataError(`${label}.realized.reference_control が未知の tag です。`);
+  }
+  const primaryReceipts = [
+    hasReferenceKind,
+    hasReferenceSource,
+    qwenReferenceControl,
+    hasGptHash,
+  ].filter(Boolean).length;
+  if (primaryReceipts > 1) {
+    throw new GayaDataError(`${label}.realized の参照音声 receipt が競合しています。`);
+  }
+
+  let conditioning: ReferenceConditioning;
+  if (hasReferenceKind) {
+    conditioning = projectVoxReference(realized, referenceVoices, label);
+  } else if (hasReferenceSource) {
+    conditioning = projectIrodoriReference(realized, referenceVoices, label);
+  } else if (qwenReferenceControl) {
+    conditioning = projectQwenReference(realized, referenceVoices, label);
+  } else if (hasGptHash) {
+    conditioning = projectGptReference(realized, referenceVoices, label);
+  } else if (hasReferenceReceipt(realized)) {
+    conditioning = projectDirectCloneReference(realized, referenceVoices, label);
+  } else {
+    conditioning = { kind: "none" };
+  }
+
+  assertReferenceFamily(model, conditioning, label);
+  return conditioning;
+}
+
+function projectDirectCloneReference(
+  realized: Candidate["gen_params"]["realized"],
+  referenceVoices: ReadonlyMap<string, ReferenceVoiceCredit>,
+  label: string,
+): ReferenceConditioning {
+  assertAllowedReferenceReceiptKeys(
+    realized,
+    [
+      "reference_voice",
+      "reference_sha256",
+      "reference_selection_source",
+      "reference_samples",
+      "reference_duration_sec",
+    ],
+    label,
+  );
+  const hasReferenceLength =
+    "reference_samples" in realized || "reference_duration_sec" in realized;
+  if (hasReferenceLength) {
+    assertPositiveInteger(realized.reference_samples, `${label}.realized.reference_samples`);
+    assertNonNegativeFiniteNumber(
+      realized.reference_duration_sec,
+      `${label}.realized.reference_duration_sec`,
+    );
+    if (realized.reference_duration_sec === 0) {
+      throw new GayaDataError(
+        `${label}.realized.reference_duration_sec は0より大きい値が必要です。`,
+      );
+    }
+  }
+  const voiceId = requiredReferenceString(
+    realized.reference_voice,
+    `${label}.realized.reference_voice`,
+  );
+  const referenceSha = requiredReferenceSha(
+    realized.reference_sha256,
+    `${label}.realized.reference_sha256`,
+  );
+  const selectionSource = requiredReferenceString(
+    realized.reference_selection_source,
+    `${label}.realized.reference_selection_source`,
+  );
+  assertAbsent(realized, "selected_anchor", label);
+  assertCatalogReference(referenceVoices, voiceId, referenceSha, label);
+  return {
+    kind: "human_reference",
+    voice_id: voiceId,
+    asset_sha256: referenceSha,
+    inference_reference_sha256: referenceSha,
+    selection_source: selectionSource,
+  };
+}
+
+function projectGptReference(
+  realized: Candidate["gen_params"]["realized"],
+  referenceVoices: ReadonlyMap<string, ReferenceVoiceCredit>,
+  label: string,
+): ReferenceConditioning {
+  assertAllowedReferenceReceiptKeys(
+    realized,
+    [
+      "reference_voice",
+      "reference_source_sha256",
+      "reference_clip_sha256",
+      "reference_selection_source",
+      "reference_clip_frame_count",
+      "reference_clip_start_frame",
+    ],
+    label,
+  );
+  const hasClipFrames =
+    "reference_clip_frame_count" in realized || "reference_clip_start_frame" in realized;
+  if (hasClipFrames) {
+    assertPositiveInteger(
+      realized.reference_clip_frame_count,
+      `${label}.realized.reference_clip_frame_count`,
+    );
+    if (
+      typeof realized.reference_clip_start_frame !== "number" ||
+      !Number.isSafeInteger(realized.reference_clip_start_frame) ||
+      realized.reference_clip_start_frame < 0
+    ) {
+      throw new GayaDataError(
+        `${label}.realized.reference_clip_start_frame は0以上の整数が必要です。`,
+      );
+    }
+  }
+  const voiceId = requiredReferenceString(
+    realized.reference_voice,
+    `${label}.realized.reference_voice`,
+  );
+  const sourceSha = requiredReferenceSha(
+    realized.reference_source_sha256,
+    `${label}.realized.reference_source_sha256`,
+  );
+  const clipSha = requiredReferenceSha(
+    realized.reference_clip_sha256,
+    `${label}.realized.reference_clip_sha256`,
+  );
+  const selectionSource = requiredReferenceString(
+    realized.reference_selection_source,
+    `${label}.realized.reference_selection_source`,
+  );
+  assertAbsent(realized, "reference_sha256", label);
+  assertAbsent(realized, "selected_anchor", label);
+  assertCatalogReference(referenceVoices, voiceId, sourceSha, label);
+  return {
+    kind: "human_reference",
+    voice_id: voiceId,
+    asset_sha256: sourceSha,
+    inference_reference_sha256: clipSha,
+    selection_source: selectionSource,
+  };
+}
+
+function projectVoxReference(
+  realized: Candidate["gen_params"]["realized"],
+  referenceVoices: ReadonlyMap<string, ReferenceVoiceCredit>,
+  label: string,
+): ReferenceConditioning {
+  assertAllowedReferenceReceiptKeys(
+    realized,
+    ["reference_kind", "reference_voice", "reference_sha256", "reference_selection_source"],
+    label,
+  );
+  if (realized.reference_kind !== "asset" && realized.reference_kind !== "voice_design") {
+    throw new GayaDataError(`${label}.realized.reference_kind が未知の tag です。`);
+  }
+  const referenceSha = requiredReferenceSha(
+    realized.reference_sha256,
+    `${label}.realized.reference_sha256`,
+  );
+  const selectionSource = requiredReferenceString(
+    realized.reference_selection_source,
+    `${label}.realized.reference_selection_source`,
+  );
+  assertAbsent(realized, "selected_anchor", label);
+
+  if (realized.reference_kind === "asset") {
+    const voiceId = requiredReferenceString(
+      realized.reference_voice,
+      `${label}.realized.reference_voice`,
+    );
+    assertCatalogReference(referenceVoices, voiceId, referenceSha, label);
+    return {
+      kind: "human_reference",
+      voice_id: voiceId,
+      asset_sha256: referenceSha,
+      inference_reference_sha256: referenceSha,
+      selection_source: selectionSource,
+    };
+  }
+
+  if (realized.reference_voice !== null) {
+    throw new GayaDataError(
+      `${label}.realized.reference_voice は voice_design では null が必要です。`,
+    );
+  }
+  return {
+    kind: "model_generated_reference",
+    inference_reference_sha256: referenceSha,
+    source_kind: "voice_design",
+  };
+}
+
+function projectQwenReference(
+  realized: Candidate["gen_params"]["realized"],
+  referenceVoices: ReadonlyMap<string, ReferenceVoiceCredit>,
+  label: string,
+): ReferenceConditioning {
+  assertAllowedReferenceReceiptKeys(
+    realized,
+    [
+      "reference_control",
+      "reference_source_id",
+      "reference_sha256",
+      "reference_text",
+      "selected_anchor",
+    ],
+    label,
+  );
+  const referenceSha = requiredReferenceSha(
+    realized.reference_sha256,
+    `${label}.realized.reference_sha256`,
+  );
+  const sourceId = requiredReferenceString(
+    realized.reference_source_id,
+    `${label}.realized.reference_source_id`,
+  );
+  requiredReferenceString(realized.reference_text, `${label}.realized.reference_text`);
+  assertRecord(realized.character_identity, `${label}.realized.character_identity`);
+  assertAbsent(realized, "reference_voice", label);
+  assertAbsent(realized, "reference_selection_source", label);
+
+  if (realized.reference_control === "voice_asset") {
+    assertAbsent(realized, "selected_anchor", label);
+    assertCatalogReference(referenceVoices, sourceId, referenceSha, label);
+    return {
+      kind: "human_reference",
+      voice_id: sourceId,
+      asset_sha256: referenceSha,
+      inference_reference_sha256: referenceSha,
+      selection_source: "voice_asset",
+    };
+  }
+
+  const selectedAnchor = validateSelectedAnchor(realized.selected_anchor, label, referenceSha);
+  if (sourceId !== selectedAnchor.anchor_id) {
+    throw new GayaDataError(
+      `${label}.realized.reference_source_id が selected_anchor.anchor_id と一致しません。`,
+    );
+  }
+  return {
+    kind: "model_generated_reference",
+    inference_reference_sha256: referenceSha,
+    source_kind: "selected_voice_design_anchor",
+  };
+}
+
+function projectIrodoriReference(
+  realized: Candidate["gen_params"]["realized"],
+  referenceVoices: ReadonlyMap<string, ReferenceVoiceCredit>,
+  label: string,
+): ReferenceConditioning {
+  assertAllowedReferenceReceiptKeys(
+    realized,
+    [
+      "reference_control",
+      "reference_source",
+      "reference_voice",
+      "reference_sha256",
+      "reference_caption",
+      "reference_text",
+      "selected_anchor",
+    ],
+    label,
+  );
+  if (realized.reference_control !== "character-stable-reference-audio-v1") {
+    throw new GayaDataError(
+      `${label}.realized.reference_control は character-stable-reference-audio-v1 が必要です。`,
+    );
+  }
+  if (
+    realized.reference_source !== "voice-asset" &&
+    realized.reference_source !== "selected-role-anchor"
+  ) {
+    throw new GayaDataError(`${label}.realized.reference_source が未知の tag です。`);
+  }
+  const referenceSha = requiredReferenceSha(
+    realized.reference_sha256,
+    `${label}.realized.reference_sha256`,
+  );
+  assertAbsent(realized, "reference_source_id", label);
+  assertAbsent(realized, "reference_selection_source", label);
+
+  if (realized.reference_source === "voice-asset") {
+    const voiceId = requiredReferenceString(
+      realized.reference_voice,
+      `${label}.realized.reference_voice`,
+    );
+    if (realized.reference_caption !== null || realized.reference_text !== null) {
+      throw new GayaDataError(`${label}.realized の voice-asset caption/text は null が必要です。`);
+    }
+    assertAbsent(realized, "selected_anchor", label);
+    assertCatalogReference(referenceVoices, voiceId, referenceSha, label);
+    return {
+      kind: "human_reference",
+      voice_id: voiceId,
+      asset_sha256: referenceSha,
+      inference_reference_sha256: referenceSha,
+      selection_source: "voice-asset",
+    };
+  }
+
+  if (realized.reference_voice !== null) {
+    throw new GayaDataError(
+      `${label}.realized.reference_voice は selected-role-anchor では null が必要です。`,
+    );
+  }
+  requiredReferenceString(realized.reference_caption, `${label}.realized.reference_caption`);
+  requiredReferenceString(realized.reference_text, `${label}.realized.reference_text`);
+  validateSelectedAnchor(realized.selected_anchor, label, referenceSha);
+  return {
+    kind: "model_generated_reference",
+    inference_reference_sha256: referenceSha,
+    source_kind: "selected-role-anchor",
+  };
+}
+
+function validateSelectedAnchor(
+  value: unknown,
+  label: string,
+  referenceSha: string,
+): {
+  readonly anchor_id: string;
+} {
+  const anchorLabel = `${label}.realized.selected_anchor`;
+  assertRecord(value, anchorLabel);
+  assertExactKeys(value, SELECTED_ANCHOR_KEYS, [], anchorLabel);
+  for (const key of SELECTED_ANCHOR_KEYS) {
+    if (key === "anchor_attempt") {
+      assertPositiveInteger(value[key], `${anchorLabel}.${key}`);
+    } else if (key === "anchor_seed") {
+      if (typeof value[key] !== "number" || !Number.isSafeInteger(value[key]) || value[key] < 0) {
+        throw new GayaDataError(`${anchorLabel}.${key} は0以上の整数が必要です。`);
+      }
+    } else {
+      assertSha256(value[key], `${anchorLabel}.${key}`);
+    }
+  }
+  if (value.anchor_audio_sha256 !== referenceSha) {
+    throw new GayaDataError(
+      `${anchorLabel}.anchor_audio_sha256 が reference_sha256 と一致しません。`,
+    );
+  }
+  return { anchor_id: value.anchor_id as string };
+}
+
+function assertCatalogReference(
+  referenceVoices: ReadonlyMap<string, ReferenceVoiceCredit>,
+  voiceId: string,
+  assetSha: string,
+  label: string,
+): void {
+  const voice = referenceVoices.get(voiceId);
+  if (!voice) {
+    throw new GayaDataError(`${label}.realized が未知の参照音声を参照しています: ${voiceId}`);
+  }
+  if (voice.sha256 !== assetSha) {
+    throw new GayaDataError(
+      `${label}.realized の参照音声 SHA-256 が catalog と一致しません: ${voiceId}`,
+    );
+  }
+}
+
+function assertReferenceFamily(
+  model: Model,
+  conditioning: ReferenceConditioning,
+  label: string,
+): void {
+  if (model.capabilities.voice_prompt) {
+    return;
+  }
+  if (model.capabilities.clone) {
+    if (conditioning.kind !== "human_reference") {
+      throw new GayaDataError(
+        `${label} は参照音声からの声クローンですが human_reference ではありません。`,
+      );
+    }
+    return;
+  }
+  if (conditioning.kind !== "none") {
+    throw new GayaDataError(`${label} はプリセット話者ですが参照音声を使用しています。`);
+  }
+}
+
+function validateKnownReferenceReceiptKeys(
+  realized: Candidate["gen_params"]["realized"],
+  label: string,
+): void {
+  for (const key of Object.keys(realized)) {
+    if (key.startsWith("reference_") && !KNOWN_REFERENCE_RECEIPT_KEYS.has(key)) {
+      throw new GayaDataError(`${label}.realized に未知の参照音声 field があります: ${key}`);
+    }
+  }
+}
+
+function assertAllowedReferenceReceiptKeys(
+  realized: Candidate["gen_params"]["realized"],
+  allowedKeys: readonly string[],
+  label: string,
+): void {
+  const allowed = new Set(allowedKeys);
+  for (const key of Object.keys(realized)) {
+    if ((key.startsWith("reference_") || key === "selected_anchor") && !allowed.has(key)) {
+      throw new GayaDataError(
+        `${label}.realized.${key} はこの参照音声 receipt では使用できません。`,
+      );
+    }
+  }
+}
+
+function hasReferenceReceipt(realized: Candidate["gen_params"]["realized"]): boolean {
+  return (
+    "selected_anchor" in realized ||
+    Object.keys(realized).some((key) => key.startsWith("reference_"))
+  );
+}
+
+function requiredReferenceString(value: unknown, label: string): string {
+  assertNonEmptyString(value, label);
+  return value;
+}
+
+function requiredReferenceSha(value: unknown, label: string): string {
+  assertSha256(value, label);
+  return value;
+}
+
+function assertAbsent(
+  realized: Candidate["gen_params"]["realized"],
+  key: string,
+  label: string,
+): void {
+  if (key in realized) {
+    throw new GayaDataError(`${label}.realized.${key} はこの参照音声 receipt では使用できません。`);
+  }
 }
 
 function projectGenerationProfiles(manifest: Manifest): readonly ModelGenerationProfile[] {
@@ -1432,7 +1926,10 @@ function assertManifestGroups(
 function projectOutcomes(
   manifest: Manifest,
   qualitySignals: QualitySignals,
+  referenceVoices: readonly ReferenceVoiceCredit[],
 ): readonly ArtifactOutcome[] {
+  const modelsById = new Map(manifest.models.map((model) => [model.id, model]));
+  const referenceVoicesById = new Map(referenceVoices.map((voice) => [voice.id, voice]));
   const candidatesByGroup = new Map<
     string,
     {
@@ -1488,6 +1985,12 @@ function projectOutcomes(
     if (signal) {
       consumedQualitySignals.add(key);
     }
+    const model = modelsById.get(candidate.model);
+    if (!model) {
+      throw new GayaDataError(
+        `selected candidate が未知の model を参照しています: ${candidate.model}`,
+      );
+    }
     outcomes.push({
       kind: "selected",
       group,
@@ -1501,6 +2004,8 @@ function projectOutcomes(
               signal: signal.signal,
             }
           : null,
+        model,
+        referenceVoicesById,
       ),
     });
   }

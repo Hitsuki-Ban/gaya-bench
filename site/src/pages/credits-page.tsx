@@ -1,5 +1,7 @@
 import { Box, ExternalLink, FileCode2, Fingerprint, Library, Mic2, Scale } from "lucide-react";
+import { Link } from "react-router";
 
+import { ModelMethodBadge } from "@/components/model-method-badge";
 import { PageIntro } from "@/components/page-intro";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -110,6 +112,9 @@ export function CreditsPage() {
                                 <Badge variant="outline">テスト専用</Badge>
                               ) : null}
                             </div>
+                            <div className="mt-2">
+                              <ModelMethodBadge capabilities={model.capabilities} />
+                            </div>
                             <p className="mt-2 break-all font-mono text-[10px] leading-5 text-muted-foreground">
                               {model.id}
                               <br />
@@ -156,9 +161,15 @@ export function CreditsPage() {
               </div>
               <span className="font-mono text-xs text-muted-foreground">参照音声 {voiceCount}</span>
             </div>
-            <p className="mb-4 max-w-3xl text-sm leading-6 text-muted-foreground">
+            <p className="mb-2 max-w-3xl text-sm leading-6 text-muted-foreground">
               公開記録に含まれる全参照音声を表示しています。原音声そのものは本サイトから再配布しません。
             </p>
+            <Link
+              className="mb-4 inline-flex text-sm text-primary underline-offset-4 hover:underline"
+              to="/reference-voices"
+            >
+              話者と声質の紹介を見る
+            </Link>
 
             <div className="grid gap-4 xl:grid-cols-2">
               {benchmarkData.credits.reference_voices.map((voice) => (
@@ -210,6 +221,12 @@ export function CreditsPage() {
                     </dl>
 
                     <div className="flex flex-wrap gap-x-4 gap-y-2 border-t pt-3 text-xs">
+                      <Link
+                        className="text-primary underline-offset-4 hover:underline"
+                        to={`/reference-voices#${voice.id}`}
+                      >
+                        話者紹介
+                      </Link>
                       <EvidenceLink href={voice.source.download_page}>公式配布元</EvidenceLink>
                       <EvidenceLink href={voice.rights.voice_synthesis_evidence_url}>
                         音声合成条件

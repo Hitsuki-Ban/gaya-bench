@@ -8,17 +8,6 @@ import path from "node:path";
 import { afterEach, describe, expect, it } from "vite-plus/test";
 
 import { loadBenchmarkData } from "../../scripts/gaya-data-plugin.ts";
-import {
-  benchmarkData,
-  candidateKey,
-  getOutcomesForScenario,
-  lineByKey,
-  modelCreditById,
-  modelById,
-  referenceVoiceById,
-  releaseModelById,
-  selectedCandidates,
-} from "./index";
 
 const temporaryRoots: string[] = [];
 
@@ -29,7 +18,19 @@ afterEach(() => {
 });
 
 describe("virtual:gaya-data integration", () => {
-  it("固定 release を strict v4 / selected-only index として公開する", () => {
+  it("固定 release を strict v4 / selected-only index として公開する", async () => {
+    const {
+      benchmarkData,
+      candidateKey,
+      getOutcomesForScenario,
+      lineByKey,
+      modelCreditById,
+      modelById,
+      referenceVoiceById,
+      releaseModelById,
+      selectedCandidates,
+    } = await import("./index");
+
     expect(benchmarkData.release.format_version).toBe(4);
     expect(selectedCandidates).toHaveLength(1288);
     expect(benchmarkData.outcomes.filter(({ kind }) => kind === "skipped")).toHaveLength(0);
@@ -48,6 +49,7 @@ describe("virtual:gaya-data integration", () => {
       "model",
       "path",
       "role_quality",
+      "reference_conditioning",
       "rtf",
       "scenario",
       "variant",
@@ -240,6 +242,405 @@ describe("loadBenchmarkData v4", () => {
     expect(() =>
       loadBenchmarkData(createFixture(validManifest(), validScenario(), duplicate)),
     ).toThrow("voice id が重複");
+  });
+
+  describe("reference conditioning projection", () => {
+    it.each([
+      {
+        name: "direct clone",
+        capabilities: { voice_prompt: false, clone: true },
+        realized: {
+          reference_voice: "sample-voice",
+          reference_sha256: "a".repeat(64),
+          reference_selection_source: "character.reference_voice",
+        },
+        expected: {
+          kind: "human_reference",
+          voice_id: "sample-voice",
+          asset_sha256: "a".repeat(64),
+          inference_reference_sha256: "a".repeat(64),
+          selection_source: "character.reference_voice",
+        },
+      },
+      {
+        name: "CosyVoice direct clone with reference length receipt",
+        capabilities: { voice_prompt: false, clone: true },
+        realized: {
+          reference_voice: "sample-voice",
+          reference_sha256: "a".repeat(64),
+          reference_selection_source: "adapter.assignment:sample/speaker",
+          reference_samples: 537_000,
+          reference_duration_sec: 11.1875,
+        },
+        expected: {
+          kind: "human_reference",
+          voice_id: "sample-voice",
+          asset_sha256: "a".repeat(64),
+          inference_reference_sha256: "a".repeat(64),
+          selection_source: "adapter.assignment:sample/speaker",
+        },
+      },
+      {
+        name: "GPT-SoVITS clip",
+        capabilities: { voice_prompt: false, clone: true },
+        realized: {
+          reference_voice: "sample-voice",
+          reference_source_sha256: "a".repeat(64),
+          reference_clip_sha256: "b".repeat(64),
+          reference_selection_source: "adapter.assignment:sample/speaker",
+          reference_clip_frame_count: 240_000,
+          reference_clip_start_frame: 0,
+        },
+        expected: {
+          kind: "human_reference",
+          voice_id: "sample-voice",
+          asset_sha256: "a".repeat(64),
+          inference_reference_sha256: "b".repeat(64),
+          selection_source: "adapter.assignment:sample/speaker",
+        },
+      },
+      {
+        name: "VoxCPM asset",
+        capabilities: { voice_prompt: true, clone: true },
+        realized: {
+          reference_kind: "asset",
+          reference_voice: "sample-voice",
+          reference_sha256: "a".repeat(64),
+          reference_selection_source: "character.reference_voice",
+        },
+        expected: {
+          kind: "human_reference",
+          voice_id: "sample-voice",
+          asset_sha256: "a".repeat(64),
+          inference_reference_sha256: "a".repeat(64),
+          selection_source: "character.reference_voice",
+        },
+      },
+      {
+        name: "VoxCPM voice design",
+        capabilities: { voice_prompt: true, clone: true },
+        realized: {
+          reference_kind: "voice_design",
+          reference_voice: null,
+          reference_sha256: "b".repeat(64),
+          reference_selection_source: "adapter.voice_design",
+        },
+        expected: {
+          kind: "model_generated_reference",
+          inference_reference_sha256: "b".repeat(64),
+          source_kind: "voice_design",
+        },
+      },
+      {
+        name: "Qwen voice asset",
+        capabilities: { voice_prompt: true, clone: true },
+        realized: {
+          character_identity: { scenario: "sample", character: "speaker" },
+          reference_control: "voice_asset",
+          reference_source_id: "sample-voice",
+          reference_sha256: "a".repeat(64),
+          reference_text: "Sample",
+        },
+        expected: {
+          kind: "human_reference",
+          voice_id: "sample-voice",
+          asset_sha256: "a".repeat(64),
+          inference_reference_sha256: "a".repeat(64),
+          selection_source: "voice_asset",
+        },
+      },
+      {
+        name: "Qwen selected voice design anchor",
+        capabilities: { voice_prompt: true, clone: true },
+        realized: {
+          character_identity: { scenario: "sample", character: "speaker" },
+          reference_control: "selected_voice_design_anchor",
+          reference_source_id: "f".repeat(64),
+          reference_sha256: "b".repeat(64),
+          reference_text: "Sample",
+          selected_anchor: validSelectedAnchor("b".repeat(64)),
+        },
+        expected: {
+          kind: "model_generated_reference",
+          inference_reference_sha256: "b".repeat(64),
+          source_kind: "selected_voice_design_anchor",
+        },
+      },
+      {
+        name: "Irodori voice asset",
+        capabilities: { voice_prompt: true, clone: true },
+        realized: {
+          reference_control: "character-stable-reference-audio-v1",
+          reference_source: "voice-asset",
+          reference_voice: "sample-voice",
+          reference_sha256: "a".repeat(64),
+          reference_caption: null,
+          reference_text: null,
+        },
+        expected: {
+          kind: "human_reference",
+          voice_id: "sample-voice",
+          asset_sha256: "a".repeat(64),
+          inference_reference_sha256: "a".repeat(64),
+          selection_source: "voice-asset",
+        },
+      },
+      {
+        name: "Irodori selected role anchor",
+        capabilities: { voice_prompt: true, clone: true },
+        realized: {
+          reference_control: "character-stable-reference-audio-v1",
+          reference_source: "selected-role-anchor",
+          reference_voice: null,
+          reference_sha256: "b".repeat(64),
+          reference_caption: "Role caption",
+          reference_text: "Sample",
+          selected_anchor: validSelectedAnchor("b".repeat(64)),
+        },
+        expected: {
+          kind: "model_generated_reference",
+          inference_reference_sha256: "b".repeat(64),
+          source_kind: "selected-role-anchor",
+        },
+      },
+      {
+        name: "preset none",
+        capabilities: { voice_prompt: false, clone: false },
+        realized: {},
+        expected: { kind: "none" },
+      },
+    ])("$name の selected realized だけを compact contract へ投影する", (testCase) => {
+      const manifest = manifestWithSelectedReference(testCase.capabilities, testCase.realized);
+      const selected = selectedOutcome(loadBenchmarkData(createFixture(manifest)));
+
+      expect(selected.reference_conditioning).toEqual(testCase.expected);
+    });
+
+    it("requested-only は参照使用を推測せず none とする", () => {
+      const manifest = manifestWithSelectedReference({ voice_prompt: true, clone: true }, {});
+      manifest.candidates[1]!.gen_params.requested.reference_voice = "sample-voice";
+      manifest.candidates[1]!.gen_params.requested.reference_sha256 = "a".repeat(64);
+
+      expect(
+        selectedOutcome(loadBenchmarkData(createFixture(manifest))).reference_conditioning,
+      ).toEqual({ kind: "none" });
+    });
+
+    it("非選択 candidate の realized は公開 contract へ投影しない", () => {
+      const manifest = manifestWithSelectedReference({ voice_prompt: false, clone: false }, {});
+      manifest.candidates[0]!.gen_params.realized = {
+        reference_kind: "unknown",
+      };
+
+      expect(
+        selectedOutcome(loadBenchmarkData(createFixture(manifest))).reference_conditioning,
+      ).toEqual({ kind: "none" });
+    });
+
+    it.each([
+      {
+        name: "unknown discriminator",
+        capabilities: { voice_prompt: true, clone: true },
+        realized: { reference_kind: "unknown" },
+        message: "未知の tag",
+      },
+      {
+        name: "partial direct receipt",
+        capabilities: { voice_prompt: false, clone: true },
+        realized: {
+          reference_voice: "sample-voice",
+          reference_sha256: "a".repeat(64),
+        },
+        message: "reference_selection_source",
+      },
+      {
+        name: "CosyVoice reference length receipt missing duration",
+        capabilities: { voice_prompt: false, clone: true },
+        realized: {
+          reference_voice: "sample-voice",
+          reference_sha256: "a".repeat(64),
+          reference_selection_source: "adapter.assignment:sample/speaker",
+          reference_samples: 537_000,
+        },
+        message: "reference_duration_sec",
+      },
+      {
+        name: "CosyVoice reference length receipt missing samples",
+        capabilities: { voice_prompt: false, clone: true },
+        realized: {
+          reference_voice: "sample-voice",
+          reference_sha256: "a".repeat(64),
+          reference_selection_source: "adapter.assignment:sample/speaker",
+          reference_duration_sec: 11.1875,
+        },
+        message: "reference_samples",
+      },
+      {
+        name: "CosyVoice invalid reference samples",
+        capabilities: { voice_prompt: false, clone: true },
+        realized: {
+          reference_voice: "sample-voice",
+          reference_sha256: "a".repeat(64),
+          reference_selection_source: "adapter.assignment:sample/speaker",
+          reference_samples: 0,
+          reference_duration_sec: 11.1875,
+        },
+        message: "reference_samples は1以上の整数",
+      },
+      {
+        name: "CosyVoice invalid reference duration",
+        capabilities: { voice_prompt: false, clone: true },
+        realized: {
+          reference_voice: "sample-voice",
+          reference_sha256: "a".repeat(64),
+          reference_selection_source: "adapter.assignment:sample/speaker",
+          reference_samples: 537_000,
+          reference_duration_sec: 0,
+        },
+        message: "reference_duration_sec は0より大きい",
+      },
+      {
+        name: "GPT reference clip receipt missing start frame",
+        capabilities: { voice_prompt: false, clone: true },
+        realized: {
+          reference_voice: "sample-voice",
+          reference_source_sha256: "a".repeat(64),
+          reference_clip_sha256: "b".repeat(64),
+          reference_selection_source: "adapter.assignment:sample/speaker",
+          reference_clip_frame_count: 240_000,
+        },
+        message: "reference_clip_start_frame",
+      },
+      {
+        name: "GPT reference clip receipt missing frame count",
+        capabilities: { voice_prompt: false, clone: true },
+        realized: {
+          reference_voice: "sample-voice",
+          reference_source_sha256: "a".repeat(64),
+          reference_clip_sha256: "b".repeat(64),
+          reference_selection_source: "adapter.assignment:sample/speaker",
+          reference_clip_start_frame: 0,
+        },
+        message: "reference_clip_frame_count",
+      },
+      {
+        name: "conflicting discriminators",
+        capabilities: { voice_prompt: true, clone: true },
+        realized: {
+          reference_kind: "asset",
+          reference_source: "voice-asset",
+        },
+        message: "receipt が競合",
+      },
+      {
+        name: "unknown voice id",
+        capabilities: { voice_prompt: false, clone: true },
+        realized: {
+          reference_voice: "missing-voice",
+          reference_sha256: "a".repeat(64),
+          reference_selection_source: "character.reference_voice",
+        },
+        message: "未知の参照音声",
+      },
+      {
+        name: "catalog hash mismatch",
+        capabilities: { voice_prompt: false, clone: true },
+        realized: {
+          reference_voice: "sample-voice",
+          reference_sha256: "b".repeat(64),
+          reference_selection_source: "character.reference_voice",
+        },
+        message: "catalog と一致",
+      },
+      {
+        name: "preset with reference",
+        capabilities: { voice_prompt: false, clone: false },
+        realized: {
+          reference_voice: "sample-voice",
+          reference_sha256: "a".repeat(64),
+          reference_selection_source: "character.reference_voice",
+        },
+        message: "プリセット話者",
+      },
+      {
+        name: "clone without reference",
+        capabilities: { voice_prompt: false, clone: true },
+        realized: {},
+        message: "human_reference ではありません",
+      },
+      {
+        name: "clone with model-generated reference",
+        capabilities: { voice_prompt: false, clone: true },
+        realized: {
+          reference_kind: "voice_design",
+          reference_voice: null,
+          reference_sha256: "b".repeat(64),
+          reference_selection_source: "adapter.voice_design",
+        },
+        message: "human_reference ではありません",
+      },
+      {
+        name: "selected anchor audio hash mismatch",
+        capabilities: { voice_prompt: true, clone: true },
+        realized: {
+          character_identity: { scenario: "sample", character: "speaker" },
+          reference_control: "selected_voice_design_anchor",
+          reference_source_id: "f".repeat(64),
+          reference_sha256: "b".repeat(64),
+          reference_text: "Sample",
+          selected_anchor: validSelectedAnchor("c".repeat(64)),
+        },
+        message: "reference_sha256 と一致",
+      },
+      {
+        name: "Qwen anchor id mismatch",
+        capabilities: { voice_prompt: true, clone: true },
+        realized: {
+          character_identity: { scenario: "sample", character: "speaker" },
+          reference_control: "selected_voice_design_anchor",
+          reference_source_id: "e".repeat(64),
+          reference_sha256: "b".repeat(64),
+          reference_text: "Sample",
+          selected_anchor: validSelectedAnchor("b".repeat(64)),
+        },
+        message: "anchor_id と一致",
+      },
+      {
+        name: "human receipt with selected anchor",
+        capabilities: { voice_prompt: true, clone: true },
+        realized: {
+          character_identity: { scenario: "sample", character: "speaker" },
+          reference_control: "voice_asset",
+          reference_source_id: "sample-voice",
+          reference_sha256: "a".repeat(64),
+          reference_text: "Sample",
+          selected_anchor: validSelectedAnchor("a".repeat(64)),
+        },
+        message: "selected_anchor はこの参照音声 receipt",
+      },
+      {
+        name: "Irodori contract version mismatch",
+        capabilities: { voice_prompt: true, clone: true },
+        realized: {
+          reference_control: "old-contract",
+          reference_source: "voice-asset",
+          reference_voice: "sample-voice",
+          reference_sha256: "a".repeat(64),
+          reference_caption: null,
+          reference_text: null,
+        },
+        message: "character-stable-reference-audio-v1",
+      },
+      {
+        name: "unknown reference field",
+        capabilities: { voice_prompt: true, clone: true },
+        realized: { reference_fallback: "sample-voice" },
+        message: "未知の参照音声 field",
+      },
+    ])("$name を build 時に拒否する", (testCase) => {
+      const manifest = manifestWithSelectedReference(testCase.capabilities, testCase.realized);
+      expect(() => loadBenchmarkData(createFixture(manifest))).toThrow(testCase.message);
+    });
   });
 
   it.each([
@@ -472,6 +873,41 @@ function manifestForModel(modelId: string, requested: Record<string, unknown>): 
     failure.model = modelId;
   }
   return manifest;
+}
+
+function manifestWithSelectedReference(
+  capabilities: { voice_prompt: boolean; clone: boolean },
+  realized: Record<string, unknown>,
+): MutableManifest {
+  const manifest = validManifest();
+  manifest.models[0]!.capabilities.voice_prompt = capabilities.voice_prompt;
+  manifest.models[0]!.capabilities.clone = capabilities.clone;
+  manifest.candidates[1]!.gen_params.realized = structuredClone(realized);
+  return manifest;
+}
+
+function selectedOutcome(data: ReturnType<typeof loadBenchmarkData>) {
+  const outcome = data.outcomes.find(({ kind }) => kind === "selected");
+  if (!outcome || outcome.kind !== "selected") {
+    throw new Error("fixture selected outcome がありません。");
+  }
+  return outcome.candidate;
+}
+
+function validSelectedAnchor(referenceSha: string): Record<string, unknown> {
+  return {
+    anchor_selection_sha256: "1".repeat(64),
+    anchor_plan_sha256: "2".repeat(64),
+    anchor_candidate_set_sha256: "3".repeat(64),
+    anchor_id: "f".repeat(64),
+    anchor_attempt: 1,
+    anchor_seed: 0,
+    anchor_audio_sha256: referenceSha,
+    anchor_text_sha256: "4".repeat(64),
+    anchor_decision_sha256: "5".repeat(64),
+    role_identity_sha256: "6".repeat(64),
+    role_epoch_sha256: "7".repeat(64),
+  };
 }
 
 function candidate(line: string, takeIndex: number, marker: string): MutableCandidate {

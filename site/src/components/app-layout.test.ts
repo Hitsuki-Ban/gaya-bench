@@ -36,6 +36,7 @@ describe("MachineGeneratedAudioNotice", () => {
     for (const [href, label] of [
       ["/", "比較"],
       ["/ab", "A/B"],
+      ["/reference-voices", "参照音声"],
       ["/credits", "クレジット"],
     ]) {
       expect(markup).toContain(`aria-label="${label}"`);

@@ -201,6 +201,13 @@ function MatrixToolbar({
         </Badge>
         <Badge variant="secondary">表示モデル {visibleModelCount}</Badge>
         <details className="text-xs text-muted-foreground">
+          <summary className="cursor-pointer text-foreground">生成方式と参照音声</summary>
+          <p className="mt-2 max-w-2xl rounded border bg-background px-2 py-1.5 leading-5">
+            「参照音声からの声クローン」は収録音声から声質を得ます。「テキスト指示で声を生成」は指示から声を設計し、「プリセット話者」はモデル内蔵の話者を使います。
+            各クリップの表示は、最終生成で実際に入力された参照音声を示します。
+          </p>
+        </details>
+        <details className="text-xs text-muted-foreground">
           <summary className="cursor-pointer text-foreground">対応機能の記号</summary>
           <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 rounded border bg-background px-2 py-1.5">
             {capabilityLegend.map(([key, label]) => (

@@ -1,4 +1,11 @@
-import { AudioLines, FlaskConical, LoaderCircle, Scale, SlidersHorizontal } from "lucide-react";
+import {
+  AudioLines,
+  FlaskConical,
+  LoaderCircle,
+  Mic2,
+  Scale,
+  SlidersHorizontal,
+} from "lucide-react";
 import { NavLink, Outlet, useLocation } from "react-router";
 
 import { AudioProvider } from "@/audio/audio-provider";
@@ -7,6 +14,7 @@ import { Button } from "@/components/ui/button";
 const navigation = [
   { to: "/", label: "比較", icon: SlidersHorizontal, end: true },
   { to: "/ab", label: "A/B", icon: FlaskConical, end: false },
+  { to: "/reference-voices", label: "参照音声", icon: Mic2, end: false },
   { to: "/credits", label: "クレジット", icon: Scale, end: false },
 ] as const;
 
