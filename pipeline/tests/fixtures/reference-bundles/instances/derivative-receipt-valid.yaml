@@ -1,0 +1,31 @@
+schema_version: derivative-receipt-v1
+receipt_id: commissioned-elder-general-qwen
+bundle_id: commissioned-elder
+bundle_manifest_sha256: "1111111111111111111111111111111111111111111111111111111111111111"
+adapter_id: qwen-reference
+adapter_revision: adapter-contract-v1
+recipe_id: canonical-reference
+recipe_version: "1"
+source_clip_id: general
+source_asset_sha256: bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+source_transcript:
+  text: 門は日暮れに閉じる。急ぐなら今のうちだ。
+  utf8_sha256: 2bfd596b3fdfebf66751657d016f66105bdad093f614141dfc81842a8e3ee18e
+inference_reference_sha256: "3333333333333333333333333333333333333333333333333333333333333333"
+operations: []
+output_asset:
+  object_key: derivatives/commissioned-elder/general.wav
+  asset_sha256: "3333333333333333333333333333333333333333333333333333333333333333"
+  format: wav
+  frame_count: 297600
+  transcript:
+    text: 門は日暮れに閉じる。急ぐなら今のうちだ。
+    utf8_sha256: 2bfd596b3fdfebf66751657d016f66105bdad093f614141dfc81842a8e3ee18e
+  pcm:
+    encoding: pcm_s16le
+    sample_rate_hz: 48000
+    channels: 1
+toolchain:
+  - name: ffmpeg
+    version: "8.0"
+created_at: "2026-07-31T12:00:00+09:00"

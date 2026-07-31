@@ -1,0 +1,444 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://gaya-bench.local/schema/reference-bundle-v1.schema.json",
+  "title": "Gaya Bench 参考バンドル v1",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "bundle_id",
+    "display_name",
+    "persona",
+    "origin",
+    "rights",
+    "publication",
+    "clips"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": { "const": "reference-bundle-v1" },
+    "bundle_id": { "$ref": "#/$defs/slug" },
+    "display_name": { "$ref": "#/$defs/nonEmptyString" },
+    "persona": { "$ref": "#/$defs/persona" },
+    "origin": { "$ref": "#/$defs/origin" },
+    "rights": { "$ref": "#/$defs/rights" },
+    "publication": { "$ref": "#/$defs/publication" },
+    "clips": { "$ref": "#/$defs/clips" }
+  },
+  "$defs": {
+    "slug": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "nonEmptyString": {
+      "type": "string",
+      "minLength": 1
+    },
+    "persona": {
+      "type": "object",
+      "required": [
+        "kind",
+        "locale",
+        "perceived_gender",
+        "perceived_age",
+        "voice_characteristics"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "enum": ["human", "machine", "creature", "spirit"]
+        },
+        "locale": {
+          "type": "string",
+          "pattern": "^[a-z]{2}(?:-[A-Z]{2})?$"
+        },
+        "perceived_gender": {
+          "enum": ["female", "male", "neutral"]
+        },
+        "perceived_age": {
+          "enum": [
+            "child",
+            "teen",
+            "young_adult",
+            "adult",
+            "middle_aged",
+            "elderly"
+          ]
+        },
+        "voice_characteristics": { "$ref": "#/$defs/nonEmptyString" }
+      }
+    },
+    "origin": {
+      "oneOf": [
+        { "$ref": "#/$defs/publicCorpusOrigin" },
+        { "$ref": "#/$defs/commissionedRecordingOrigin" },
+        { "$ref": "#/$defs/syntheticOrigin" }
+      ]
+    },
+    "publicCorpusOrigin": {
+      "type": "object",
+      "required": [
+        "type",
+        "corpus_name",
+        "source_item_id",
+        "source_url",
+        "acquired_on",
+        "source_file_sha256"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "type": { "const": "public_corpus" },
+        "corpus_name": { "$ref": "#/$defs/nonEmptyString" },
+        "source_item_id": { "$ref": "#/$defs/nonEmptyString" },
+        "source_url": { "type": "string", "format": "uri" },
+        "acquired_on": { "type": "string", "format": "date" },
+        "source_file_sha256": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "commissionedRecordingOrigin": {
+      "type": "object",
+      "required": [
+        "type",
+        "provider_display_name",
+        "provider_url",
+        "contract_reference_id",
+        "recorded_on",
+        "source_file_sha256"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "type": { "const": "commissioned_recording" },
+        "provider_display_name": { "$ref": "#/$defs/nonEmptyString" },
+        "provider_url": { "type": "string", "format": "uri" },
+        "contract_reference_id": { "$ref": "#/$defs/nonEmptyString" },
+        "recorded_on": { "type": "string", "format": "date" },
+        "source_file_sha256": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "syntheticOrigin": {
+      "type": "object",
+      "required": [
+        "type",
+        "synthetic_policy_id",
+        "generated_on",
+        "generation_input_sha256",
+        "generation_receipt_sha256",
+        "selection_receipt_sha256"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "type": { "const": "synthetic" },
+        "synthetic_policy_id": { "$ref": "#/$defs/slug" },
+        "generated_on": { "type": "string", "format": "date" },
+        "generation_input_sha256": { "$ref": "#/$defs/sha256" },
+        "generation_receipt_sha256": { "$ref": "#/$defs/sha256" },
+        "selection_receipt_sha256": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "rights": {
+      "type": "object",
+      "required": ["permissions", "term", "credit", "evidence"],
+      "additionalProperties": false,
+      "properties": {
+        "permissions": { "$ref": "#/$defs/permissions" },
+        "term": { "$ref": "#/$defs/term" },
+        "credit": { "$ref": "#/$defs/credit" },
+        "evidence": { "$ref": "#/$defs/evidence" }
+      }
+    },
+    "permissions": {
+      "type": "object",
+      "required": [
+        "tts_reference_inference",
+        "training_or_finetuning",
+        "commercial_generated_output",
+        "audio_redistribution"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "tts_reference_inference": { "$ref": "#/$defs/permission" },
+        "training_or_finetuning": { "$ref": "#/$defs/permission" },
+        "commercial_generated_output": { "$ref": "#/$defs/permission" },
+        "audio_redistribution": { "$ref": "#/$defs/permission" }
+      }
+    },
+    "permission": {
+      "enum": ["permitted", "prohibited"]
+    },
+    "term": {
+      "oneOf": [
+        {
+          "type": "object",
+          "required": ["type", "reviewed_on"],
+          "additionalProperties": false,
+          "properties": {
+            "type": { "const": "perpetual" },
+            "reviewed_on": { "type": "string", "format": "date" }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "type",
+            "starts_on",
+            "expires_on",
+            "renewal_review_on"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "type": { "const": "fixed" },
+            "starts_on": { "type": "string", "format": "date" },
+            "expires_on": { "type": "string", "format": "date" },
+            "renewal_review_on": { "type": "string", "format": "date" }
+          }
+        }
+      ]
+    },
+    "credit": {
+      "oneOf": [
+        {
+          "type": "object",
+          "required": ["type"],
+          "additionalProperties": false,
+          "properties": {
+            "type": { "const": "not_required" }
+          }
+        },
+        {
+          "type": "object",
+          "required": ["type", "display_name", "wording"],
+          "additionalProperties": false,
+          "properties": {
+            "type": { "const": "required" },
+            "display_name": { "$ref": "#/$defs/nonEmptyString" },
+            "wording": { "$ref": "#/$defs/nonEmptyString" }
+          }
+        }
+      ]
+    },
+    "evidence": {
+      "oneOf": [
+        {
+          "type": "object",
+          "required": ["type", "license_name", "license_url", "reviewed_on"],
+          "additionalProperties": false,
+          "properties": {
+            "type": { "const": "public_license" },
+            "license_name": { "$ref": "#/$defs/nonEmptyString" },
+            "license_url": { "type": "string", "format": "uri" },
+            "reviewed_on": { "type": "string", "format": "date" }
+          }
+        },
+        {
+          "type": "object",
+          "required": ["type", "contract_reference_id", "reviewed_on"],
+          "additionalProperties": false,
+          "properties": {
+            "type": { "const": "contract" },
+            "contract_reference_id": { "$ref": "#/$defs/nonEmptyString" },
+            "reviewed_on": { "type": "string", "format": "date" }
+          }
+        },
+        {
+          "type": "object",
+          "required": ["type", "terms_url", "reviewed_on"],
+          "additionalProperties": false,
+          "properties": {
+            "type": { "const": "model_terms" },
+            "terms_url": { "type": "string", "format": "uri" },
+            "reviewed_on": { "type": "string", "format": "date" }
+          }
+        }
+      ]
+    },
+    "publication": {
+      "type": "object",
+      "required": ["metadata_visibility", "audio_access"],
+      "additionalProperties": false,
+      "properties": {
+        "metadata_visibility": { "const": "public" },
+        "audio_access": { "enum": ["public", "private"] }
+      }
+    },
+    "clips": {
+      "type": "object",
+      "required": ["general", "short_clone"],
+      "additionalProperties": false,
+      "properties": {
+        "general": { "$ref": "#/$defs/clip" },
+        "short_clone": { "$ref": "#/$defs/shortCloneClip" },
+        "emotions": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/emotionClip" }
+        }
+      }
+    },
+    "clip": {
+      "type": "object",
+      "required": [
+        "clip_id",
+        "transcript",
+        "asset_sha256",
+        "pcm",
+        "storage"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "clip_id": { "$ref": "#/$defs/slug" },
+        "transcript": { "$ref": "#/$defs/transcript" },
+        "asset_sha256": { "$ref": "#/$defs/sha256" },
+        "pcm": { "$ref": "#/$defs/pcm" },
+        "storage": { "$ref": "#/$defs/storage" }
+      }
+    },
+    "shortCloneClip": {
+      "type": "object",
+      "required": [
+        "clip_id",
+        "transcript",
+        "asset_sha256",
+        "pcm",
+        "storage"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "clip_id": { "$ref": "#/$defs/slug" },
+        "transcript": { "$ref": "#/$defs/transcript" },
+        "asset_sha256": { "$ref": "#/$defs/sha256" },
+        "pcm": { "$ref": "#/$defs/shortClonePcm" },
+        "storage": { "$ref": "#/$defs/storage" }
+      }
+    },
+    "emotionClip": {
+      "type": "object",
+      "required": [
+        "emotion",
+        "clip_id",
+        "transcript",
+        "asset_sha256",
+        "pcm",
+        "storage"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "emotion": {
+          "enum": [
+            "cheerful",
+            "angry",
+            "sad",
+            "fearful",
+            "surprised",
+            "tired",
+            "drunk",
+            "whisper",
+            "shout",
+            "laughing",
+            "pain"
+          ]
+        },
+        "clip_id": { "$ref": "#/$defs/slug" },
+        "transcript": { "$ref": "#/$defs/transcript" },
+        "asset_sha256": { "$ref": "#/$defs/sha256" },
+        "pcm": { "$ref": "#/$defs/emotionPcm" },
+        "storage": { "$ref": "#/$defs/storage" }
+      }
+    },
+    "pcm": {
+      "type": "object",
+      "required": [
+        "encoding",
+        "sample_rate_hz",
+        "channels",
+        "frame_count"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "encoding": { "const": "pcm_s16le" },
+        "sample_rate_hz": { "const": 48000 },
+        "channels": { "const": 1 },
+        "frame_count": {
+          "type": "integer",
+          "minimum": 480000,
+          "maximum": 960000
+        }
+      }
+    },
+    "shortClonePcm": {
+      "type": "object",
+      "required": [
+        "encoding",
+        "sample_rate_hz",
+        "channels",
+        "frame_count"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "encoding": { "const": "pcm_s16le" },
+        "sample_rate_hz": { "const": 48000 },
+        "channels": { "const": 1 },
+        "frame_count": { "const": 240000 }
+      }
+    },
+    "emotionPcm": {
+      "type": "object",
+      "required": [
+        "encoding",
+        "sample_rate_hz",
+        "channels",
+        "frame_count"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "encoding": { "const": "pcm_s16le" },
+        "sample_rate_hz": { "const": 48000 },
+        "channels": { "const": 1 },
+        "frame_count": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "transcript": {
+      "type": "object",
+      "required": ["text", "utf8_sha256", "rights"],
+      "additionalProperties": false,
+      "properties": {
+        "text": { "$ref": "#/$defs/nonEmptyString" },
+        "utf8_sha256": { "$ref": "#/$defs/sha256" },
+        "rights": {
+          "type": "object",
+          "required": ["redistribution", "credit", "evidence"],
+          "additionalProperties": false,
+          "properties": {
+            "redistribution": { "$ref": "#/$defs/permission" },
+            "credit": { "$ref": "#/$defs/credit" },
+            "evidence": { "$ref": "#/$defs/evidence" }
+          }
+        }
+      }
+    },
+    "storage": {
+      "oneOf": [
+        {
+          "type": "object",
+          "required": ["type", "object_key"],
+          "additionalProperties": false,
+          "properties": {
+            "type": { "const": "public_object" },
+            "object_key": { "$ref": "#/$defs/nonEmptyString" }
+          }
+        },
+        {
+          "type": "object",
+          "required": ["type", "object_key"],
+          "additionalProperties": false,
+          "properties": {
+            "type": { "const": "private_object" },
+            "object_key": { "$ref": "#/$defs/nonEmptyString" }
+          }
+        }
+      ]
+    }
+  }
+}

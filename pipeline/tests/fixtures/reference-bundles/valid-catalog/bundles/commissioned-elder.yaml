@@ -1,0 +1,110 @@
+schema_version: reference-bundle-v1
+bundle_id: commissioned-elder
+display_name: 契約収録・老衛兵
+persona:
+  kind: human
+  locale: ja-JP
+  perceived_gender: male
+  perceived_age: elderly
+  voice_characteristics: 乾いた低音で、落ち着いた老衛兵の声
+origin:
+  type: commissioned_recording
+  provider_display_name: テスト声優
+  provider_url: https://example.invalid/performers/test-actor
+  contract_reference_id: contract-test-001
+  recorded_on: 2026-07-01
+  source_file_sha256: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+rights:
+  permissions:
+    tts_reference_inference: permitted
+    training_or_finetuning: prohibited
+    commercial_generated_output: permitted
+    audio_redistribution: prohibited
+  term:
+    type: perpetual
+    reviewed_on: 2026-07-02
+  credit:
+    type: required
+    display_name: テスト声優
+    wording: Voice reference provided by テスト声優
+  evidence:
+    type: contract
+    contract_reference_id: contract-test-001
+    reviewed_on: 2026-07-02
+publication:
+  metadata_visibility: public
+  audio_access: private
+clips:
+  general:
+    clip_id: general
+    transcript:
+      text: 門は日暮れに閉じる。急ぐなら今のうちだ。
+      utf8_sha256: 2bfd596b3fdfebf66751657d016f66105bdad093f614141dfc81842a8e3ee18e
+      rights:
+        redistribution: permitted
+        credit:
+          type: required
+          display_name: テスト声優
+          wording: Script by テスト声優
+        evidence:
+          type: contract
+          contract_reference_id: contract-test-001
+          reviewed_on: 2026-07-02
+    asset_sha256: bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+    pcm:
+      encoding: pcm_s16le
+      sample_rate_hz: 48000
+      channels: 1
+      frame_count: 576000
+    storage:
+      type: private_object
+      object_key: reference-bundles/commissioned-elder/general.wav
+  short_clone:
+    clip_id: short-clone
+    transcript:
+      text: 門は日暮れに閉じる。
+      utf8_sha256: 0f8b552442bfd87e9c6c522670c9005ab002cee2d1f155b1ad8abedac100877a
+      rights:
+        redistribution: permitted
+        credit:
+          type: required
+          display_name: テスト声優
+          wording: Script by テスト声優
+        evidence:
+          type: contract
+          contract_reference_id: contract-test-001
+          reviewed_on: 2026-07-02
+    asset_sha256: dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd
+    pcm:
+      encoding: pcm_s16le
+      sample_rate_hz: 48000
+      channels: 1
+      frame_count: 240000
+    storage:
+      type: private_object
+      object_key: reference-bundles/commissioned-elder/short-clone.wav
+  emotions:
+    - emotion: angry
+      clip_id: angry
+      transcript:
+        text: 下がれ！ ここから先は通さん！
+        utf8_sha256: b72ba7b03450ce2d336a5bddaf1d780e9384986807600d8d728e1f790efa1d59
+        rights:
+          redistribution: permitted
+          credit:
+            type: required
+            display_name: テスト声優
+            wording: Script by テスト声優
+          evidence:
+            type: contract
+            contract_reference_id: contract-test-001
+            reviewed_on: 2026-07-02
+      asset_sha256: cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+      pcm:
+        encoding: pcm_s16le
+        sample_rate_hz: 48000
+        channels: 1
+        frame_count: 163200
+      storage:
+        type: private_object
+        object_key: reference-bundles/commissioned-elder/angry.wav

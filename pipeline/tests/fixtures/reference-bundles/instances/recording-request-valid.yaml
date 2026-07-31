@@ -1,0 +1,54 @@
+schema_version: recording-request-v1
+request_id: elder-guard-recording
+target_bundle_id: commissioned-elder
+persona:
+  kind: human
+  locale: ja-JP
+  perceived_gender: male
+  perceived_age: elderly
+  voice_characteristics: 乾いた低音で、落ち着いた老衛兵の声
+requested_rights:
+  tts_reference_inference: requested
+  training_or_finetuning: not_requested
+  commercial_generated_output: requested
+  audio_redistribution: not_requested
+  transcript_redistribution: requested
+scripts:
+  general:
+    script_id: general
+    transcript:
+      text: 門は日暮れに閉じる。急ぐなら今のうちだ。
+      utf8_sha256: 2bfd596b3fdfebf66751657d016f66105bdad093f614141dfc81842a8e3ee18e
+    duration_ms:
+      minimum: 10200
+      maximum: 14000
+    takes: 3
+  short_clone:
+    script_id: short-clone
+    transcript:
+      text: 門は日暮れに閉じる。
+      utf8_sha256: 0f8b552442bfd87e9c6c522670c9005ab002cee2d1f155b1ad8abedac100877a
+    duration_ms:
+      minimum: 5000
+      maximum: 5000
+    takes: 3
+  emotions:
+    - emotion: angry
+      script_id: angry
+      transcript:
+        text: 下がれ！ ここから先は通さん！
+        utf8_sha256: b72ba7b03450ce2d336a5bddaf1d780e9384986807600d8d728e1f790efa1d59
+      duration_ms:
+        minimum: 2500
+        maximum: 4000
+      takes: 3
+delivery_pcm:
+  encoding: pcm_s16le
+  sample_rate_hz: 48000
+  channels: 1
+recording_quality:
+  max_noise_floor_dbfs: -60
+  max_peak_dbfs: -3
+  room_tone_seconds: 5
+  post_processing: raw_only
+due_on: "2026-09-30"

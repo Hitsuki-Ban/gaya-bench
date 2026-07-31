@@ -1,0 +1,86 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://gaya-bench.local/schema/synthetic-sources-v1.schema.json",
+  "title": "Gaya Bench 合成参照生成元ポリシー v1",
+  "type": "object",
+  "required": ["schema_version", "policies"],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": { "const": "synthetic-sources-v1" },
+    "policies": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/qwenPolicy" }
+    }
+  },
+  "$defs": {
+    "slug": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+    },
+    "revision": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "voiceDesignModel": {
+      "type": "object",
+      "required": ["repository_id", "revision"],
+      "additionalProperties": false,
+      "properties": {
+        "repository_id": {
+          "type": "string",
+          "pattern": "^Qwen/Qwen3-TTS-[A-Za-z0-9.-]+-VoiceDesign$"
+        },
+        "revision": { "$ref": "#/$defs/revision" }
+      }
+    },
+    "baseCloneModel": {
+      "type": "object",
+      "required": ["repository_id", "revision"],
+      "additionalProperties": false,
+      "properties": {
+        "repository_id": {
+          "type": "string",
+          "pattern": "^Qwen/Qwen3-TTS-[A-Za-z0-9.-]+-Base$"
+        },
+        "revision": { "$ref": "#/$defs/revision" }
+      }
+    },
+    "qwenPolicy": {
+      "type": "object",
+      "required": [
+        "policy_id",
+        "status",
+        "type",
+        "voice_design_model",
+        "base_clone_model",
+        "voice_design_output_use",
+        "base_clone_input",
+        "official_documentation_url",
+        "terms_reviewed_on"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "policy_id": { "$ref": "#/$defs/slug" },
+        "status": { "enum": ["approved", "revoked"] },
+        "type": { "const": "qwen_voice_design_to_base_clone" },
+        "voice_design_model": { "$ref": "#/$defs/voiceDesignModel" },
+        "base_clone_model": { "$ref": "#/$defs/baseCloneModel" },
+        "voice_design_output_use": {
+          "const": "reference_audio_only"
+        },
+        "base_clone_input": {
+          "const": "generated_reference_audio_and_transcript"
+        },
+        "official_documentation_url": {
+          "type": "string",
+          "pattern": "^https://github\\.com/QwenLM/Qwen3-TTS(?:/.*)?$"
+        },
+        "terms_reviewed_on": {
+          "type": "string",
+          "format": "date"
+        }
+      }
+    }
+  }
+}
