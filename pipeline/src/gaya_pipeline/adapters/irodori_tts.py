@@ -221,6 +221,15 @@ class _NativeRuntime:
         _require_distribution("silentcipher", SILENTCIPHER_VERSION)
 
         try:
+            self.torchcodec = importlib.import_module("torchcodec")
+        except (ImportError, ModuleNotFoundError, OSError, RuntimeError) as error:
+            raise IrodoriTTSAdapterError(
+                "TorchCodec を読み込めません。Windows では対応する "
+                "FFmpeg full-shared build を PATH の先頭に置いてください: "
+                f"{error}",
+            ) from error
+
+        try:
             self.torch = importlib.import_module("torch")
             self.soundfile = importlib.import_module("soundfile")
             self.huggingface_hub = importlib.import_module("huggingface_hub")

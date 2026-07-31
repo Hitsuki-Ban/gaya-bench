@@ -11,6 +11,7 @@ from typing import Any
 import pytest
 import yaml
 
+from gaya_pipeline.adapters import irodori_tts
 from gaya_pipeline.adapters.base import LineJob, TakeContext
 from gaya_pipeline.adapters.irodori_tts import (
     CHECKPOINT_REVISION,
@@ -28,6 +29,29 @@ from gaya_pipeline.take_identity import canonical_json
 
 
 PLAN_SHA256 = "b" * 64
+
+
+def test_native_runtimeはload不能なtorchcodecをmodel読込前に拒否(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(irodori_tts.sys, "platform", "win32")
+    monkeypatch.setattr(
+        irodori_tts,
+        "_require_distribution",
+        lambda *_args, **_kwargs: None,
+    )
+
+    def reject_torchcodec(module_name: str) -> Any:
+        assert module_name == "torchcodec"
+        raise RuntimeError("FFmpeg shared libraries are unavailable")
+
+    monkeypatch.setattr(irodori_tts.importlib, "import_module", reject_torchcodec)
+
+    with pytest.raises(
+        IrodoriTTSAdapterError,
+        match=r"TorchCodec.*FFmpeg full-shared",
+    ):
+        IrodoriTTSAdapter()
 
 
 class FakeOutOfMemoryError(RuntimeError):

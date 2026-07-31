@@ -51,7 +51,7 @@ class CompletionReleaseError(RuntimeError):
 
 RELEASE_PROTOCOL = "role-baseline-release-v1"
 SOURCE_AUDIT_SHA256 = (
-    "63842284e17ee8ceafdff54dc3aad7c651fd4a35f3bc80af6069b7d59de21fb8"
+    "1bcc2d56dc82201942fa36ea4186bee4536243ebf2f4f4ab364e27d6781a70bb"
 )
 FROZEN_PLAN_SHA256 = (
     "f21f7ffa598c38b24f345b8c05f4d18fe3073618deaa742bb55ff30e0a26a0e5"

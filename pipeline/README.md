@@ -207,6 +207,10 @@ scenario SHA、保持元releaseの全digest、model単位curation group digest�
 生成または明示再利用して 8 × 161 = 1,288 slotを作る。plan、base manifest、
 scenario root、voice metadata、artifacts rootを全て絶対pathで渡す。現在の
 worktree、環境変数、latest run、model cacheから代替入力を探索しない。
+`--voices`には`metadata.yaml`だけでなく、そこで宣言した権利確認済み5 WAVが
+実在する共有runtime assetsを指定する。gitignored WAVを持たない追加worktree内の
+`assets/voices`は使わず、生成前に同じ絶対pathを
+`gaya voices validate-local --voices <absolute-voices>`で検証する。
 
 参照音声を持たない53 roleについて、Qwen3-TTS / Irodoriの中立role anchorを
 各N=4で先に生成する:
@@ -268,6 +272,17 @@ uv run --project <pipeline> --locked --extra <model-extra> gaya completion gener
   --scenarios <absolute-scenarios> --voices <absolute-voices> \
   --anchor-selection <absolute-role-anchor-selection.json> \
   --run-kind primary --seed-base 104
+```
+
+各primary runと後述する各topup runは、生成直後に固定QC modelで権威QCを完了させる。
+`completion listen`はledger、manifest、candidate set、QC reportのprovenanceが
+exactに一致しないrunを受け付けない。
+
+```console
+uv run --project <pipeline> --locked --extra qc gaya completion qc \
+  --run-id <exact-generated-run-id> --artifacts <absolute-artifacts> \
+  --scenarios <absolute-scenarios> --voices <absolute-voices> \
+  --qc-model-root <absolute-kana-whisper-model-root>
 ```
 
 eligibleが3件未満のgroupだけを、異なるseed baseの明示topup runで再生成する。
@@ -486,6 +501,29 @@ cmake --version
 uv sync --project pipeline --locked --extra irodori
 uv run --project pipeline --locked --extra irodori gaya voices validate-local
 ```
+
+TorchCodec 0.10.0はpackageの存在だけでなく、対応するFFmpeg 4〜8のshared libraryを
+必要とする。Windowsではstatic buildを使わず、固定したfull-shared buildを導入し、
+現在のshellでもその`bin`をPATHの先頭に置いてからimport gateを通す。
+[TorchCodec公式README](https://github.com/meta-pytorch/torchcodec) と
+[FFmpeg公式download案内](https://ffmpeg.org/download.html)を根拠とする。
+
+```powershell
+winget install --id Gyan.FFmpeg.Shared --exact --version 8.1.2
+$FfmpegSharedBin = @(
+  Get-ChildItem -Directory -Path `
+    "$env:LOCALAPPDATA\Microsoft\WinGet\Packages\Gyan.FFmpeg.Shared_*\ffmpeg-8.1.2-full_build-shared\bin"
+)
+if ($FfmpegSharedBin.Count -ne 1) {
+  throw "FFmpeg 8.1.2 full-shared binをexactに1件解決できません。"
+}
+$env:PATH = "$($FfmpegSharedBin[0].FullName);$env:PATH"
+ffmpeg -buildconf 2>&1 | Select-String -Pattern '\-\-enable-shared'
+uv run --project pipeline --locked --extra irodori python -c "import torchcodec"
+```
+
+`torchcodec`をimportできなければmodel load前に失敗する。static FFmpegや別runtimeへ
+切り替えない。
 
 固定する上流は以下のとおり。
 
