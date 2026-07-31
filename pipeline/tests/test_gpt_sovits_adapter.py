@@ -196,7 +196,7 @@ def test_profile_registry_and_generation_contract_are_canonical() -> None:
         "voice_prompt": False,
         "clone": True,
         "nonverbal": False,
-        "reading": True,
+        "reading": False,
     }
     recipe = adapter.take_recipe()
     assert recipe.version == "seed-only-v1"
@@ -223,7 +223,7 @@ def test_profile_registry_and_generation_contract_are_canonical() -> None:
     assert "透かしなし" in adapter.profile.license_note
 
 
-def test_explicit_reference_and_reading_create_exact_five_second_clip(
+def test_explicit_reference_uses_surface_text_and_exact_five_second_clip(
     tmp_path: Path,
 ) -> None:
     runtime = FakeRuntime()
@@ -240,8 +240,8 @@ def test_explicit_reference_and_reading_create_exact_five_second_clip(
     adapter.prepare([job], tmp_path / "artifacts", voices_dir)
     generation_input = adapter.generation_input(job, TAKE_CONTEXT)
 
-    assert generation_input["text"] == "カンパイシヨウ！"
-    assert generation_input["reading_source"] == "line.reading"
+    assert generation_input["text"] == "乾杯しよう！"
+    assert generation_input["reading_source"] == "line.text"
     assert generation_input["reference_selection_source"] == (
         "character.reference_voice"
     )
@@ -267,7 +267,7 @@ def test_explicit_reference_and_reading_create_exact_five_second_clip(
         assert wav_file.getframerate() == 48_000
         assert wav_file.getnchannels() == 1
         assert wav_file.getsampwidth() == 2
-    assert runtime.synthesize_calls[0]["text"] == "カンパイシヨウ！"
+    assert runtime.synthesize_calls[0]["text"] == generation_input["text"]
     assert realized["phase_peak_vram_mib"] == {
         "runtime_load": {
             "allocated_mib": 2048.0,
@@ -278,7 +278,7 @@ def test_explicit_reference_and_reading_create_exact_five_second_clip(
             "reserved_mib": 3328.0,
         },
     }
-    assert realized["reading_source"] == "line.reading"
+    assert realized["reading_source"] == "line.text"
     assert realized["reference_selection_source"] == "character.reference_voice"
     assert realized["reference_voice"] == "amitaro-countdown"
     assert (

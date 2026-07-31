@@ -5,6 +5,7 @@ import urllib.error
 import urllib.request
 import wave
 from collections.abc import Mapping, Sequence
+from io import BytesIO
 from pathlib import Path
 from typing import Any
 
@@ -52,6 +53,7 @@ class FakeRuntime:
         self,
         *,
         text: str,
+        reading: str | None,
         speaker_id: int,
         intonation_scale: float,
         tempo_dynamics_scale: float,
@@ -60,6 +62,7 @@ class FakeRuntime:
         self.synthesize_calls.append(
             {
                 "text": text,
+                "reading": reading,
                 "speaker_id": speaker_id,
                 "intonation_scale": intonation_scale,
                 "tempo_dynamics_scale": tempo_dynamics_scale,
@@ -192,18 +195,25 @@ def test_intensity_maps_to_supported_scales(
     )
 
 
-def test_explicit_reading_is_sent_verbatim(tmp_path: Path) -> None:
+def test_explicit_reading_keeps_surface_and_controls_accent_phrases(
+    tmp_path: Path,
+) -> None:
     runtime = FakeRuntime()
     adapter = AivisSpeechAdapter(runtime=runtime)
     job = _job(reading="ハイヨッ、エールフタツオマチ！")
     _prepare(adapter, [job], tmp_path)
 
     generation_input = adapter.generation_input(job, TAKE_CONTEXT)
-    assert generation_input["text"] == "ハイヨッ、エールフタツオマチ！"
+    assert generation_input["text"] == "はいよっ、エール二つお待ち！"
+    assert generation_input["reading"] == "ハイヨッ、エールフタツオマチ！"
     assert generation_input["reading_source"] == "line.reading"
+    assert generation_input["reading_control"] == "accent_phrases"
 
     adapter.generate(job, TAKE_CONTEXT, tmp_path / "reading.wav")
-    assert runtime.synthesize_calls[0]["text"] == "ハイヨッ、エールフタツオマチ！"
+    assert runtime.synthesize_calls[0]["text"] == "はいよっ、エール二つお待ち！"
+    assert runtime.synthesize_calls[0]["reading"] == (
+        "ハイヨッ、エールフタツオマチ！"
+    )
 
 
 def test_generate_writes_pcm16_without_claiming_unverified_device(
@@ -221,6 +231,7 @@ def test_generate_writes_pcm16_without_claiming_unverified_device(
     assert runtime.synthesize_calls == [
         {
             "text": "はいよっ、エール二つお待ち！",
+            "reading": None,
             "speaker_id": STYLE_IDS["せつなめ"],
             "intonation_scale": 1.2,
             "tempo_dynamics_scale": 1.2,
@@ -233,6 +244,89 @@ def test_generate_writes_pcm16_without_claiming_unverified_device(
         assert wav_file.getnchannels() == 1
         assert wav_file.getsampwidth() == 2
         assert wav_file.getframerate() == SAMPLE_RATE_HZ
+
+
+def test_http_runtime_builds_accent_phrases_from_plain_reading(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    runtime = _HttpRuntime(opener=lambda *_args, **_kwargs: None)
+    runtime._prepared = True
+    json_calls: list[tuple[str, str, Mapping[str, Any] | None]] = []
+    synthesis_body: dict[str, Any] = {}
+
+    def request_json(
+        method: str,
+        path: str,
+        *,
+        query: Mapping[str, Any] | None = None,
+        body: Mapping[str, Any] | None = None,
+    ) -> Any:
+        del body
+        json_calls.append((method, path, query))
+        if path == "/audio_query":
+            return {
+                "accent_phrases": [{"moras": [{"text": "ハ"}]}],
+                "kana": "engine-generated",
+            }
+        if path == "/accent_phrases":
+            return [{"moras": [{"text": "サ"}, {"text": "ガ"}]}]
+        raise AssertionError(path)
+
+    wav_buffer = BytesIO()
+    with wave.open(wav_buffer, "wb") as wav_file:
+        wav_file.setnchannels(1)
+        wav_file.setsampwidth(2)
+        wav_file.setframerate(SAMPLE_RATE_HZ)
+        wav_file.writeframes(struct.pack("<h", 0) * 100)
+
+    def request_bytes(
+        method: str,
+        path: str,
+        *,
+        query: Mapping[str, Any] | None = None,
+        body: Mapping[str, Any] | None = None,
+    ) -> tuple[bytes, str]:
+        assert method == "POST"
+        assert path == "/synthesis"
+        assert query == {"speaker": STYLE_IDS["ノーマル"]}
+        assert body is not None
+        synthesis_body.update(body)
+        return wav_buffer.getvalue(), "audio/wav"
+
+    monkeypatch.setattr(runtime, "_request_json", request_json)
+    monkeypatch.setattr(runtime, "_request_bytes", request_bytes)
+    output = tmp_path / "http.wav"
+    runtime.synthesize(
+        text="退がれ！",
+        reading="サガレ！",
+        speaker_id=STYLE_IDS["ノーマル"],
+        intonation_scale=1.0,
+        tempo_dynamics_scale=1.0,
+        output_wav=output,
+    )
+
+    assert json_calls == [
+        (
+            "POST",
+            "/audio_query",
+            {"text": "退がれ！", "speaker": STYLE_IDS["ノーマル"]},
+        ),
+        (
+            "POST",
+            "/accent_phrases",
+            {
+                "text": "サガレ！",
+                "speaker": STYLE_IDS["ノーマル"],
+                "is_kana": "false",
+            },
+        ),
+    ]
+    assert synthesis_body["kana"] == "退がれ！"
+    assert synthesis_body["accent_phrases"] == [
+        {"moras": [{"text": "サ"}, {"text": "ガ"}]},
+    ]
+    assert output.is_file()
 
 
 def test_unprepared_unknown_and_duplicate_jobs_fail_fast(

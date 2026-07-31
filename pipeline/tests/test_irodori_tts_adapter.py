@@ -331,16 +331,15 @@ def _voices_dir(tmp_path: Path) -> Path:
 
 
 def test_profile_and_params_use_selected_anchor_contract() -> None:
-    adapter = IrodoriTTSAdapter(
-        runtime=FakeRuntime(),
-        reading_converter=lambda text: text,
-    )
+    adapter = IrodoriTTSAdapter(runtime=FakeRuntime())
     params = adapter.generation_params()
 
     assert adapter.profile.version == PROFILE_VERSION
     assert UPSTREAM_REVISION in PROFILE_VERSION
     assert CHECKPOINT_REVISION in PROFILE_VERSION
     assert CODEC_REVISION in PROFILE_VERSION
+    assert adapter.profile.capabilities.reading is False
+    assert "pyopenjtalk_plus_version" not in params
     assert params["role_reference"]["selection_protocol"] == (
         "role-anchor-selection-v1"
     )
@@ -350,7 +349,7 @@ def test_profile_and_params_use_selected_anchor_contract() -> None:
 
 def test_Phase_A_caption_is_role_complete_and_seeded(tmp_path: Path) -> None:
     runtime = FakeRuntime()
-    adapter = IrodoriTTSAdapter(runtime=runtime, reading_converter=lambda text: text)
+    adapter = IrodoriTTSAdapter(runtime=runtime)
     role = _role(_job())
     generation_input = adapter.role_anchor_generation_input(role)
 
@@ -371,10 +370,7 @@ def test_Phase_A_caption_is_role_complete_and_seeded(tmp_path: Path) -> None:
 
 
 def test_null_reference_requires_selected_anchor(tmp_path: Path) -> None:
-    adapter = IrodoriTTSAdapter(
-        runtime=FakeRuntime(),
-        reading_converter=lambda text: text,
-    )
+    adapter = IrodoriTTSAdapter(runtime=FakeRuntime())
 
     with pytest.raises(IrodoriTTSAdapterError, match="selection"):
         adapter.prepare([_job()], tmp_path / "artifacts", tmp_path / "voices")
@@ -386,7 +382,6 @@ def test_Phase_B_passes_selected_ref_and_full_target_caption(tmp_path: Path) -> 
     runtime = FakeRuntime()
     adapter = IrodoriTTSAdapter(
         runtime=runtime,
-        reading_converter=lambda text: text,
         role_anchor_selection_path=_selection(tmp_path, first),
         role_anchor_plan_sha256=PLAN_SHA256,
     )
@@ -419,7 +414,6 @@ def test_selected_anchor_WAVのprepare後変更をruntime消費前に拒否(
     runtime = FakeRuntime()
     adapter = IrodoriTTSAdapter(
         runtime=runtime,
-        reading_converter=lambda text: text,
         role_anchor_selection_path=selection,
         role_anchor_plan_sha256=PLAN_SHA256,
     )
@@ -440,10 +434,7 @@ def test_selected_anchor_WAVのprepare後変更をruntime消費前に拒否(
 def test_explicit_reference_needs_no_anchor_selection(tmp_path: Path) -> None:
     voices = _voices_dir(tmp_path)
     runtime = FakeRuntime()
-    adapter = IrodoriTTSAdapter(
-        runtime=runtime,
-        reading_converter=lambda text: text,
-    )
+    adapter = IrodoriTTSAdapter(runtime=runtime)
     job = _job(reference_voice="test-voice")
     adapter.prepare([job], tmp_path / "artifacts", voices)
     generation_input = adapter.generation_input(job, _take(adapter))
@@ -454,11 +445,11 @@ def test_explicit_reference_needs_no_anchor_selection(tmp_path: Path) -> None:
     assert runtime.synthesize_calls[0]["reference_wav"].is_file()
 
 
-def test_explicit_reading_remains_model_input(tmp_path: Path) -> None:
+def test_explicit_reading_does_not_replace_surface_text(tmp_path: Path) -> None:
     job = _job(reading="カンパイシヨウ")
+    runtime = FakeRuntime()
     adapter = IrodoriTTSAdapter(
-        runtime=FakeRuntime(),
-        reading_converter=lambda _text: pytest.fail("converter must not run"),
+        runtime=runtime,
         role_anchor_selection_path=_selection(tmp_path, job),
         role_anchor_plan_sha256=PLAN_SHA256,
     )
@@ -469,8 +460,13 @@ def test_explicit_reading_remains_model_input(tmp_path: Path) -> None:
     )
 
     generation_input = adapter.generation_input(job, _take(adapter))
-    assert "カンパイシヨウ" in generation_input["text"]
-    assert generation_input["reading_source"] == "line.reading"
+    assert generation_input["text"] == "🤭乾杯しよう！"
+    assert "カンパイシヨウ" not in generation_input["text"]
+    assert generation_input["reading_source"] == "line.text"
+
+    realized = adapter.generate(job, _take(adapter), tmp_path / "surface.wav")
+    assert runtime.synthesize_calls[-1]["text"] == generation_input["text"]
+    assert realized["reading_source"] == "line.text"
 
 
 def test_selection_path_and_watermark_fail_fast(tmp_path: Path) -> None:
