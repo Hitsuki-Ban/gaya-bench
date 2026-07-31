@@ -1237,6 +1237,10 @@ def _finish(
         },
         "attempts": reports,
     }
+    if "phase_b" in ledger["source"]:
+        report_document["source"]["phase_b"] = dict(
+            ledger["source"]["phase_b"],
+        )
     try:
         validate_qc_report(
             report_document,

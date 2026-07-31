@@ -3,7 +3,6 @@ from __future__ import annotations
 import gc
 import hashlib
 import importlib
-import json
 import re
 import sys
 from collections.abc import Callable, Mapping, Sequence
@@ -21,6 +20,15 @@ from gaya_pipeline.adapters.base import (
     TakeContext,
     TakeRecipe,
     require_take_context,
+)
+from gaya_pipeline.completion_anchor import (
+    CompletionAnchorError,
+    resolve_selected_anchor,
+)
+from gaya_pipeline.completion_plan import (
+    CompletionPlanError,
+    RoleSnapshot,
+    build_role_snapshot,
 )
 from gaya_pipeline.voice_assets import validate_voice_metadata
 
@@ -60,8 +68,6 @@ _KIND_LABELS = {
     "spirit": "精霊",
 }
 
-_CACHE_FORMAT_VERSION = 3
-_CACHE_DIRECTORY = "character-anchor-v3"
 _IDENTIFIER = re.compile(r"^[a-z0-9][a-z0-9-]*$")
 _SHA256 = re.compile(r"^[0-9a-f]{64}$")
 _MIB = 1024 * 1024
@@ -78,8 +84,7 @@ _SAMPLING: dict[str, int | float | bool] = {
     "max_new_tokens": 2048,
 }
 _PEAK_KEYS = {"allocated_mib", "reserved_mib"}
-_CACHE_PEAK_KEYS = {"voice_design_load", "voice_design_generate"}
-_DESIGNED_REFERENCE_CONTROL = "voice_design_character_anchor"
+_SELECTED_ANCHOR_CONTROL = "selected_voice_design_anchor"
 _ASSET_REFERENCE_CONTROL = "voice_asset"
 _ReferenceKey = tuple[str, str]
 
@@ -297,15 +302,19 @@ class _VoiceReference:
     source_id: str
     character_identity: Mapping[str, Any]
     phase_peak_vram_mib: dict[str, dict[str, float]]
+    selected_anchor_receipt: Mapping[str, Any] | None
 
     def receipt(self) -> dict[str, Any]:
-        return {
+        receipt = {
             "character_identity": dict(self.character_identity),
             "reference_control": self.control,
             "reference_source_id": self.source_id,
             "reference_sha256": self.sha256,
             "reference_text": self.text,
         }
+        if self.selected_anchor_receipt is not None:
+            receipt["selected_anchor"] = dict(self.selected_anchor_receipt)
+        return receipt
 
 
 _T = TypeVar("_T")
@@ -339,13 +348,43 @@ class Qwen3TTSAdapter:
             supports_multiple=True,
         )
 
-    def __init__(self, runtime: _Runtime | None = None) -> None:
+    def __init__(
+        self,
+        runtime: _Runtime | None = None,
+        *,
+        role_anchor_selection_path: Path | None = None,
+        role_anchor_plan_sha256: str | None = None,
+    ) -> None:
+        if (role_anchor_selection_path is None) != (
+            role_anchor_plan_sha256 is None
+        ):
+            raise Qwen3TTSAdapterError(
+                "role anchor selection pathとfrozen plan SHAは同時に指定してください。",
+            )
+        if (
+            role_anchor_selection_path is not None
+            and not role_anchor_selection_path.is_absolute()
+        ):
+            raise Qwen3TTSAdapterError(
+                "role anchor selectionは絶対pathが必要です。",
+            )
+        if (
+            role_anchor_plan_sha256 is not None
+            and re.fullmatch(r"[0-9a-f]{64}", role_anchor_plan_sha256) is None
+        ):
+            raise Qwen3TTSAdapterError(
+                "role anchor frozen plan SHAは完全な小文字SHA-256が必要です。",
+            )
         self._runtime = _NativeRuntime() if runtime is None else runtime
+        self._role_anchor_selection_path = role_anchor_selection_path
+        self._role_anchor_plan_sha256 = role_anchor_plan_sha256
         self._references: dict[_ReferenceKey, _VoiceReference] = {}
         self._clone_prompts: dict[_ReferenceKey, Any] = {}
         self._clone_prompt_peaks: dict[_ReferenceKey, dict[str, float]] = {}
         self._base_model: Any | None = None
         self._base_load_peak: dict[str, float] | None = None
+        self._anchor_model: Any | None = None
+        self._anchor_load_peak: dict[str, float] | None = None
         self._prepared = False
 
     def prepare(
@@ -354,6 +393,7 @@ class Qwen3TTSAdapter:
         artifacts_dir: Path,
         voices_dir: Path,
     ) -> None:
+        self.close_role_anchor_generation()
         if self._base_model is not None:
             self._base_model = None
             self._base_load_peak = None
@@ -370,7 +410,7 @@ class Qwen3TTSAdapter:
 
         identities: dict[_ReferenceKey, dict[str, Any]] = {}
         reference_voices: dict[_ReferenceKey, str | None] = {}
-        paths: dict[_ReferenceKey, tuple[Path, Path]] = {}
+        roles: dict[_ReferenceKey, RoleSnapshot] = {}
         for key, character_jobs in grouped_jobs.items():
             identity = _character_identity(character_jobs[0])
             if any(
@@ -381,6 +421,15 @@ class Qwen3TTSAdapter:
                     f"{_format_reference_key(key)}",
                 )
             identities[key] = identity
+            roles[key] = _role_snapshot(character_jobs[0])
+            if any(
+                _role_snapshot(job) != roles[key]
+                for job in character_jobs[1:]
+            ):
+                raise Qwen3TTSAdapterError(
+                    "同じscenario/characterに異なるrole snapshotがあります: "
+                    f"{_format_reference_key(key)}",
+                )
             reference_voice = _reference_voice_value(character_jobs[0])
             if any(
                 _reference_voice_value(job) != reference_voice
@@ -391,25 +440,13 @@ class Qwen3TTSAdapter:
                     f"{_format_reference_key(key)}",
                 )
             reference_voices[key] = reference_voice
-            reference_dir = (
-                artifacts_dir
-                / "voices"
-                / MODEL_ID
-                / key[0]
-                / key[1]
-                / _CACHE_DIRECTORY
-            )
-            paths[key] = (
-                reference_dir / "reference.wav",
-                reference_dir / "reference.json",
-            )
+        del artifacts_dir
 
         explicit_entries = (
             _load_reference_entries(voices_dir)
             if any(value is not None for value in reference_voices.values())
             else {}
         )
-        missing: list[_ReferenceKey] = []
         for key in sorted(identities):
             identity = identities[key]
             reference_voice = reference_voices[key]
@@ -421,71 +458,119 @@ class Qwen3TTSAdapter:
                     character_identity=identity,
                 )
                 continue
-            wav_path, metadata_path = paths[key]
-            cache_identity = _cache_identity(identity)
-            cached = _read_cached_reference(
-                wav_path=wav_path,
-                metadata_path=metadata_path,
-                identity=cache_identity,
+            try:
+                if (
+                    self._role_anchor_selection_path is None
+                    or self._role_anchor_plan_sha256 is None
+                ):
+                    raise Qwen3TTSAdapterError(
+                        "reference_voice=nullのPhase B準備には"
+                        "role anchor selectionの絶対pathとfrozen plan SHAが必要です。",
+                    )
+                selected = resolve_selected_anchor(
+                    selection_path=self._role_anchor_selection_path,
+                    plan_sha256=self._role_anchor_plan_sha256,
+                    model=MODEL_ID,
+                    model_revision=PROFILE_VERSION,
+                    role=roles[key],
+                )
+            except CompletionAnchorError as error:
+                raise Qwen3TTSAdapterError(
+                    f"selected role anchorが不正です: {error}",
+                ) from error
+            if selected.anchor_text != REFERENCE_TEXT:
+                raise Qwen3TTSAdapterError(
+                    "selected role anchor textがQwen固定値と一致しません。",
+                )
+            self._references[key] = _VoiceReference(
+                wav_path=selected.audio_path,
+                sha256=selected.audio_sha256,
+                text=selected.anchor_text,
+                control=_SELECTED_ANCHOR_CONTROL,
+                source_id=selected.anchor_id,
                 character_identity=identity,
+                phase_peak_vram_mib={},
+                selected_anchor_receipt=selected.receipt(),
             )
-            if cached is None:
-                missing.append(key)
-            else:
-                self._references[key] = cached
 
-        if missing:
+        self._prepared = True
+
+    def role_anchor_generation_input(
+        self,
+        role: RoleSnapshot,
+    ) -> Mapping[str, Any]:
+        _validate_anchor_role(role)
+        return {
+            "model": VOICE_DESIGN_MODEL_ID,
+            "revision": VOICE_DESIGN_REVISION,
+            "language": LANGUAGE,
+            "text": REFERENCE_TEXT,
+            "instruct": _voice_design_instruct(_identity_from_role(role)),
+            "sampling": _sampling(),
+        }
+
+    def generate_role_anchor(
+        self,
+        role: RoleSnapshot,
+        *,
+        seed: int,
+        output_wav: Path,
+    ) -> Mapping[str, Any]:
+        generation_input = self.role_anchor_generation_input(role)
+        if self._anchor_model is None:
+            if self._base_model is not None:
+                raise Qwen3TTSAdapterError(
+                    "Base generation中にVoiceDesign anchorは生成できません。",
+                )
             snapshot = self._download_snapshot(
                 VOICE_DESIGN_MODEL_ID,
                 VOICE_DESIGN_REVISION,
             )
             self._runtime.reset_peak_memory_stats()
-            voice_model = self._run_phase(
+            self._anchor_model = self._run_phase(
                 "VoiceDesign model load",
                 lambda: self._runtime.load_model(snapshot),
             )
-            load_peak = self._runtime.peak_memory_mib()
-            try:
-                for key in missing:
-                    character_identity = identities[key]
-                    identity = _cache_identity(character_identity)
-                    wav_path, metadata_path = paths[key]
-                    self._runtime.seed(SEED)
-                    self._runtime.reset_peak_memory_stats()
-                    generated = self._run_phase(
-                        f"VoiceDesign generation ({_format_reference_key(key)})",
-                        lambda identity=identity: self._runtime.generate_voice_design(
-                            voice_model,
-                            text=str(identity["text"]),
-                            language=LANGUAGE,
-                            instruct=str(identity["instruct"]),
-                            sampling=_sampling(),
-                        ),
-                    )
-                    samples, sample_rate = _single_audio(
-                        generated,
-                        "VoiceDesign generation",
-                    )
-                    generation_peak = self._runtime.peak_memory_mib()
-                    phase_peaks = {
-                        "voice_design_load": _copy_peak(load_peak),
-                        "voice_design_generate": _copy_peak(generation_peak),
-                    }
-                    reference = self._write_reference(
-                        wav_path=wav_path,
-                        metadata_path=metadata_path,
-                        identity=identity,
-                        character_identity=character_identity,
-                        samples=samples,
-                        sample_rate=sample_rate,
-                        phase_peaks=phase_peaks,
-                    )
-                    self._references[key] = reference
-            finally:
-                voice_model = None
-                self._runtime.release_model()
+            self._anchor_load_peak = self._runtime.peak_memory_mib()
+        self._runtime.seed(seed)
+        self._runtime.reset_peak_memory_stats()
+        generated = self._run_phase(
+            f"VoiceDesign anchor generation ({role.scenario}/{role.character})",
+            lambda: self._runtime.generate_voice_design(
+                self._anchor_model,
+                text=REFERENCE_TEXT,
+                language=LANGUAGE,
+                instruct=str(generation_input["instruct"]),
+                sampling=_sampling(),
+            ),
+        )
+        samples, sample_rate = _single_audio(generated, "VoiceDesign generation")
+        generation_peak = self._runtime.peak_memory_mib()
+        output_wav.parent.mkdir(parents=True, exist_ok=True)
+        self._runtime.write_pcm16(output_wav, samples, sample_rate)
+        if not output_wav.is_file():
+            raise Qwen3TTSAdapterError(
+                f"VoiceDesign anchor WAVが書き込まれませんでした: {output_wav}",
+            )
+        if self._anchor_load_peak is None:
+            raise Qwen3TTSAdapterError("VoiceDesign load profileがありません。")
+        return {
+            "seed": seed,
+            "sample_rate_hz": sample_rate,
+            "phase_peak_vram_mib": {
+                "voice_design_load": _copy_peak(self._anchor_load_peak),
+                "voice_design_generate": _copy_peak(generation_peak),
+            },
+            "role_identity_sha256": role.role_identity_sha256,
+        }
 
-        self._prepared = True
+    def close_role_anchor_generation(self) -> None:
+        if self._anchor_model is None:
+            self._anchor_load_peak = None
+            return
+        self._anchor_model = None
+        self._anchor_load_peak = None
+        self._runtime.release_model()
 
     def generation_params(self) -> Mapping[str, Any]:
         return {
@@ -501,11 +586,11 @@ class Qwen3TTSAdapter:
             "reference_key": ["scenario", "character"],
             "reference_controls": {
                 "explicit_reference": _ASSET_REFERENCE_CONTROL,
-                "designed_reference": _DESIGNED_REFERENCE_CONTROL,
+                "selected_anchor": _SELECTED_ANCHOR_CONTROL,
             },
             "voice_design_anchor_text": REFERENCE_TEXT,
-            "voice_design_cache_format_version": _CACHE_FORMAT_VERSION,
-            "voice_design_cache_directory": _CACHE_DIRECTORY,
+            "role_anchor_selection_protocol": "role-anchor-selection-v1",
+            "role_anchor_selection_required_for_null_reference": True,
             "character_identity_fields": [
                 "scenario",
                 "character",
@@ -551,6 +636,7 @@ class Qwen3TTSAdapter:
         model = self._ensure_base_model()
         prompt = self._clone_prompts.get(key)
         if prompt is None:
+            _verify_reference_unchanged(reference)
             self._runtime.reset_peak_memory_stats()
             prompt = self._run_phase(
                 f"Base clone prompt ({_format_reference_key(key)})",
@@ -661,61 +747,6 @@ class Qwen3TTSAdapter:
                 ) from error
             raise Qwen3TTSAdapterError(f"{phase} に失敗しました: {error}") from error
 
-    def _write_reference(
-        self,
-        *,
-        wav_path: Path,
-        metadata_path: Path,
-        identity: Mapping[str, Any],
-        character_identity: Mapping[str, Any],
-        samples: Any,
-        sample_rate: int,
-        phase_peaks: dict[str, dict[str, float]],
-    ) -> _VoiceReference:
-        wav_path.parent.mkdir(parents=True, exist_ok=True)
-        pending_wav = wav_path.with_name(".reference.pending.wav")
-        pending_metadata = metadata_path.with_name(".reference.pending.json")
-        if pending_wav.exists() or pending_metadata.exists():
-            raise Qwen3TTSAdapterError(
-                "VoiceDesign character anchor の pending file が残っています: "
-                f"{wav_path.parent}",
-            )
-        try:
-            self._runtime.write_pcm16(pending_wav, samples, sample_rate)
-            if not pending_wav.is_file():
-                raise Qwen3TTSAdapterError(
-                    "VoiceDesign character anchor PCM WAV が書き込まれませんでした: "
-                    f"{pending_wav}",
-                )
-            wav_sha256 = _sha256_file(pending_wav)
-            cache_metadata = {
-                **identity,
-                "phase_peak_vram_mib": phase_peaks,
-                "wav_sha256": wav_sha256,
-            }
-            pending_metadata.write_text(
-                json.dumps(cache_metadata, ensure_ascii=False, indent=2) + "\n",
-                encoding="utf-8",
-            )
-            pending_wav.replace(wav_path)
-            pending_metadata.replace(metadata_path)
-        finally:
-            pending_wav.unlink(missing_ok=True)
-            pending_metadata.unlink(missing_ok=True)
-
-        return _VoiceReference(
-            wav_path=wav_path,
-            sha256=wav_sha256,
-            text=str(identity["text"]),
-            control=_DESIGNED_REFERENCE_CONTROL,
-            source_id=f"{VOICE_DESIGN_MODEL_ID}@{VOICE_DESIGN_REVISION}",
-            character_identity=dict(character_identity),
-            phase_peak_vram_mib={
-                phase: _copy_peak(peak) for phase, peak in phase_peaks.items()
-            },
-        )
-
-
 def _sampling() -> dict[str, int | float | bool]:
     return dict(_SAMPLING)
 
@@ -759,20 +790,43 @@ def _character_identity(job: LineJob) -> dict[str, Any]:
     }
 
 
-def _cache_identity(character_identity: Mapping[str, Any]) -> dict[str, Any]:
-    instruct = _voice_design_instruct(character_identity)
+def _role_snapshot(job: LineJob) -> RoleSnapshot:
+    scenario_id, character_id = _job_key(job)
+    try:
+        return build_role_snapshot(
+            scenario=scenario_id,
+            character=character_id,
+            character_document=job.character,
+            scene_setting=_required_string(job.scene, "setting", "scene"),
+        )
+    except CompletionPlanError as error:
+        raise Qwen3TTSAdapterError(f"role snapshotが不正です: {error}") from error
+
+
+def _identity_from_role(role: RoleSnapshot) -> dict[str, Any]:
     return {
-        "format_version": _CACHE_FORMAT_VERSION,
-        "model": VOICE_DESIGN_MODEL_ID,
-        "revision": VOICE_DESIGN_REVISION,
-        "reference_control": _DESIGNED_REFERENCE_CONTROL,
-        "character_identity": dict(character_identity),
-        "language": LANGUAGE,
-        "text": REFERENCE_TEXT,
-        "instruct": instruct,
-        "seed": SEED,
-        "sampling": _sampling(),
+        "scenario": role.scenario,
+        "character": role.character,
+        **dict(role.role),
+        "scene_setting": role.scene_setting,
     }
+
+
+def _validate_anchor_role(role: RoleSnapshot) -> None:
+    if role.reference_voice is not None:
+        raise Qwen3TTSAdapterError(
+            "明示reference roleはVoiceDesign anchor対象にできません。",
+        )
+    identity = _identity_from_role(role)
+    for key, labels in (
+        ("kind", _KIND_LABELS),
+        ("gender", _GENDER_LABELS),
+        ("age", _AGE_LABELS),
+    ):
+        if identity[key] not in labels:
+            raise Qwen3TTSAdapterError(
+                f"anchor roleの{key}が未対応です: {identity[key]}",
+            )
 
 
 def _voice_design_instruct(character_identity: Mapping[str, Any]) -> str:
@@ -928,99 +982,8 @@ def _explicit_reference(
         source_id=voice_id,
         character_identity=dict(character_identity),
         phase_peak_vram_mib={},
+        selected_anchor_receipt=None,
     )
-
-
-def _read_cached_reference(
-    *,
-    wav_path: Path,
-    metadata_path: Path,
-    identity: Mapping[str, Any],
-    character_identity: Mapping[str, Any],
-) -> _VoiceReference | None:
-    pending_wav = wav_path.with_name(".reference.pending.wav")
-    pending_metadata = metadata_path.with_name(".reference.pending.json")
-    if pending_wav.exists() or pending_metadata.exists():
-        raise Qwen3TTSAdapterError(
-            f"VoiceDesign character anchor の pending file が残っています: "
-            f"{wav_path.parent}",
-        )
-    wav_exists = wav_path.exists()
-    metadata_exists = metadata_path.exists()
-    if not wav_exists and not metadata_exists:
-        return None
-    if wav_exists != metadata_exists:
-        raise Qwen3TTSAdapterError(
-            "VoiceDesign character anchor の WAV/metadata pair が壊れています: "
-            f"{wav_path.parent}",
-        )
-    if (
-        wav_path.is_symlink()
-        or metadata_path.is_symlink()
-        or not wav_path.is_file()
-        or not metadata_path.is_file()
-    ):
-        raise Qwen3TTSAdapterError(
-            "VoiceDesign character anchor は通常ファイルが必要です: "
-            f"{wav_path.parent}",
-        )
-    try:
-        cached = json.loads(metadata_path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError) as error:
-        raise Qwen3TTSAdapterError(
-            f"VoiceDesign character anchor metadata が不正です: {metadata_path}",
-        ) from error
-    if not isinstance(cached, dict):
-        raise Qwen3TTSAdapterError(
-            f"VoiceDesign character anchor metadata は object が必要です: "
-            f"{metadata_path}",
-        )
-    expected_keys = set(identity) | {"phase_peak_vram_mib", "wav_sha256"}
-    if set(cached) != expected_keys:
-        raise Qwen3TTSAdapterError(
-            "VoiceDesign character anchor metadata の項目が一致しません: "
-            f"{metadata_path}",
-        )
-    if any(cached[key] != value for key, value in identity.items()):
-        raise Qwen3TTSAdapterError(
-            f"VoiceDesign character anchor cache identity が一致しません: "
-            f"{metadata_path}",
-        )
-    peaks = cached["phase_peak_vram_mib"]
-    if not _valid_cache_peaks(peaks):
-        raise Qwen3TTSAdapterError(
-            "VoiceDesign character anchor の CUDA peak profile が不正です: "
-            f"{metadata_path}",
-        )
-    wav_sha256 = cached["wav_sha256"]
-    if not isinstance(wav_sha256, str) or not re.fullmatch(
-        r"[0-9a-f]{64}",
-        wav_sha256,
-    ):
-        raise Qwen3TTSAdapterError(
-            f"VoiceDesign character anchor の wav_sha256 が不正です: "
-            f"{metadata_path}",
-        )
-    if _sha256_file(wav_path) != wav_sha256:
-        raise Qwen3TTSAdapterError(
-            f"VoiceDesign character anchor の WAV SHA-256 が一致しません: "
-            f"{wav_path}",
-        )
-    return _VoiceReference(
-        wav_path=wav_path,
-        sha256=wav_sha256,
-        text=str(identity["text"]),
-        control=_DESIGNED_REFERENCE_CONTROL,
-        source_id=f"{VOICE_DESIGN_MODEL_ID}@{VOICE_DESIGN_REVISION}",
-        character_identity=dict(character_identity),
-        phase_peak_vram_mib={phase: _copy_peak(peak) for phase, peak in peaks.items()},
-    )
-
-
-def _valid_cache_peaks(value: Any) -> bool:
-    if not isinstance(value, dict) or set(value) != _CACHE_PEAK_KEYS:
-        return False
-    return all(_valid_peak(peak) for peak in value.values())
 
 
 def _valid_peak(value: Any) -> bool:
@@ -1091,3 +1054,22 @@ def _sha256_file(path: Path) -> str:
         for chunk in iter(lambda: input_file.read(1024 * 1024), b""):
             digest.update(chunk)
     return digest.hexdigest()
+
+
+def _verify_reference_unchanged(reference: _VoiceReference) -> None:
+    path = reference.wav_path
+    if path.is_symlink() or not path.is_file():
+        raise Qwen3TTSAdapterError(
+            f"参照音声 WAV が通常ファイルではありません: {path}",
+        )
+    try:
+        actual_sha256 = _sha256_file(path)
+    except OSError as error:
+        raise Qwen3TTSAdapterError(
+            f"参照音声 WAV を再検証できません: {path}: {error}",
+        ) from error
+    if actual_sha256 != reference.sha256:
+        raise Qwen3TTSAdapterError(
+            "参照音声 WAV がprepare後に変更されました: "
+            f"expected={reference.sha256}, actual={actual_sha256}",
+        )

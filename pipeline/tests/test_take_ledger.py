@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 from copy import deepcopy
 from pathlib import Path
@@ -12,6 +13,7 @@ from gaya_pipeline.take_ledger import (
     validate_ledger,
     write_ledger_atomic,
 )
+from gaya_pipeline.take_identity import canonical_json
 
 
 GROUP = {
@@ -80,6 +82,32 @@ def _ledger(attempt: dict[str, object] | None = None) -> dict[str, object]:
     }
 
 
+def _phase_b_ledger() -> dict[str, object]:
+    ledger = _ledger()
+    target_group = {**GROUP, "role_epoch_sha256": "b" * 64}
+    phase_b = {
+        "protocol": "phase-b-generation-v1",
+        "plan_sha256": "c" * 64,
+        "run_kind": "primary",
+        "supersedes_run_id": None,
+        "anchor_selection_sha256": None,
+        "target_groups": [target_group],
+    }
+    provenance = {
+        "protocol": phase_b["protocol"],
+        "plan_sha256": phase_b["plan_sha256"],
+        "run_kind": phase_b["run_kind"],
+        "supersedes_run_id": phase_b["supersedes_run_id"],
+        "anchor_selection_sha256": phase_b["anchor_selection_sha256"],
+        "target_group": target_group,
+    }
+    ledger["source"]["phase_b"] = phase_b  # type: ignore[index]
+    ledger["attempts"][0]["phase_b_provenance_sha256"] = hashlib.sha256(  # type: ignore[index]
+        canonical_json(provenance).encode("utf-8"),
+    ).hexdigest()
+    return ledger
+
+
 def test_ledger_v1のexact_contractと合法遷移() -> None:
     planned = _ledger()
     assert validate_ledger(planned) is planned
@@ -96,6 +124,41 @@ def test_ledger_v1のexact_contractと合法遷移() -> None:
     )
 
     assert eligible["attempts"][0]["status"] == "eligible"  # type: ignore[index]
+
+
+def test_phase_b_provenanceはsourceとattemptをexactに拘束する() -> None:
+    ledger = _phase_b_ledger()
+    assert validate_ledger(ledger) is ledger
+
+    ledger["source"]["phase_b"]["target_groups"][0][  # type: ignore[index]
+        "role_epoch_sha256"
+    ] = "d" * 64
+    with pytest.raises(TakeLedgerError, match="Phase B provenance"):
+        validate_ledger(ledger)
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    [
+        lambda ledger: ledger["source"]["phase_b"].pop("plan_sha256"),
+        lambda ledger: ledger["source"]["phase_b"].update(
+            anchor_selection_sha256="e" * 64,
+        ),
+        lambda ledger: ledger["source"]["phase_b"].update(
+            run_kind="topup",
+        ),
+        lambda ledger: ledger["attempts"][0].pop(
+            "phase_b_provenance_sha256",
+        ),
+    ],
+)
+def test_phase_bの欠落_anchor誤用_topup契約違反を拒否(
+    mutation: object,
+) -> None:
+    ledger = _phase_b_ledger()
+    mutation(ledger)  # type: ignore[operator]
+    with pytest.raises(TakeLedgerError):
+        validate_ledger(ledger)
 
 
 def test_generation_failedはterminalで書き換えられない() -> None:

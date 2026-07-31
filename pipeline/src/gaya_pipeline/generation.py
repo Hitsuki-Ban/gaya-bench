@@ -2,9 +2,8 @@ from __future__ import annotations
 
 import hashlib
 import json
-import math
 import time
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
@@ -54,6 +53,11 @@ class GenerationError(RuntimeError):
 
 
 VARIANT = "dry"
+PHASE_B_PROTOCOL = "phase-b-generation-v1"
+ANCHOR_MODELS = {
+    "irodori-tts-600m-v3-voicedesign",
+    "qwen3-tts-12hz-1.7b",
+}
 
 
 @dataclass(frozen=True)
@@ -102,6 +106,8 @@ class _AttemptPlan:
     job: LineJob
     context: TakeContext
     generation_input_sha256: str
+    phase_b_provenance: Mapping[str, Any] | None
+    phase_b_provenance_sha256: str | None
 
     @property
     def slot(self) -> tuple[str, str, str, str, int]:
@@ -132,7 +138,62 @@ def run_generation(
     takes: int,
     seed_base: int,
     force: bool = False,
+    role_anchor_selection_path: Path | None = None,
+    role_anchor_plan_sha256: str | None = None,
+    role_anchor_selection_sha256: str | None = None,
+    completion_plan_sha256: str | None = None,
+    role_epochs: Mapping[tuple[str, str], str] | None = None,
+    run_kind: Literal["primary", "topup"] | None = None,
+    supersedes_run_id: str | None = None,
 ) -> GenerationSummary:
+    if (role_anchor_selection_path is None) != (
+        role_anchor_plan_sha256 is None
+    ):
+        raise GenerationError(
+            "role anchor selection pathとfrozen plan SHAは同時に指定してください。",
+        )
+    if (
+        role_anchor_selection_path is not None
+        and not role_anchor_selection_path.is_absolute()
+    ):
+        raise GenerationError("role anchor selectionは絶対pathが必要です。")
+    if (
+        role_anchor_plan_sha256 is not None
+        and (
+            len(role_anchor_plan_sha256) != 64
+            or any(
+                character not in "0123456789abcdef"
+                for character in role_anchor_plan_sha256
+            )
+        )
+    ):
+        raise GenerationError(
+            "role anchor frozen plan SHAは完全な小文字SHA-256が必要です。",
+        )
+    phase_b_requested = any(
+        value is not None
+        for value in (
+            completion_plan_sha256,
+            role_epochs,
+            run_kind,
+            supersedes_run_id,
+            role_anchor_selection_sha256,
+        )
+    )
+    if phase_b_requested and (
+        completion_plan_sha256 is None
+        or role_epochs is None
+        or run_kind is None
+    ):
+        raise GenerationError(
+            "Phase B生成にはfrozen plan SHA、role epochs、run kindが必要です。",
+        )
+    if phase_b_requested and force:
+        raise GenerationError("Phase B生成では--forceを使用できません。")
+    if not phase_b_requested and role_anchor_selection_sha256 is not None:
+        raise GenerationError(
+            "anchor selection SHAはPhase B provenanceと同時に指定してください。",
+        )
     normalized_targets = _validate_cli_inputs(
         scenario_id=scenario_id,
         line_id=line_id,
@@ -154,7 +215,15 @@ def run_generation(
         raise GenerationError(f"シナリオ検証に失敗しました:\n{details}")
 
     try:
-        adapter = create_adapter(model_id)
+        adapter = (
+            create_adapter(model_id)
+            if role_anchor_selection_path is None
+            else create_adapter(
+                model_id,
+                role_anchor_selection_path=role_anchor_selection_path,
+                role_anchor_plan_sha256=role_anchor_plan_sha256,
+            )
+        )
         jobs, scenario_sources = _load_jobs(
             scenarios_dir,
             scenario_id=scenario_id,
@@ -182,6 +251,39 @@ def run_generation(
         raise GenerationError(str(error)) from error
 
     started_at = time.perf_counter()
+    phase_b_source = (
+        None
+        if not phase_b_requested
+        else _phase_b_source(
+            model_id=adapter.profile.id,
+            jobs=jobs,
+            completion_plan_sha256=completion_plan_sha256,
+            role_epochs=role_epochs,
+            run_kind=run_kind,
+            supersedes_run_id=supersedes_run_id,
+            role_anchor_selection_path=role_anchor_selection_path,
+            role_anchor_plan_sha256=role_anchor_plan_sha256,
+            role_anchor_selection_sha256=role_anchor_selection_sha256,
+        )
+    )
+    source = _ledger_source(
+        jobs=jobs,
+        model_id=adapter.profile.id,
+        takes=takes,
+        seed_base=seed_base,
+        recipe=recipe,
+        scenario_sources=scenario_sources,
+        phase_b=phase_b_source,
+    )
+    superseded_ledger = (
+        _validate_topup_source(
+            artifacts_dir=artifacts_dir,
+            source=source,
+        )
+        if phase_b_source is not None
+        and phase_b_source["run_kind"] == "topup"
+        else None
+    )
     try:
         adapter.prepare(
             jobs,
@@ -199,17 +301,20 @@ def run_generation(
         requested_params=requested_params,
         profile=profile,
         tools=tools,
+        phase_b=phase_b_source,
     )
-    source = _ledger_source(
-        jobs=jobs,
-        model_id=adapter.profile.id,
-        takes=takes,
-        seed_base=seed_base,
-        recipe=recipe,
-        scenario_sources=scenario_sources,
-    )
+    if superseded_ledger is not None:
+        _validate_topup_attempt_seeds(
+            artifacts_dir=artifacts_dir,
+            previous=superseded_ledger,
+            plans=plans,
+        )
     takes_root = artifacts_dir / "takes"
-    reused = None if force else _find_reusable_run(takes_root, source, plans)
+    reused = (
+        None
+        if phase_b_source is not None or force
+        else _find_reusable_run(takes_root, source, plans)
+    )
     if reused is None:
         run_id, created_at = _new_run_identity(adapter.profile.id, takes, takes_root)
         run_root = takes_root / run_id
@@ -581,6 +686,379 @@ def _preflight_slot_paths(
                 paths.add(path)
 
 
+def _phase_b_source(
+    *,
+    model_id: str,
+    jobs: list[LineJob],
+    completion_plan_sha256: str | None,
+    role_epochs: Mapping[tuple[str, str], str] | None,
+    run_kind: Literal["primary", "topup"] | None,
+    supersedes_run_id: str | None,
+    role_anchor_selection_path: Path | None,
+    role_anchor_plan_sha256: str | None,
+    role_anchor_selection_sha256: str | None,
+) -> dict[str, Any]:
+    if model_id == "voxcpm2":
+        raise GenerationError(
+            "VoxCPM2 Phase B targetはrelease層のexplicit reuse専用です。",
+        )
+    plan_sha = _require_sha256(
+        completion_plan_sha256,
+        "Phase B frozen plan SHA",
+    )
+    if run_kind not in {"primary", "topup"}:
+        raise GenerationError("Phase B run kindはprimaryまたはtopupが必要です。")
+    if run_kind == "primary":
+        if supersedes_run_id is not None:
+            raise GenerationError("primary runにsupersedes_run_idは指定できません。")
+    elif supersedes_run_id is None:
+        raise GenerationError("topup runにはsupersedes_run_idが必要です。")
+    else:
+        _require_path_segment(supersedes_run_id, "supersedes_run_id")
+
+    if not isinstance(role_epochs, Mapping):
+        raise GenerationError("Phase B role epochsはgroup mappingが必要です。")
+    expected_keys = {(job.scenario_id, job.line_id) for job in jobs}
+    actual_keys: set[tuple[str, str]] = set()
+    normalized_epochs: dict[tuple[str, str], str] = {}
+    for key, value in role_epochs.items():
+        if (
+            not isinstance(key, tuple)
+            or len(key) != 2
+            or not all(isinstance(item, str) and item for item in key)
+        ):
+            raise GenerationError(
+                "Phase B role epoch keyは(scenario, line)が必要です。",
+            )
+        normalized_key = (key[0], key[1])
+        actual_keys.add(normalized_key)
+        normalized_epochs[normalized_key] = _require_sha256(
+            value,
+            f"Phase B role epoch {key[0]}/{key[1]}",
+        )
+    if actual_keys != expected_keys:
+        missing = sorted(expected_keys - actual_keys)
+        unexpected = sorted(actual_keys - expected_keys)
+        raise GenerationError(
+            "Phase B role epochsがexact target groupsと一致しません: "
+            f"missing={missing}, unexpected={unexpected}",
+        )
+    epochs_by_role: dict[tuple[str, str], str] = {}
+    for job in jobs:
+        role_key = (job.scenario_id, str(job.character["id"]))
+        epoch = normalized_epochs[(job.scenario_id, job.line_id)]
+        previous_epoch = epochs_by_role.setdefault(role_key, epoch)
+        if previous_epoch != epoch:
+            raise GenerationError(
+                "同一roleのPhase B role epochがline間で漂移しています: "
+                f"{role_key[0]}/{role_key[1]}",
+            )
+
+    if model_id in ANCHOR_MODELS:
+        if (
+            role_anchor_selection_path is None
+            or role_anchor_plan_sha256 is None
+            or role_anchor_selection_sha256 is None
+        ):
+            raise GenerationError(
+                "Qwen/Irodori Phase Bにはanchor selection path/SHAと"
+                "frozen plan SHAが必要です。",
+            )
+        if role_anchor_plan_sha256 != plan_sha:
+            raise GenerationError(
+                "anchor frozen plan SHAがPhase B plan SHAと一致しません。",
+            )
+        selection_sha = _require_sha256(
+            role_anchor_selection_sha256,
+            "anchor selection SHA",
+        )
+        try:
+            selection_bytes = role_anchor_selection_path.read_bytes()
+            marker_bytes = role_anchor_selection_path.with_suffix(
+                ".sha256",
+            ).read_bytes()
+        except OSError as error:
+            raise GenerationError(
+                f"anchor selection/markerを読めません: {error}",
+            ) from error
+        actual_selection_sha = hashlib.sha256(selection_bytes).hexdigest()
+        if actual_selection_sha != selection_sha:
+            raise GenerationError(
+                "anchor selection SHAが指定値と一致しません。",
+            )
+        if marker_bytes != f"{selection_sha}\n".encode("ascii"):
+            raise GenerationError(
+                "anchor selection隣接SHA markerが一致しません。",
+            )
+        try:
+            selection_document = json.loads(selection_bytes.decode("utf-8"))
+        except (UnicodeError, json.JSONDecodeError) as error:
+            raise GenerationError(
+                "anchor selection JSONが不正です。",
+            ) from error
+        if (
+            canonical_json(selection_document).encode("utf-8")
+            != selection_bytes
+        ):
+            raise GenerationError(
+                "anchor selectionはcanonical JSON bytesが必要です。",
+            )
+        try:
+            from gaya_pipeline.completion_anchor import (
+                CompletionAnchorError,
+                validate_anchor_selection,
+            )
+
+            validated_selection = validate_anchor_selection(
+                selection_document,
+            )
+        except CompletionAnchorError as error:
+            raise GenerationError(
+                f"anchor selection contractが不正です: {error}",
+            ) from error
+        if validated_selection["plan_sha256"] != plan_sha:
+            raise GenerationError(
+                "anchor selection root plan SHAがPhase B planと一致しません。",
+            )
+    else:
+        if any(
+            value is not None
+            for value in (
+                role_anchor_selection_path,
+                role_anchor_plan_sha256,
+                role_anchor_selection_sha256,
+            )
+        ):
+            raise GenerationError(
+                "anchor selection provenanceはQwen/Irodoriだけに指定できます。",
+            )
+        selection_sha = None
+
+    target_groups = [
+        {
+            "model": model_id,
+            "scenario": job.scenario_id,
+            "line": job.line_id,
+            "variant": VARIANT,
+            "role_epoch_sha256": normalized_epochs[
+                (job.scenario_id, job.line_id)
+            ],
+        }
+        for job in jobs
+    ]
+    return {
+        "protocol": PHASE_B_PROTOCOL,
+        "plan_sha256": plan_sha,
+        "run_kind": run_kind,
+        "supersedes_run_id": supersedes_run_id,
+        "anchor_selection_sha256": selection_sha,
+        "target_groups": target_groups,
+    }
+
+
+def _phase_b_attempt_provenance(
+    phase_b: Mapping[str, Any],
+    *,
+    model_id: str,
+    scenario: str,
+    line: str,
+) -> dict[str, Any]:
+    matches = [
+        group
+        for group in phase_b["target_groups"]
+        if (
+            group["model"],
+            group["scenario"],
+            group["line"],
+            group["variant"],
+        )
+        == (model_id, scenario, line, VARIANT)
+    ]
+    if len(matches) != 1:
+        raise GenerationError(
+            "Phase B target provenanceがattempt groupとexact一致しません。",
+        )
+    return {
+        "protocol": phase_b["protocol"],
+        "plan_sha256": phase_b["plan_sha256"],
+        "run_kind": phase_b["run_kind"],
+        "supersedes_run_id": phase_b["supersedes_run_id"],
+        "anchor_selection_sha256": phase_b["anchor_selection_sha256"],
+        "target_group": dict(matches[0]),
+    }
+
+
+def _validate_anchor_receipt(
+    model_id: str,
+    resolved_input: Mapping[str, Any],
+    phase_b_attempt: Mapping[str, Any],
+) -> None:
+    if model_id not in ANCHOR_MODELS:
+        return
+    selected = resolved_input.get("selected_anchor")
+    selected_required = (
+        resolved_input.get("reference_control")
+        == "selected_voice_design_anchor"
+        if model_id == "qwen3-tts-12hz-1.7b"
+        else resolved_input.get("reference_source") == "selected-role-anchor"
+    )
+    if selected is None:
+        if selected_required:
+            raise GenerationError(
+                "selected anchor referenceにreceiptがありません。",
+            )
+        return
+    if not selected_required:
+        raise GenerationError(
+            "明示reference inputにselected anchor receiptがあります。",
+        )
+    if not isinstance(selected, Mapping):
+        raise GenerationError("selected anchor receiptはobjectが必要です。")
+    expected = {
+        "anchor_selection_sha256": phase_b_attempt[
+            "anchor_selection_sha256"
+        ],
+        "anchor_plan_sha256": phase_b_attempt["plan_sha256"],
+        "role_epoch_sha256": phase_b_attempt["target_group"][
+            "role_epoch_sha256"
+        ],
+    }
+    actual = {key: selected.get(key) for key in expected}
+    if actual != expected:
+        raise GenerationError(
+            "selected anchor receiptのselection/plan/role epochが"
+            "Phase B provenanceと一致しません。",
+        )
+
+
+def _validate_topup_source(
+    *,
+    artifacts_dir: Path,
+    source: Mapping[str, Any],
+) -> dict[str, Any]:
+    phase_b = source["phase_b"]
+    supersedes_run_id = phase_b["supersedes_run_id"]
+    assert isinstance(supersedes_run_id, str)
+    ledger_path = artifacts_dir / "takes" / supersedes_run_id / "ledger.json"
+    try:
+        previous = read_ledger(ledger_path)
+    except (OSError, json.JSONDecodeError, TakeLedgerError) as error:
+        raise GenerationError(
+            f"topup supersedes ledgerを検証できません: {ledger_path}: {error}",
+        ) from error
+    if previous["run_id"] != supersedes_run_id:
+        raise GenerationError(
+            "topup supersedes_run_idがledger identityと一致しません。",
+        )
+    previous_source = previous["source"]
+    previous_phase_b = previous_source.get("phase_b")
+    if not isinstance(previous_phase_b, Mapping):
+        raise GenerationError(
+            "topup supersedes ledgerにPhase B provenanceがありません。",
+        )
+    for key in ("protocol", "plan_sha256", "anchor_selection_sha256"):
+        if previous_phase_b.get(key) != phase_b[key]:
+            raise GenerationError(
+                f"topup {key}がsupersedes runと一致しません。",
+            )
+    if previous_source["model"] != source["model"]:
+        raise GenerationError("topup modelがsupersedes runと一致しません。")
+    if previous_source["seed_base"] == source["seed_base"]:
+        raise GenerationError(
+            "topup seed_baseはsupersedes runと異なる値が必要です。",
+        )
+    previous_groups = {
+        (
+            group["model"],
+            group["scenario"],
+            group["line"],
+            group["variant"],
+        ): group["role_epoch_sha256"]
+        for group in previous_phase_b["target_groups"]
+    }
+    current_groups = {
+        (
+            group["model"],
+            group["scenario"],
+            group["line"],
+            group["variant"],
+        ): group["role_epoch_sha256"]
+        for group in phase_b["target_groups"]
+    }
+    if not set(current_groups).issubset(previous_groups):
+        raise GenerationError(
+            "topup target groupsがsupersedes runのexact subsetではありません。",
+        )
+    if any(
+        previous_groups[group] != epoch
+        for group, epoch in current_groups.items()
+    ):
+        raise GenerationError(
+            "topup role epochがsupersedes runと一致しません。",
+        )
+    return previous
+
+
+def _validate_topup_attempt_seeds(
+    *,
+    artifacts_dir: Path,
+    previous: Mapping[str, Any],
+    plans: Sequence[_AttemptPlan],
+) -> None:
+    run_id = previous["run_id"]
+    ledger_path = artifacts_dir / "takes" / run_id / "ledger.json"
+    try:
+        current = read_ledger(ledger_path)
+    except (OSError, json.JSONDecodeError, TakeLedgerError) as error:
+        raise GenerationError(
+            f"topup生成前にsupersedes ledgerを再検証できません: {error}",
+        ) from error
+    if current != previous:
+        raise GenerationError("topup準備中にsupersedes ledgerが変更されました。")
+    prior_seeds: dict[tuple[str, str, str, str], set[int]] = {}
+    for attempt in previous["attempts"]:
+        seed = attempt["generation"]["seed"]
+        if seed is None:
+            raise GenerationError(
+                "topup supersedes attemptに明示seedがありません。",
+            )
+        group = tuple(
+            attempt[key] for key in ("model", "scenario", "line", "variant")
+        )
+        prior_seeds.setdefault(group, set()).add(seed)
+    for plan in plans:
+        seed = plan.context.seed
+        if seed is None:
+            raise GenerationError("topup attemptに明示seedがありません。")
+        if seed in prior_seeds.get(plan.slot[:4], set()):
+            raise GenerationError(
+                "topup seedがsupersedes runの同一groupと重複しています: "
+                f"{plan.slot[:4]} seed={seed}",
+            )
+
+
+def _require_sha256(value: Any, field: str) -> str:
+    if (
+        not isinstance(value, str)
+        or len(value) != 64
+        or any(character not in "0123456789abcdef" for character in value)
+    ):
+        raise GenerationError(f"{field}は完全な小文字SHA-256が必要です。")
+    return value
+
+
+def _require_path_segment(value: Any, field: str) -> str:
+    if (
+        not isinstance(value, str)
+        or not value
+        or value in {".", ".."}
+        or "/" in value
+        or "\\" in value
+    ):
+        raise GenerationError(f"{field}は安全なpath segmentが必要です。")
+    return value
+
+
 def _build_attempt_plans(
     *,
     adapter: Adapter,
@@ -589,6 +1067,7 @@ def _build_attempt_plans(
     requested_params: dict[str, Any],
     profile: PostprocessProfile,
     tools: AudioTools,
+    phase_b: dict[str, Any] | None,
 ) -> list[_AttemptPlan]:
     plans: list[_AttemptPlan] = []
     for job in jobs:
@@ -602,7 +1081,35 @@ def _build_attempt_plans(
         )
         for context in matching:
             try:
-                resolved_input = adapter.generation_input(job, context)
+                adapter_input = adapter.generation_input(job, context)
+                if not isinstance(adapter_input, Mapping):
+                    raise GenerationError(
+                        "adapter generation inputはobjectが必要です。",
+                    )
+                resolved_input = dict(adapter_input)
+                phase_b_attempt = None
+                phase_b_provenance_sha256 = None
+                if phase_b is not None:
+                    if "phase_b_provenance" in resolved_input:
+                        raise GenerationError(
+                            "adapter generation inputに予約済み"
+                            "phase_b_provenanceがあります。",
+                        )
+                    phase_b_attempt = _phase_b_attempt_provenance(
+                        phase_b,
+                        model_id=adapter.profile.id,
+                        scenario=job.scenario_id,
+                        line=job.line_id,
+                    )
+                    _validate_anchor_receipt(
+                        adapter.profile.id,
+                        resolved_input,
+                        phase_b_attempt,
+                    )
+                    resolved_input["phase_b_provenance"] = phase_b_attempt
+                    phase_b_provenance_sha256 = hashlib.sha256(
+                        canonical_json(phase_b_attempt).encode("utf-8"),
+                    ).hexdigest()
                 input_sha = generation_input_sha256(
                     model_id=adapter.profile.id,
                     model_version=adapter.profile.version,
@@ -626,6 +1133,8 @@ def _build_attempt_plans(
                     job=job,
                     context=context,
                     generation_input_sha256=input_sha,
+                    phase_b_provenance=phase_b_attempt,
+                    phase_b_provenance_sha256=phase_b_provenance_sha256,
                 ),
             )
     return plans
@@ -639,6 +1148,7 @@ def _ledger_source(
     seed_base: int,
     recipe: TakeRecipe,
     scenario_sources: tuple[_ScenarioSource, ...],
+    phase_b: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     source_files = [
         {
@@ -656,7 +1166,7 @@ def _ledger_source(
         }
         for job in jobs
     ]
-    return {
+    result = {
         "scenario_sha256": hashlib.sha256(
             canonical_json(source_files).encode("utf-8"),
         ).hexdigest(),
@@ -666,6 +1176,9 @@ def _ledger_source(
         "recipe_version": recipe.version,
         "groups": groups,
     }
+    if phase_b is not None:
+        result["phase_b"] = phase_b
+    return result
 
 
 def _find_reusable_run(
@@ -755,22 +1268,7 @@ def _new_ledger(
 ) -> dict[str, Any]:
     attempts = []
     for plan in plans:
-        attempts.append(
-            {
-                "model": plan.slot[0],
-                "scenario": plan.slot[1],
-                "line": plan.slot[2],
-                "variant": plan.slot[3],
-                "take_index": plan.context.index,
-                "generation_input_sha256": plan.generation_input_sha256,
-                "generation": {
-                    "status": "planned",
-                    "seed": plan.context.seed,
-                    "sampling": plan.context.sampling_dict(),
-                },
-                "status": "planned",
-            },
-        )
+        attempts.append(_planned_attempt_for_plan(plan))
     return {
         "format_version": 1,
         "run_id": run_id,
@@ -889,6 +1387,20 @@ def _generate_attempt(
         except Exception as error:
             raise GenerationError(f"adapter 生成に失敗しました: {error}") from error
         generation_seconds = time.perf_counter() - generation_started
+        if plan.phase_b_provenance is not None:
+            if "phase_b_provenance" in realized_params:
+                raise GenerationError(
+                    "adapter realized paramsに予約済み"
+                    "phase_b_provenanceがあります。",
+                )
+            _validate_anchor_receipt(
+                adapter.profile.id,
+                realized_params,
+                plan.phase_b_provenance,
+            )
+            realized_params["phase_b_provenance"] = dict(
+                plan.phase_b_provenance,
+            )
         canonical_json(realized_params)
         _audit_realized_params(plan.context, realized_params)
 
@@ -919,6 +1431,10 @@ def _generate_attempt(
             raise GenerationError("Opus の形式が profile と一致しません。")
         encoded_loudness = measure_encoded_opus(tools, pending_opus, profile)
         opus_sha = _sha256_file(pending_opus)
+        attempt_requested_params = _requested_params_for_plan(
+            requested_params,
+            plan,
+        )
         sidecar = {
             "format_version": 1,
             "run_id": run_id,
@@ -943,7 +1459,7 @@ def _generate_attempt(
                 "sampling": plan.context.sampling_dict(),
             },
             "gen_params": {
-                "requested": requested_params,
+                "requested": attempt_requested_params,
                 "realized": realized_params,
             },
             "postprocess": profile.as_dict(),
@@ -993,7 +1509,7 @@ def _audit_realized_params(
 
 
 def _planned_attempt_for_plan(plan: _AttemptPlan) -> dict[str, Any]:
-    return {
+    result = {
         "model": plan.slot[0],
         "scenario": plan.slot[1],
         "line": plan.slot[2],
@@ -1007,6 +1523,11 @@ def _planned_attempt_for_plan(plan: _AttemptPlan) -> dict[str, Any]:
         },
         "status": "planned",
     }
+    if plan.phase_b_provenance_sha256 is not None:
+        result["phase_b_provenance_sha256"] = (
+            plan.phase_b_provenance_sha256
+        )
+    return result
 
 
 def _generated_attempt(
@@ -1021,7 +1542,7 @@ def _generated_attempt(
         str(planned["line"]),
         int(planned["take_index"]),
     )
-    return {
+    result = {
         "model": planned["model"],
         "scenario": planned["scenario"],
         "line": planned["line"],
@@ -1046,13 +1567,18 @@ def _generated_attempt(
         "features": {"status": "unscored"},
         "status": "generated",
     }
+    if "phase_b_provenance_sha256" in planned:
+        result["phase_b_provenance_sha256"] = planned[
+            "phase_b_provenance_sha256"
+        ]
+    return result
 
 
 def _failed_attempt(
     planned: dict[str, Any],
     message: str,
 ) -> dict[str, Any]:
-    return {
+    result = {
         "model": planned["model"],
         "scenario": planned["scenario"],
         "line": planned["line"],
@@ -1067,6 +1593,11 @@ def _failed_attempt(
         },
         "status": "generation_failed",
     }
+    if "phase_b_provenance_sha256" in planned:
+        result["phase_b_provenance_sha256"] = planned[
+            "phase_b_provenance_sha256"
+        ]
+    return result
 
 
 def _read_matching_sidecar(
@@ -1112,7 +1643,10 @@ def _read_matching_sidecar(
     }
     if sidecar["take"] != expected_take:
         raise GenerationError("take sidecar の take context が一致しません。")
-    if sidecar["gen_params"]["requested"] != requested_params:
+    if sidecar["gen_params"]["requested"] != _requested_params_for_plan(
+        requested_params,
+        plan,
+    ):
         raise GenerationError("take sidecar の requested parameter が一致しません。")
     if sidecar["postprocess"] != profile.as_dict():
         raise GenerationError("take sidecar の postprocess が一致しません。")
@@ -1125,6 +1659,21 @@ def _read_matching_sidecar(
     if _sha256_file(opus_path) != sidecar["opus_sha256"]:
         raise GenerationError("take Opus SHA-256 が一致しません。")
     return sidecar
+
+
+def _requested_params_for_plan(
+    requested_params: Mapping[str, Any],
+    plan: _AttemptPlan,
+) -> dict[str, Any]:
+    result = dict(requested_params)
+    if plan.phase_b_provenance is None:
+        return result
+    if "phase_b_provenance" in result:
+        raise GenerationError(
+            "adapter requested paramsに予約済みphase_b_provenanceがあります。",
+        )
+    result["phase_b_provenance"] = dict(plan.phase_b_provenance)
+    return result
 
 
 def _validate_ledger_sidecar_join(

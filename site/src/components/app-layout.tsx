@@ -16,7 +16,7 @@ export function AppLayout() {
   return (
     <div className="min-h-screen">
       <header className="sticky top-0 z-20 border-b bg-background/95 backdrop-blur">
-        <div className="mx-auto flex min-h-14 max-w-[1480px] items-center gap-6 px-4 sm:px-6">
+        <div className="mx-auto flex min-h-(--gaya-header-height) max-w-[1480px] items-center gap-6 px-4 sm:px-6">
           <NavLink
             aria-label="比較トップ"
             className="flex items-center gap-3"

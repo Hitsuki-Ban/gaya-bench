@@ -11,10 +11,24 @@ from gaya_pipeline.curation import (
     CurationSummary,
     apply_curation,
 )
+from gaya_pipeline.completion_anchor import (
+    AnchorCandidateSetSummary,
+    AnchorGenerationSummary,
+    AnchorListeningSummary,
+    AnchorSelectionSummary,
+    AnchorTopupSummary,
+    CompletionAnchorError,
+    build_anchor_listening_bundle,
+    build_anchor_topup_plan,
+    finalize_anchor_selection,
+    merge_anchor_runs,
+    run_anchor_generation,
+)
 from gaya_pipeline.completion_listen import (
     CompletionListeningError,
     CompletionListeningSummary,
     build_completion_listening_bundle,
+    phase_b_generation_binding,
 )
 from gaya_pipeline.completion_plan import (
     CompletionPlanError,
@@ -184,7 +198,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     completion_parser = subparsers.add_parser(
         "completion",
-        help="公開済み基準線の非 selected slot を厳密に補録する",
+        help="frozen planの363 replacementと925 inheritedを確定する",
     )
     completion_subparsers = completion_parser.add_subparsers(
         dest="completion_command",
@@ -216,11 +230,157 @@ def build_parser() -> argparse.ArgumentParser:
         required=True,
         type=Path,
     )
-    completion_generate_parser.add_argument("--force", action="store_true")
+    completion_generate_parser.add_argument(
+        "--anchor-selection",
+        required=True,
+        type=Path,
+        help="role epochを固定する確定role anchor selection",
+    )
+    completion_generate_parser.add_argument(
+        "--run-kind",
+        required=True,
+        choices=("primary", "topup"),
+    )
+    completion_generate_parser.add_argument(
+        "--supersedes-run-id",
+        help="topupが整組取代する明示run ID",
+    )
+    completion_generate_parser.add_argument(
+        "--seed-base",
+        required=True,
+        type=int,
+    )
+    completion_generate_parser.add_argument(
+        "--target",
+        action="append",
+        dest="targets",
+        default=[],
+        metavar="SCENARIO/LINE",
+        help="topupで整組取代するplan内group（繰返し指定）",
+    )
+
+    completion_anchor_generate_parser = completion_subparsers.add_parser(
+        "anchor-generate",
+        help="Phase Aのrole anchor候補をrun単位で生成する",
+    )
+    completion_anchor_generate_parser.add_argument(
+        "--plan",
+        required=True,
+        type=Path,
+    )
+    completion_anchor_generate_parser.add_argument(
+        "--base-manifest",
+        required=True,
+        type=Path,
+    )
+    completion_anchor_generate_parser.add_argument(
+        "--scenarios",
+        required=True,
+        type=Path,
+    )
+    completion_anchor_generate_parser.add_argument(
+        "--voices",
+        required=True,
+        type=Path,
+    )
+    completion_anchor_generate_parser.add_argument(
+        "--artifacts",
+        required=True,
+        type=Path,
+    )
+    completion_anchor_generate_parser.add_argument("--model", required=True)
+    completion_anchor_generate_parser.add_argument("--run-id", required=True)
+    completion_anchor_generate_parser.add_argument(
+        "--topup-plan",
+        type=Path,
+    )
+    completion_anchor_generate_parser.add_argument(
+        "--candidate-set",
+        type=Path,
+    )
+
+    completion_anchor_merge_parser = completion_subparsers.add_parser(
+        "anchor-merge",
+        help="明示runからimmutable anchor candidate setを作る",
+    )
+    for name in ("plan", "base-manifest", "scenarios", "voices", "artifacts"):
+        completion_anchor_merge_parser.add_argument(
+            f"--{name}",
+            required=True,
+            type=Path,
+        )
+    completion_anchor_merge_parser.add_argument(
+        "--run-id",
+        action="append",
+        dest="run_ids",
+        required=True,
+    )
+    completion_anchor_merge_parser.add_argument(
+        "--output",
+        required=True,
+        type=Path,
+    )
+
+    completion_anchor_topup_parser = completion_subparsers.add_parser(
+        "anchor-topup",
+        help="eligible不足groupの追加attemptを固定する",
+    )
+    for name in (
+        "plan",
+        "base-manifest",
+        "scenarios",
+        "voices",
+        "candidate-set",
+        "output",
+    ):
+        completion_anchor_topup_parser.add_argument(
+            f"--{name}",
+            required=True,
+            type=Path,
+        )
+
+    completion_anchor_listen_parser = completion_subparsers.add_parser(
+        "anchor-listen",
+        help="106 roleのrole-review-v1 listening bundleを作る",
+    )
+    for name in (
+        "plan",
+        "base-manifest",
+        "scenarios",
+        "voices",
+        "candidate-set",
+        "artifacts",
+        "output",
+    ):
+        completion_anchor_listen_parser.add_argument(
+            f"--{name}",
+            required=True,
+            type=Path,
+        )
+
+    completion_anchor_finalize_parser = completion_subparsers.add_parser(
+        "anchor-finalize",
+        help="Owner decisionからPhase B用anchor selectionを確定する",
+    )
+    for name in (
+        "plan",
+        "base-manifest",
+        "scenarios",
+        "voices",
+        "candidate-set",
+        "decision",
+        "artifacts",
+        "output",
+    ):
+        completion_anchor_finalize_parser.add_argument(
+            f"--{name}",
+            required=True,
+            type=Path,
+        )
 
     completion_qc_parser = completion_subparsers.add_parser(
         "qc",
-        help="補録runへQCを実行する",
+        help="Phase B runへQCを実行する",
     )
     completion_qc_parser.add_argument("--run-id", required=True)
     completion_qc_parser.add_argument(
@@ -246,7 +406,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     completion_listen_parser = completion_subparsers.add_parser(
         "listen",
-        help="全補録runから専用listening bundleを構築する",
+        help="全Phase B sourceから専用listening bundleを構築する",
     )
     completion_listen_parser.add_argument("--plan", required=True, type=Path)
     completion_listen_parser.add_argument(
@@ -255,10 +415,22 @@ def build_parser() -> argparse.ArgumentParser:
         type=Path,
     )
     completion_listen_parser.add_argument(
-        "--run-id",
+        "--primary-run-id",
         action="append",
-        dest="run_ids",
+        dest="primary_run_ids",
         required=True,
+    )
+    completion_listen_parser.add_argument(
+        "--topup-run-id",
+        action="append",
+        dest="topup_run_ids",
+        default=[],
+    )
+    completion_listen_parser.add_argument("--vox-run-id", required=True)
+    completion_listen_parser.add_argument(
+        "--anchor-selection",
+        required=True,
+        type=Path,
     )
     completion_listen_parser.add_argument(
         "--artifacts",
@@ -283,7 +455,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     completion_finalize_parser = completion_subparsers.add_parser(
         "finalize",
-        help="公開済みbaseと補録decisionから完全releaseを確定する",
+        help="公開済みbaseと363 replacement decisionからreleaseを確定する",
     )
     completion_finalize_parser.add_argument(
         "--base-manifest",
@@ -302,10 +474,27 @@ def build_parser() -> argparse.ArgumentParser:
         type=Path,
     )
     completion_finalize_parser.add_argument(
-        "--run-id",
-        action="append",
-        dest="run_ids",
+        "--source-audit",
         required=True,
+        type=Path,
+    )
+    completion_finalize_parser.add_argument(
+        "--primary-run-id",
+        action="append",
+        dest="primary_run_ids",
+        required=True,
+    )
+    completion_finalize_parser.add_argument(
+        "--topup-run-id",
+        action="append",
+        dest="topup_run_ids",
+        default=[],
+    )
+    completion_finalize_parser.add_argument("--vox-run-id", required=True)
+    completion_finalize_parser.add_argument(
+        "--anchor-selection",
+        required=True,
+        type=Path,
     )
     completion_finalize_parser.add_argument(
         "--artifacts",
@@ -330,7 +519,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     completion_publish_parser = completion_subparsers.add_parser(
         "publish",
-        help="旧objectを変更せず補録candidateだけをR2へ公開する",
+        help="immutable音声を検証後にmanifestをactivateする",
     )
     completion_publish_parser.add_argument(
         "--release",
@@ -343,7 +532,22 @@ def build_parser() -> argparse.ArgumentParser:
         type=Path,
     )
     completion_publish_parser.add_argument(
+        "--source-audit",
+        required=True,
+        type=Path,
+    )
+    completion_publish_parser.add_argument(
         "--env-file",
+        required=True,
+        type=Path,
+    )
+    completion_publish_parser.add_argument(
+        "--manifest-activation",
+        required=True,
+        type=Path,
+    )
+    completion_publish_parser.add_argument(
+        "--publish-receipt",
         required=True,
         type=Path,
     )
@@ -665,6 +869,51 @@ def main(argv: Sequence[str] | None = None) -> int:
                 "artifacts",
                 "scenarios",
                 "voices",
+                "anchor_selection",
+            ),
+            "anchor-generate": (
+                "plan",
+                "base_manifest",
+                "scenarios",
+                "voices",
+                "artifacts",
+                "topup_plan",
+                "candidate_set",
+            ),
+            "anchor-merge": (
+                "plan",
+                "base_manifest",
+                "scenarios",
+                "voices",
+                "artifacts",
+                "output",
+            ),
+            "anchor-topup": (
+                "plan",
+                "base_manifest",
+                "scenarios",
+                "voices",
+                "candidate_set",
+                "output",
+            ),
+            "anchor-listen": (
+                "plan",
+                "base_manifest",
+                "scenarios",
+                "voices",
+                "candidate_set",
+                "artifacts",
+                "output",
+            ),
+            "anchor-finalize": (
+                "plan",
+                "base_manifest",
+                "scenarios",
+                "voices",
+                "candidate_set",
+                "decision",
+                "artifacts",
+                "output",
             ),
             "qc": (
                 "artifacts",
@@ -675,6 +924,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             "listen": (
                 "plan",
                 "base_manifest",
+                "anchor_selection",
                 "artifacts",
                 "scenarios",
                 "voices",
@@ -683,19 +933,29 @@ def main(argv: Sequence[str] | None = None) -> int:
             "finalize": (
                 "base_manifest",
                 "qwen_curation",
+                "source_audit",
                 "plan",
                 "decision",
+                "anchor_selection",
                 "artifacts",
                 "scenarios",
                 "voices",
                 "output",
             ),
-            "publish": ("release", "artifacts", "env_file"),
+            "publish": (
+                "release",
+                "artifacts",
+                "source_audit",
+                "env_file",
+                "manifest_activation",
+                "publish_receipt",
+            ),
         }[args.completion_command]
         relative_paths = [
             f"--{name.replace('_', '-')}"
             for name in path_names
-            if not getattr(args, name).is_absolute()
+            if getattr(args, name) is not None
+            and not getattr(args, name).is_absolute()
         ]
         if relative_paths:
             print(
@@ -705,17 +965,113 @@ def main(argv: Sequence[str] | None = None) -> int:
             )
             return 1
 
+        if args.completion_command.startswith("anchor-"):
+            try:
+                plan = load_completion_plan(
+                    args.plan,
+                    base_manifest_path=args.base_manifest,
+                    scenarios_dir=args.scenarios,
+                    voices_dir=args.voices,
+                )
+                if args.completion_command == "anchor-generate":
+                    summary = run_anchor_generation(
+                        plan=plan,
+                        model_id=args.model,
+                        run_id=args.run_id,
+                        artifacts_dir=args.artifacts,
+                        topup_plan_path=args.topup_plan,
+                        candidate_set_path=args.candidate_set,
+                    )
+                    _print_anchor_generation_summary(summary)
+                    return 1 if summary.rejected_count or summary.failed_count else 0
+                if args.completion_command == "anchor-merge":
+                    merge_summary = merge_anchor_runs(
+                        plan=plan,
+                        run_ids=args.run_ids,
+                        artifacts_dir=args.artifacts,
+                        output_path=args.output,
+                    )
+                    _print_anchor_candidate_set_summary(merge_summary)
+                    return 0
+                if args.completion_command == "anchor-topup":
+                    topup_summary = build_anchor_topup_plan(
+                        plan=plan,
+                        candidate_set_path=args.candidate_set,
+                        output_path=args.output,
+                    )
+                    _print_anchor_topup_summary(topup_summary)
+                    return 0
+                if args.completion_command == "anchor-listen":
+                    listening_summary = build_anchor_listening_bundle(
+                        plan=plan,
+                        candidate_set_path=args.candidate_set,
+                        artifacts_dir=args.artifacts,
+                        output_dir=args.output,
+                    )
+                    _print_anchor_listening_summary(listening_summary)
+                    return 0
+                if args.completion_command == "anchor-finalize":
+                    selection_summary = finalize_anchor_selection(
+                        plan=plan,
+                        candidate_set_path=args.candidate_set,
+                        decision_path=args.decision,
+                        artifacts_dir=args.artifacts,
+                        output_dir=args.output,
+                    )
+                    _print_anchor_selection_summary(selection_summary)
+                    return 0
+                raise AssertionError(
+                    f"unknown anchor command: {args.completion_command}",
+                )
+            except (CompletionPlanError, CompletionAnchorError) as error:
+                print(f"ERROR: {error}", file=sys.stderr)
+                return 1
+
         if args.completion_command == "generate":
             try:
                 plan = load_completion_plan(
                     args.plan,
                     base_manifest_path=args.base_manifest,
+                    scenarios_dir=args.scenarios,
+                    voices_dir=args.voices,
                 )
                 target_lines = plan.target_lines_for_model(args.model)
                 if not target_lines:
                     raise GenerationError(
                         f"completion plan 対象外 model です: {args.model}",
                     )
+                anchor_selection_sha256, role_epochs = phase_b_generation_binding(
+                    plan=plan,
+                    model=args.model,
+                    scenarios_dir=args.scenarios,
+                    anchor_selection_path=args.anchor_selection,
+                )
+                if args.run_kind == "primary":
+                    if args.targets:
+                        raise GenerationError(
+                            "primary runに--targetは指定できません。",
+                        )
+                    if args.supersedes_run_id is not None:
+                        raise GenerationError(
+                            "primary runに--supersedes-run-idは指定できません。",
+                        )
+                    if args.seed_base != plan.seed_base:
+                        raise GenerationError(
+                            f"primary runの--seed-baseは{plan.seed_base}が必要です。",
+                        )
+                else:
+                    if args.supersedes_run_id is None:
+                        raise GenerationError(
+                            "topup runに--supersedes-run-idが必要です。",
+                        )
+                    target_lines = _parse_completion_targets(
+                        args.targets,
+                        allowed=set(target_lines),
+                    )
+                    role_epochs = {
+                        identity: role_epochs[identity]
+                        for identity in target_lines
+                    }
                 summary = run_generation(
                     model_id=args.model,
                     scenarios_dir=args.scenarios,
@@ -723,10 +1079,44 @@ def main(argv: Sequence[str] | None = None) -> int:
                     voices_dir=args.voices,
                     target_lines=target_lines,
                     takes=plan.takes,
-                    seed_base=plan.seed_base,
-                    force=args.force,
+                    seed_base=args.seed_base,
+                    completion_plan_sha256=plan.plan_id,
+                    role_epochs=role_epochs,
+                    run_kind=args.run_kind,
+                    supersedes_run_id=args.supersedes_run_id,
+                    role_anchor_selection_path=(
+                        args.anchor_selection
+                        if args.model
+                        in {
+                            "qwen3-tts-12hz-1.7b",
+                            "irodori-tts-600m-v3-voicedesign",
+                        }
+                        else None
+                    ),
+                    role_anchor_plan_sha256=(
+                        plan.plan_id
+                        if args.model
+                        in {
+                            "qwen3-tts-12hz-1.7b",
+                            "irodori-tts-600m-v3-voicedesign",
+                        }
+                        else None
+                    ),
+                    role_anchor_selection_sha256=(
+                        anchor_selection_sha256
+                        if args.model
+                        in {
+                            "qwen3-tts-12hz-1.7b",
+                            "irodori-tts-600m-v3-voicedesign",
+                        }
+                        else None
+                    ),
                 )
-            except (CompletionPlanError, GenerationError) as error:
+            except (
+                CompletionPlanError,
+                CompletionListeningError,
+                GenerationError,
+            ) as error:
                 print(f"ERROR: {error}", file=sys.stderr)
                 return 1
             _print_generation_summary(summary)
@@ -752,10 +1142,15 @@ def main(argv: Sequence[str] | None = None) -> int:
                 plan = load_completion_plan(
                     args.plan,
                     base_manifest_path=args.base_manifest,
+                    scenarios_dir=args.scenarios,
+                    voices_dir=args.voices,
                 )
                 summary = build_completion_listening_bundle(
                     plan=plan,
-                    run_ids=args.run_ids,
+                    primary_run_ids=args.primary_run_ids,
+                    topup_run_ids=args.topup_run_ids,
+                    vox_run_id=args.vox_run_id,
+                    anchor_selection_path=args.anchor_selection,
                     artifacts_dir=args.artifacts,
                     scenarios_dir=args.scenarios,
                     voices_dir=args.voices,
@@ -769,18 +1164,28 @@ def main(argv: Sequence[str] | None = None) -> int:
 
         if args.completion_command == "finalize":
             try:
+                plan = load_completion_plan(
+                    args.plan,
+                    base_manifest_path=args.base_manifest,
+                    scenarios_dir=args.scenarios,
+                    voices_dir=args.voices,
+                )
                 summary = finalize_completion_release(
+                    plan=plan,
                     base_manifest_path=args.base_manifest,
                     qwen_curation_path=args.qwen_curation,
-                    completion_plan_path=args.plan,
+                    source_audit_path=args.source_audit,
                     decision_path=args.decision,
-                    supplement_run_ids=args.run_ids,
+                    primary_run_ids=args.primary_run_ids,
+                    topup_run_ids=args.topup_run_ids,
+                    vox_run_id=args.vox_run_id,
+                    anchor_selection_path=args.anchor_selection,
                     artifacts_dir=args.artifacts,
                     scenarios_dir=args.scenarios,
                     voices_dir=args.voices,
                     output_dir=args.output,
                 )
-            except CompletionReleaseError as error:
+            except (CompletionPlanError, CompletionReleaseError) as error:
                 print(f"ERROR: {error}", file=sys.stderr)
                 return 1
             _print_completion_release_summary(summary)
@@ -791,7 +1196,10 @@ def main(argv: Sequence[str] | None = None) -> int:
                 summary = run_completion_publish(
                     release_dir=args.release,
                     artifacts_dir=args.artifacts,
+                    source_audit_path=args.source_audit,
                     client=create_r2_client(args.env_file),
+                    manifest_activation_path=args.manifest_activation,
+                    publish_receipt_path=args.publish_receipt,
                 )
             except (CompletionPublishError, PublishError) as error:
                 print(f"ERROR: {error}", file=sys.stderr)
@@ -944,11 +1352,79 @@ def _print_generation_summary(summary: GenerationSummary) -> None:
     )
 
 
+def _parse_completion_targets(
+    values: Sequence[str],
+    *,
+    allowed: set[tuple[str, str]],
+) -> tuple[tuple[str, str], ...]:
+    if not values:
+        raise GenerationError("topup runは--targetを1件以上必要です。")
+    targets: list[tuple[str, str]] = []
+    for value in values:
+        parts = value.split("/")
+        if len(parts) != 2 or not all(parts):
+            raise GenerationError("--targetはSCENARIO/LINE形式が必要です。")
+        identity = (parts[0], parts[1])
+        if identity not in allowed:
+            raise GenerationError(
+                f"--targetはfrozen planのmodel対象外です: {value}",
+            )
+        targets.append(identity)
+    if len(targets) != len(set(targets)):
+        raise GenerationError("--targetが重複しています。")
+    return tuple(sorted(targets))
+
+
+def _print_anchor_generation_summary(
+    summary: AnchorGenerationSummary,
+) -> None:
+    print(
+        f"anchor run: {summary.run_id} / eligible {summary.eligible_count} / "
+        f"rejected {summary.rejected_count} / failed {summary.failed_count}",
+    )
+    print(f"ledger: {summary.ledger_path}")
+
+
+def _print_anchor_candidate_set_summary(
+    summary: AnchorCandidateSetSummary,
+) -> None:
+    print(
+        f"anchor candidate set: {summary.group_count} groups / "
+        f"{summary.eligible_count} eligible",
+    )
+    print(f"sha256: {summary.candidate_set_sha256}")
+    print(f"path: {summary.path}")
+
+
+def _print_anchor_topup_summary(summary: AnchorTopupSummary) -> None:
+    print(f"anchor topup: {summary.target_count} attempts")
+    print(f"path: {summary.path}")
+
+
+def _print_anchor_listening_summary(
+    summary: AnchorListeningSummary,
+) -> None:
+    print(
+        f"anchor listening: {summary.group_count} groups / "
+        f"{summary.candidate_count} candidates",
+    )
+    print(f"review: {summary.review_path}")
+
+
+def _print_anchor_selection_summary(
+    summary: AnchorSelectionSummary,
+) -> None:
+    print(f"anchor selection: {summary.selected_count} groups")
+    print(f"sha256: {summary.selection_sha256}")
+    print(f"path: {summary.selection_path}")
+
+
 def _print_completion_listening_summary(
     summary: CompletionListeningSummary,
 ) -> None:
     print(f"Listening bundle: {summary.output_dir.as_posix()}")
     print(f"Candidate set SHA-256: {summary.candidate_set_sha256}")
+    print(f"Source map SHA-256: {summary.source_map_sha256}")
     print(
         f"完了: model {summary.model_count} / group {summary.group_count} / "
         f"candidate {summary.candidate_count}",
@@ -965,7 +1441,7 @@ def _print_completion_release_summary(
     print(
         f"完了: candidate {summary.candidate_count} / "
         f"selected {summary.selected_count} / "
-        f"supplement candidate {summary.supplement_candidate_count}",
+        f"replacement candidate {summary.replacement_candidate_count}",
     )
 
 
@@ -975,8 +1451,10 @@ def _print_completion_publish_summary(
     print(
         f"完了: inherited検証 {summary.inherited_count} / "
         f"新規upload {summary.uploaded_count} / "
-        f"既存supplement {summary.skipped_count}",
+        f"既存replacement {summary.skipped_count}",
     )
+    print(f"Manifest activation: {summary.manifest_activation_path}")
+    print(f"Publish receipt: {summary.publish_receipt_path}")
 
 
 def _print_publish_summary(summary: PublishSummary) -> None:

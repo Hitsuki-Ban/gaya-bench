@@ -6,15 +6,18 @@ import { Button } from "@/components/ui/button";
 
 const navigation = [
   { to: "/curate", label: "音声選定", icon: FolderCheck },
-  { to: "/completion", label: "基準線補録", icon: ListTodo },
+  { to: "/completion", label: "役柄確認", icon: ListTodo },
   { to: "/pilot", label: "事前確認", icon: ListChecks },
 ] as const;
 
 export function InternalLayout() {
   return (
     <div data-internal-ui="gaya-bench-internal-ui-v1" className="min-h-screen">
-      <header className="sticky top-0 z-20 border-b bg-background/95 backdrop-blur">
-        <div className="mx-auto flex min-h-14 max-w-[1480px] items-center gap-6 px-4 sm:px-6">
+      <header
+        className="sticky top-0 z-20 border-b bg-background/95 backdrop-blur"
+        data-global-sticky-header
+      >
+        <div className="mx-auto flex min-h-(--gaya-header-height) max-w-[1480px] items-center gap-6 px-4 sm:px-6">
           <div className="flex items-center gap-3">
             <span className="grid size-9 place-items-center rounded-md border border-primary/35 bg-primary/10 text-primary">
               <AudioLines aria-hidden="true" className="size-5" />

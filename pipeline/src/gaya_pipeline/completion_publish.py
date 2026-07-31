@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import base64
 import hashlib
+import os
+import tempfile
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 from typing import Any, Literal, Protocol
@@ -13,6 +15,7 @@ from gaya_pipeline.completion_release import (
     validate_completion_release,
 )
 from gaya_pipeline.publish import CACHE_CONTROL, CONTENT_TYPE, R2_BUCKET
+from gaya_pipeline.take_identity import canonical_json
 
 
 class CompletionPublishError(RuntimeError):
@@ -28,7 +31,7 @@ class S3Client(Protocol):
 @dataclass(frozen=True)
 class CompletionPublishRecord:
     key: str
-    source: Literal["inherited", "supplement"]
+    source: Literal["inherited", "replacement"]
     status: Literal["verified", "uploaded", "skipped"]
     size_bytes: int
 
@@ -36,6 +39,9 @@ class CompletionPublishRecord:
 @dataclass(frozen=True)
 class CompletionPublishSummary:
     records: tuple[CompletionPublishRecord, ...]
+    manifest_activation_path: Path
+    publish_receipt_path: Path
+    manifest_sha256: str
 
     @property
     def uploaded_count(self) -> int:
@@ -54,7 +60,7 @@ class CompletionPublishSummary:
 class _Object:
     key: str
     sha256: str
-    source: Literal["inherited", "supplement"]
+    source: Literal["inherited", "replacement"]
     content: bytes | None
     size_bytes: int | None
 
@@ -63,17 +69,58 @@ def run_completion_publish(
     *,
     release_dir: Path,
     artifacts_dir: Path,
+    source_audit_path: Path,
     client: S3Client,
+    manifest_activation_path: Path,
+    publish_receipt_path: Path,
 ) -> CompletionPublishSummary:
-    """Publish supplement bytes while treating the published base as remote-only."""
+    """Upload immutable audio, verify every object, then activate the manifest."""
+
+    for path, label in (
+        (release_dir, "release"),
+        (artifacts_dir, "artifacts"),
+        (source_audit_path, "source audit"),
+        (manifest_activation_path, "manifest activation"),
+        (publish_receipt_path, "publish receipt"),
+    ):
+        if not path.is_absolute():
+            raise CompletionPublishError(f"{label} は絶対pathが必要です。")
+    if publish_receipt_path.exists():
+        raise CompletionPublishError(
+            f"publish receiptは既存pathを拒否します: {publish_receipt_path}",
+        )
+    if not manifest_activation_path.parent.is_dir():
+        raise CompletionPublishError("manifest activationの親directoryが存在しません。")
+    if not publish_receipt_path.parent.is_dir():
+        raise CompletionPublishError("publish receiptの親directoryが存在しません。")
 
     try:
         release = validate_completion_release(
             release_dir=release_dir,
             artifacts_dir=artifacts_dir,
+            source_audit_path=source_audit_path,
         )
     except CompletionReleaseError as error:
         raise CompletionPublishError(f"completion release が不正です: {error}") from error
+    try:
+        manifest_bytes = release.root.joinpath("manifest-v4.json").read_bytes()
+        provenance_bytes = release.root.joinpath(
+            "release-provenance.json",
+        ).read_bytes()
+    except OSError as error:
+        raise CompletionPublishError(
+            "preflightでcanonical release bytesを固定できません。",
+        ) from error
+    manifest_sha256 = hashlib.sha256(manifest_bytes).hexdigest()
+    if (
+        manifest_bytes != canonical_json(release.manifest).encode("utf-8")
+        or manifest_sha256 != release.provenance["manifest_sha256"]
+        or provenance_bytes != canonical_json(release.provenance).encode("utf-8")
+    ):
+        raise CompletionPublishError(
+            "preflight release bytesがvalidated releaseと一致しません。",
+        )
+    release_provenance_sha256 = hashlib.sha256(provenance_bytes).hexdigest()
     objects = _collect_objects(release.manifest, release.provenance, artifacts_dir)
 
     preflight: dict[str, dict[str, Any] | None] = {}
@@ -111,13 +158,13 @@ def run_completion_publish(
             records.append(
                 CompletionPublishRecord(
                     key=item.key,
-                    source="supplement",
+                    source="replacement",
                     status="skipped",
                     size_bytes=item.size_bytes,
                 ),
             )
             continue
-        records.append(_put_supplement(client, item))
+        records.append(_put_replacement(client, item))
 
     final_conflicts: list[str] = []
     for item in objects:
@@ -138,7 +185,56 @@ def run_completion_publish(
             "R2 final full HEAD sweep に失敗しました: "
             + ", ".join(final_conflicts),
         )
-    return CompletionPublishSummary(records=tuple(records))
+    receipt = {
+        "format_version": 1,
+        "protocol": "role-baseline-publish-receipt-v1",
+        "status": "activated",
+        "release_provenance_sha256": release_provenance_sha256,
+        "manifest_sha256": manifest_sha256,
+        "activation_path": str(manifest_activation_path),
+        "object_count": len(records),
+        "uploaded_count": sum(record.status == "uploaded" for record in records),
+        "already_present_count": sum(
+            record.status in {"verified", "skipped"} for record in records
+        ),
+        "objects": [
+            {
+                "key": record.key,
+                "source": record.source,
+                "status": record.status,
+                "size_bytes": record.size_bytes,
+            }
+            for record in records
+        ],
+    }
+    receipt_bytes = canonical_json(receipt).encode("utf-8")
+    activation_temporary: Path | None = None
+    receipt_temporary: Path | None = None
+    try:
+        activation_temporary = _prepare_temporary_file(
+            manifest_activation_path,
+            manifest_bytes,
+        )
+        receipt_temporary = _prepare_temporary_file(
+            publish_receipt_path,
+            receipt_bytes,
+        )
+        _install_file(activation_temporary, manifest_activation_path)
+        _install_file(receipt_temporary, publish_receipt_path)
+    except (CompletionPublishError, OSError) as error:
+        if activation_temporary is not None:
+            activation_temporary.unlink(missing_ok=True)
+        if receipt_temporary is not None:
+            receipt_temporary.unlink(missing_ok=True)
+        raise CompletionPublishError(
+            "final HEAD後のmanifest activation/publish receipt書込みに失敗しました。",
+        ) from error
+    return CompletionPublishSummary(
+        records=tuple(records),
+        manifest_activation_path=manifest_activation_path,
+        publish_receipt_path=publish_receipt_path,
+        manifest_sha256=manifest_sha256,
+    )
 
 
 def _collect_objects(
@@ -146,11 +242,19 @@ def _collect_objects(
     provenance: dict[str, Any],
     artifacts_dir: Path,
 ) -> list[_Object]:
-    supplements = {
-        item["take_id"]: (run["run_id"], item)
-        for run in provenance["supplement_runs"]
+    replacement_records = [
+        (run["run_id"], item)
+        for run in provenance["source_runs"]
         for item in run["candidates"]
+    ]
+    replacements = {
+        item["take_id"]: (run_id, item)
+        for run_id, item in replacement_records
     }
+    if len(replacements) != len(replacement_records):
+        raise CompletionPublishError(
+            "release provenance replacement take_id が重複しています。",
+        )
     takes_root = artifacts_dir.resolve() / "takes"
     objects: list[_Object] = []
     keys: set[str] = set()
@@ -159,8 +263,8 @@ def _collect_objects(
         if key in keys:
             raise CompletionPublishError(f"manifest candidate key が重複しています: {key}")
         keys.add(key)
-        supplement = supplements.get(candidate["take_id"])
-        if supplement is None:
+        replacement = replacements.get(candidate["take_id"])
+        if replacement is None:
             objects.append(
                 _Object(
                     key=key,
@@ -171,32 +275,39 @@ def _collect_objects(
                 ),
             )
             continue
-        run_id, record = supplement
-        run_root = _resolve_child_directory(takes_root, run_id, "supplement run")
+        run_id, record = replacement
+        run_root = _resolve_child_directory(takes_root, run_id, "replacement run")
         path = _resolve_child_file(
             run_root,
             record["run_relative_path"],
-            "supplement Opus",
+            "replacement Opus",
         )
         try:
             content = path.read_bytes()
         except OSError as error:
-            raise CompletionPublishError(f"supplement Opus を読めません: {path}") from error
+            raise CompletionPublishError(f"replacement Opus を読めません: {path}") from error
         if (
             len(content) != record["size_bytes"]
             or hashlib.sha256(content).hexdigest() != candidate["sha256"]
         ):
             raise CompletionPublishError(
-                f"supplement Opus が release provenance と不一致です: {key}",
+                f"replacement Opus が release provenance と不一致です: {key}",
             )
         objects.append(
             _Object(
                 key=key,
                 sha256=candidate["sha256"],
-                source="supplement",
+                source="replacement",
                 content=content,
                 size_bytes=len(content),
             ),
+        )
+    manifest_take_ids = {candidate["take_id"] for candidate in manifest["candidates"]}
+    extra_replacements = sorted(set(replacements) - manifest_take_ids)
+    if extra_replacements:
+        raise CompletionPublishError(
+            "release provenance replacementがmanifestにありません: "
+            + ", ".join(extra_replacements),
         )
     return sorted(objects, key=lambda item: item.key)
 
@@ -212,7 +323,7 @@ def _head(client: S3Client, key: str) -> dict[str, Any] | None:
         raise CompletionPublishError(f"R2 HEAD に失敗しました: {key}") from error
 
 
-def _put_supplement(
+def _put_replacement(
     client: S3Client,
     item: _Object,
 ) -> CompletionPublishRecord:
@@ -234,26 +345,26 @@ def _put_supplement(
     except ClientError as error:
         if not _is_precondition_failed(error):
             raise CompletionPublishError(
-                f"R2 supplement conditional PUT に失敗しました: {item.key}",
+                f"R2 replacement conditional PUT に失敗しました: {item.key}",
             ) from error
         remote = _head_after_412(client, item.key, error)
         if remote is None or not _matches(remote, item, inherited_size=None):
             raise CompletionPublishError(
-                f"R2 supplement immutable object が競合しました: {item.key}",
+                f"R2 replacement immutable object が競合しました: {item.key}",
             ) from error
         return CompletionPublishRecord(
             key=item.key,
-            source="supplement",
+            source="replacement",
             status="skipped",
             size_bytes=item.size_bytes,
         )
     except BotoCoreError as error:
         raise CompletionPublishError(
-            f"R2 supplement conditional PUT に失敗しました: {item.key}",
+            f"R2 replacement conditional PUT に失敗しました: {item.key}",
         ) from error
     return CompletionPublishRecord(
         key=item.key,
-        source="supplement",
+        source="replacement",
         status="uploaded",
         size_bytes=item.size_bytes,
     )
@@ -292,7 +403,7 @@ def _matches(
         or content_length < 1
     ):
         return False
-    if item.source == "supplement":
+    if item.source == "replacement":
         return content_length == item.size_bytes
     if inherited_size is not None:
         return content_length == inherited_size
@@ -347,3 +458,24 @@ def _resolve_child_file(root: Path, relative: str, label: str) -> Path:
     if not resolved.is_relative_to(root) or not resolved.is_file():
         raise CompletionPublishError(f"{label} はrun root内通常ファイルが必要です。")
     return resolved
+
+
+def _prepare_temporary_file(destination: Path, payload: bytes) -> Path:
+    try:
+        descriptor, name = tempfile.mkstemp(
+            prefix=f".{destination.name}.",
+            dir=destination.parent,
+        )
+        with os.fdopen(descriptor, "wb") as handle:
+            handle.write(payload)
+            handle.flush()
+            os.fsync(handle.fileno())
+        return Path(name)
+    except OSError as error:
+        raise CompletionPublishError(
+            f"activation temporary fileを準備できません: {destination}",
+        ) from error
+
+
+def _install_file(source: Path, destination: Path) -> None:
+    source.replace(destination)

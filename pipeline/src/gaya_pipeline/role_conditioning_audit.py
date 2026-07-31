@@ -8,6 +8,7 @@ import struct
 import tempfile
 import wave
 from collections.abc import Mapping, Sequence
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 from unittest import mock
@@ -16,6 +17,12 @@ import yaml
 
 from gaya_pipeline.adapters.base import LineJob
 from gaya_pipeline.adapters.voice_assignments import CLONE_REFERENCE_ASSIGNMENTS
+from gaya_pipeline.completion_anchor import (
+    resolve_selected_anchor,
+    validate_anchor_selection,
+)
+from gaya_pipeline.completion_plan import load_completion_plan
+from gaya_pipeline.take_identity import canonical_json
 from gaya_pipeline.validation import validate_scenarios
 from gaya_pipeline.voice_assets import validate_voice_metadata
 
@@ -60,6 +67,29 @@ class RoleConditioningAuditError(RuntimeError):
     pass
 
 
+@dataclass(frozen=True)
+class _AuditRoleAnchorSelection:
+    selection_path: Path
+    plan_file: str
+    plan_sha256: str
+    selection_sha256: str
+    candidate_set_sha256: str
+    bindings: Mapping[tuple[str, str, str], Mapping[str, Any]]
+
+    def receipt(self) -> dict[str, Any]:
+        return {
+            "kind": "deterministic_audit_fixture",
+            "protocol": "role-anchor-selection-v1",
+            "completion_plan": {
+                "file": self.plan_file,
+                "sha256": self.plan_sha256,
+            },
+            "selection_sha256": self.selection_sha256,
+            "candidate_set_sha256": self.candidate_set_sha256,
+            "group_count": len(self.bindings),
+        }
+
+
 def build_role_source_audit(repository_root: Path) -> dict[str, Any]:
     root = repository_root.resolve()
     scenarios_dir = root / "scenarios"
@@ -79,10 +109,11 @@ def build_role_source_audit(repository_root: Path) -> dict[str, Any]:
         expected_models=set(MODEL_ADAPTER_FILES),
         jobs=jobs,
     )
-    production_inputs, audit_voice_sha256s = _prepare_production_generation_inputs(
-        root=root,
-        jobs=jobs,
-    )
+    (
+        production_inputs,
+        audit_voice_sha256s,
+        audit_anchor_selection,
+    ) = _prepare_production_generation_inputs(root=root, jobs=jobs)
 
     receipts: list[dict[str, Any]] = []
     for job in jobs:
@@ -97,6 +128,9 @@ def build_role_source_audit(repository_root: Path) -> dict[str, Any]:
                     (model, job.scenario_id, job.line_id)
                 ],
                 audit_voice_sha256s=audit_voice_sha256s,
+                expected_selected_anchor=audit_anchor_selection.bindings.get(
+                    (model, job.scenario_id, str(job.character["id"])),
+                ),
             )
             published_item = published[(model, job.scenario_id, job.line_id)]
             comparison = _compare_published_conditioning(
@@ -178,6 +212,7 @@ def build_role_source_audit(repository_root: Path) -> dict[str, Any]:
             ),
         },
         "voice_metadata": voice_metadata_receipt,
+        "audit_role_anchor_selection": audit_anchor_selection.receipt(),
         "published_manifest": {
             "file": manifest_path.relative_to(root).as_posix(),
             "sha256": _sha256_file(manifest_path),
@@ -767,6 +802,210 @@ def _build_audit_voice_kit(
     return audit_sha256s
 
 
+def _build_audit_role_anchor_selection(
+    *,
+    root: Path,
+    output_dir: Path,
+) -> _AuditRoleAnchorSelection:
+    plan_path = (
+        root
+        / "docs"
+        / "research"
+        / "full-baseline-completion"
+        / "plan.json"
+    )
+    base_manifest_path = root / "data" / "manifest.json"
+    scenarios_dir = root / "scenarios"
+    voices_dir = root / "assets" / "voices"
+    for path, label in (
+        (plan_path, "frozen completion plan"),
+        (base_manifest_path, "base manifest"),
+        (scenarios_dir, "scenarios directory"),
+        (voices_dir, "voices directory"),
+    ):
+        if not path.exists():
+            raise RoleConditioningAuditError(f"{label} がありません: {path}")
+    plan = load_completion_plan(
+        plan_path.resolve(),
+        base_manifest_path=base_manifest_path.resolve(),
+        scenarios_dir=scenarios_dir.resolve(),
+        voices_dir=voices_dir.resolve(),
+    )
+    candidate_set_sha256 = _canonical_sha256(
+        {
+            "protocol": "role-conditioning-audit-anchor-candidate-set-v1",
+            "plan_sha256": plan.plan_id,
+            "targets": [
+                {
+                    "model": target.model,
+                    "scenario": target.scenario,
+                    "character": target.character,
+                    "role_identity_sha256": target.role_identity_sha256,
+                    "role_epoch_sha256": target.role_epoch_sha256,
+                }
+                for target in plan.anchor_targets
+            ],
+        },
+    )
+    groups: list[dict[str, Any]] = []
+    output_dir.mkdir(parents=True, exist_ok=False)
+    audio_dir = output_dir / "audio"
+    audio_dir.mkdir()
+    for target in plan.anchor_targets:
+        role = plan.role(target.scenario, target.character)
+        model_revision = plan.models[target.model]
+        anchor_id = _canonical_sha256(
+            {
+                "protocol": "role-conditioning-audit-selected-anchor-v1",
+                "plan_sha256": plan.plan_id,
+                "model": target.model,
+                "model_revision": model_revision,
+                "scenario": target.scenario,
+                "character": target.character,
+                "role_identity_sha256": target.role_identity_sha256,
+            },
+        )
+        alternate_id = _canonical_sha256(
+            {
+                "protocol": "role-conditioning-audit-alternate-anchor-v1",
+                "anchor_id": anchor_id,
+            },
+        )
+        audio_path = audio_dir / f"{anchor_id}.wav"
+        level = 0.1 + int(anchor_id[:2], 16) / 1_024
+        sample_rate = (
+            24_000
+            if target.model == "qwen3-tts-12hz-1.7b"
+            else 48_000
+        )
+        _write_pcm16(
+            audio_path,
+            (0.0, level, -level, 0.0),
+            sample_rate,
+        )
+        audio_sha256 = _sha256_file(audio_path)
+        decision = {
+            "id": _canonical_sha256(
+                {
+                    "protocol": "role-conditioning-audit-decision-group-v1",
+                    "anchor_id": anchor_id,
+                },
+            ),
+            "model": target.model,
+            "scenario": target.scenario,
+            "character": target.character,
+            "line": None,
+            "role_epoch_sha256": target.role_epoch_sha256,
+            "group_sha256": _canonical_sha256(
+                {
+                    "protocol": "role-conditioning-audit-review-group-v1",
+                    "anchor_id": anchor_id,
+                    "alternate_id": alternate_id,
+                },
+            ),
+            "heard_candidate_ids": [anchor_id, alternate_id],
+            "selected_candidate_id": anchor_id,
+            "rubric": {
+                "content": "pass",
+                "prompt_leakage": "pass",
+                "reading": "not_applicable",
+                "pitch_accent": "not_applicable",
+                "gender": "pass",
+                "age": "pass",
+                "archetype": "pass",
+                "voice_identity": "pass",
+                "delivery": "not_applicable",
+                "naturalness_quality": 5,
+                "notes": "deterministic role-conditioning audit fixture",
+            },
+            "confirmed": True,
+        }
+        decision_sha256 = _canonical_sha256(decision)
+        role_epoch_sha256 = _canonical_sha256(
+            {
+                "protocol": "selected-role-epoch-v1",
+                "model": target.model,
+                "model_revision": model_revision,
+                "scenario": target.scenario,
+                "character": target.character,
+                "role_identity_sha256": target.role_identity_sha256,
+                "review_role_epoch_sha256": target.role_epoch_sha256,
+                "anchor_id": anchor_id,
+                "audio_sha256": audio_sha256,
+                "decision_sha256": decision_sha256,
+            },
+        )
+        anchor_text = plan.anchor_texts[target.model]
+        groups.append(
+            {
+                "model": target.model,
+                "model_revision": model_revision,
+                "scenario": target.scenario,
+                "character": target.character,
+                "role_identity": {
+                    "scenario": role.scenario,
+                    "character": role.character,
+                    "role": dict(role.role),
+                    "reference_voice": role.reference_voice,
+                    "scene_setting": role.scene_setting,
+                },
+                "role_identity_sha256": role.role_identity_sha256,
+                "review_role_epoch_sha256": target.role_epoch_sha256,
+                "role_epoch_sha256": role_epoch_sha256,
+                "anchor_id": anchor_id,
+                "attempt": 1,
+                "seed": int(anchor_id[:8], 16),
+                "audio_path": f"audio/{anchor_id}.wav",
+                "audio_sha256": audio_sha256,
+                "anchor_text": anchor_text,
+                "anchor_text_sha256": hashlib.sha256(
+                    anchor_text.encode("utf-8"),
+                ).hexdigest(),
+                "decision": decision,
+                "decision_sha256": decision_sha256,
+            },
+        )
+    selection = validate_anchor_selection(
+        {
+            "format_version": 1,
+            "protocol": "role-anchor-selection-v1",
+            "plan_sha256": plan.plan_id,
+            "candidate_set_sha256": candidate_set_sha256,
+            "groups": groups,
+        },
+    )
+    selection_path = (output_dir / "role-anchor-selection-v1.json").resolve()
+    raw = canonical_json(selection).encode("utf-8")
+    selection_path.write_bytes(raw)
+    selection_sha256 = hashlib.sha256(raw).hexdigest()
+    selection_path.with_suffix(".sha256").write_bytes(
+        f"{selection_sha256}\n".encode("ascii"),
+    )
+    bindings: dict[tuple[str, str, str], Mapping[str, Any]] = {}
+    for target in plan.anchor_targets:
+        role = plan.role(target.scenario, target.character)
+        selected = resolve_selected_anchor(
+            selection_path=selection_path,
+            plan_sha256=plan.plan_id,
+            model=target.model,
+            model_revision=plan.models[target.model],
+            role=role,
+        )
+        bindings[target.identity] = selected.receipt()
+    if len(bindings) != 106:
+        raise RoleConditioningAuditError(
+            "audit role anchor selection は 2 models × 53 roles が必要です。",
+        )
+    return _AuditRoleAnchorSelection(
+        selection_path=selection_path,
+        plan_file=plan_path.relative_to(root).as_posix(),
+        plan_sha256=plan.plan_id,
+        selection_sha256=selection_sha256,
+        candidate_set_sha256=candidate_set_sha256,
+        bindings=bindings,
+    )
+
+
 def _prepare_production_generation_inputs(
     *,
     root: Path,
@@ -774,6 +1013,7 @@ def _prepare_production_generation_inputs(
 ) -> tuple[
     dict[tuple[str, str, str], Mapping[str, Any]],
     dict[str, str],
+    _AuditRoleAnchorSelection,
 ]:
     from gaya_pipeline.adapters import (
         aivisspeech,
@@ -793,6 +1033,10 @@ def _prepare_production_generation_inputs(
         audit_voice_sha256s = _build_audit_voice_kit(
             root / "assets" / "voices",
             voices_dir,
+        )
+        audit_anchor_selection = _build_audit_role_anchor_selection(
+            root=root,
+            output_dir=temporary_root / "role-anchor-selection",
         )
         supertonic_root = temporary_root / "supertonic-model"
         supertonic_root.mkdir()
@@ -817,10 +1061,20 @@ def _prepare_production_generation_inputs(
                 irodori_tts.IrodoriTTSAdapter(
                     runtime=_IrodoriAuditRuntime(),
                     reading_converter=lambda text: text,
+                    role_anchor_selection_path=(
+                        audit_anchor_selection.selection_path
+                    ),
+                    role_anchor_plan_sha256=(
+                        audit_anchor_selection.plan_sha256
+                    ),
                 )
             ),
             "qwen3-tts-12hz-1.7b": qwen3_tts.Qwen3TTSAdapter(
                 runtime=_QwenAuditRuntime(temporary_root),
+                role_anchor_selection_path=(
+                    audit_anchor_selection.selection_path
+                ),
+                role_anchor_plan_sha256=audit_anchor_selection.plan_sha256,
             ),
             "supertonic-3": supertonic3.Supertonic3Adapter(
                 runtime=_PrepareOnlyAuditRuntime(),
@@ -833,21 +1087,26 @@ def _prepare_production_generation_inputs(
         }
         for model, adapter in adapters.items():
             artifacts_dir = temporary_root / "artifacts" / model
-            if model == "supertonic-3":
-                with mock.patch.dict(
-                    os.environ,
-                    {supertonic3.MODEL_ROOT_ENV: str(supertonic_root)},
-                ):
+            try:
+                if model == "supertonic-3":
+                    with mock.patch.dict(
+                        os.environ,
+                        {supertonic3.MODEL_ROOT_ENV: str(supertonic_root)},
+                    ):
+                        adapter.prepare(jobs, artifacts_dir, voices_dir)
+                elif model == "voxcpm2":
+                    with mock.patch.object(
+                        voxcpm2,
+                        "_validate_model_snapshot",
+                        lambda _path: None,
+                    ):
+                        adapter.prepare(jobs, artifacts_dir, voices_dir)
+                else:
                     adapter.prepare(jobs, artifacts_dir, voices_dir)
-            elif model == "voxcpm2":
-                with mock.patch.object(
-                    voxcpm2,
-                    "_validate_model_snapshot",
-                    lambda _path: None,
-                ):
-                    adapter.prepare(jobs, artifacts_dir, voices_dir)
-            else:
-                adapter.prepare(jobs, artifacts_dir, voices_dir)
+            except Exception as error:
+                raise RoleConditioningAuditError(
+                    f"{model} production prepare に失敗しました: {error}",
+                ) from error
             context = adapter.take_recipe().single_take_context()
             for job in jobs:
                 value = adapter.generation_input(job, context)
@@ -861,7 +1120,7 @@ def _prepare_production_generation_inputs(
         raise RoleConditioningAuditError(
             "production generation_input receipt coverage が不足しています。",
         )
-    return result, audit_voice_sha256s
+    return result, audit_voice_sha256s, audit_anchor_selection
 
 
 def _source_conditioning_receipt(
@@ -872,6 +1131,7 @@ def _source_conditioning_receipt(
     voices: Mapping[str, Mapping[str, Any]],
     production_input: Mapping[str, Any],
     audit_voice_sha256s: Mapping[str, str],
+    expected_selected_anchor: Mapping[str, Any] | None,
 ) -> dict[str, Any]:
     unsupported = {field: "unsupported" for field in CONDITIONING_FIELDS}
     speaker: dict[str, Any] | None = None
@@ -1027,6 +1287,18 @@ def _source_conditioning_receipt(
                     "Irodori production generation_input の reference SHA が"
                     " audit fixture と一致しません。",
                 )
+            if "selected_anchor" in payload:
+                raise RoleConditioningAuditError(
+                    "Irodori explicit reference に selected_anchor が"
+                    "混入しています。",
+                )
+        else:
+            selected_anchor = _validated_selected_anchor(
+                model=model,
+                payload=payload,
+                expected=expected_selected_anchor,
+                reference_sha256=reference_sha256,
+            )
         reference = {
             "control": _required_string(
                 payload,
@@ -1043,6 +1315,11 @@ def _source_conditioning_receipt(
             "source_sha256": canonical_sha256,
             "prepare_state_sha256": reference_sha256,
             "audit_fixture_source_sha256": audit_fixture_sha256,
+            "selected_anchor": (
+                None
+                if declared_reference is not None
+                else selected_anchor
+            ),
         }
         prompt = _prompt_receipt(
             text=caption,
@@ -1084,6 +1361,18 @@ def _source_conditioning_receipt(
             "audit_fixture_source_sha256": None,
         }
         if truth["declared_reference_voice"] is None:
+            selected_anchor = _validated_selected_anchor(
+                model=model,
+                payload=payload,
+                expected=expected_selected_anchor,
+                reference_sha256=reference_sha256,
+            )
+            if source_id != selected_anchor["anchor_id"]:
+                raise RoleConditioningAuditError(
+                    "Qwen production generation_input の reference_source_id が"
+                    " selected anchor と一致しません。",
+                )
+            reference["selected_anchor"] = selected_anchor
             prompt = {
                 "kind": "voice_design_character_identity",
                 "fields": list(CONDITIONING_FIELDS),
@@ -1095,6 +1384,10 @@ def _source_conditioning_receipt(
             }
         else:
             voice_id = str(truth["declared_reference_voice"])
+            if "selected_anchor" in payload:
+                raise RoleConditioningAuditError(
+                    "Qwen explicit reference に selected_anchor が混入しています。",
+                )
             if source_id != voice_id:
                 raise RoleConditioningAuditError(
                     "Qwen production generation_input が scenario reference を"
@@ -1262,6 +1555,55 @@ def _source_conditioning_receipt(
             "payload": payload,
         },
     }
+
+
+def _validated_selected_anchor(
+    *,
+    model: str,
+    payload: Mapping[str, Any],
+    expected: Mapping[str, Any] | None,
+    reference_sha256: str,
+) -> dict[str, Any]:
+    actual = payload.get("selected_anchor")
+    if not isinstance(actual, Mapping):
+        raise RoleConditioningAuditError(
+            f"{model} production generation_input に selected_anchor receipt"
+            " がありません。",
+        )
+    if expected is None:
+        raise RoleConditioningAuditError(
+            f"{model} に対応する audit selected anchor binding がありません。",
+        )
+    expected_keys = {
+        "anchor_selection_sha256",
+        "anchor_plan_sha256",
+        "anchor_candidate_set_sha256",
+        "anchor_id",
+        "anchor_attempt",
+        "anchor_seed",
+        "anchor_audio_sha256",
+        "anchor_text_sha256",
+        "anchor_decision_sha256",
+        "role_identity_sha256",
+        "role_epoch_sha256",
+    }
+    if set(actual) != expected_keys:
+        raise RoleConditioningAuditError(
+            f"{model} selected_anchor receipt fields が正式 resolver と"
+            "一致しません。",
+        )
+    for key in expected_keys:
+        if actual.get(key) != expected.get(key):
+            raise RoleConditioningAuditError(
+                f"{model} selected_anchor receipt が正式 resolver と"
+                f"一致しません: {key}",
+            )
+    if actual["anchor_audio_sha256"] != reference_sha256:
+        raise RoleConditioningAuditError(
+            f"{model} selected_anchor audio SHA が reference SHA と"
+            "一致しません。",
+        )
+    return dict(actual)
 
 
 def _require_role_identity(
@@ -1642,6 +1984,10 @@ def _sha256_json(value: Any) -> str:
         separators=(",", ":"),
     ).encode("utf-8")
     return hashlib.sha256(payload).hexdigest()
+
+
+def _canonical_sha256(value: Any) -> str:
+    return hashlib.sha256(canonical_json(value).encode("utf-8")).hexdigest()
 
 
 def _sha256_file(path: Path) -> str:

@@ -10,6 +10,7 @@ from typing import Any
 
 import pytest
 
+from gaya_pipeline import role_conditioning_audit
 from gaya_pipeline.adapters import (
     chatterbox,
     irodori_tts,
@@ -20,6 +21,7 @@ from gaya_pipeline.role_conditioning_audit import (
     RoleConditioningAuditError,
     build_role_source_audit,
 )
+from gaya_pipeline.take_identity import canonical_json
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 SNAPSHOT_PATH = (
@@ -34,6 +36,35 @@ README_PATH = SNAPSHOT_PATH.with_name("README.md")
 
 def test_current_role_truth_reference_split_and_8x161_receipts() -> None:
     report = build_role_source_audit(REPOSITORY_ROOT)
+
+    assert report["audit_role_anchor_selection"] == {
+        "kind": "deterministic_audit_fixture",
+        "protocol": "role-anchor-selection-v1",
+        "completion_plan": {
+            "file": "docs/research/full-baseline-completion/plan.json",
+            "sha256": report["audit_role_anchor_selection"][
+                "completion_plan"
+            ]["sha256"],
+        },
+        "selection_sha256": report["audit_role_anchor_selection"][
+            "selection_sha256"
+        ],
+        "candidate_set_sha256": report["audit_role_anchor_selection"][
+            "candidate_set_sha256"
+        ],
+        "group_count": 106,
+    }
+    for key in (
+        "sha256",
+        "selection_sha256",
+        "candidate_set_sha256",
+    ):
+        value = (
+            report["audit_role_anchor_selection"]["completion_plan"][key]
+            if key == "sha256"
+            else report["audit_role_anchor_selection"][key]
+        )
+        assert re.fullmatch(r"[0-9a-f]{64}", value)
 
     assert report["summary"] == {
         "scenario_count": 15,
@@ -163,6 +194,22 @@ def test_current_role_truth_reference_split_and_8x161_receipts() -> None:
         generated_qwen["reference"]["prepare_state_sha256"]
         == generated_qwen["input_identity"]["payload"]["reference_sha256"]
     )
+    selected_anchor = generated_qwen["reference"]["selected_anchor"]
+    assert selected_anchor == generated_qwen["input_identity"]["payload"][
+        "selected_anchor"
+    ]
+    assert (
+        selected_anchor["anchor_audio_sha256"]
+        == generated_qwen["reference"]["prepare_state_sha256"]
+    )
+    assert (
+        selected_anchor["anchor_plan_sha256"]
+        == report["audit_role_anchor_selection"]["completion_plan"]["sha256"]
+    )
+    assert (
+        selected_anchor["anchor_selection_sha256"]
+        == report["audit_role_anchor_selection"]["selection_sha256"]
+    )
 
 
 def test_adapter_role_receipt_drops_gender_fails_fast(
@@ -267,6 +314,60 @@ def test_vox_production_generation_input_wrong_identity_fails_fast(
         wrong_design_identity,
     )
     with pytest.raises(RoleConditioningAuditError, match="gender"):
+        build_role_source_audit(REPOSITORY_ROOT)
+
+
+@pytest.mark.parametrize(
+    ("mutation", "error_pattern"),
+    (
+        ("selection", "role identity SHA"),
+        ("marker", "marker"),
+        ("wav", "SHA-256"),
+        ("epoch", "role_epoch_sha256"),
+    ),
+)
+def test_role_anchor_selection_tampering_fails_fast(
+    monkeypatch: pytest.MonkeyPatch,
+    mutation: str,
+    error_pattern: str,
+) -> None:
+    original = role_conditioning_audit._build_audit_role_anchor_selection
+
+    def tampered_selection(
+        *,
+        root: Path,
+        output_dir: Path,
+    ) -> Any:
+        selection = original(root=root, output_dir=output_dir)
+        path = selection.selection_path
+        if mutation == "marker":
+            path.with_suffix(".sha256").write_bytes(f"{'0' * 64}\n".encode())
+            return selection
+        document = json.loads(path.read_text(encoding="utf-8"))
+        first = document["groups"][0]
+        if mutation == "wav":
+            audio_path = path.parent / first["audio_path"]
+            audio_path.write_bytes(audio_path.read_bytes() + b"tampered")
+            return selection
+        if mutation == "selection":
+            first["role_identity"]["role"]["gender"] = "wrong-male-speaker"
+        elif mutation == "epoch":
+            first["role_epoch_sha256"] = "0" * 64
+        else:
+            raise AssertionError(f"unknown mutation: {mutation}")
+        raw = canonical_json(document).encode("utf-8")
+        path.write_bytes(raw)
+        path.with_suffix(".sha256").write_bytes(
+            f"{hashlib.sha256(raw).hexdigest()}\n".encode("ascii"),
+        )
+        return selection
+
+    monkeypatch.setattr(
+        role_conditioning_audit,
+        "_build_audit_role_anchor_selection",
+        tampered_selection,
+    )
+    with pytest.raises(RoleConditioningAuditError, match=error_pattern):
         build_role_source_audit(REPOSITORY_ROOT)
 
 

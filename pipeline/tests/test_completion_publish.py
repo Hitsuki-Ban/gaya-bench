@@ -15,6 +15,7 @@ from gaya_pipeline.completion_publish import (
     run_completion_publish,
 )
 from gaya_pipeline.publish import CACHE_CONTROL, CONTENT_TYPE, R2_BUCKET
+from gaya_pipeline.take_identity import canonical_json
 
 
 class FakeS3:
@@ -97,24 +98,35 @@ def _fixture(
     local = tmp_path / "artifacts" / "takes" / "run-new" / Path(*relative.split("/"))
     local.parent.mkdir(parents=True)
     local.write_bytes(supplement_content)
+    release_root = tmp_path / "release"
+    release_root.mkdir()
+    manifest = {"candidates": [inherited, supplement]}
+    manifest_bytes = canonical_json(manifest).encode("utf-8")
+    provenance = {
+        "manifest_sha256": hashlib.sha256(manifest_bytes).hexdigest(),
+        "source_runs": [
+            {
+                "run_id": "run-new",
+                "candidates": [
+                    {
+                        "take_id": supplement["take_id"],
+                        "path": supplement["path"],
+                        "audio_sha256": supplement["sha256"],
+                        "run_relative_path": relative,
+                        "size_bytes": len(supplement_content),
+                    },
+                ],
+            },
+        ],
+    }
+    (release_root / "manifest-v4.json").write_bytes(manifest_bytes)
+    (release_root / "release-provenance.json").write_bytes(
+        canonical_json(provenance).encode("utf-8"),
+    )
     release = SimpleNamespace(
-        manifest={"candidates": [inherited, supplement]},
-        provenance={
-            "supplement_runs": [
-                {
-                    "run_id": "run-new",
-                    "candidates": [
-                        {
-                            "take_id": supplement["take_id"],
-                            "path": supplement["path"],
-                            "audio_sha256": supplement["sha256"],
-                            "run_relative_path": relative,
-                            "size_bytes": len(supplement_content),
-                        },
-                    ],
-                },
-            ],
-        },
+        root=release_root,
+        manifest=manifest,
+        provenance=provenance,
     )
     monkeypatch.setattr(
         completion_publish,
@@ -126,20 +138,31 @@ def _fixture(
     return client, inherited, supplement, supplement_content
 
 
+def _publish(tmp_path: Path, client: FakeS3) -> Any:
+    return run_completion_publish(
+        release_dir=(tmp_path / "release").resolve(),
+        artifacts_dir=(tmp_path / "artifacts").resolve(),
+        source_audit_path=(tmp_path / "source-audit.json").resolve(),
+        client=client,
+        manifest_activation_path=(tmp_path / "active-manifest.json").resolve(),
+        publish_receipt_path=(tmp_path / "publish-receipt.json").resolve(),
+    )
+
+
 def test_inheritedはremote_onlyで一度もPUTしない(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     client, inherited, supplement, content = _fixture(tmp_path, monkeypatch)
 
-    summary = run_completion_publish(
-        release_dir=tmp_path / "release",
-        artifacts_dir=tmp_path / "artifacts",
-        client=client,
-    )
+    summary = _publish(tmp_path, client)
 
     assert summary.inherited_count == 1
     assert summary.uploaded_count == 1
+    assert (tmp_path / "active-manifest.json").read_bytes() == (
+        tmp_path / "release" / "manifest-v4.json"
+    ).read_bytes()
+    assert (tmp_path / "publish-receipt.json").is_file()
     assert [call["Key"] for call in client.put_calls] == [supplement["path"]]
     assert all(call["Key"] != inherited["path"] for call in client.put_calls)
     put = client.put_calls[0]
@@ -165,11 +188,7 @@ def test_inherited競合は全preflight後zero_put(
     client.objects[inherited["path"]]["Metadata"]["sha256"] = "0" * 64
 
     with pytest.raises(CompletionPublishError, match="preflight"):
-        run_completion_publish(
-            release_dir=tmp_path / "release",
-            artifacts_dir=tmp_path / "artifacts",
-            client=client,
-        )
+        _publish(tmp_path, client)
 
     assert {call["Key"] for call in client.head_calls} == {
         inherited["path"],
@@ -186,11 +205,7 @@ def test_inherited欠落を補完PUTせず硬失敗する(
     del client.objects[inherited["path"]]
 
     with pytest.raises(CompletionPublishError, match="published base missing"):
-        run_completion_publish(
-            release_dir=tmp_path / "release",
-            artifacts_dir=tmp_path / "artifacts",
-            client=client,
-        )
+        _publish(tmp_path, client)
 
     assert client.put_calls == []
 
@@ -202,11 +217,7 @@ def test_412はHEAD同一確認時だけidempotent成功する(
     client, _inherited, supplement, _content = _fixture(tmp_path, monkeypatch)
     client.concurrent_412.add(supplement["path"])
 
-    summary = run_completion_publish(
-        release_dir=tmp_path / "release",
-        artifacts_dir=tmp_path / "artifacts",
-        client=client,
-    )
+    summary = _publish(tmp_path, client)
 
     assert summary.uploaded_count == 0
     assert summary.skipped_count == 1
@@ -232,8 +243,73 @@ def test_final_HEADのContentLength漂移を拒否する(
     client.head_object = drifting_head  # type: ignore[method-assign]
 
     with pytest.raises(CompletionPublishError, match="final full HEAD"):
-        run_completion_publish(
-            release_dir=tmp_path / "release",
-            artifacts_dir=tmp_path / "artifacts",
-            client=client,
-        )
+        _publish(tmp_path, client)
+
+    assert not (tmp_path / "active-manifest.json").exists()
+    assert not (tmp_path / "publish-receipt.json").exists()
+
+
+def test_final_HEAD中のdisk_manifest漂移はpreflight固定bytesをactivateする(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    client, _inherited, supplement, _content = _fixture(tmp_path, monkeypatch)
+    original_bytes = (tmp_path / "release" / "manifest-v4.json").read_bytes()
+    original_head = client.head_object
+    counts: dict[str, int] = {}
+
+    def replacing_head(**kwargs: Any) -> dict[str, Any]:
+        key = kwargs["Key"]
+        counts[key] = counts.get(key, 0) + 1
+        result = original_head(**kwargs)
+        if key == supplement["path"] and counts[key] == 2:
+            (tmp_path / "release" / "manifest-v4.json").write_bytes(
+                b'{"replaced":"during-final-head"}',
+            )
+        return result
+
+    client.head_object = replacing_head  # type: ignore[method-assign]
+
+    summary = _publish(tmp_path, client)
+
+    assert (tmp_path / "active-manifest.json").read_bytes() == original_bytes
+    assert summary.manifest_sha256 == hashlib.sha256(original_bytes).hexdigest()
+
+
+def test_activation失敗時はreceiptを残さない(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    client, _inherited, _supplement, _content = _fixture(tmp_path, monkeypatch)
+
+    def fail_activation(_source: Path, _destination: Path) -> None:
+        raise OSError("activation failed")
+
+    monkeypatch.setattr(completion_publish, "_install_file", fail_activation)
+
+    with pytest.raises(CompletionPublishError, match="activation/publish receipt"):
+        _publish(tmp_path, client)
+
+    assert not (tmp_path / "active-manifest.json").exists()
+    assert not (tmp_path / "publish-receipt.json").exists()
+
+
+def test_receipt失敗時は先に完了したactivationを保持する(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    client, _inherited, _supplement, _content = _fixture(tmp_path, monkeypatch)
+    original_install = completion_publish._install_file
+
+    def fail_receipt(source: Path, destination: Path) -> None:
+        if destination.name == "publish-receipt.json":
+            raise OSError("receipt failed")
+        original_install(source, destination)
+
+    monkeypatch.setattr(completion_publish, "_install_file", fail_receipt)
+
+    with pytest.raises(CompletionPublishError, match="activation/publish receipt"):
+        _publish(tmp_path, client)
+
+    assert (tmp_path / "active-manifest.json").is_file()
+    assert not (tmp_path / "publish-receipt.json").exists()

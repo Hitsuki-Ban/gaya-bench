@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import math
 from copy import deepcopy
@@ -42,6 +43,20 @@ SOURCE_KEYS = {
     "seed_base",
     "recipe_version",
     "groups",
+}
+PHASE_B_SOURCE_KEYS = {
+    "protocol",
+    "plan_sha256",
+    "run_kind",
+    "supersedes_run_id",
+    "anchor_selection_sha256",
+    "target_groups",
+}
+PHASE_B_TARGET_KEYS = GROUP_KEYS | {"role_epoch_sha256"}
+PHASE_B_PROTOCOL = "phase-b-generation-v1"
+ANCHOR_MODELS = {
+    "irodori-tts-600m-v3-voicedesign",
+    "qwen3-tts-12hz-1.7b",
 }
 ATTEMPT_KEYS = {
     "model",
@@ -142,7 +157,12 @@ def _validate_generation(value: Any, status: str, field: str) -> None:
         _string(generation["error"], f"{field}.error")
 
 
-def _validate_attempt(value: Any, field: str) -> tuple[str, str, str, str, int]:
+def _validate_attempt(
+    value: Any,
+    field: str,
+    *,
+    phase_b: bool | None = None,
+) -> tuple[str, str, str, str, int]:
     if not isinstance(value, dict):
         raise TakeLedgerError(f"{field} は object が必要です。")
     status = value.get("status")
@@ -155,10 +175,22 @@ def _validate_attempt(value: Any, field: str) -> tuple[str, str, str, str, int]:
         if minimal
         else ATTEMPT_KEYS
     )
+    has_phase_b = "phase_b_provenance_sha256" in value
+    if phase_b is not None and has_phase_b != phase_b:
+        raise TakeLedgerError(
+            f"{field} のPhase B provenance有無がledger sourceと一致しません。",
+        )
+    if has_phase_b:
+        expected = expected | {"phase_b_provenance_sha256"}
     attempt = _exact_keys(value, expected, field)
     group = _group({key: attempt[key] for key in GROUP_KEYS}, field)
     index = _positive_int(attempt["take_index"], f"{field}.take_index")
     _sha(attempt["generation_input_sha256"], f"{field}.generation_input_sha256")
+    if has_phase_b:
+        _sha(
+            attempt["phase_b_provenance_sha256"],
+            f"{field}.phase_b_provenance_sha256",
+        )
     _validate_generation(attempt["generation"], status, f"{field}.generation")
     if not minimal:
         take_id = _sha(attempt["take_id"], f"{field}.take_id")
@@ -235,7 +267,14 @@ def validate_ledger(document: Any) -> dict[str, Any]:
         raise TakeLedgerError("ledger.format_version は 1 が必要です。")
     _path_segment(ledger["run_id"], "ledger.run_id")
     _string(ledger["created_at"], "ledger.created_at")
-    source = _exact_keys(ledger["source"], SOURCE_KEYS, "ledger.source")
+    if not isinstance(ledger["source"], dict):
+        raise TakeLedgerError("ledger.source はobjectが必要です。")
+    source_keys = (
+        SOURCE_KEYS | {"phase_b"}
+        if "phase_b" in ledger["source"]
+        else SOURCE_KEYS
+    )
+    source = _exact_keys(ledger["source"], source_keys, "ledger.source")
     _sha(source["scenario_sha256"], "ledger.source.scenario_sha256")
     model = _path_segment(source["model"], "ledger.source.model")
     takes = _positive_int(source["takes"], "ledger.source.takes")
@@ -250,12 +289,35 @@ def validate_ledger(document: Any) -> dict[str, Any]:
     }
     if len(groups) != len(source["groups"]) or any(group[0] != model for group in groups):
         raise TakeLedgerError("ledger.source.groups が重複または model 不一致です。")
+    phase_b = (
+        _validate_phase_b_source(source["phase_b"], model=model)
+        if "phase_b" in source
+        else None
+    )
+    if phase_b is not None:
+        target_identities = [
+            tuple(group[key] for key in ("model", "scenario", "line", "variant"))
+            for group in phase_b["target_groups"]
+        ]
+        source_identities = [
+            tuple(group[key] for key in ("model", "scenario", "line", "variant"))
+            for group in source["groups"]
+        ]
+        if target_identities != source_identities:
+            raise TakeLedgerError(
+                "ledger.source.phase_b.target_groupsがsource.groupsと"
+                "exact一致しません。",
+            )
     if not isinstance(ledger["attempts"], list):
         raise TakeLedgerError("ledger.attempts は配列が必要です。")
     slots = set()
     counts = {group: 0 for group in groups}
     for index, attempt in enumerate(ledger["attempts"]):
-        slot = _validate_attempt(attempt, f"ledger.attempts[{index}]")
+        slot = _validate_attempt(
+            attempt,
+            f"ledger.attempts[{index}]",
+            phase_b=phase_b is not None,
+        )
         group = slot[:4]
         if group not in groups:
             raise TakeLedgerError("attempt が source.groups の範囲外です。")
@@ -263,11 +325,116 @@ def validate_ledger(document: Any) -> dict[str, Any]:
             raise TakeLedgerError("attempt slot が重複しています。")
         slots.add(slot)
         counts[group] += 1
+        if phase_b is not None:
+            target_group = next(
+                item
+                for item in phase_b["target_groups"]
+                if tuple(
+                    item[key]
+                    for key in ("model", "scenario", "line", "variant")
+                )
+                == group
+            )
+            provenance = {
+                "protocol": phase_b["protocol"],
+                "plan_sha256": phase_b["plan_sha256"],
+                "run_kind": phase_b["run_kind"],
+                "supersedes_run_id": phase_b["supersedes_run_id"],
+                "anchor_selection_sha256": phase_b[
+                    "anchor_selection_sha256"
+                ],
+                "target_group": target_group,
+            }
+            expected_provenance_sha = hashlib.sha256(
+                canonical_json(provenance).encode("utf-8"),
+            ).hexdigest()
+            if (
+                attempt["phase_b_provenance_sha256"]
+                != expected_provenance_sha
+            ):
+                raise TakeLedgerError(
+                    "attempt Phase B provenanceがledger sourceと一致しません。",
+                )
         if slot[4] > takes:
             raise TakeLedgerError("take_index が source.takes を超えています。")
     if any(count != takes for count in counts.values()):
         raise TakeLedgerError("各 group には source.takes 件の attempt が必要です。")
     return ledger
+
+
+def _validate_phase_b_source(
+    value: Any,
+    *,
+    model: str,
+) -> dict[str, Any]:
+    phase_b = _exact_keys(value, PHASE_B_SOURCE_KEYS, "ledger.source.phase_b")
+    if phase_b["protocol"] != PHASE_B_PROTOCOL:
+        raise TakeLedgerError(
+            f"ledger.source.phase_b.protocol は{PHASE_B_PROTOCOL}が必要です。",
+        )
+    _sha(phase_b["plan_sha256"], "ledger.source.phase_b.plan_sha256")
+    run_kind = phase_b["run_kind"]
+    if run_kind not in {"primary", "topup"}:
+        raise TakeLedgerError(
+            "ledger.source.phase_b.run_kindはprimaryまたはtopupが必要です。",
+        )
+    supersedes = phase_b["supersedes_run_id"]
+    if run_kind == "primary":
+        if supersedes is not None:
+            raise TakeLedgerError(
+                "primary Phase B runにsupersedes_run_idは指定できません。",
+            )
+    elif supersedes is None:
+        raise TakeLedgerError(
+            "topup Phase B runにはsupersedes_run_idが必要です。",
+        )
+    else:
+        _path_segment(
+            supersedes,
+            "ledger.source.phase_b.supersedes_run_id",
+        )
+    anchor_sha = phase_b["anchor_selection_sha256"]
+    if model in ANCHOR_MODELS:
+        _sha(
+            anchor_sha,
+            "ledger.source.phase_b.anchor_selection_sha256",
+        )
+    elif anchor_sha is not None:
+        raise TakeLedgerError(
+            "非Qwen/Irodori Phase B runにanchor selectionは指定できません。",
+        )
+    target_values = phase_b["target_groups"]
+    if not isinstance(target_values, list) or not target_values:
+        raise TakeLedgerError(
+            "ledger.source.phase_b.target_groupsは空でない配列が必要です。",
+        )
+    identities: set[tuple[str, str, str, str]] = set()
+    for index, value in enumerate(target_values):
+        field = f"ledger.source.phase_b.target_groups[{index}]"
+        target = _exact_keys(value, PHASE_B_TARGET_KEYS, field)
+        identity = _group(
+            {key: target[key] for key in GROUP_KEYS},
+            field,
+        )
+        if identity[0] != model or identity in identities:
+            raise TakeLedgerError(
+                "ledger.source.phase_b.target_groupsが重複または"
+                "model不一致です。",
+            )
+        identities.add(identity)
+        _sha(target["role_epoch_sha256"], f"{field}.role_epoch_sha256")
+    ordered_identities = [
+        tuple(
+            target[key]
+            for key in ("model", "scenario", "line", "variant")
+        )
+        for target in target_values
+    ]
+    if ordered_identities != sorted(ordered_identities):
+        raise TakeLedgerError(
+            "ledger.source.phase_b.target_groupsはcanonical順が必要です。",
+        )
+    return phase_b
 
 
 def transition_attempt(

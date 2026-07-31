@@ -9,74 +9,112 @@ import pytest
 from gaya_pipeline import cli
 
 
-def test_completion_generateはplanと全rootを明示して生成する(
+def _common(tmp_path: Path) -> list[str]:
+    return [
+        "--plan",
+        str((tmp_path / "plan.json").resolve()),
+        "--base-manifest",
+        str((tmp_path / "manifest.json").resolve()),
+        "--artifacts",
+        str((tmp_path / "artifacts").resolve()),
+        "--scenarios",
+        str((tmp_path / "scenarios").resolve()),
+        "--voices",
+        str((tmp_path / "voices").resolve()),
+    ]
+
+
+def test_completion_generateはphase_b契約を全て明示する(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     captured: dict[str, Any] = {}
-    plan_path = tmp_path / "plan.json"
-    manifest_path = tmp_path / "manifest.json"
-    artifacts_dir = tmp_path / "artifacts"
-    scenarios_dir = tmp_path / "scenarios"
-    voices_dir = tmp_path / "voices"
     plan = SimpleNamespace(
+        plan_id="a" * 64,
         takes=4,
         seed_base=104,
-        target_lines_for_model=lambda model: (
-            (("scene", "line-001"),) if model == "model" else ()
-        ),
+        target_lines_for_model=lambda _model: (("scene", "line"),),
+    )
+    monkeypatch.setattr(cli, "load_completion_plan", lambda *_a, **_k: plan)
+    monkeypatch.setattr(
+        cli,
+        "phase_b_generation_binding",
+        lambda **_kwargs: ("b" * 64, {("scene", "line"): "c" * 64}),
     )
 
-    def fake_load_plan(path: Path, *, base_manifest_path: Path) -> Any:
-        captured["plan_path"] = path
-        captured["base_manifest_path"] = base_manifest_path
-        return plan
-
-    def fake_generation(**kwargs: Any) -> Any:
-        captured["generation"] = kwargs
+    def generate(**kwargs: Any) -> Any:
+        captured.update(kwargs)
         return SimpleNamespace(failed_count=0)
 
-    monkeypatch.setattr(cli, "load_completion_plan", fake_load_plan)
-    monkeypatch.setattr(cli, "run_generation", fake_generation)
+    monkeypatch.setattr(cli, "run_generation", generate)
     monkeypatch.setattr(cli, "_print_generation_summary", lambda _summary: None)
-
+    anchor = (tmp_path / "anchors" / "role-anchor-selection-v1.json").resolve()
     result = cli.main(
         [
             "completion",
             "generate",
-            "--plan",
-            str(plan_path),
-            "--base-manifest",
-            str(manifest_path),
+            *_common(tmp_path),
             "--model",
-            "model",
-            "--artifacts",
-            str(artifacts_dir),
-            "--scenarios",
-            str(scenarios_dir),
-            "--voices",
-            str(voices_dir),
+            "chatterbox-multilingual-v3",
+            "--anchor-selection",
+            str(anchor),
+            "--run-kind",
+            "primary",
+            "--seed-base",
+            "104",
         ],
     )
-
     assert result == 0
-    assert captured["plan_path"] == plan_path
-    assert captured["base_manifest_path"] == manifest_path
-    assert captured["generation"] == {
-        "model_id": "model",
-        "scenarios_dir": scenarios_dir,
-        "artifacts_dir": artifacts_dir,
-        "voices_dir": voices_dir,
-        "target_lines": (("scene", "line-001"),),
-        "takes": 4,
-        "seed_base": 104,
-        "force": False,
-    }
+    assert captured["completion_plan_sha256"] == "a" * 64
+    assert captured["role_epochs"] == {("scene", "line"): "c" * 64}
+    assert captured["run_kind"] == "primary"
+    assert captured["supersedes_run_id"] is None
+    assert captured["role_anchor_selection_path"] is None
+
+
+def test_completion_topupはsupersedesを必須にする(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    plan = SimpleNamespace(
+        plan_id="a" * 64,
+        takes=4,
+        seed_base=104,
+        target_lines_for_model=lambda _model: (("scene", "line"),),
+    )
+    monkeypatch.setattr(cli, "load_completion_plan", lambda *_a, **_k: plan)
+    monkeypatch.setattr(
+        cli,
+        "phase_b_generation_binding",
+        lambda **_kwargs: ("b" * 64, {("scene", "line"): "c" * 64}),
+    )
+    result = cli.main(
+        [
+            "completion",
+            "generate",
+            *_common(tmp_path),
+            "--model",
+            "chatterbox-multilingual-v3",
+            "--anchor-selection",
+            str((tmp_path / "anchor.json").resolve()),
+            "--run-kind",
+            "topup",
+            "--seed-base",
+            "105",
+            "--target",
+            "scene/line",
+        ],
+    )
+    assert result == 1
+    assert "supersedes" in capsys.readouterr().err
 
 
 def test_completion_commandは相対pathを拒否する(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
+    with pytest.raises(SystemExit):
+        cli.main(["completion", "generate"])
     result = cli.main(
         [
             "completion",
@@ -85,198 +123,106 @@ def test_completion_commandは相対pathを拒否する(
             "plan.json",
             "--base-manifest",
             "manifest.json",
-            "--model",
-            "model",
             "--artifacts",
             "artifacts",
             "--scenarios",
             "scenarios",
             "--voices",
             "voices",
+            "--model",
+            "model",
+            "--anchor-selection",
+            "anchor.json",
+            "--run-kind",
+            "primary",
+            "--seed-base",
+            "104",
         ],
     )
-
     assert result == 1
     assert "絶対path" in capsys.readouterr().err
 
 
-def test_completion_qcはreference_voiceとmodel_rootを明示する(
+def test_completion_listenは五主run_topup固定Voxを分離する(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     captured: dict[str, Any] = {}
-    model_root = tmp_path / "qc-model"
-
+    monkeypatch.setattr(cli, "load_completion_plan", lambda *_a, **_k: object())
     monkeypatch.setattr(
         cli,
-        "KanaWhisperQCRuntime",
-        lambda path: captured.setdefault("runtime_path", path) or object(),
+        "build_completion_listening_bundle",
+        lambda **kwargs: captured.update(kwargs) or SimpleNamespace(),
     )
-
-    def fake_qc(**kwargs: Any) -> Any:
-        captured["qc"] = kwargs
-        return SimpleNamespace(blocked_count=0, pending_count=0)
-
-    monkeypatch.setattr(cli, "run_qc", fake_qc)
-    monkeypatch.setattr(cli, "_print_qc_summary", lambda _summary: None)
-
-    result = cli.main(
-        [
-            "completion",
-            "qc",
-            "--run-id",
-            "run-1",
-            "--artifacts",
-            str(tmp_path / "artifacts"),
-            "--scenarios",
-            str(tmp_path / "scenarios"),
-            "--voices",
-            str(tmp_path / "voices"),
-            "--qc-model-root",
-            str(model_root),
-        ],
-    )
-
-    assert result == 0
-    assert captured["runtime_path"] == model_root
-    assert captured["qc"]["voices_dir"] == tmp_path / "voices"
-    assert captured["qc"]["artifacts_dir"] == tmp_path / "artifacts"
-
-
-def test_completion_listenはplanと全runを専用builderへ渡す(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    captured: dict[str, Any] = {}
-    plan = object()
-    monkeypatch.setattr(
-        cli,
-        "load_completion_plan",
-        lambda _path, *, base_manifest_path: (
-            captured.setdefault("base_manifest", base_manifest_path),
-            plan,
-        )[1],
-    )
-
-    def fake_listen(**kwargs: Any) -> Any:
-        captured["listen"] = kwargs
-        return SimpleNamespace()
-
-    monkeypatch.setattr(cli, "build_completion_listening_bundle", fake_listen)
     monkeypatch.setattr(
         cli,
         "_print_completion_listening_summary",
         lambda _summary: None,
     )
-
+    primary_args = [
+        item
+        for index in range(5)
+        for item in ("--primary-run-id", f"primary-{index}")
+    ]
     result = cli.main(
         [
             "completion",
             "listen",
-            "--plan",
-            str(tmp_path / "plan.json"),
-            "--base-manifest",
-            str(tmp_path / "manifest.json"),
-            "--run-id",
-            "run-a",
-            "--run-id",
-            "run-b",
-            "--artifacts",
-            str(tmp_path / "artifacts"),
-            "--scenarios",
-            str(tmp_path / "scenarios"),
-            "--voices",
-            str(tmp_path / "voices"),
+            *_common(tmp_path),
+            *primary_args,
+            "--topup-run-id",
+            "topup-1",
+            "--vox-run-id",
+            "20260730T204323380360Z-voxcpm2-n4",
+            "--anchor-selection",
+            str((tmp_path / "anchor.json").resolve()),
             "--output",
-            str(tmp_path / "listen"),
+            str((tmp_path / "listen").resolve()),
         ],
     )
-
     assert result == 0
-    assert captured["listen"]["plan"] is plan
-    assert captured["listen"]["run_ids"] == ["run-a", "run-b"]
-    assert captured["listen"]["voices_dir"] == tmp_path / "voices"
+    assert captured["primary_run_ids"] == [f"primary-{index}" for index in range(5)]
+    assert captured["topup_run_ids"] == ["topup-1"]
 
 
-def test_completion_finalizeは契約errorを安定したexit1へ変換する(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-    capsys: pytest.CaptureFixture[str],
-) -> None:
-    def fail_finalize(**_kwargs: Any) -> Any:
-        raise cli.CompletionReleaseError("bad completion decision")
-
-    monkeypatch.setattr(cli, "finalize_completion_release", fail_finalize)
-
-    result = cli.main(
-        [
-            "completion",
-            "finalize",
-            "--base-manifest",
-            str(tmp_path / "manifest.json"),
-            "--qwen-curation",
-            str(tmp_path / "qwen.json"),
-            "--plan",
-            str(tmp_path / "plan.json"),
-            "--decision",
-            str(tmp_path / "decision.json"),
-            "--run-id",
-            "run-a",
-            "--artifacts",
-            str(tmp_path / "artifacts"),
-            "--scenarios",
-            str(tmp_path / "scenarios"),
-            "--voices",
-            str(tmp_path / "voices"),
-            "--output",
-            str(tmp_path / "release"),
-        ],
-    )
-
-    assert result == 1
-    assert "bad completion decision" in capsys.readouterr().err
-
-
-def test_completion_publishは専用publisherと明示credentialを使う(
+def test_completion_publishはactivationとreceiptを明示する(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     captured: dict[str, Any] = {}
-    client = object()
+    monkeypatch.setattr(cli, "create_r2_client", lambda _path: object())
     monkeypatch.setattr(
         cli,
-        "create_r2_client",
-        lambda path: captured.setdefault("env_file", path) and client,
+        "run_completion_publish",
+        lambda **kwargs: captured.update(kwargs) or SimpleNamespace(),
     )
-
-    def fake_publish(**kwargs: Any) -> Any:
-        captured["publish"] = kwargs
-        return SimpleNamespace()
-
-    monkeypatch.setattr(cli, "run_completion_publish", fake_publish)
     monkeypatch.setattr(
         cli,
         "_print_completion_publish_summary",
         lambda _summary: None,
     )
-
+    activation = (tmp_path / "data" / "manifest.json").resolve()
+    receipt = (tmp_path / "publish-receipt.json").resolve()
+    source_audit = (tmp_path / "source-audit.json").resolve()
     result = cli.main(
         [
             "completion",
             "publish",
             "--release",
-            str(tmp_path / "release"),
+            str((tmp_path / "release").resolve()),
             "--artifacts",
-            str(tmp_path / "artifacts"),
+            str((tmp_path / "artifacts").resolve()),
+            "--source-audit",
+            str(source_audit),
             "--env-file",
-            str(tmp_path / ".env"),
+            str((tmp_path / ".env").resolve()),
+            "--manifest-activation",
+            str(activation),
+            "--publish-receipt",
+            str(receipt),
         ],
     )
-
     assert result == 0
-    assert captured["env_file"] == tmp_path / ".env"
-    assert captured["publish"] == {
-        "release_dir": tmp_path / "release",
-        "artifacts_dir": tmp_path / "artifacts",
-        "client": client,
-    }
+    assert captured["manifest_activation_path"] == activation
+    assert captured["publish_receipt_path"] == receipt
+    assert captured["source_audit_path"] == source_audit

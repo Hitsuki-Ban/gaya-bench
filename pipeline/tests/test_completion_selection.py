@@ -54,7 +54,9 @@ def _decision(candidate_count: int = 3) -> dict[str, Any]:
     ]
     return {
         "format_version": 1,
-        "protocol": "baseline-completion-decision-v1",
+        "protocol": "role-baseline-decision-v1",
+        "plan_sha256": "b" * 64,
+        "anchor_selection_sha256": "c" * 64,
         "candidate_set_sha256": "a" * 64,
         "groups": [
             {
@@ -62,6 +64,8 @@ def _decision(candidate_count: int = 3) -> dict[str, Any]:
                 "scenario": "scene",
                 "line": "line",
                 "variant": "dry",
+                "role_epoch_sha256": "d" * 64,
+                "group_sha256": "e" * 64,
                 "authority": {
                     "type": "best_available",
                     "policy_version": "missing-slot-best-of-n-v1",
@@ -129,4 +133,22 @@ def test_best_availableはmechanical_rejectを候補にできない() -> None:
     decision["groups"][0]["candidates"][1]["gate"]["mechanical"] = "reject"
 
     with pytest.raises(CurationError, match="mechanical は pass"):
+        validate_completion_decision(decision)
+
+
+def test_decisionはplan_anchor_role_epochの旧値を再生できない() -> None:
+    decision = _decision()
+    del decision["groups"][0]["role_epoch_sha256"]
+
+    with pytest.raises(CurationError, match="exact contract"):
+        validate_completion_decision(decision)
+
+    decision = _decision()
+    del decision["groups"][0]["group_sha256"]
+    with pytest.raises(CurationError, match="exact contract"):
+        validate_completion_decision(decision)
+
+    decision = _decision()
+    del decision["anchor_selection_sha256"]
+    with pytest.raises(CurationError, match="exact contract"):
         validate_completion_decision(decision)

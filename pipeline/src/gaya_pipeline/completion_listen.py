@@ -10,14 +10,24 @@ from typing import Any, Mapping, Sequence
 
 import yaml
 
-from gaya_pipeline.completion_plan import CompletionPlan
+from gaya_pipeline.completion_anchor import (
+    CompletionAnchorError,
+    validate_anchor_selection,
+)
+from gaya_pipeline.completion_plan import (
+    IRODORI_MODEL,
+    QWEN_MODEL,
+    VOXCPM_MODEL,
+    CompletionPlan,
+)
 from gaya_pipeline.curation import (
     CurationError,
     build_candidate_set,
     canonical_candidate_set_bytes,
     validate_snapshot_bundle,
 )
-from gaya_pipeline.take_identity import canonical_json
+from gaya_pipeline.qc_report import QCAuthority, QCReportError, validate_qc_report
+from gaya_pipeline.take_identity import canonical_json, derive_seed
 from gaya_pipeline.take_ledger import TakeLedgerError, read_ledger
 from gaya_pipeline.take_manifest_v4 import TakeManifestError, validate_manifest_v4
 from gaya_pipeline.validation import validate_scenario_ids
@@ -27,153 +37,161 @@ class CompletionListeningError(RuntimeError):
     pass
 
 
+PHASE_B_PROTOCOL = "phase-b-generation-v1"
+PHASE_B_SEED_MIN = 0
+PHASE_B_SEED_MAX = 2**32 - 1
+SOURCE_MAP_PROTOCOL = "phase-b-source-map-v1"
+PRIMARY_MODELS = frozenset(
+    {
+        "chatterbox-multilingual-v3",
+        "cosyvoice3-0.5b-2512",
+        "gpt-sovits-v2-pro-plus",
+        IRODORI_MODEL,
+        QWEN_MODEL,
+    },
+)
+VOX_LEGACY_RUN_ID = "20260730T204323380360Z-voxcpm2-n4"
+VOX_LEGACY_DIGESTS = {
+    "ledger_sha256": "589da2bf299cba5d25a07e6af17726795936cd53d33ff71820eaadbc321e24f7",
+    "qc_report_sha256": "5843a783fcbdad585cec0c641f52950a6fb2046d8198e168ea47d42ffc2af0f9",
+    "manifest_sha256": "c096cd388229f0ac60fae42e82a8d3d8423c5e22644983c3da570b5e3bd41563",
+    "candidate_set_sha256": "7be722c866a4f1df013821fa178fe00a755ad75b92fe642f342cddada5ce3954",
+}
+VOX_LEGACY_GROUPS = frozenset(
+    {
+        (VOXCPM_MODEL, "goblin-camp", "goblin-cook-001", "dry"),
+        (VOXCPM_MODEL, "spirit-forest", "pixie-003", "dry"),
+    },
+)
+
+
 @dataclass(frozen=True)
 class CompletionListeningSummary:
     output_dir: Path
     candidate_set_sha256: str
+    source_map_sha256: str
     model_count: int
     group_count: int
     candidate_count: int
 
 
+@dataclass(frozen=True)
+class CompletionSourceRun:
+    run_id: str
+    model: str
+    kind: str
+    supersedes_run_id: str | None
+    root: Path
+    ledger_sha256: str
+    qc_report_sha256: str
+    manifest_sha256: str
+    candidate_set_sha256: str
+    manifest: dict[str, Any]
+    groups: frozenset[tuple[str, str, str, str]]
+    role_epochs: Mapping[tuple[str, str, str, str], str]
+    seed_base: int
+    attempt_seeds: Mapping[tuple[str, str, str, str], frozenset[int]]
+
+
+@dataclass(frozen=True)
+class CompletionSourceResolution:
+    runs: tuple[CompletionSourceRun, ...]
+    group_sources: Mapping[tuple[str, str, str, str], CompletionSourceRun]
+    anchor_selection_sha256: str
+    expected_role_epochs: Mapping[tuple[str, str, str, str], str]
+
+
+def phase_b_generation_binding(
+    *,
+    plan: CompletionPlan,
+    model: str,
+    scenarios_dir: Path,
+    anchor_selection_path: Path,
+) -> tuple[str, dict[tuple[str, str], str]]:
+    """Resolve the exact anchor digest and per-line role epochs for one run."""
+
+    anchor_sha, anchor_epochs = _load_anchor_selection(
+        anchor_selection_path,
+        plan,
+    )
+    expected = expected_phase_b_role_epochs(
+        plan=plan,
+        scenarios_dir=scenarios_dir,
+        anchor_selection_sha256=anchor_sha,
+        selected_anchor_epochs=anchor_epochs,
+    )
+    model_targets = {
+        target.identity for target in plan.targets_for_model(model)
+        if target.source == "generate"
+    }
+    if not model_targets:
+        raise CompletionListeningError(f"Phase B生成対象外modelです: {model}")
+    return anchor_sha, {
+        (identity[1], identity[2]): expected[identity]
+        for identity in sorted(model_targets)
+    }
+
+
 def build_completion_listening_bundle(
     *,
     plan: CompletionPlan,
-    run_ids: Sequence[str],
+    primary_run_ids: Sequence[str],
+    topup_run_ids: Sequence[str],
+    vox_run_id: str,
+    anchor_selection_path: Path,
     artifacts_dir: Path,
     scenarios_dir: Path,
     voices_dir: Path,
     output_dir: Path,
 ) -> CompletionListeningSummary:
-    if len(run_ids) != len(set(run_ids)):
-        raise CompletionListeningError("supplement run-id が重複しています。")
-    if not run_ids:
-        raise CompletionListeningError("supplement run-id は1件以上必要です。")
     if output_dir.exists():
         raise CompletionListeningError(
             f"listening output は既存 path を拒否します: {output_dir}",
         )
-    output_parent = output_dir.resolve().parent
-    if not output_parent.is_dir():
+    parent = output_dir.resolve().parent
+    if not parent.is_dir():
         raise CompletionListeningError(
-            f"listening output の親 directory が存在しません: {output_parent}",
+            f"listening output の親 directory が存在しません: {parent}",
         )
+    resolution = resolve_completion_sources(
+        plan=plan,
+        primary_run_ids=primary_run_ids,
+        topup_run_ids=topup_run_ids,
+        vox_run_id=vox_run_id,
+        anchor_selection_path=anchor_selection_path,
+        artifacts_dir=artifacts_dir,
+        scenarios_dir=scenarios_dir,
+    )
 
-    takes_root = _require_directory(artifacts_dir / "takes", "takes root")
-    expected_by_model = {
-        model: {
-            (target.model, target.scenario, target.line, target.variant)
-            for target in plan.targets_for_model(model)
-        }
-        for model in sorted({target.model for target in plan.targets})
-    }
-    seen_models: set[str] = set()
-    models: list[dict[str, Any]] = []
     candidates: list[dict[str, Any]] = []
     source_audio: dict[str, Path] = {}
+    models: dict[str, dict[str, Any]] = {}
     generated_at: list[str] = []
-
-    for run_id in run_ids:
-        run_root = _resolve_direct_child(takes_root, run_id, f"source run {run_id}")
-        try:
-            ledger = read_ledger(run_root / "ledger.json")
-            bundle = validate_snapshot_bundle(
-                snapshot_path=run_root / "manifest-v4.json",
-                candidate_set_path=run_root / "candidate-set.json",
-                marker_path=run_root / "candidate-set.sha256",
-            )
-        except (
-            CurationError,
-            OSError,
-            TakeLedgerError,
-            UnicodeError,
-            json.JSONDecodeError,
-        ) as error:
+    for identity, run in sorted(resolution.group_sources.items()):
+        group_candidates = [
+            dict(candidate)
+            for candidate in run.manifest["candidates"]
+            if _group_key(candidate) == identity
+        ]
+        if len(group_candidates) < plan.minimum_eligible_candidates:
             raise CompletionListeningError(
-                f"supplement run bundle が不正です: {run_id}: {error}",
-            ) from error
-        if ledger["run_id"] != run_id:
-            raise CompletionListeningError(
-                f"run-id と ledger.run_id が一致しません: {run_id}",
+                "最終有効 source の mechanical-pass candidate が3件未満です: "
+                f"{identity}: {run.run_id}",
             )
-        run_models = bundle.manifest["models"]
-        if len(run_models) != 1:
-            raise CompletionListeningError(
-                f"supplement run は単一 model が必要です: {run_id}",
-            )
-        model = str(run_models[0]["id"])
-        if model in seen_models:
-            raise CompletionListeningError(
-                f"初回 listening bundle は model ごとに1 runだけ受理します: {model}",
-            )
-        expected_groups = expected_by_model.get(model)
-        if expected_groups is None:
-            raise CompletionListeningError(
-                f"plan 対象外 model の run です: {run_id}: {model}",
-            )
-        actual_groups = {
-            _group_key(candidate) for candidate in bundle.manifest["candidates"]
-        }
-        actual_groups.update(
-            _group_key(failure) for failure in bundle.manifest["failures"]
-        )
-        if actual_groups != expected_groups:
-            missing = sorted(expected_groups - actual_groups)
-            extra = sorted(actual_groups - expected_groups)
-            raise CompletionListeningError(
-                f"supplement run target coverage が plan と一致しません: "
-                f"{model}: missing={missing}, extra={extra}",
-            )
-        if bundle.manifest["failures"]:
-            raise CompletionListeningError(
-                f"supplement run に eligible candidate のない group があります: {model}",
-            )
-        by_group: dict[tuple[str, str, str, str], list[Mapping[str, Any]]] = {}
-        for candidate in bundle.manifest["candidates"]:
-            by_group.setdefault(_group_key(candidate), []).append(candidate)
-        insufficient = sorted(
-            identity
-            for identity, group_candidates in by_group.items()
-            if len(group_candidates) < plan.minimum_eligible_candidates
-        )
-        if insufficient:
-            raise CompletionListeningError(
-                f"mechanical-pass candidate が最低数を満たしません: {insufficient}",
-            )
-
-        _validate_ledger_source(
-            ledger=ledger,
-            model=model,
-            plan=plan,
-            run_id=run_id,
-        )
-        seen_models.add(model)
-        models.append(dict(run_models[0]))
-        generated_at.append(str(bundle.manifest["generated_at"]))
-        for candidate in bundle.manifest["candidates"]:
-            normalized = dict(candidate)
-            local_path = _local_audio_path(run_root, normalized)
-            _verify_audio_sha(local_path, str(normalized["sha256"]))
-            if normalized["path"] in source_audio:
+        models[run.model] = dict(run.manifest["models"][0])
+        generated_at.append(str(run.manifest["generated_at"]))
+        for candidate in group_candidates:
+            local_path = _local_audio_path(run.root, candidate)
+            _verify_audio_sha(local_path, str(candidate["sha256"]))
+            path = str(candidate["path"])
+            if path in source_audio:
                 raise CompletionListeningError(
-                    f"supplement candidate path が重複しています: "
-                    f"{normalized['path']}",
+                    f"最終候補 path が重複しています: {path}",
                 )
-            source_audio[str(normalized["path"])] = local_path
-            candidates.append(normalized)
+            source_audio[path] = local_path
+            candidates.append(candidate)
 
-    if seen_models != set(expected_by_model):
-        missing_models = sorted(set(expected_by_model) - seen_models)
-        raise CompletionListeningError(
-            f"supplement model run が不足しています: {missing_models}",
-        )
-
-    candidates.sort(
-        key=lambda candidate: (
-            _group_key(candidate),
-            int(candidate["take_index"]),
-        ),
-    )
+    candidates.sort(key=lambda item: (_group_key(item), int(item["take_index"])))
     scenario_sha256, lines = _load_target_lines(
         scenarios_dir=scenarios_dir.resolve(),
         voices_dir=voices_dir.resolve(),
@@ -182,7 +200,7 @@ def build_completion_listening_bundle(
     candidate_set = build_candidate_set(
         scenario_sha256=scenario_sha256,
         lines=lines,
-        models=sorted(models, key=lambda model: str(model["id"])),
+        models=[models[model] for model in sorted(models)],
         candidates=candidates,
         failures=[],
     )
@@ -204,16 +222,34 @@ def build_completion_listening_bundle(
         raise CompletionListeningError(
             f"combined listening manifest が不正です: {error}",
         ) from error
-    manifest_bytes = canonical_json(manifest).encode("utf-8")
 
-    temporary = Path(
-        tempfile.mkdtemp(
-            prefix=f".{output_dir.name}.",
-            dir=output_parent,
-        ),
-    )
+    source_map = {
+        "format_version": 1,
+        "protocol": SOURCE_MAP_PROTOCOL,
+        "plan_sha256": plan.plan_id,
+        "anchor_selection_sha256": resolution.anchor_selection_sha256,
+        "candidate_set_sha256": candidate_set_sha256,
+        "groups": [
+            {
+                "model": identity[0],
+                "scenario": identity[1],
+                "line": identity[2],
+                "variant": identity[3],
+                "role_epoch_sha256": resolution.expected_role_epochs[identity],
+                "source_run_id": run.run_id,
+            }
+            for identity, run in sorted(resolution.group_sources.items())
+        ],
+    }
+    source_map_bytes = canonical_json(source_map).encode("utf-8")
+    source_map_sha256 = hashlib.sha256(source_map_bytes).hexdigest()
+
+    temporary = Path(tempfile.mkdtemp(prefix=f".{output_dir.name}.", dir=parent))
     try:
-        _write_new_file(temporary / "manifest-v4.json", manifest_bytes)
+        _write_new_file(
+            temporary / "manifest-v4.json",
+            canonical_json(manifest).encode("utf-8"),
+        )
         _write_new_file(temporary / "candidate-set.json", candidate_set_bytes)
         _write_new_file(
             temporary / "candidate-set.sha256",
@@ -221,7 +257,15 @@ def build_completion_listening_bundle(
         )
         _write_new_file(
             temporary / "completion-plan.sha256",
-            plan.raw_sha256.encode("ascii"),
+            plan.plan_id.encode("ascii"),
+        )
+        _write_new_file(
+            temporary / "phase-b-source-map-v1.json",
+            source_map_bytes,
+        )
+        _write_new_file(
+            temporary / "phase-b-source-map-v1.sha256",
+            source_map_sha256.encode("ascii"),
         )
         for candidate in candidates:
             destination = temporary / _listening_audio_relative(candidate)
@@ -232,51 +276,657 @@ def build_completion_listening_bundle(
     except Exception:
         shutil.rmtree(temporary, ignore_errors=True)
         raise
-
     return CompletionListeningSummary(
         output_dir=output_dir,
         candidate_set_sha256=candidate_set_sha256,
+        source_map_sha256=source_map_sha256,
         model_count=len(models),
-        group_count=len({_group_key(candidate) for candidate in candidates}),
+        group_count=len(resolution.group_sources),
         candidate_count=len(candidates),
     )
 
 
-def _validate_ledger_source(
+def resolve_completion_sources(
     *,
-    ledger: Mapping[str, Any],
-    model: str,
     plan: CompletionPlan,
-    run_id: str,
-) -> None:
-    source = ledger.get("source")
-    if not isinstance(source, Mapping):
-        raise CompletionListeningError(f"ledger.source が不正です: {run_id}")
-    if source.get("model") != model:
+    primary_run_ids: Sequence[str],
+    topup_run_ids: Sequence[str],
+    vox_run_id: str,
+    anchor_selection_path: Path,
+    artifacts_dir: Path,
+    scenarios_dir: Path,
+) -> CompletionSourceResolution:
+    all_ids = [*primary_run_ids, *topup_run_ids, vox_run_id]
+    if len(all_ids) != len(set(all_ids)):
+        raise CompletionListeningError("Phase B source run-id が重複しています。")
+    if len(primary_run_ids) != len(PRIMARY_MODELS):
+        raise CompletionListeningError("Phase B primary run は5件必要です。")
+    if vox_run_id != VOX_LEGACY_RUN_ID:
         raise CompletionListeningError(
-            f"ledger.source.model が run manifest と一致しません: {run_id}",
+            f"Vox legacy run は {VOX_LEGACY_RUN_ID} だけを受理します。",
         )
-    if source.get("takes") != plan.takes:
+    takes_root = _require_directory(artifacts_dir / "takes", "takes root")
+    anchor_sha, anchor_epochs = _load_anchor_selection(
+        anchor_selection_path,
+        plan,
+    )
+    expected_epochs = expected_phase_b_role_epochs(
+        plan=plan,
+        scenarios_dir=scenarios_dir,
+        anchor_selection_sha256=anchor_sha,
+        selected_anchor_epochs=anchor_epochs,
+    )
+    expected_targets = {target.identity for target in plan.targets}
+
+    primary_runs = [
+        _load_phase_b_run(
+            takes_root=takes_root,
+            run_id=run_id,
+            plan=plan,
+            expected_epochs=expected_epochs,
+            expected_anchor_sha256=anchor_sha,
+            required_kind="primary",
+        )
+        for run_id in primary_run_ids
+    ]
+    primary_by_model = {run.model: run for run in primary_runs}
+    if set(primary_by_model) != PRIMARY_MODELS or len(primary_by_model) != len(
+        primary_runs
+    ):
         raise CompletionListeningError(
-            f"ledger.source.takes が plan と一致しません: {run_id}",
+            "primary run はQwen/Irodori/Chatterbox/CosyVoice/GPT-SoVITSを"
+            "各1件必要です。",
         )
-    if source.get("seed_base") != plan.seed_base:
-        raise CompletionListeningError(
-            f"ledger.source.seed_base が plan と一致しません: {run_id}",
-        )
-    groups = source.get("groups")
-    if not isinstance(groups, list):
-        raise CompletionListeningError(f"ledger.source.groups が不正です: {run_id}")
-    actual = {
-        (str(group.get("scenario")), str(group.get("line")))
-        for group in groups
-        if isinstance(group, Mapping)
+    for model, run in primary_by_model.items():
+        expected_model_groups = {
+            target.identity
+            for target in plan.targets_for_model(model)
+            if target.source == "generate"
+        }
+        if run.groups != expected_model_groups:
+            raise CompletionListeningError(
+                f"primary run coverage がplanと一致しません: {run.run_id}",
+            )
+
+    runs_by_id = {run.run_id: run for run in primary_runs}
+    group_sources: dict[
+        tuple[str, str, str, str],
+        CompletionSourceRun,
+    ] = {
+        identity: run for run in primary_runs for identity in run.groups
     }
-    expected = set(plan.target_lines_for_model(model))
-    if actual != expected or len(groups) != len(expected):
-        raise CompletionListeningError(
-            f"ledger.source.groups が plan target と一致しません: {run_id}",
+    topup_runs: list[CompletionSourceRun] = []
+    for run_id in topup_run_ids:
+        run = _load_phase_b_run(
+            takes_root=takes_root,
+            run_id=run_id,
+            plan=plan,
+            expected_epochs=expected_epochs,
+            expected_anchor_sha256=anchor_sha,
+            required_kind="topup",
         )
+        predecessor = runs_by_id.get(str(run.supersedes_run_id))
+        if predecessor is None or predecessor.model != run.model:
+            raise CompletionListeningError(
+                f"topup supersedes_run_id が明示済み同一model runではありません: {run_id}",
+            )
+        if not run.groups or not run.groups.issubset(predecessor.groups):
+            raise CompletionListeningError(
+                f"topup groups がsuperseded runのexact subsetではありません: {run_id}",
+            )
+        if run.seed_base == predecessor.seed_base:
+            raise CompletionListeningError(
+                f"topup seed_baseはsuperseded runと異なる値が必要です: {run_id}",
+            )
+        overlapping_seeds = {
+            identity: sorted(
+                run.attempt_seeds[identity]
+                & predecessor.attempt_seeds[identity],
+            )
+            for identity in run.groups
+            if run.attempt_seeds[identity]
+            & predecessor.attempt_seeds[identity]
+        }
+        if overlapping_seeds:
+            raise CompletionListeningError(
+                "topup derived seedがsuperseded runと重複しています: "
+                f"{run_id}: {overlapping_seeds}",
+            )
+        stale = sorted(
+            identity
+            for identity in run.groups
+            if group_sources.get(identity) is not predecessor
+        )
+        if stale:
+            raise CompletionListeningError(
+                f"topup supersedes chain が現在のsourceと一致しません: {run_id}: {stale}",
+            )
+        for identity in run.groups:
+            group_sources[identity] = run
+        runs_by_id[run.run_id] = run
+        topup_runs.append(run)
+
+    vox = _load_vox_legacy_run(takes_root, vox_run_id)
+    for identity in vox.groups:
+        group_sources[identity] = vox
+    if set(group_sources) != expected_targets or len(group_sources) != 363:
+        missing = sorted(expected_targets - set(group_sources))
+        extra = sorted(set(group_sources) - expected_targets)
+        raise CompletionListeningError(
+            f"最終source mapはplan exact 363 groupが必要です: "
+            f"missing={missing}, extra={extra}",
+        )
+    return CompletionSourceResolution(
+        runs=tuple([*primary_runs, *topup_runs, vox]),
+        group_sources=group_sources,
+        anchor_selection_sha256=anchor_sha,
+        expected_role_epochs=expected_epochs,
+    )
+
+
+def expected_phase_b_role_epochs(
+    *,
+    plan: CompletionPlan,
+    scenarios_dir: Path,
+    anchor_selection_sha256: str,
+    selected_anchor_epochs: Mapping[tuple[str, str, str], str],
+) -> dict[tuple[str, str, str, str], str]:
+    line_characters = _load_line_characters(scenarios_dir, plan)
+    result: dict[tuple[str, str, str, str], str] = {}
+    for target in plan.targets:
+        identity = target.identity
+        character = line_characters[(target.scenario, target.line)]
+        role = plan.role(target.scenario, character)
+        anchor_key = (target.model, target.scenario, character)
+        if anchor_key in selected_anchor_epochs:
+            epoch = selected_anchor_epochs[anchor_key]
+        else:
+            epoch_document = {
+                "protocol": "phase-b-role-epoch-v1",
+                "plan_sha256": plan.plan_id,
+                "model": target.model,
+                "model_revision": plan.models[target.model],
+                "scenario": target.scenario,
+                "character": character,
+                "role_identity_sha256": role.role_identity_sha256,
+                "reference_voice": role.reference_voice,
+                "anchor_selection_sha256": (
+                    anchor_selection_sha256
+                    if target.model in {QWEN_MODEL, IRODORI_MODEL}
+                    else None
+                ),
+            }
+            epoch = hashlib.sha256(
+                canonical_json(epoch_document).encode("utf-8"),
+            ).hexdigest()
+        result[identity] = epoch
+    return result
+
+
+def _load_phase_b_run(
+    *,
+    takes_root: Path,
+    run_id: str,
+    plan: CompletionPlan,
+    expected_epochs: Mapping[tuple[str, str, str, str], str],
+    expected_anchor_sha256: str,
+    required_kind: str,
+) -> CompletionSourceRun:
+    root = _resolve_direct_child(takes_root, run_id, f"source run {run_id}")
+    try:
+        ledger = read_ledger(root / "ledger.json")
+        bundle = validate_snapshot_bundle(
+            snapshot_path=root / "manifest-v4.json",
+            candidate_set_path=root / "candidate-set.json",
+            marker_path=root / "candidate-set.sha256",
+        )
+        qc_raw = _read_json(root / "qc-report.json", "QC report")
+        qc_authority = validate_qc_report(
+            qc_raw,
+            ledger_path=root / "ledger.json",
+            ledger=ledger,
+        )
+    except (
+        CurationError,
+        OSError,
+        QCReportError,
+        TakeLedgerError,
+        UnicodeError,
+        json.JSONDecodeError,
+    ) as error:
+        raise CompletionListeningError(
+            f"Phase B run bundle が不正です: {run_id}: {error}",
+        ) from error
+    if ledger["run_id"] != run_id:
+        raise CompletionListeningError(f"ledger.run_id がpathと不一致です: {run_id}")
+    if ledger["source"]["takes"] != plan.takes:
+        raise CompletionListeningError(
+            f"Phase B source.takesがfrozen planと一致しません: {run_id}",
+        )
+    if (
+        required_kind == "primary"
+        and ledger["source"]["seed_base"] != plan.seed_base
+    ):
+        raise CompletionListeningError(
+            f"primary seed_baseがfrozen planと一致しません: {run_id}",
+        )
+    phase_b = ledger["source"].get("phase_b")
+    if not isinstance(phase_b, Mapping):
+        raise CompletionListeningError(f"ledger.source.phase_b がありません: {run_id}")
+    if qc_raw["source"].get("phase_b") != phase_b:
+        raise CompletionListeningError(
+            f"QC source.phase_b がledgerと一致しません: {run_id}",
+        )
+    expected_phase_fields = {
+        "protocol",
+        "plan_sha256",
+        "run_kind",
+        "supersedes_run_id",
+        "anchor_selection_sha256",
+        "target_groups",
+    }
+    if set(phase_b) != expected_phase_fields:
+        raise CompletionListeningError(
+            f"ledger.source.phase_b exact contract が不正です: {run_id}",
+        )
+    if (
+        phase_b["protocol"] != PHASE_B_PROTOCOL
+        or phase_b["plan_sha256"] != plan.plan_id
+        or phase_b["run_kind"] != required_kind
+    ):
+        raise CompletionListeningError(
+            f"Phase B protocol/plan/run kind が不一致です: {run_id}",
+        )
+    if required_kind == "primary" and phase_b["supersedes_run_id"] is not None:
+        raise CompletionListeningError(
+            f"primary runにsupersedes_run_idは指定できません: {run_id}",
+        )
+    if required_kind == "topup" and not isinstance(
+        phase_b["supersedes_run_id"],
+        str,
+    ):
+        raise CompletionListeningError(
+            f"topup runはsupersedes_run_idが必要です: {run_id}",
+        )
+    run_models = bundle.manifest["models"]
+    if len(run_models) != 1:
+        raise CompletionListeningError(f"Phase B runは単一modelが必要です: {run_id}")
+    model = str(run_models[0]["id"])
+    if model not in PRIMARY_MODELS or run_models[0]["version"] != plan.models[model]:
+        raise CompletionListeningError(
+            f"Phase B model/revision がplanと一致しません: {run_id}",
+        )
+    anchor_sha = phase_b["anchor_selection_sha256"]
+    expected_run_anchor = (
+        expected_anchor_sha256 if model in {QWEN_MODEL, IRODORI_MODEL} else None
+    )
+    if anchor_sha != expected_run_anchor:
+        raise CompletionListeningError(
+            f"Phase B anchor selection digest が不一致です: {run_id}",
+        )
+    target_groups = phase_b["target_groups"]
+    if not isinstance(target_groups, list) or not target_groups:
+        raise CompletionListeningError(f"target_groupsが不正です: {run_id}")
+    role_epochs: dict[tuple[str, str, str, str], str] = {}
+    normalized_groups: list[dict[str, str]] = []
+    for index, item in enumerate(target_groups):
+        if not isinstance(item, Mapping) or set(item) != {
+            "model",
+            "scenario",
+            "line",
+            "variant",
+            "role_epoch_sha256",
+        }:
+            raise CompletionListeningError(
+                f"target_groups[{index}] exact contractが不正です: {run_id}",
+            )
+        identity = _group_key(item)
+        epoch = str(item["role_epoch_sha256"])
+        if identity in role_epochs or expected_epochs.get(identity) != epoch:
+            raise CompletionListeningError(
+                f"target group role epoch がplan/anchorと不一致です: {run_id}: {identity}",
+            )
+        role_epochs[identity] = epoch
+        normalized_groups.append(dict(item))
+    if normalized_groups != sorted(
+        normalized_groups,
+        key=lambda item: _group_key(item),
+    ):
+        raise CompletionListeningError(f"target_groupsはcanonical順が必要です: {run_id}")
+    ledger_groups = {_group_key(item) for item in ledger["source"]["groups"]}
+    artifact_groups = {
+        _group_key(item)
+        for item in [
+            *bundle.manifest["candidates"],
+            *bundle.manifest["failures"],
+        ]
+    }
+    if set(role_epochs) != ledger_groups or artifact_groups != ledger_groups:
+        raise CompletionListeningError(
+            f"run ledger/phase_b/manifest group集合が一致しません: {run_id}",
+        )
+    _validate_manifest_candidate_authority(
+        run_id=run_id,
+        ledger=ledger,
+        manifest=bundle.manifest,
+        qc_authority=qc_authority,
+        phase_b=phase_b,
+        seed_policy=plan.seed_policy,
+    )
+    attempt_seeds = _attempt_seeds_by_group(ledger)
+    return CompletionSourceRun(
+        run_id=run_id,
+        model=model,
+        kind=required_kind,
+        supersedes_run_id=phase_b["supersedes_run_id"],
+        root=root,
+        ledger_sha256=_file_sha256(root / "ledger.json"),
+        qc_report_sha256=_file_sha256(root / "qc-report.json"),
+        manifest_sha256=_file_sha256(root / "manifest-v4.json"),
+        candidate_set_sha256=bundle.candidate_set_sha256,
+        manifest=bundle.manifest,
+        groups=frozenset(role_epochs),
+        role_epochs=role_epochs,
+        seed_base=ledger["source"]["seed_base"],
+        attempt_seeds=attempt_seeds,
+    )
+
+
+def _load_vox_legacy_run(takes_root: Path, run_id: str) -> CompletionSourceRun:
+    root = _resolve_direct_child(takes_root, run_id, "fixed Vox legacy run")
+    actual = {
+        "ledger_sha256": _file_sha256(root / "ledger.json"),
+        "qc_report_sha256": _file_sha256(root / "qc-report.json"),
+        "manifest_sha256": _file_sha256(root / "manifest-v4.json"),
+        "candidate_set_sha256": _file_sha256(root / "candidate-set.json"),
+    }
+    if actual != VOX_LEGACY_DIGESTS:
+        raise CompletionListeningError(
+            "固定Vox legacy runのledger/QC/manifest/candidate-set digestが漂移しました。",
+        )
+    try:
+        ledger = read_ledger(root / "ledger.json")
+        bundle = validate_snapshot_bundle(
+            snapshot_path=root / "manifest-v4.json",
+            candidate_set_path=root / "candidate-set.json",
+            marker_path=root / "candidate-set.sha256",
+        )
+        qc_authority = validate_qc_report(
+            _read_json(root / "qc-report.json", "Vox QC report"),
+            ledger_path=root / "ledger.json",
+            ledger=ledger,
+        )
+    except (
+        CurationError,
+        OSError,
+        QCReportError,
+        TakeLedgerError,
+        UnicodeError,
+        json.JSONDecodeError,
+    ) as error:
+        raise CompletionListeningError(f"固定Vox legacy runが不正です: {error}") from error
+    groups = {
+        _group_key(item)
+        for item in [*bundle.manifest["candidates"], *bundle.manifest["failures"]]
+    }
+    if (
+        ledger["run_id"] != run_id
+        or groups != VOX_LEGACY_GROUPS
+        or {_group_key(item) for item in ledger["source"]["groups"]}
+        != VOX_LEGACY_GROUPS
+        or bundle.manifest["failures"]
+    ):
+        raise CompletionListeningError("固定Vox legacy runのexact 2 groupが不正です。")
+    _validate_manifest_candidate_authority(
+        run_id=run_id,
+        ledger=ledger,
+        manifest=bundle.manifest,
+        qc_authority=qc_authority,
+        phase_b=None,
+        seed_policy=None,
+    )
+    return CompletionSourceRun(
+        run_id=run_id,
+        model=VOXCPM_MODEL,
+        kind="fixed_legacy_reuse",
+        supersedes_run_id=None,
+        root=root,
+        ledger_sha256=actual["ledger_sha256"],
+        qc_report_sha256=actual["qc_report_sha256"],
+        manifest_sha256=actual["manifest_sha256"],
+        candidate_set_sha256=actual["candidate_set_sha256"],
+        manifest=bundle.manifest,
+        groups=VOX_LEGACY_GROUPS,
+        role_epochs={identity: "legacy-fixed-voxcpm2" for identity in groups},
+        seed_base=ledger["source"]["seed_base"],
+        attempt_seeds=_attempt_seeds_by_group(ledger),
+    )
+
+
+def _validate_manifest_candidate_authority(
+    *,
+    run_id: str,
+    ledger: Mapping[str, Any],
+    manifest: Mapping[str, Any],
+    qc_authority: QCAuthority,
+    phase_b: Mapping[str, Any] | None,
+    seed_policy: str | None,
+) -> None:
+    ledger_by_slot = {
+        _attempt_slot(attempt): attempt for attempt in ledger["attempts"]
+    }
+    candidates_by_slot = {
+        _attempt_slot(candidate): candidate
+        for candidate in manifest["candidates"]
+    }
+    eligible_slots = {
+        slot
+        for slot, attempt in ledger_by_slot.items()
+        if attempt["status"] == "eligible"
+    }
+    if set(candidates_by_slot) != eligible_slots:
+        missing = sorted(eligible_slots - set(candidates_by_slot))
+        extra = sorted(set(candidates_by_slot) - eligible_slots)
+        raise CompletionListeningError(
+            "manifest candidatesがledger eligible terminal attemptと"
+            f"exact一致しません: {run_id}: missing={missing}, extra={extra}",
+        )
+    if seed_policy is not None:
+        if seed_policy != "derived-sha256-v1":
+            raise CompletionListeningError(
+                f"Phase B seed policyが不正です: {run_id}",
+            )
+        for slot, attempt in ledger_by_slot.items():
+            expected_seed = derive_seed(
+                policy_version=seed_policy,
+                seed_base=ledger["source"]["seed_base"],
+                model=slot[0],
+                scenario=slot[1],
+                line=slot[2],
+                variant=slot[3],
+                index=slot[4],
+                seed_min=PHASE_B_SEED_MIN,
+                seed_max=PHASE_B_SEED_MAX,
+            )
+            if attempt["generation"]["seed"] != expected_seed:
+                raise CompletionListeningError(
+                    "ledger attempt seedがsource seed_baseからのcanonical"
+                    f" derive値と一致しません: {run_id}: {slot}",
+                )
+    recipe_version = ledger["source"]["recipe_version"]
+    for slot, candidate in candidates_by_slot.items():
+        attempt = ledger_by_slot[slot]
+        qc_attempt = qc_authority.attempts_by_slot.get(slot)
+        if (
+            qc_attempt is None
+            or qc_attempt["status"] != "eligible"
+            or qc_attempt["gates"] != attempt["gates"]
+        ):
+            raise CompletionListeningError(
+                f"candidateのQC slot authorityが不正です: {run_id}: {slot}",
+            )
+        audio = attempt["audio"]
+        generation = attempt["generation"]
+        params = candidate["gen_params"]
+        expected_public_path = (
+            f"audio/takes/{slot[0]}/{slot[1]}/{slot[2]}/{slot[3]}/"
+            f"take-{slot[4]:04d}-{audio['opus_sha256']}.opus"
+        )
+        if (
+            candidate["take_id"] != attempt["take_id"]
+            or candidate["generation_input_sha256"]
+            != attempt["generation_input_sha256"]
+            or candidate["sha256"] != audio["opus_sha256"]
+            or candidate["path"] != expected_public_path
+            or params["seed"] != generation["seed"]
+            or params["sampling"] != generation["sampling"]
+            or params["recipe_version"] != recipe_version
+            or candidate["rtf"] != generation["rtf"]
+            or candidate["gate"]
+            != {
+                "mechanical": attempt["gates"]["mechanical"],
+                "content": attempt["gates"]["content"],
+                "policy_version": qc_authority.gate_policy_version,
+            }
+        ):
+            raise CompletionListeningError(
+                "manifest candidateがledger audio/generation/gate authorityと"
+                f"一致しません: {run_id}: {slot}",
+            )
+        mechanical = qc_attempt["mechanical"]
+        generation_params = (
+            mechanical.get("generation_params")
+            if isinstance(mechanical, Mapping)
+            else None
+        )
+        if not isinstance(generation_params, Mapping) or any(
+            params[kind] != generation_params[kind]
+            for kind in ("requested", "realized")
+        ):
+            raise CompletionListeningError(
+                "manifest candidate generation provenanceがQC authorityと"
+                f"一致しません: {run_id}: {slot}",
+            )
+        if (
+            not isinstance(mechanical, Mapping)
+            or canonical_json(candidate["duration_sec"])
+            != canonical_json(mechanical.get("duration_sec"))
+            or canonical_json(candidate["loudness"])
+            != canonical_json(mechanical.get("loudness"))
+        ):
+            raise CompletionListeningError(
+                "manifest candidate duration/loudnessがQC mechanical authorityと"
+                f"exact一致しません: {run_id}: {slot}",
+            )
+        if phase_b is not None:
+            target_group = next(
+                item
+                for item in phase_b["target_groups"]
+                if _group_key(item) == slot[:4]
+            )
+            provenance = {
+                "protocol": phase_b["protocol"],
+                "plan_sha256": phase_b["plan_sha256"],
+                "run_kind": phase_b["run_kind"],
+                "supersedes_run_id": phase_b["supersedes_run_id"],
+                "anchor_selection_sha256": phase_b[
+                    "anchor_selection_sha256"
+                ],
+                "target_group": target_group,
+            }
+            provenance_sha = hashlib.sha256(
+                canonical_json(provenance).encode("utf-8"),
+            ).hexdigest()
+            if (
+                attempt["phase_b_provenance_sha256"] != provenance_sha
+                or params["requested"].get("phase_b_provenance") != provenance
+                or params["realized"].get("phase_b_provenance") != provenance
+            ):
+                raise CompletionListeningError(
+                    "candidate Phase B provenanceがsource/ledgerと"
+                    f"一致しません: {run_id}: {slot}",
+                )
+def _attempt_slot(value: Mapping[str, Any]) -> tuple[str, str, str, str, int]:
+    return (
+        str(value["model"]),
+        str(value["scenario"]),
+        str(value["line"]),
+        str(value["variant"]),
+        int(value["take_index"]),
+    )
+
+
+def _attempt_seeds_by_group(
+    ledger: Mapping[str, Any],
+) -> dict[tuple[str, str, str, str], frozenset[int]]:
+    result: dict[tuple[str, str, str, str], set[int]] = {
+        _group_key(group): set() for group in ledger["source"]["groups"]
+    }
+    for attempt in ledger["attempts"]:
+        seed = attempt["generation"]["seed"]
+        if isinstance(seed, int) and not isinstance(seed, bool):
+            result[_group_key(attempt)].add(seed)
+    return {identity: frozenset(seeds) for identity, seeds in result.items()}
+
+
+def _load_anchor_selection(
+    path: Path,
+    plan: CompletionPlan,
+) -> tuple[str, dict[tuple[str, str, str], str]]:
+    if not path.is_absolute():
+        raise CompletionListeningError("anchor selectionは絶対pathが必要です。")
+    try:
+        raw = path.read_bytes()
+        document = json.loads(raw)
+        selection = validate_anchor_selection(document)
+    except (
+        CompletionAnchorError,
+        OSError,
+        UnicodeError,
+        json.JSONDecodeError,
+    ) as error:
+        raise CompletionListeningError(f"anchor selectionが不正です: {error}") from error
+    if raw != canonical_json(selection).encode("utf-8"):
+        raise CompletionListeningError("anchor selectionはcanonical bytesが必要です。")
+    digest = hashlib.sha256(raw).hexdigest()
+    marker = path.with_suffix(".sha256")
+    try:
+        marker_value = marker.read_text(encoding="ascii").strip()
+    except (OSError, UnicodeError) as error:
+        raise CompletionListeningError(
+            f"anchor selection SHA markerを読めません: {marker}",
+        ) from error
+    if marker_value != digest or selection["plan_sha256"] != plan.plan_id:
+        raise CompletionListeningError(
+            "anchor selection marker/plan SHAがfrozen planと一致しません。",
+        )
+    epochs = {
+        (group["model"], group["scenario"], group["character"]): group[
+            "role_epoch_sha256"
+        ]
+        for group in selection["groups"]
+    }
+    return digest, epochs
+
+
+def _load_line_characters(
+    scenarios_dir: Path,
+    plan: CompletionPlan,
+) -> dict[tuple[str, str], str]:
+    result: dict[tuple[str, str], str] = {}
+    scenario_ids = sorted({target.scenario for target in plan.targets})
+    for scenario in scenario_ids:
+        path = scenarios_dir / f"{scenario}.yaml"
+        try:
+            document = yaml.safe_load(path.read_text(encoding="utf-8"))
+        except (OSError, UnicodeError, yaml.YAMLError) as error:
+            raise CompletionListeningError(f"scenarioを読めません: {path}: {error}") from error
+        for line in document["lines"]:
+            result[(scenario, str(line["id"]))] = str(line["character"])
+    expected = {(target.scenario, target.line) for target in plan.targets}
+    if not expected.issubset(result):
+        raise CompletionListeningError("Phase B target lineのcharacterを解決できません。")
+    return result
 
 
 def _load_target_lines(
@@ -293,9 +943,7 @@ def _load_target_lines(
     )
     if validation.problems:
         details = "\n".join(str(problem) for problem in validation.problems)
-        raise CompletionListeningError(
-            f"target scenario 検証に失敗しました:\n{details}",
-        )
+        raise CompletionListeningError(f"target scenario 検証に失敗しました:\n{details}")
     source_files: list[dict[str, str]] = []
     lines: list[dict[str, Any]] = []
     found: set[tuple[str, str]] = set()
@@ -308,24 +956,13 @@ def _load_target_lines(
             raise CompletionListeningError(
                 f"target scenario を読み込めません: {path}: {error}",
             ) from error
-        if not isinstance(document, dict) or document.get("id") != scenario_id:
-            raise CompletionListeningError(
-                f"target scenario id が一致しません: {path}",
-            )
         source_files.append(
-            {
-                "path": path.name,
-                "sha256": hashlib.sha256(raw).hexdigest(),
-            },
+            {"path": path.name, "sha256": hashlib.sha256(raw).hexdigest()},
         )
         for line in document["lines"]:
             identity = (scenario_id, str(line["id"]))
             if identity not in targets:
                 continue
-            if identity in found:
-                raise CompletionListeningError(
-                    f"target line が重複しています: {identity}",
-                )
             found.add(identity)
             lines.append(
                 {
@@ -362,13 +999,9 @@ def _local_audio_path(run_root: Path, candidate: Mapping[str, Any]) -> Path:
     try:
         resolved = path.resolve(strict=True)
     except (FileNotFoundError, OSError) as error:
-        raise CompletionListeningError(
-            f"supplement Opus が存在しません: {path}",
-        ) from error
+        raise CompletionListeningError(f"Opus が存在しません: {path}") from error
     if not resolved.is_relative_to(run_root) or not resolved.is_file():
-        raise CompletionListeningError(
-            f"supplement Opus は run root 内の通常ファイルが必要です: {path}",
-        )
+        raise CompletionListeningError(f"Opus は run root 内が必要です: {path}")
     return resolved
 
 
@@ -384,16 +1017,8 @@ def _listening_audio_relative(candidate: Mapping[str, Any]) -> Path:
 
 
 def _verify_audio_sha(path: Path, expected: str) -> None:
-    try:
-        actual = hashlib.sha256(path.read_bytes()).hexdigest()
-    except OSError as error:
-        raise CompletionListeningError(
-            f"Opus SHA-256 を計算できません: {path}: {error}",
-        ) from error
-    if actual != expected:
-        raise CompletionListeningError(
-            f"Opus SHA-256 が manifest と一致しません: {path}",
-        )
+    if _file_sha256(path) != expected:
+        raise CompletionListeningError(f"Opus SHA-256 がmanifestと不一致です: {path}")
 
 
 def _group_key(value: Mapping[str, Any]) -> tuple[str, str, str, str]:
@@ -412,9 +1037,7 @@ def _resolve_direct_child(root: Path, name: str, label: str) -> Path:
     except (FileNotFoundError, OSError) as error:
         raise CompletionListeningError(f"{label} が存在しません: {candidate}") from error
     if resolved.parent != root or not resolved.is_dir():
-        raise CompletionListeningError(
-            f"{label} は root 直下の directory が必要です: {candidate}",
-        )
+        raise CompletionListeningError(f"{label} はroot直下が必要です: {candidate}")
     return resolved
 
 
@@ -424,8 +1047,22 @@ def _require_directory(path: Path, label: str) -> Path:
     except (FileNotFoundError, OSError) as error:
         raise CompletionListeningError(f"{label} が存在しません: {path}") from error
     if not resolved.is_dir():
-        raise CompletionListeningError(f"{label} は directory が必要です: {path}")
+        raise CompletionListeningError(f"{label} はdirectoryが必要です: {path}")
     return resolved
+
+
+def _file_sha256(path: Path) -> str:
+    try:
+        return hashlib.sha256(path.read_bytes()).hexdigest()
+    except OSError as error:
+        raise CompletionListeningError(f"file SHAを計算できません: {path}") from error
+
+
+def _read_json(path: Path, label: str) -> Any:
+    try:
+        return json.loads(path.read_bytes())
+    except (OSError, UnicodeError, json.JSONDecodeError) as error:
+        raise CompletionListeningError(f"{label}を読めません: {path}: {error}") from error
 
 
 def _write_new_file(path: Path, payload: bytes) -> None:
@@ -434,6 +1071,4 @@ def _write_new_file(path: Path, payload: bytes) -> None:
             handle.write(payload)
             handle.flush()
     except FileExistsError as error:
-        raise CompletionListeningError(
-            f"listening file が既に存在します: {path}",
-        ) from error
+        raise CompletionListeningError(f"file が既に存在します: {path}") from error

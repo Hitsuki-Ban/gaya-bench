@@ -25,10 +25,10 @@ from gaya_pipeline.take_identity import canonical_json
 from gaya_pipeline.take_manifest_v4 import TakeManifestError, validate_manifest_v4
 
 
-FORMAT_VERSION = 3
-PROTOCOL = "take-selection-v2"
+FORMAT_VERSION = 4
+PROTOCOL = "role-baseline-selection-v1"
 DECISION_FORMAT_VERSION = 1
-DECISION_PROTOCOL = "baseline-completion-decision-v1"
+DECISION_PROTOCOL = "role-baseline-decision-v1"
 BEST_AVAILABLE_POLICY = "missing-slot-best-of-n-v1"
 BEST_AVAILABLE_REVIEWER = "owner"
 MINIMUM_ELIGIBLE_CANDIDATES = 3
@@ -40,8 +40,22 @@ BASE_SELECTION_SHA256 = (
 )
 QWEN_MODEL = "qwen3-tts-12hz-1.7b"
 
-ROOT_FIELDS = {"format_version", "protocol", "candidate_set_sha256", "groups"}
-GROUP_FIELDS = {*GROUP_KEYS, "authority", "candidates", "decision"}
+ROOT_FIELDS = {
+    "format_version",
+    "protocol",
+    "plan_sha256",
+    "anchor_selection_sha256",
+    "candidate_set_sha256",
+    "groups",
+}
+SELECTION_GROUP_FIELDS = {
+    *GROUP_KEYS,
+    "role_epoch_sha256",
+    "authority",
+    "candidates",
+    "decision",
+}
+DECISION_GROUP_FIELDS = {*SELECTION_GROUP_FIELDS, "group_sha256"}
 HUMAN_AUTHORITY_FIELDS = {"type", "rubric_version"}
 AUTOMATIC_AUTHORITY_FIELDS = {
     "type",
@@ -79,7 +93,7 @@ BEST_RUBRIC_FIELDS = {
 
 
 def validate_completion_selection(document: Any) -> dict[str, Any]:
-    """Validate and canonicalize the complete release selection (format v3)."""
+    """Validate and canonicalize the complete role-baseline selection."""
 
     return _validate_document(
         document,
@@ -87,6 +101,7 @@ def validate_completion_selection(document: Any) -> dict[str, Any]:
         protocol=PROTOCOL,
         best_available_only=False,
         label="completion selection",
+        bind_group_sha256=False,
     )
 
 
@@ -103,6 +118,7 @@ def validate_completion_decision(document: Any) -> dict[str, Any]:
         protocol=DECISION_PROTOCOL,
         best_available_only=True,
         label="completion decision",
+        bind_group_sha256=True,
     )
 
 
@@ -236,6 +252,7 @@ def _validate_document(
     protocol: str,
     best_available_only: bool,
     label: str,
+    bind_group_sha256: bool,
 ) -> dict[str, Any]:
     root = _exact(document, ROOT_FIELDS, label)
     if root["format_version"] != format_version:
@@ -246,6 +263,11 @@ def _validate_document(
         root["candidate_set_sha256"],
         f"{label}.candidate_set_sha256",
     )
+    plan_sha256 = _sha(root["plan_sha256"], f"{label}.plan_sha256")
+    anchor_selection_sha256 = _sha(
+        root["anchor_selection_sha256"],
+        f"{label}.anchor_selection_sha256",
+    )
     if not isinstance(root["groups"], list) or not root["groups"]:
         raise CurationError(f"{label}.groups は1件以上の配列が必要です。")
 
@@ -255,9 +277,24 @@ def _validate_document(
     seen_paths: set[str] = set()
     for index, value in enumerate(root["groups"]):
         field = f"{label}.groups[{index}]"
-        group = _exact(value, GROUP_FIELDS, field)
+        group = _exact(
+            value,
+            DECISION_GROUP_FIELDS
+            if bind_group_sha256
+            else SELECTION_GROUP_FIELDS,
+            field,
+        )
         identity = tuple(
             _path_segment(group[key], f"{field}.{key}") for key in GROUP_KEYS
+        )
+        role_epoch_sha256 = _sha(
+            group["role_epoch_sha256"],
+            f"{field}.role_epoch_sha256",
+        )
+        group_sha256 = (
+            _sha(group["group_sha256"], f"{field}.group_sha256")
+            if bind_group_sha256
+            else None
         )
         if identity in seen_groups:
             raise CurationError(f"{label} group が重複しています。")
@@ -306,19 +343,23 @@ def _validate_document(
             if decision["type"] != "selected":
                 raise CurationError("best_available group は1件の selected が必要です。")
 
-        normalized_groups.append(
-            {
-                **dict(zip(GROUP_KEYS, identity, strict=True)),
-                "authority": authority,
-                "candidates": sorted(candidates, key=lambda item: item["take_id"]),
-                "decision": decision,
-            },
-        )
+        normalized_group = {
+            **dict(zip(GROUP_KEYS, identity, strict=True)),
+            "role_epoch_sha256": role_epoch_sha256,
+            "authority": authority,
+            "candidates": sorted(candidates, key=lambda item: item["take_id"]),
+            "decision": decision,
+        }
+        if group_sha256 is not None:
+            normalized_group["group_sha256"] = group_sha256
+        normalized_groups.append(normalized_group)
 
     normalized_groups.sort(key=lambda item: _group_key(item))
     return {
         "format_version": format_version,
         "protocol": protocol,
+        "plan_sha256": plan_sha256,
+        "anchor_selection_sha256": anchor_selection_sha256,
         "candidate_set_sha256": candidate_set_sha256,
         "groups": normalized_groups,
     }

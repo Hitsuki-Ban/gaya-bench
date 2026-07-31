@@ -21,10 +21,11 @@
 3. Chatterbox / CosyVoice / GPT-SoVITS 共通の clone assignment で、男性4役
    12行が女性 teen reference へ割り当てられていた。
 
-このため Qwen は「シナリオの明示 reference、なければ役ごとの VoiceDesign anchor」、
-Irodori は「明示 reference、なければ役ごとの no-reference anchor」へ直し、すべての
-anchor を同一役の全台詞で再利用する。clone assignment の4件は、現在の素材に男性
-child / teen がないため、年齢近似より binary gender の一致を優先して成人男性
+このため Qwen は「シナリオの明示 reference、なければ人評で確定した役別
+VoiceDesign anchor」、Irodori は「明示 reference、なければ人評で確定した役別
+no-reference anchor」へ直し、frozen completion plan に拘束された同じ anchor を
+同一役の全台詞で再利用する。clone assignment の4件は、現在の素材に男性 child /
+teen がないため、年齢近似より binary gender の一致を優先して成人男性
 `hadou-emotion-11` に直す。これは年齢まで exact になったという意味ではない。
 
 ## Source truth の全量監査
@@ -45,6 +46,15 @@ evidence を同じ行で対照する。生成コマンドは次のとおり。
 `reference.prepare_state_sha256` は adapter が実際に受け取った clip / anchor SHA、
 `reference.audit_fixture_source_sha256` は一時 WAV の source SHA である。fixture は
 監査終了時に削除され、公開素材や生成物として扱わない。
+
+Qwen / Irodori の `reference_voice=null` 53役については、repository の
+`docs/research/full-baseline-completion/plan.json` を正式 loader で検証し、2モデル
+×53役の deterministic PCM anchor、canonical `role-anchor-selection-v1`、隣接
+SHA marker を一時領域へ構築する。各選択は正式 `resolve_selected_anchor()` で
+plan SHA、model revision、完全 role identity、review/selected role epoch、
+decision/audio SHA を再検証してから production adapter の `prepare()` へ渡す。
+各 receipt の `reference.selected_anchor` は `generation_input()` が返した実値であり、
+selection / marker / WAV / epoch のいずれを改変しても監査は fail-fast する。
 
 ```powershell
 uv run --project pipeline --locked --no-sync python -m gaya_pipeline.role_conditioning_audit `
@@ -83,7 +93,7 @@ VoxCPM2 の145件は source 側では role-design identity を検証できるが
 `match` とせず `unverifiable` とした。これらを committed snapshot に隠さず記録し、
 再生成・公開 provenance 更新後に解消する。
 `source-audit.json` SHA-256 は
-`31deb7bc0e9a32b5400623d87f9154fb5fda0697302373188187f3cf884981bb`。
+`63842284e17ee8ceafdff54dc3aad7c651fd4a35f3bc80af6069b7d59de21fb8`。
 
 ## モデル別の実入力
 
@@ -93,8 +103,8 @@ VoxCPM2 の145件は source 側では role-design identity を検証できるが
 | Chatterbox multilingual v3 | target text、毎回の reference WAV、intensity | 参照声以外の役柄 text は unsupported |
 | CosyVoice3 | target text、毎回の reference WAV、emotion instruction | 参照声以外の役柄 text は unsupported |
 | GPT-SoVITS | target text、毎回の reference WAV | 参照声以外の役柄 text は unsupported |
-| Irodori-TTS | reference WAV と完全な role / scene / delivery caption | 修正対象 |
-| Qwen3-TTS | scenario reference または完全な role prompt から作る役別 anchor | 修正対象 |
+| Irodori-TTS | scenario reference または frozen selection の人評済み役別 anchor、完全な role / scene / delivery caption | 修正対象 |
+| Qwen3-TTS | scenario reference または frozen selection の人評済み VoiceDesign anchor | 修正対象 |
 | Supertonic 3 | 10 built-in preset の明示 assignment | gender は対応、年齢・役柄 text は unsupported |
 | VoxCPM2 | reference または gender / age / archetype / voice / personality の役別設計 | 現行経路は適正 |
 
