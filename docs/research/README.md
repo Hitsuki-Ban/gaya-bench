@@ -13,5 +13,6 @@
 | `rekion-download-feasibility.md` | NDL「歴史的音源」の音源取得可否・公開メタデータ集計・代替経路 | Codex |
 | `qwen-emotion-bank-ab/` | Qwen3-TTS 感情参照bankのblind A/B | Codex + Owner |
 | `qwen-gender-identity-canary/` | Qwen3-TTS gender指定と感情間speaker identityのblind canary | Codex + Owner |
+| `reference-bundles/` | 参照バンドル v1 の公開/非公開分離、8 adapter 入力要件、58役 coverage、権利・収録・移行設計 (#179 Phase 1) | Codex |
 
 ルール: 主張には出典URLを付ける。ライセンスは一次情報 (LICENSE/モデルカード/公式規約) で確認。不確実な点は「要確認」と明記。

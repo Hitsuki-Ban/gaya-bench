@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import sys
 from collections.abc import Sequence
+from datetime import date
 from pathlib import Path
 
 from gaya_pipeline.curation import (
@@ -38,6 +39,10 @@ from gaya_pipeline.public_audio import (
     PublicAudioSummary,
     verify_public_audio,
 )
+from gaya_pipeline.reference_bundles import (
+    ReferenceBundleCatalogError,
+    validate_reference_bundle_catalog,
+)
 from gaya_pipeline.release import (
     ReleaseError,
     ReleaseFinalizeSummary,
@@ -51,6 +56,15 @@ from gaya_pipeline.voice_assets import (
     default_voices_dir,
     validate_local_voice_assets,
 )
+
+
+def _parse_iso_date(value: str) -> date:
+    try:
+        return date.fromisoformat(value)
+    except ValueError as error:
+        raise argparse.ArgumentTypeError(
+            "--as-of は YYYY-MM-DD 形式で指定してください。",
+        ) from error
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -85,6 +99,33 @@ def build_parser() -> argparse.ArgumentParser:
         type=Path,
         default=default_voices_dir(),
         help="参照音声キットのディレクトリ",
+    )
+
+    reference_bundles_parser = subparsers.add_parser(
+        "reference-bundles",
+        help="参考バンドル catalog を操作する",
+    )
+    reference_bundles_subparsers = reference_bundles_parser.add_subparsers(
+        dest="reference_bundles_command",
+        required=True,
+    )
+    reference_bundles_validate_parser = (
+        reference_bundles_subparsers.add_parser(
+            "catalog-validate",
+            help="参考バンドル catalog の公開メタデータを厳密検証する",
+        )
+    )
+    reference_bundles_validate_parser.add_argument(
+        "--catalog",
+        required=True,
+        type=Path,
+        help="catalog の絶対パス",
+    )
+    reference_bundles_validate_parser.add_argument(
+        "--as-of",
+        required=True,
+        type=_parse_iso_date,
+        help="production 権利を判定する基準日（YYYY-MM-DD）",
     )
 
     gen_parser = subparsers.add_parser(
@@ -370,6 +411,27 @@ def main(argv: Sequence[str] | None = None) -> int:
             return 1
 
         print(f"検証成功: {len(result.voice_ids)} 参照音声")
+        return 0
+
+    if args.command == "reference-bundles":
+        if args.reference_bundles_command != "catalog-validate":
+            raise AssertionError(
+                "unknown reference-bundles command: "
+                f"{args.reference_bundles_command}",
+            )
+        try:
+            summary = validate_reference_bundle_catalog(
+                args.catalog,
+                as_of=args.as_of,
+            )
+        except ReferenceBundleCatalogError as error:
+            print(f"ERROR: {error}", file=sys.stderr)
+            return 1
+        print(
+            f"検証成功: {summary.bundle_count} バンドル / "
+            f"{summary.assignment_count} 割当 / "
+            f"{summary.synthetic_policy_count} 合成ポリシー",
+        )
         return 0
 
     if args.command == "gen":

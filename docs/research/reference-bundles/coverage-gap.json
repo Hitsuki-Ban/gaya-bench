@@ -1,0 +1,225 @@
+{
+  "format_version": 1,
+  "basis": {
+    "scenario_commit": "19a435ba2b675022a9f52c5fecf59340fbf642ea",
+    "scenario_count": 15,
+    "role_count": 58,
+    "bundle_count": 5,
+    "assignment_contract": "issue-177-and-174-corrected-release",
+    "source_issue_urls": [
+      "https://github.com/Hitsuki-Ban/gaya-bench/issues/177#issuecomment-5136919267",
+      "https://github.com/Hitsuki-Ban/gaya-bench/issues/174#issuecomment-5139423335"
+    ]
+  },
+  "status_definitions": {
+    "gender_exact": "binary role gender equals the assigned bundle gender",
+    "gender_unsupported_neutral": "role gender is neutral and no neutral bundle exists in v1",
+    "age_exact": "role age equals the assigned bundle age",
+    "age_approximate": "role age differs from the assigned bundle age",
+    "kind_exact": "role is human",
+    "kind_mismatch": "role is machine, creature, or spirit but the assigned bundle is a human voice",
+    "all_attributes_exact": "gender, age, and kind are all exact"
+  },
+  "summary": {
+    "gender": {
+      "exact": 51,
+      "unsupported_neutral": 7,
+      "binary_mismatch": 0
+    },
+    "age": {
+      "exact": 21,
+      "approximate": 37
+    },
+    "gender_age": {
+      "exact": 18,
+      "gap": 40
+    },
+    "kind": {
+      "exact": 46,
+      "mismatch": 12
+    },
+    "all_attributes": {
+      "exact": 16,
+      "gap": 42
+    },
+    "primary_groups": {
+      "all_attributes_exact": 16,
+      "human_age_approximate": 27,
+      "human_neutral_unsupported": 3,
+      "nonhuman_kind_mismatch_binary_gender": 8,
+      "nonhuman_kind_mismatch_neutral": 4
+    }
+  },
+  "role_truth": [
+    {"role_id":"battlefield-camp/wounded","kind":"human","gender":"male","age":"adult","archetype":"負傷兵","voice":"掠れた低い声。息が浅く途切れがち。","personality":"気丈に振る舞おうとするが、痛みに耐えかねている。"},
+    {"role_id":"battlefield-camp/messenger","kind":"human","gender":"female","age":"young_adult","archetype":"伝令","voice":"息切れした早口。緊張で声が上ずっている。","personality":"責任感が強く、報告を最優先に動く。"},
+    {"role_id":"battlefield-camp/veteran-soldier","kind":"human","gender":"male","age":"middle_aged","archetype":"古参兵","voice":"低く重い声。感情を抑えた話し方。","personality":"多くの戦場を経験し達観しているが、内心は疲弊している。"},
+    {"role_id":"battlefield-camp/medic","kind":"human","gender":"female","age":"adult","archetype":"衛生兵","voice":"張り詰めた早口だが芯のある声。指示は明瞭。","personality":"冷静さを保とうと努めるが、余裕はない。"},
+    {"role_id":"castle-gate/guard-otoko","kind":"human","gender":"male","age":"young_adult","archetype":"衛兵","voice":"低めでよく通る声。直立した姿勢から出す張りのある発声。","personality":"生真面目で融通が利かない。まだ経験の浅い新人。"},
+    {"role_id":"castle-gate/guard-onna","kind":"human","gender":"female","age":"young_adult","archetype":"衛兵","voice":"硬質でよく通る声。抑揚を抑えた規律正しい話し方。","personality":"冷静沈着で無駄口を叩かない。仕事には忠実。"},
+    {"role_id":"castle-gate/captain","kind":"human","gender":"female","age":"middle_aged","archetype":"隊長","voice":"低く太い芯のある声。短く言い切る話し方。威圧感がある。","personality":"経験豊富で厳格。部下にも旅人にも容赦しない。"},
+    {"role_id":"castle-gate/merchant","kind":"human","gender":"male","age":"adult","archetype":"旅商人","voice":"愛想のいいやや高めの声。早口になりがちで愛想笑いが混じる。","personality":"如才ないが内心では急いでいる。"},
+    {"role_id":"chinatown-chat/mahjong-inkyo","kind":"human","gender":"male","age":"elderly","archetype":"隠居","voice":"かすれた低い声。ゆったりと間を取る話し方。","personality":"勝ち負けにこだわらないと言いつつ、負けは根に持つ。"},
+    {"role_id":"chinatown-chat/chakan-obaa","kind":"human","gender":"female","age":"elderly","archetype":"茶館の常連","voice":"よく回る高めのしわがれ声。噂話になると早口になる。","personality":"路地一番の情報通。話に尾ひれをつけがち。"},
+    {"role_id":"chinatown-chat/wakate-tenin","kind":"human","gender":"male","age":"young_adult","archetype":"食堂の店員","voice":"人懐こい明るい声。仕事終わりで少し気が抜けている。","personality":"聞き上手で年寄りたちに可愛がられている。"},
+    {"role_id":"chinatown-chat/kanpo-shujin","kind":"human","gender":"male","age":"middle_aged","archetype":"漢方屋","voice":"落ち着いた低めの声。効能を語る講釈口調が染み付いている。","personality":"商売っ気より講釈が先に立つ。"},
+    {"role_id":"chinatown-street/tenshin-okami","kind":"human","gender":"female","age":"adult","archetype":"点心売り","voice":"よく通る張りのある中音域。湯気越しでも届く景気のいい声。","personality":"手際がよく口も回る。常連の顔は忘れない。"},
+    {"role_id":"chinatown-street/shokudo-oyaji","kind":"human","gender":"male","age":"middle_aged","archetype":"食堂の主人","voice":"野太いだみ声。厨房の奥から張る声が癖になっている。","personality":"豪快で世話焼き。自家製の辛さが自慢。"},
+    {"role_id":"chinatown-street/kaimono-musume","kind":"human","gender":"female","age":"teen","archetype":"住人の娘","voice":"明るく軽やかな高めの声。歌うような抑揚。","personality":"おつかいの途中でつい寄り道してしまう。"},
+    {"role_id":"chinatown-street/nimotsu-ani","kind":"human","gender":"male","age":"young_adult","archetype":"荷運び人足","voice":"張りのある若い声。息が上がっても声量が落ちない。","personality":"気は優しくて力持ち。通りの誰とでも顔見知り。"},
+    {"role_id":"clockwork-plaza/guide-automaton","kind":"machine","gender":"neutral","age":"adult","archetype":"案内係の自動人形","voice":"人外(機械)。性別を感じさせない中庸の音域で、抑揚をほぼ持たない合成音。 全音節を等しい長さ・等しい音量で刻み、文末も下げずに平坦のまま切る。 口調だけは丁寧語で、内容と発声の温度差を作る。","personality":"常に礼儀正しいが、意味を理解していない定型応答しかできない。"},
+    {"role_id":"clockwork-plaza/sentry-unit","kind":"machine","gender":"male","age":"middle_aged","archetype":"警備用自動機","voice":"人外(機械)。低く重い金属質の合成音。息継ぎがなく、一定の大音量で押し切る。 語尾を伸ばさず断ち切る。感情ではなく音量と密度だけで威圧を作る。","personality":"規則に忠実。交渉の余地を持たない。"},
+    {"role_id":"clockwork-plaza/vendor-doll","kind":"machine","gender":"female","age":"young_adult","archetype":"物売りの自動人形","voice":"人外(機械・故障中)。もとは明るい客寄せ用の高めの声だが、駆動系が傷んで 音程が不安定に上下し、同じ語を吃るように繰り返す。音が一瞬抜ける(音飛びする)。","personality":"壊れてもなお接客の定型文を吐き続ける。時折それ以外の言葉が漏れる。"},
+    {"role_id":"clockwork-plaza/fortune-doll","kind":"machine","gender":"female","age":"young_adult","archetype":"占いカラクリ","voice":"人外(機械)。人間を模した合成音声だが、オルゴールのように一定のリズムを刻んで話す。 機械の中では珍しく音高に緩やかな抑揚をつけて調律されているが、拍の間隔そのものは決して崩れない。","personality":"神秘的な演出のため、他の機械よりも感情表現寄りに調律されている。"},
+    {"role_id":"dungeon-entrance/vanguard","kind":"human","gender":"male","age":"adult","archetype":"前衛の戦士","voice":"低く落ち着いた声。小声でも芯が通って聞き取りやすい、抑制の効いた声。","personality":"場数を踏んでいるが慢心はしない。仲間を落ち着かせる声かけを欠かさない。"},
+    {"role_id":"dungeon-entrance/rookie-archer","kind":"human","gender":"female","age":"teen","archetype":"新米冒険者","voice":"高めの若い声。緊張で微かに震え、語尾がかすれやすい。","personality":"虚勢を張るが本当は怖い。軽口で自分の不安を誤魔化そうとする。"},
+    {"role_id":"dungeon-entrance/scout","kind":"human","gender":"female","age":"young_adult","archetype":"斥候","voice":"低く抑えた囁き声。息を潜めるのに慣れており、子音がはっきり聞き取れる。","personality":"冷静沈着で無駄口は叩かないが、仲間への気遣いは細やか。"},
+    {"role_id":"dungeon-entrance/old-guide","kind":"human","gender":"male","age":"elderly","archetype":"元冒険者の案内人","voice":"しわがれた低い声。息が混じるかすれ声で、囁くような話し方が染み付いている。","personality":"場慣れした皮肉屋。緊張をほぐす軽口が得意な世話焼き。"},
+    {"role_id":"festival-night/yatai-obasan","kind":"human","gender":"female","age":"adult","archetype":"屋台の売り子","voice":"威勢のいいハスキー気味の中音域。屋台の油がはぜる音に負けじと張る、通りのいい呼び込み声。","personality":"気風がよく愛想がいい。常連にはついおまけをしてしまう世話焼き。"},
+    {"role_id":"festival-night/matsuri-wakamono","kind":"human","gender":"male","age":"young_adult","archetype":"祭り客","voice":"張りのある高めの男声。酒と興奮でところどころ上ずり、テンポが速い。","personality":"誰とでもすぐ打ち解ける陽気な性格。祭りとなると際限なくはしゃぐ。"},
+    {"role_id":"festival-night/matsuri-kid","kind":"human","gender":"neutral","age":"child","archetype":"祭り客の子供","voice":"甲高く舌足らずな子供の声。興奮すると声が裏返り、息継ぎが浅くなる。","personality":"好奇心旺盛でじっとしていられない。初めての夜店にすっかり夢中。"},
+    {"role_id":"festival-night/mikoshi-katsugite","kind":"human","gender":"male","age":"middle_aged","archetype":"神輿の担ぎ手","voice":"野太く低いだみ声。祭り太鼓に負けない腹の底からの声で、掛け声で微かに潰れている。","personality":"祭り一番の盛り上げ役。豪快で面倒見のいい兄貴分。"},
+    {"role_id":"goblin-camp/goblin-lookout","kind":"creature","gender":"male","age":"teen","archetype":"小鬼の斥候","voice":"人外(魔物)。人間の少年より一段高い、耳を刺す甲高いダミ声。喉を潰したような ざらつきを常に含む。語をぶつ切りにし、一語ごとに息を吸う。片言。","personality":"臆病でよく騒ぐ。何か見つけると真っ先に叫ぶ。"},
+    {"role_id":"goblin-camp/goblin-cook","kind":"creature","gender":"female","age":"child","archetype":"小鬼の炊事係","voice":"人外(魔物)。幼児のように高く細い声に、鼻にかかった濁りが混じる。 舌足らずで語尾が跳ねる。笑うと「キシシ」と歯の隙間から音が漏れる。片言。","personality":"食うことしか頭にない。機嫌の上下が激しい。"},
+    {"role_id":"goblin-camp/orc-brother","kind":"creature","gender":"male","age":"middle_aged","archetype":"群れの頭","voice":"人外(魔物)。腹の底から出る野太い超低音。話す前に必ず低い唸りが漏れる。 話速は遅く、語尾を重く落とす。小鬼どもと違い言葉は流暢。","personality":"短気だが群れは仕切る。無駄口を嫌う。"},
+    {"role_id":"goblin-camp/goblin-shaman","kind":"creature","gender":"neutral","age":"elderly","archetype":"小鬼の祈祷師","voice":"人外(魔物)。かすれて息の抜ける枯れ声。性別の判別がつかない。 詠唱の癖で同じ節を二度繰り返し、語尾を歌のように揺らす。片言と人語が混ざる。","personality":"何を見ているのか分からない。急に笑い、急に泣く。"},
+    {"role_id":"guild-hall/receptionist","kind":"human","gender":"female","age":"young_adult","archetype":"受付","voice":"滑舌明瞭で落ち着いた声。応対に慣れた丁寧な話し方。","personality":"事務的だが親身。忙しくても物腰は崩れない。"},
+    {"role_id":"guild-hall/veteran","kind":"human","gender":"male","age":"adult","archetype":"古参の冒険者","voice":"よく通る低めの声。自信たっぷりにゆっくり話す。","personality":"武勇伝を語りたがる世話焼き。少し説教くさい。"},
+    {"role_id":"guild-hall/rookie","kind":"human","gender":"male","age":"teen","archetype":"新米冒険者","voice":"声変わり途中の高めの声。興奮すると早口になる。","personality":"意気込みは十分だが空回りしがち。"},
+    {"role_id":"guild-hall/weary","kind":"human","gender":"female","age":"middle_aged","archetype":"中堅の冒険者","voice":"掠れ気味の低い声。抑揚が少なくため息交じり。","personality":"依頼をこなしすぎて達観気味。愚痴っぽい。"},
+    {"role_id":"market-day/fruit-vendor","kind":"human","gender":"male","age":"adult","archetype":"露天商","voice":"よく通る威勢のいい声。腹から出ている呼び込みの声。","personality":"商売熱心で調子がいい。客あしらいに慣れている。"},
+    {"role_id":"market-day/shopper","kind":"human","gender":"female","age":"middle_aged","archetype":"町の主婦","voice":"落ち着いた中音域。世間話に慣れた滑らかな話し方。","personality":"目利きに自信あり。値切りは日常の楽しみ。"},
+    {"role_id":"market-day/street-kid","kind":"human","gender":"neutral","age":"child","archetype":"悪ガキ","voice":"甲高く元気な子供の声。息が続く限り一気に喋る。","personality":"好奇心旺盛でじっとしていない。"},
+    {"role_id":"spirit-forest/pixie","kind":"spirit","gender":"neutral","age":"child","archetype":"森の小妖精","voice":"人外(精霊)。人間の子供より一段上、鈴を弾くような超高音。極端な早口で、 音節を飛ばしながら喋る。息継ぎが聞こえない。声量は小さいのに音が鋭く抜ける。","personality":"気まぐれで飽きっぽい。人を驚かせて笑う。"},
+    {"role_id":"spirit-forest/elder-tree","kind":"spirit","gender":"male","age":"elderly","archetype":"森の古木","voice":"人外(精霊)。地鳴りのような超低音。話速は極端に遅く、一音ごとに長い間が入る。 木がきしむような軋みを声に混ぜる。抑揚はほとんどなく、音量は常に一定。","personality":"何百年も同じ場所にいる。急ぐという概念がない。"},
+    {"role_id":"spirit-forest/wisp","kind":"spirit","gender":"neutral","age":"young_adult","archetype":"さまよう火の霊","voice":"人外(精霊)。声帯をほとんど鳴らさない息だけの囁き。子音の摩擦音だけが際立ち、 母音は輪郭を失う。音高は判別できないほど低く均される。距離感がつかめない鳴り方。","personality":"生者に執着している。近づけたいのか遠ざけたいのか自分でも分からない。"},
+    {"role_id":"spirit-forest/spring-sprite","kind":"spirit","gender":"female","age":"young_adult","archetype":"水の精霊","voice":"人外(精霊)。澄んだ中高音で、語尾が自然に歌へ溶ける。常に一定のゆらぎを持ち、 話しているのに旋律が聞こえるような発話。息が長く、途切れない。","personality":"穏やかだが、泉を汚す者には態度が一変する。"},
+    {"role_id":"tavern-night/barmaid","kind":"human","gender":"female","age":"young_adult","archetype":"給仕","voice":"明るく張りのある声。やや早口で、喧騒を通す接客の声。","personality":"気さくで世話焼き。常連には遠慮がない。"},
+    {"role_id":"tavern-night/drunkard","kind":"human","gender":"male","age":"middle_aged","archetype":"酔客","voice":"濁声で呂律が怪しい。声量の制御ができていない。","personality":"陽気だが絡み酒。同じ話を何度もする。"},
+    {"role_id":"tavern-night/old-regular","kind":"human","gender":"male","age":"elderly","archetype":"隠居した職人","voice":"しわがれた低い声。ゆっくりとした口調。","personality":"世相を憂いがちだが、酒場の空気は好き。"},
+    {"role_id":"village-morning/granny","kind":"human","gender":"female","age":"elderly","archetype":"隠居","voice":"しわがれた高めの声。ゆっくりとした丁寧な口調。","personality":"世話好きで近所付き合いを大事にする。長年の畑仕事で足腰が弱い。"},
+    {"role_id":"village-morning/teen-boy","kind":"human","gender":"male","age":"teen","archetype":"農家の手伝い","voice":"声変わり途中の不安定な高めの声。元気だが時折かすれる。","personality":"手伝いをサボりたいが根は素直。とにかく眠いのが悩み。"},
+    {"role_id":"village-morning/farm-wife","kind":"human","gender":"female","age":"adult","archetype":"農婦","voice":"温かみのある明るい中音域。近所への挨拶に慣れた滑らかな話し方。","personality":"世話好きでよく喋る。洗濯や家事をしながら鶏の世話もする。"},
+    {"role_id":"village-morning/farmer-man","kind":"human","gender":"male","age":"middle_aged","archetype":"農夫","voice":"野太く張りのある声。掛け声や号令に慣れている。","personality":"朝から働き者。家畜には優しいが仕事には厳しい。"},
+    {"role_id":"west-crowd/isogi-shinshi","kind":"human","gender":"male","age":"adult","archetype":"勤め人","voice":"低く早口。常に半分うわの空で喋る。","personality":"約束に遅れかけていて余裕がない。"},
+    {"role_id":"west-crowd/oshaberi-fujin","kind":"human","gender":"female","age":"adult","archetype":"街の婦人","voice":"よく通る華やかな中音域。相槌も感嘆も大きい。","personality":"話し出すと止まらない。連れはいつも聞き役。"},
+    {"role_id":"west-crowd/shinbun-shounen","kind":"human","gender":"male","age":"child","archetype":"新聞売り","voice":"甲高い少年の声。売り声で鍛えられてよく通る。","personality":"商売熱心で愛想がいい。お得意の顔は覚えている。"},
+    {"role_id":"west-crowd/machibouke-seinen","kind":"human","gender":"male","age":"young_adult","archetype":"待ち合わせ中の青年","voice":"若く柔らかい声。独り言が多い。","personality":"心配性でいつも約束より早く着く。"},
+    {"role_id":"west-market/hana-uri","kind":"human","gender":"female","age":"young_adult","archetype":"花売り","voice":"涼やかでよく通る声。歌うような呼び込みが癖。","personality":"商売上手で褒め上手。売れ残りを気にしている。"},
+    {"role_id":"west-market/cheese-shujin","kind":"human","gender":"male","age":"middle_aged","archetype":"チーズ職人","voice":"恰幅のよさがそのまま出た太い声。自慢話になると大きくなる。","personality":"誇り高い職人肌。味見をさせたがる。"},
+    {"role_id":"west-market/kyuuji","kind":"human","gender":"neutral","age":"young_adult","archetype":"給仕","voice":"明瞭で歯切れのよい声。皿を運びながらでも通る。","personality":"忙しいほど調子が出る。常連の注文は聞く前に運ぶ。"},
+    {"role_id":"west-market/kankou-fujin","kind":"human","gender":"female","age":"middle_aged","archetype":"旅行者","voice":"おっとりした柔らかい中音域。感嘆が素直に声に出る。","personality":"見るものすべてに感動する。歩き回って少しくたびれ気味。"}
+  ],
+  "legacy_main_male_to_female_teen_mappings": [
+    {
+      "role_id": "goblin-camp/goblin-lookout",
+      "main_bundle_id": "tsukuyomi-corpus-94",
+      "corrected_bundle_id": "hadou-emotion-11"
+    },
+    {
+      "role_id": "guild-hall/rookie",
+      "main_bundle_id": "tsukuyomi-corpus-94",
+      "corrected_bundle_id": "hadou-emotion-11"
+    },
+    {
+      "role_id": "village-morning/teen-boy",
+      "main_bundle_id": "tsukuyomi-corpus-94",
+      "corrected_bundle_id": "hadou-emotion-11"
+    },
+    {
+      "role_id": "west-crowd/shinbun-shounen",
+      "main_bundle_id": "tsukuyomi-corpus-94",
+      "corrected_bundle_id": "hadou-emotion-11"
+    }
+  ],
+  "groups": [
+    {
+      "status": "all_attributes_exact",
+      "count": 16,
+      "roles": [
+        {"role_id":"battlefield-camp/wounded","kind":"human","gender":"male","age":"adult","assigned_bundle_id":"hadou-emotion-11","scenario_explicit_reference":false,"gender_status":"exact","age_status":"exact","kind_status":"exact","gender_age_status":"exact","all_attributes_status":"exact"},
+        {"role_id":"battlefield-camp/messenger","kind":"human","gender":"female","age":"young_adult","assigned_bundle_id":"lux-emotion-76","scenario_explicit_reference":false,"gender_status":"exact","age_status":"exact","kind_status":"exact","gender_age_status":"exact","all_attributes_status":"exact"},
+        {"role_id":"castle-gate/guard-onna","kind":"human","gender":"female","age":"young_adult","assigned_bundle_id":"lux-emotion-76","scenario_explicit_reference":false,"gender_status":"exact","age_status":"exact","kind_status":"exact","gender_age_status":"exact","all_attributes_status":"exact"},
+        {"role_id":"castle-gate/merchant","kind":"human","gender":"male","age":"adult","assigned_bundle_id":"hadou-emotion-11","scenario_explicit_reference":true,"gender_status":"exact","age_status":"exact","kind_status":"exact","gender_age_status":"exact","all_attributes_status":"exact"},
+        {"role_id":"chinatown-chat/chakan-obaa","kind":"human","gender":"female","age":"elderly","assigned_bundle_id":"sayoko-emotion-75","scenario_explicit_reference":false,"gender_status":"exact","age_status":"exact","kind_status":"exact","gender_age_status":"exact","all_attributes_status":"exact"},
+        {"role_id":"chinatown-street/kaimono-musume","kind":"human","gender":"female","age":"teen","assigned_bundle_id":"tsukuyomi-corpus-94","scenario_explicit_reference":true,"gender_status":"exact","age_status":"exact","kind_status":"exact","gender_age_status":"exact","all_attributes_status":"exact"},
+        {"role_id":"dungeon-entrance/vanguard","kind":"human","gender":"male","age":"adult","assigned_bundle_id":"hadou-emotion-11","scenario_explicit_reference":false,"gender_status":"exact","age_status":"exact","kind_status":"exact","gender_age_status":"exact","all_attributes_status":"exact"},
+        {"role_id":"dungeon-entrance/rookie-archer","kind":"human","gender":"female","age":"teen","assigned_bundle_id":"tsukuyomi-corpus-94","scenario_explicit_reference":false,"gender_status":"exact","age_status":"exact","kind_status":"exact","gender_age_status":"exact","all_attributes_status":"exact"},
+        {"role_id":"dungeon-entrance/scout","kind":"human","gender":"female","age":"young_adult","assigned_bundle_id":"lux-emotion-76","scenario_explicit_reference":false,"gender_status":"exact","age_status":"exact","kind_status":"exact","gender_age_status":"exact","all_attributes_status":"exact"},
+        {"role_id":"guild-hall/receptionist","kind":"human","gender":"female","age":"young_adult","assigned_bundle_id":"lux-emotion-76","scenario_explicit_reference":true,"gender_status":"exact","age_status":"exact","kind_status":"exact","gender_age_status":"exact","all_attributes_status":"exact"},
+        {"role_id":"guild-hall/veteran","kind":"human","gender":"male","age":"adult","assigned_bundle_id":"hadou-emotion-11","scenario_explicit_reference":false,"gender_status":"exact","age_status":"exact","kind_status":"exact","gender_age_status":"exact","all_attributes_status":"exact"},
+        {"role_id":"market-day/fruit-vendor","kind":"human","gender":"male","age":"adult","assigned_bundle_id":"hadou-emotion-11","scenario_explicit_reference":false,"gender_status":"exact","age_status":"exact","kind_status":"exact","gender_age_status":"exact","all_attributes_status":"exact"},
+        {"role_id":"tavern-night/barmaid","kind":"human","gender":"female","age":"young_adult","assigned_bundle_id":"amitaro-countdown","scenario_explicit_reference":true,"gender_status":"exact","age_status":"exact","kind_status":"exact","gender_age_status":"exact","all_attributes_status":"exact"},
+        {"role_id":"village-morning/granny","kind":"human","gender":"female","age":"elderly","assigned_bundle_id":"sayoko-emotion-75","scenario_explicit_reference":true,"gender_status":"exact","age_status":"exact","kind_status":"exact","gender_age_status":"exact","all_attributes_status":"exact"},
+        {"role_id":"west-crowd/isogi-shinshi","kind":"human","gender":"male","age":"adult","assigned_bundle_id":"hadou-emotion-11","scenario_explicit_reference":false,"gender_status":"exact","age_status":"exact","kind_status":"exact","gender_age_status":"exact","all_attributes_status":"exact"},
+        {"role_id":"west-market/hana-uri","kind":"human","gender":"female","age":"young_adult","assigned_bundle_id":"lux-emotion-76","scenario_explicit_reference":false,"gender_status":"exact","age_status":"exact","kind_status":"exact","gender_age_status":"exact","all_attributes_status":"exact"}
+      ]
+    },
+    {
+      "status": "human_age_approximate",
+      "count": 27,
+      "roles": [
+        {"role_id":"battlefield-camp/veteran-soldier","kind":"human","gender":"male","age":"middle_aged","assigned_bundle_id":"hadou-emotion-11","scenario_explicit_reference":false,"gender_status":"exact","age_status":"approximate","kind_status":"exact","gender_age_status":"gap","all_attributes_status":"gap"},
+        {"role_id":"battlefield-camp/medic","kind":"human","gender":"female","age":"adult","assigned_bundle_id":"lux-emotion-76","scenario_explicit_reference":false,"gender_status":"exact","age_status":"approximate","kind_status":"exact","gender_age_status":"gap","all_attributes_status":"gap"},
+        {"role_id":"castle-gate/guard-otoko","kind":"human","gender":"male","age":"young_adult","assigned_bundle_id":"hadou-emotion-11","scenario_explicit_reference":false,"gender_status":"exact","age_status":"approximate","kind_status":"exact","gender_age_status":"gap","all_attributes_status":"gap"},
+        {"role_id":"castle-gate/captain","kind":"human","gender":"female","age":"middle_aged","assigned_bundle_id":"lux-emotion-76","scenario_explicit_reference":false,"gender_status":"exact","age_status":"approximate","kind_status":"exact","gender_age_status":"gap","all_attributes_status":"gap"},
+        {"role_id":"chinatown-chat/mahjong-inkyo","kind":"human","gender":"male","age":"elderly","assigned_bundle_id":"hadou-emotion-11","scenario_explicit_reference":false,"gender_status":"exact","age_status":"approximate","kind_status":"exact","gender_age_status":"gap","all_attributes_status":"gap"},
+        {"role_id":"chinatown-chat/wakate-tenin","kind":"human","gender":"male","age":"young_adult","assigned_bundle_id":"hadou-emotion-11","scenario_explicit_reference":false,"gender_status":"exact","age_status":"approximate","kind_status":"exact","gender_age_status":"gap","all_attributes_status":"gap"},
+        {"role_id":"chinatown-chat/kanpo-shujin","kind":"human","gender":"male","age":"middle_aged","assigned_bundle_id":"hadou-emotion-11","scenario_explicit_reference":false,"gender_status":"exact","age_status":"approximate","kind_status":"exact","gender_age_status":"gap","all_attributes_status":"gap"},
+        {"role_id":"chinatown-street/tenshin-okami","kind":"human","gender":"female","age":"adult","assigned_bundle_id":"amitaro-countdown","scenario_explicit_reference":false,"gender_status":"exact","age_status":"approximate","kind_status":"exact","gender_age_status":"gap","all_attributes_status":"gap"},
+        {"role_id":"chinatown-street/shokudo-oyaji","kind":"human","gender":"male","age":"middle_aged","assigned_bundle_id":"hadou-emotion-11","scenario_explicit_reference":false,"gender_status":"exact","age_status":"approximate","kind_status":"exact","gender_age_status":"gap","all_attributes_status":"gap"},
+        {"role_id":"chinatown-street/nimotsu-ani","kind":"human","gender":"male","age":"young_adult","assigned_bundle_id":"hadou-emotion-11","scenario_explicit_reference":false,"gender_status":"exact","age_status":"approximate","kind_status":"exact","gender_age_status":"gap","all_attributes_status":"gap"},
+        {"role_id":"dungeon-entrance/old-guide","kind":"human","gender":"male","age":"elderly","assigned_bundle_id":"hadou-emotion-11","scenario_explicit_reference":false,"gender_status":"exact","age_status":"approximate","kind_status":"exact","gender_age_status":"gap","all_attributes_status":"gap"},
+        {"role_id":"festival-night/yatai-obasan","kind":"human","gender":"female","age":"adult","assigned_bundle_id":"amitaro-countdown","scenario_explicit_reference":false,"gender_status":"exact","age_status":"approximate","kind_status":"exact","gender_age_status":"gap","all_attributes_status":"gap"},
+        {"role_id":"festival-night/matsuri-wakamono","kind":"human","gender":"male","age":"young_adult","assigned_bundle_id":"hadou-emotion-11","scenario_explicit_reference":false,"gender_status":"exact","age_status":"approximate","kind_status":"exact","gender_age_status":"gap","all_attributes_status":"gap"},
+        {"role_id":"festival-night/mikoshi-katsugite","kind":"human","gender":"male","age":"middle_aged","assigned_bundle_id":"hadou-emotion-11","scenario_explicit_reference":false,"gender_status":"exact","age_status":"approximate","kind_status":"exact","gender_age_status":"gap","all_attributes_status":"gap"},
+        {"role_id":"guild-hall/rookie","kind":"human","gender":"male","age":"teen","assigned_bundle_id":"hadou-emotion-11","scenario_explicit_reference":false,"gender_status":"exact","age_status":"approximate","kind_status":"exact","gender_age_status":"gap","all_attributes_status":"gap"},
+        {"role_id":"guild-hall/weary","kind":"human","gender":"female","age":"middle_aged","assigned_bundle_id":"lux-emotion-76","scenario_explicit_reference":false,"gender_status":"exact","age_status":"approximate","kind_status":"exact","gender_age_status":"gap","all_attributes_status":"gap"},
+        {"role_id":"market-day/shopper","kind":"human","gender":"female","age":"middle_aged","assigned_bundle_id":"lux-emotion-76","scenario_explicit_reference":false,"gender_status":"exact","age_status":"approximate","kind_status":"exact","gender_age_status":"gap","all_attributes_status":"gap"},
+        {"role_id":"tavern-night/drunkard","kind":"human","gender":"male","age":"middle_aged","assigned_bundle_id":"hadou-emotion-11","scenario_explicit_reference":false,"gender_status":"exact","age_status":"approximate","kind_status":"exact","gender_age_status":"gap","all_attributes_status":"gap"},
+        {"role_id":"tavern-night/old-regular","kind":"human","gender":"male","age":"elderly","assigned_bundle_id":"hadou-emotion-11","scenario_explicit_reference":false,"gender_status":"exact","age_status":"approximate","kind_status":"exact","gender_age_status":"gap","all_attributes_status":"gap"},
+        {"role_id":"village-morning/teen-boy","kind":"human","gender":"male","age":"teen","assigned_bundle_id":"hadou-emotion-11","scenario_explicit_reference":false,"gender_status":"exact","age_status":"approximate","kind_status":"exact","gender_age_status":"gap","all_attributes_status":"gap"},
+        {"role_id":"village-morning/farm-wife","kind":"human","gender":"female","age":"adult","assigned_bundle_id":"amitaro-countdown","scenario_explicit_reference":false,"gender_status":"exact","age_status":"approximate","kind_status":"exact","gender_age_status":"gap","all_attributes_status":"gap"},
+        {"role_id":"village-morning/farmer-man","kind":"human","gender":"male","age":"middle_aged","assigned_bundle_id":"hadou-emotion-11","scenario_explicit_reference":false,"gender_status":"exact","age_status":"approximate","kind_status":"exact","gender_age_status":"gap","all_attributes_status":"gap"},
+        {"role_id":"west-crowd/oshaberi-fujin","kind":"human","gender":"female","age":"adult","assigned_bundle_id":"amitaro-countdown","scenario_explicit_reference":false,"gender_status":"exact","age_status":"approximate","kind_status":"exact","gender_age_status":"gap","all_attributes_status":"gap"},
+        {"role_id":"west-crowd/shinbun-shounen","kind":"human","gender":"male","age":"child","assigned_bundle_id":"hadou-emotion-11","scenario_explicit_reference":false,"gender_status":"exact","age_status":"approximate","kind_status":"exact","gender_age_status":"gap","all_attributes_status":"gap"},
+        {"role_id":"west-crowd/machibouke-seinen","kind":"human","gender":"male","age":"young_adult","assigned_bundle_id":"hadou-emotion-11","scenario_explicit_reference":false,"gender_status":"exact","age_status":"approximate","kind_status":"exact","gender_age_status":"gap","all_attributes_status":"gap"},
+        {"role_id":"west-market/cheese-shujin","kind":"human","gender":"male","age":"middle_aged","assigned_bundle_id":"hadou-emotion-11","scenario_explicit_reference":false,"gender_status":"exact","age_status":"approximate","kind_status":"exact","gender_age_status":"gap","all_attributes_status":"gap"},
+        {"role_id":"west-market/kankou-fujin","kind":"human","gender":"female","age":"middle_aged","assigned_bundle_id":"lux-emotion-76","scenario_explicit_reference":false,"gender_status":"exact","age_status":"approximate","kind_status":"exact","gender_age_status":"gap","all_attributes_status":"gap"}
+      ]
+    },
+    {
+      "status": "human_neutral_unsupported",
+      "count": 3,
+      "roles": [
+        {"role_id":"festival-night/matsuri-kid","kind":"human","gender":"neutral","age":"child","assigned_bundle_id":"tsukuyomi-corpus-94","scenario_explicit_reference":false,"gender_status":"unsupported_neutral","age_status":"approximate","kind_status":"exact","gender_age_status":"gap","all_attributes_status":"gap"},
+        {"role_id":"market-day/street-kid","kind":"human","gender":"neutral","age":"child","assigned_bundle_id":"tsukuyomi-corpus-94","scenario_explicit_reference":false,"gender_status":"unsupported_neutral","age_status":"approximate","kind_status":"exact","gender_age_status":"gap","all_attributes_status":"gap"},
+        {"role_id":"west-market/kyuuji","kind":"human","gender":"neutral","age":"young_adult","assigned_bundle_id":"hadou-emotion-11","scenario_explicit_reference":false,"gender_status":"unsupported_neutral","age_status":"approximate","kind_status":"exact","gender_age_status":"gap","all_attributes_status":"gap"}
+      ]
+    },
+    {
+      "status": "nonhuman_kind_mismatch_binary_gender",
+      "count": 8,
+      "roles": [
+        {"role_id":"clockwork-plaza/sentry-unit","kind":"machine","gender":"male","age":"middle_aged","assigned_bundle_id":"hadou-emotion-11","scenario_explicit_reference":false,"gender_status":"exact","age_status":"approximate","kind_status":"mismatch","gender_age_status":"gap","all_attributes_status":"gap"},
+        {"role_id":"clockwork-plaza/vendor-doll","kind":"machine","gender":"female","age":"young_adult","assigned_bundle_id":"amitaro-countdown","scenario_explicit_reference":false,"gender_status":"exact","age_status":"exact","kind_status":"mismatch","gender_age_status":"exact","all_attributes_status":"gap"},
+        {"role_id":"clockwork-plaza/fortune-doll","kind":"machine","gender":"female","age":"young_adult","assigned_bundle_id":"tsukuyomi-corpus-94","scenario_explicit_reference":false,"gender_status":"exact","age_status":"approximate","kind_status":"mismatch","gender_age_status":"gap","all_attributes_status":"gap"},
+        {"role_id":"goblin-camp/goblin-lookout","kind":"creature","gender":"male","age":"teen","assigned_bundle_id":"hadou-emotion-11","scenario_explicit_reference":false,"gender_status":"exact","age_status":"approximate","kind_status":"mismatch","gender_age_status":"gap","all_attributes_status":"gap"},
+        {"role_id":"goblin-camp/goblin-cook","kind":"creature","gender":"female","age":"child","assigned_bundle_id":"tsukuyomi-corpus-94","scenario_explicit_reference":false,"gender_status":"exact","age_status":"approximate","kind_status":"mismatch","gender_age_status":"gap","all_attributes_status":"gap"},
+        {"role_id":"goblin-camp/orc-brother","kind":"creature","gender":"male","age":"middle_aged","assigned_bundle_id":"hadou-emotion-11","scenario_explicit_reference":false,"gender_status":"exact","age_status":"approximate","kind_status":"mismatch","gender_age_status":"gap","all_attributes_status":"gap"},
+        {"role_id":"spirit-forest/elder-tree","kind":"spirit","gender":"male","age":"elderly","assigned_bundle_id":"hadou-emotion-11","scenario_explicit_reference":false,"gender_status":"exact","age_status":"approximate","kind_status":"mismatch","gender_age_status":"gap","all_attributes_status":"gap"},
+        {"role_id":"spirit-forest/spring-sprite","kind":"spirit","gender":"female","age":"young_adult","assigned_bundle_id":"lux-emotion-76","scenario_explicit_reference":false,"gender_status":"exact","age_status":"exact","kind_status":"mismatch","gender_age_status":"exact","all_attributes_status":"gap"}
+      ]
+    },
+    {
+      "status": "nonhuman_kind_mismatch_neutral",
+      "count": 4,
+      "roles": [
+        {"role_id":"clockwork-plaza/guide-automaton","kind":"machine","gender":"neutral","age":"adult","assigned_bundle_id":"hadou-emotion-11","scenario_explicit_reference":false,"gender_status":"unsupported_neutral","age_status":"exact","kind_status":"mismatch","gender_age_status":"gap","all_attributes_status":"gap"},
+        {"role_id":"goblin-camp/goblin-shaman","kind":"creature","gender":"neutral","age":"elderly","assigned_bundle_id":"sayoko-emotion-75","scenario_explicit_reference":false,"gender_status":"unsupported_neutral","age_status":"exact","kind_status":"mismatch","gender_age_status":"gap","all_attributes_status":"gap"},
+        {"role_id":"spirit-forest/pixie","kind":"spirit","gender":"neutral","age":"child","assigned_bundle_id":"tsukuyomi-corpus-94","scenario_explicit_reference":false,"gender_status":"unsupported_neutral","age_status":"approximate","kind_status":"mismatch","gender_age_status":"gap","all_attributes_status":"gap"},
+        {"role_id":"spirit-forest/wisp","kind":"spirit","gender":"neutral","age":"young_adult","assigned_bundle_id":"lux-emotion-76","scenario_explicit_reference":false,"gender_status":"unsupported_neutral","age_status":"exact","kind_status":"mismatch","gender_age_status":"gap","all_attributes_status":"gap"}
+      ]
+    }
+  ]
+}

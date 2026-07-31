@@ -1,0 +1,15 @@
+schema_version: synthetic-sources-v1
+policies:
+  - policy_id: official-qwen-voice-design-to-base-v1
+    status: approved
+    type: qwen_voice_design_to_base_clone
+    voice_design_model:
+      repository_id: Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign
+      revision: "1111111111111111111111111111111111111111"
+    base_clone_model:
+      repository_id: Qwen/Qwen3-TTS-12Hz-1.7B-Base
+      revision: "2222222222222222222222222222222222222222"
+    voice_design_output_use: reference_audio_only
+    base_clone_input: generated_reference_audio_and_transcript
+    official_documentation_url: https://github.com/QwenLM/Qwen3-TTS
+    terms_reviewed_on: 2026-07-30

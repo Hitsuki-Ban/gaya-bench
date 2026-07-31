@@ -1,0 +1,158 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://gaya-bench.local/schema/derivative-receipt-v1.schema.json",
+  "title": "Gaya Bench 参照クリップ派生レシート v1",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "receipt_id",
+    "bundle_id",
+    "bundle_manifest_sha256",
+    "adapter_id",
+    "adapter_revision",
+    "recipe_id",
+    "recipe_version",
+    "source_clip_id",
+    "source_asset_sha256",
+    "source_transcript",
+    "inference_reference_sha256",
+    "operations",
+    "output_asset",
+    "toolchain",
+    "created_at"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": { "const": "derivative-receipt-v1" },
+    "receipt_id": { "$ref": "#/$defs/slug" },
+    "bundle_id": { "$ref": "#/$defs/slug" },
+    "bundle_manifest_sha256": { "$ref": "#/$defs/sha256" },
+    "adapter_id": { "$ref": "#/$defs/slug" },
+    "adapter_revision": { "$ref": "#/$defs/nonEmptyString" },
+    "recipe_id": { "$ref": "#/$defs/slug" },
+    "recipe_version": { "$ref": "#/$defs/nonEmptyString" },
+    "source_clip_id": { "$ref": "#/$defs/slug" },
+    "source_asset_sha256": { "$ref": "#/$defs/sha256" },
+    "source_transcript": { "$ref": "#/$defs/transcript" },
+    "inference_reference_sha256": { "$ref": "#/$defs/sha256" },
+    "operations": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/operation" }
+    },
+    "output_asset": { "$ref": "#/$defs/outputAsset" },
+    "toolchain": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/tool" }
+    },
+    "created_at": { "type": "string", "format": "date-time" }
+  },
+  "$defs": {
+    "slug": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "nonEmptyString": {
+      "type": "string",
+      "minLength": 1
+    },
+    "transcript": {
+      "type": "object",
+      "required": ["text", "utf8_sha256"],
+      "additionalProperties": false,
+      "properties": {
+        "text": { "$ref": "#/$defs/nonEmptyString" },
+        "utf8_sha256": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "operation": {
+      "oneOf": [
+        {
+          "type": "object",
+          "required": [
+            "type",
+            "start_frame",
+            "end_frame",
+            "output_transcript"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "type": { "const": "trim" },
+            "start_frame": { "type": "integer", "minimum": 0 },
+            "end_frame": { "type": "integer", "minimum": 1 },
+            "output_transcript": { "$ref": "#/$defs/transcript" }
+          }
+        },
+        {
+          "type": "object",
+          "required": ["type", "sample_rate_hz"],
+          "additionalProperties": false,
+          "properties": {
+            "type": { "const": "resample" },
+            "sample_rate_hz": { "type": "integer", "minimum": 8000 }
+          }
+        },
+        {
+          "type": "object",
+          "required": ["type", "channels"],
+          "additionalProperties": false,
+          "properties": {
+            "type": { "const": "channel_convert" },
+            "channels": { "type": "integer", "minimum": 1, "maximum": 2 }
+          }
+        },
+        {
+          "type": "object",
+          "required": ["type", "target_lufs"],
+          "additionalProperties": false,
+          "properties": {
+            "type": { "const": "loudness_normalize" },
+            "target_lufs": { "type": "number" }
+          }
+        }
+      ]
+    },
+    "outputAsset": {
+      "type": "object",
+      "required": [
+        "object_key",
+        "asset_sha256",
+        "format",
+        "frame_count",
+        "transcript",
+        "pcm"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "object_key": { "$ref": "#/$defs/nonEmptyString" },
+        "asset_sha256": { "$ref": "#/$defs/sha256" },
+        "format": { "const": "wav" },
+        "frame_count": { "type": "integer", "minimum": 1 },
+        "transcript": { "$ref": "#/$defs/transcript" },
+        "pcm": {
+          "type": "object",
+          "required": ["encoding", "sample_rate_hz", "channels"],
+          "additionalProperties": false,
+          "properties": {
+            "encoding": { "const": "pcm_s16le" },
+            "sample_rate_hz": { "type": "integer", "minimum": 8000 },
+            "channels": { "const": 1 }
+          }
+        }
+      }
+    },
+    "tool": {
+      "type": "object",
+      "required": ["name", "version"],
+      "additionalProperties": false,
+      "properties": {
+        "name": { "$ref": "#/$defs/nonEmptyString" },
+        "version": { "$ref": "#/$defs/nonEmptyString" }
+      }
+    }
+  }
+}

@@ -1,0 +1,5 @@
+schema_version: assignments-v1
+assignments:
+  - subject_id: castle-gate/old-guard
+    bundle_id: commissioned-elder
+    usage: production

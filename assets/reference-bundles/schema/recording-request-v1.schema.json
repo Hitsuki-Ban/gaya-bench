@@ -1,0 +1,246 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://gaya-bench.local/schema/recording-request-v1.schema.json",
+  "title": "Gaya Bench 契約収録依頼 v1",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "request_id",
+    "target_bundle_id",
+    "persona",
+    "requested_rights",
+    "scripts",
+    "delivery_pcm",
+    "recording_quality",
+    "due_on"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": { "const": "recording-request-v1" },
+    "request_id": { "$ref": "#/$defs/slug" },
+    "target_bundle_id": { "$ref": "#/$defs/slug" },
+    "persona": { "$ref": "#/$defs/persona" },
+    "requested_rights": { "$ref": "#/$defs/permissions" },
+    "scripts": { "$ref": "#/$defs/scripts" },
+    "delivery_pcm": { "$ref": "#/$defs/pcm" },
+    "recording_quality": { "$ref": "#/$defs/recordingQuality" },
+    "due_on": { "type": "string", "format": "date" }
+  },
+  "$defs": {
+    "slug": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+    },
+    "nonEmptyString": {
+      "type": "string",
+      "minLength": 1
+    },
+    "persona": {
+      "type": "object",
+      "required": [
+        "kind",
+        "locale",
+        "perceived_gender",
+        "perceived_age",
+        "voice_characteristics"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "enum": ["human", "machine", "creature", "spirit"]
+        },
+        "locale": {
+          "type": "string",
+          "pattern": "^[a-z]{2}(?:-[A-Z]{2})?$"
+        },
+        "perceived_gender": {
+          "enum": ["female", "male", "neutral"]
+        },
+        "perceived_age": {
+          "enum": [
+            "child",
+            "teen",
+            "young_adult",
+            "adult",
+            "middle_aged",
+            "elderly"
+          ]
+        },
+        "voice_characteristics": { "$ref": "#/$defs/nonEmptyString" }
+      }
+    },
+    "permissions": {
+      "type": "object",
+      "required": [
+        "tts_reference_inference",
+        "training_or_finetuning",
+        "commercial_generated_output",
+        "audio_redistribution",
+        "transcript_redistribution"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "tts_reference_inference": { "$ref": "#/$defs/permission" },
+        "training_or_finetuning": { "$ref": "#/$defs/permission" },
+        "commercial_generated_output": { "$ref": "#/$defs/permission" },
+        "audio_redistribution": { "$ref": "#/$defs/permission" },
+        "transcript_redistribution": { "$ref": "#/$defs/permission" }
+      }
+    },
+    "permission": {
+      "enum": ["requested", "not_requested"]
+    },
+    "scripts": {
+      "type": "object",
+      "required": ["general", "short_clone"],
+      "additionalProperties": false,
+      "properties": {
+        "general": { "$ref": "#/$defs/script" },
+        "short_clone": { "$ref": "#/$defs/shortCloneScript" },
+        "emotions": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/emotionScript" }
+        }
+      }
+    },
+    "script": {
+      "type": "object",
+      "required": ["script_id", "transcript", "duration_ms", "takes"],
+      "additionalProperties": false,
+      "properties": {
+        "script_id": { "$ref": "#/$defs/slug" },
+        "transcript": { "$ref": "#/$defs/transcript" },
+        "duration_ms": { "$ref": "#/$defs/generalDuration" },
+        "takes": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "shortCloneScript": {
+      "type": "object",
+      "required": ["script_id", "transcript", "duration_ms", "takes"],
+      "additionalProperties": false,
+      "properties": {
+        "script_id": { "$ref": "#/$defs/slug" },
+        "transcript": { "$ref": "#/$defs/transcript" },
+        "duration_ms": { "$ref": "#/$defs/shortCloneDuration" },
+        "takes": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "emotionScript": {
+      "type": "object",
+      "required": [
+        "emotion",
+        "script_id",
+        "transcript",
+        "duration_ms",
+        "takes"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "emotion": {
+          "enum": [
+            "cheerful",
+            "angry",
+            "sad",
+            "fearful",
+            "surprised",
+            "tired",
+            "drunk",
+            "whisper",
+            "shout",
+            "laughing",
+            "pain"
+          ]
+        },
+        "script_id": { "$ref": "#/$defs/slug" },
+        "transcript": { "$ref": "#/$defs/transcript" },
+        "duration_ms": { "$ref": "#/$defs/duration" },
+        "takes": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "pcm": {
+      "type": "object",
+      "required": ["encoding", "sample_rate_hz", "channels"],
+      "additionalProperties": false,
+      "properties": {
+        "encoding": { "const": "pcm_s16le" },
+        "sample_rate_hz": { "const": 48000 },
+        "channels": { "const": 1 }
+      }
+    },
+    "transcript": {
+      "type": "object",
+      "required": ["text", "utf8_sha256"],
+      "additionalProperties": false,
+      "properties": {
+        "text": { "$ref": "#/$defs/nonEmptyString" },
+        "utf8_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      }
+    },
+    "duration": {
+      "type": "object",
+      "required": ["minimum", "maximum"],
+      "additionalProperties": false,
+      "properties": {
+        "minimum": { "type": "integer", "minimum": 1 },
+        "maximum": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "generalDuration": {
+      "type": "object",
+      "required": ["minimum", "maximum"],
+      "additionalProperties": false,
+      "properties": {
+        "minimum": {
+          "type": "integer",
+          "minimum": 10000,
+          "maximum": 20000
+        },
+        "maximum": {
+          "type": "integer",
+          "minimum": 10000,
+          "maximum": 20000
+        }
+      }
+    },
+    "shortCloneDuration": {
+      "type": "object",
+      "required": ["minimum", "maximum"],
+      "additionalProperties": false,
+      "properties": {
+        "minimum": { "const": 5000 },
+        "maximum": { "const": 5000 }
+      }
+    },
+    "recordingQuality": {
+      "type": "object",
+      "required": [
+        "max_noise_floor_dbfs",
+        "max_peak_dbfs",
+        "room_tone_seconds",
+        "post_processing"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "max_noise_floor_dbfs": {
+          "type": "number",
+          "maximum": 0
+        },
+        "max_peak_dbfs": {
+          "type": "number",
+          "maximum": 0
+        },
+        "room_tone_seconds": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "post_processing": {
+          "enum": ["raw_only", "edited_without_denoise"]
+        }
+      }
+    }
+  }
+}
