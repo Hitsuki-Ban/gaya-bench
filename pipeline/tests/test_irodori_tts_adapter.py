@@ -21,6 +21,11 @@ from gaya_pipeline.adapters.irodori_tts import (
     MODEL_ID,
     PROFILE_VERSION,
     PYOPENJTALK_VERSION,
+    REFERENCE_CONTROL,
+    ROLE_ANCHOR_SEED,
+    ROLE_ANCHOR_TEXT,
+    ROLE_REFERENCE_CACHE_DIRECTORY,
+    ROLE_REFERENCE_CACHE_FORMAT_VERSION,
     SEED,
     SILENTCIPHER_MODEL_ID,
     SILENTCIPHER_MODEL_REVISION,
@@ -44,6 +49,7 @@ class FakeRuntime:
         self.prepare_count = 0
         self.synthesize_calls: list[dict[str, Any]] = []
         self.oom_on: str | None = None
+        self.watermark_executed = True
 
     def prepare(self) -> dict[str, float]:
         self.prepare_count += 1
@@ -91,7 +97,7 @@ class FakeRuntime:
             },
             "seed": seed,
             "sample_rate_hz": 48_000,
-            "silentcipher_watermark_stage_executed": True,
+            "silentcipher_watermark_stage_executed": self.watermark_executed,
         }
 
     def is_out_of_memory(self, error: BaseException) -> bool:
@@ -108,20 +114,38 @@ def _job(
     reading: str | None = None,
     emotion: str = "laughing",
     reference_voice: str | None = None,
+    line_id: str = "barmaid-001",
+    text: str = "乾杯しよう！",
+    character_id: str = "barmaid",
+    name: str = "給仕の女性",
+    kind: str | None = None,
+    gender: str = "female",
+    age: str = "young_adult",
+    archetype: str = "給仕",
+    voice: str = "明るく通る若い女性の声。",
+    personality: str = "気さくで世話焼き。",
 ) -> LineJob:
+    character = {
+        "id": character_id,
+        "name": name,
+        "gender": gender,
+        "age": age,
+        "archetype": archetype,
+        "voice": voice,
+        "personality": personality,
+        "reference_voice": reference_voice,
+    }
+    if kind is not None:
+        character["kind"] = kind
     return LineJob(
         scene={
             "id": "tavern-night",
             "setting": "夜の酒場。",
         },
-        character={
-            "id": "barmaid",
-            "voice": "明るく通る若い女性の声。",
-            "reference_voice": reference_voice,
-        },
+        character=character,
         line={
-            "id": "barmaid-001",
-            "text": "乾杯しよう！",
+            "id": line_id,
+            "text": text,
             "reading": reading,
             "emotion": emotion,
             "intensity": 2,
@@ -247,6 +271,17 @@ def test_profile_revisions_capabilities_and_parameters_are_canonical() -> None:
     assert params["emotion_emoji"] == EMOTION_EMOJI
     assert params["silentcipher_watermark_stage_required"] is True
     assert params["silentcipher_payload"] == "IRDTS"
+    assert params["role_reference"] == {
+        "control": REFERENCE_CONTROL,
+        "key": ["scenario", "character"],
+        "cache_format_version": ROLE_REFERENCE_CACHE_FORMAT_VERSION,
+        "cache_directory": ROLE_REFERENCE_CACHE_DIRECTORY,
+        "anchor_text": ROLE_ANCHOR_TEXT,
+        "anchor_caption_policy": "complete-role-identity-neutral-performance",
+        "anchor_seed": ROLE_ANCHOR_SEED,
+        "anchor_sampling": params["role_reference"]["anchor_sampling"],
+        "explicit_asset_policy": "strict-metadata-wav-sha256",
+    }
     assert "MIT" in adapter.profile.license_note
     assert "SilentCipher" in adapter.profile.license_note
 
@@ -268,7 +303,7 @@ def test_official_emotion_mapping_covers_every_scenario_value() -> None:
     }
 
 
-def test_no_reference_uses_explicit_no_ref_input_and_writes_pcm16(
+def test_null_reference_builds_role_anchor_and_uses_it_for_target(
     tmp_path: Path,
 ) -> None:
     runtime = FakeRuntime()
@@ -280,31 +315,89 @@ def test_no_reference_uses_explicit_no_ref_input_and_writes_pcm16(
     voices_dir = _voices_dir(tmp_path)
     adapter.prepare([job], tmp_path / "artifacts", voices_dir)
 
-    assert runtime.prepare_count == 0
-    assert adapter.generation_input(job, _take_context(adapter)) == {
-        "text": "🤭カンパイシヨウ！",
-        "reading_source": "pyopenjtalk.g2p(kana=True)",
-        "emotion": "laughing",
-        "emotion_emoji": "🤭",
-        "caption": (
-            "架空のキャラクターとして、実在の人物や声優を模倣せずに話す。\n"
-            "声質: 明るく通る若い女性の声。\n"
-            "感情: 笑い（強度 2/3）\n"
-            "演技: 笑いを含ませ、弾む調子で話す。"
-        ),
-        "reference_voice": None,
-        "reference_sha256": None,
+    assert runtime.prepare_count == 1
+    assert len(runtime.synthesize_calls) == 1
+    anchor_call = runtime.synthesize_calls[0]
+    assert anchor_call["text"] == ROLE_ANCHOR_TEXT
+    assert anchor_call["reference_wav"] is None
+    assert anchor_call["seed"] == ROLE_ANCHOR_SEED
+    assert "感情:" not in anchor_call["caption"]
+    assert "場面:" not in anchor_call["caption"]
+    anchor_dir = (
+        tmp_path
+        / "artifacts"
+        / ROLE_REFERENCE_CACHE_DIRECTORY
+        / MODEL_ID
+        / "tavern-night"
+        / "barmaid"
+    )
+    anchor_metadata = json.loads(
+        (anchor_dir / "anchor.json").read_text(encoding="utf-8"),
+    )
+    assert anchor_metadata["format_version"] == ROLE_REFERENCE_CACHE_FORMAT_VERSION
+    assert anchor_metadata["model"] == MODEL_ID
+    assert anchor_metadata["profile_version"] == PROFILE_VERSION
+    assert anchor_metadata["upstream_revision"] == UPSTREAM_REVISION
+    assert anchor_metadata["checkpoint_revision"] == CHECKPOINT_REVISION
+    assert anchor_metadata["codec_revision"] == CODEC_REVISION
+    assert anchor_metadata["anchor_text"] == ROLE_ANCHOR_TEXT
+    assert anchor_metadata["anchor_caption"] == anchor_call["caption"]
+    assert anchor_metadata["anchor_seed"] == ROLE_ANCHOR_SEED
+    assert anchor_metadata["anchor_sampling"] == adapter.generation_params()[
+        "role_reference"
+    ]["anchor_sampling"]
+    assert anchor_metadata["wav_sha256"] == _sha256(anchor_dir / "anchor.wav")
+
+    generation_input = adapter.generation_input(job, _take_context(adapter))
+    assert generation_input["text"] == "🤭カンパイシヨウ！"
+    assert generation_input["reading_source"] == "pyopenjtalk.g2p(kana=True)"
+    assert generation_input["emotion"] == "laughing"
+    assert generation_input["emotion_emoji"] == "🤭"
+    assert generation_input["role_identity"] == {
+        "scenario": "tavern-night",
+        "character": "barmaid",
+        "name": "給仕の女性",
+        "kind": "human",
+        "gender": "female",
+        "age": "young_adult",
+        "archetype": "給仕",
+        "voice": "明るく通る若い女性の声。",
+        "personality": "気さくで世話焼き。",
     }
+    assert generation_input["reference_control"] == REFERENCE_CONTROL
+    assert generation_input["reference_source"] == "generated-role-anchor"
+    assert generation_input["reference_voice"] is None
+    assert generation_input["reference_text"] == ROLE_ANCHOR_TEXT
+    assert generation_input["reference_caption"] == anchor_call["caption"]
+    assert "場面: 夜の酒場。" in generation_input["caption"]
+    assert "感情: 笑い（強度 2/3）" in generation_input["caption"]
+    assert "演技: 笑いを含ませ、弾む調子で話す。" in generation_input["caption"]
 
     output_wav = tmp_path / "output.wav"
     realized = adapter.generate(job, _take_context(adapter), output_wav)
     assert runtime.prepare_count == 1
-    assert runtime.synthesize_calls[0]["reference_wav"] is None
+    assert len(runtime.synthesize_calls) == 2
+    target_call = runtime.synthesize_calls[1]
+    assert target_call["reference_wav"] == (
+        anchor_dir / "anchor.wav"
+    )
+    assert target_call["caption"] == generation_input["caption"]
     assert realized["silentcipher_watermark_stage_executed"] is True
+    assert realized["reference_source"] == "generated-role-anchor"
+    assert realized["reference_sha256"] == generation_input["reference_sha256"]
+    assert realized["caption"] == generation_input["caption"]
     assert realized["phase_peak_vram_mib"] == {
         "runtime_load": {
             "allocated_mib": 2048.0,
             "reserved_mib": 2304.0,
+        },
+        "role_anchor_runtime_load": {
+            "allocated_mib": 2048.0,
+            "reserved_mib": 2304.0,
+        },
+        "role_anchor_generate": {
+            "allocated_mib": 3072.0,
+            "reserved_mib": 3328.0,
         },
         "generation": {
             "allocated_mib": 3072.0,
@@ -337,7 +430,11 @@ def test_take_seed_reaches_runtime_and_realized_metadata(tmp_path: Path) -> None
     first = adapter.generate(job, first_context, tmp_path / "first.wav")
     second = adapter.generate(job, second_context, tmp_path / "second.wav")
 
-    assert [call["seed"] for call in runtime.synthesize_calls] == [SEED, 123_456]
+    assert [call["seed"] for call in runtime.synthesize_calls] == [
+        ROLE_ANCHOR_SEED,
+        SEED,
+        123_456,
+    ]
     assert first["seed"] == SEED
     assert first["sampling"] == first_context.sampling_dict()
     assert second["seed"] == 123_456
@@ -376,13 +473,33 @@ def test_registered_reference_is_hashed_and_used_for_clone(
     adapter.prepare([job], tmp_path / "artifacts", voices_dir)
 
     expected_path = voices_dir / "test-voice" / "reference.wav"
-    assert adapter.generation_input(
-        job,
-        _take_context(adapter),
-    )["reference_sha256"] == _sha256(expected_path)
+    generation_input = adapter.generation_input(job, _take_context(adapter))
+    assert runtime.prepare_count == 0
+    assert runtime.synthesize_calls == []
+    assert generation_input["reference_source"] == "voice-asset"
+    assert generation_input["reference_voice"] == "test-voice"
+    assert generation_input["reference_sha256"] == _sha256(expected_path)
+    assert generation_input["reference_caption"] is None
+    assert generation_input["reference_text"] is None
+    for expected in (
+        "名前: 給仕の女性",
+        "種別: 人間（human）",
+        "性別: 女性（female）",
+        "年齢: 若い成人（young_adult）",
+        "役柄: 給仕",
+        "声質: 明るく通る若い女性の声。",
+        "性格: 気さくで世話焼き。",
+        "場面: 夜の酒場。",
+    ):
+        assert expected in generation_input["caption"]
     output_wav = tmp_path / "clone.wav"
-    adapter.generate(job, _take_context(adapter), output_wav)
+    realized = adapter.generate(job, _take_context(adapter), output_wav)
+    assert runtime.prepare_count == 1
+    assert len(runtime.synthesize_calls) == 1
     assert runtime.synthesize_calls[0]["reference_wav"] == expected_path
+    assert runtime.synthesize_calls[0]["caption"] == generation_input["caption"]
+    assert realized["reference_source"] == "voice-asset"
+    assert realized["reference_sha256"] == _sha256(expected_path)
 
 
 @pytest.mark.parametrize(
@@ -416,9 +533,8 @@ def test_reference_voice_missing_or_hash_mismatch_fails_fast(
 
 
 def test_prepare_gate_language_and_oom_fail_fast(tmp_path: Path) -> None:
-    runtime = FakeRuntime()
     adapter = IrodoriTTSAdapter(
-        runtime=runtime,
+        runtime=FakeRuntime(),
         reading_converter=lambda text: text,
     )
     job = _job()
@@ -432,30 +548,276 @@ def test_prepare_gate_language_and_oom_fail_fast(tmp_path: Path) -> None:
             _voices_dir(tmp_path),
         )
 
-    runtime.oom_on = "prepare"
-    adapter.prepare(
-        [job],
-        tmp_path / "artifacts",
-        _voices_dir(tmp_path / "oom"),
+    load_runtime = FakeRuntime()
+    load_runtime.oom_on = "prepare"
+    load_adapter = IrodoriTTSAdapter(
+        runtime=load_runtime,
+        reading_converter=lambda text: text,
     )
     with pytest.raises(IrodoriTTSAdapterError, match="CUDA out of memory"):
-        adapter.generate(
-            job,
-            _take_context(adapter),
-            tmp_path / "load-failed.wav",
+        load_adapter.prepare(
+            [job],
+            tmp_path / "load-artifacts",
+            _voices_dir(tmp_path / "oom"),
         )
     assert not (tmp_path / "load-failed.wav").exists()
 
-    runtime.oom_on = None
+    generate_runtime = FakeRuntime()
+    generate_adapter = IrodoriTTSAdapter(
+        runtime=generate_runtime,
+        reading_converter=lambda text: text,
+    )
+    explicit_job = _job(reference_voice="test-voice")
+    generate_adapter.prepare(
+        [explicit_job],
+        tmp_path / "generate-artifacts",
+        _voices_dir(tmp_path / "generate"),
+    )
+    generate_runtime.oom_on = "synthesize"
+    with pytest.raises(IrodoriTTSAdapterError, match="CUDA out of memory"):
+        generate_adapter.generate(
+            explicit_job,
+            _take_context(generate_adapter),
+            tmp_path / "failed.wav",
+        )
+    assert not (tmp_path / "failed.wav").exists()
+
+
+def test_same_character_lines_share_exactly_one_generated_anchor(
+    tmp_path: Path,
+) -> None:
+    runtime = FakeRuntime()
+    adapter = IrodoriTTSAdapter(
+        runtime=runtime,
+        reading_converter=lambda text: text,
+    )
+    jobs = [
+        _job(line_id="barmaid-001", text="一つ目です。"),
+        _job(line_id="barmaid-002", text="二つ目です。", emotion="neutral"),
+    ]
+    artifacts = tmp_path / "artifacts"
+    adapter.prepare(jobs, artifacts, _voices_dir(tmp_path))
+
+    assert runtime.prepare_count == 1
+    assert len(runtime.synthesize_calls) == 1
+    first_input = adapter.generation_input(jobs[0], _take_context(adapter))
+    second_input = adapter.generation_input(jobs[1], _take_context(adapter))
+    assert first_input["reference_sha256"] == second_input["reference_sha256"]
+    assert first_input["reference_caption"] == second_input["reference_caption"]
+
+    adapter.generate(jobs[0], _take_context(adapter), tmp_path / "first.wav")
+    adapter.generate(jobs[1], _take_context(adapter), tmp_path / "second.wav")
+    assert len(runtime.synthesize_calls) == 3
+    assert runtime.synthesize_calls[1]["reference_wav"] == (
+        runtime.synthesize_calls[2]["reference_wav"]
+    )
+
+
+def test_role_anchor_cache_reuses_exact_identity_without_runtime_prepare(
+    tmp_path: Path,
+) -> None:
+    artifacts = tmp_path / "artifacts"
+    voices = _voices_dir(tmp_path)
+    first_runtime = FakeRuntime()
+    IrodoriTTSAdapter(
+        runtime=first_runtime,
+        reading_converter=lambda text: text,
+    ).prepare([_job()], artifacts, voices)
+    assert len(first_runtime.synthesize_calls) == 1
+
+    cached_runtime = FakeRuntime()
+    cached_adapter = IrodoriTTSAdapter(
+        runtime=cached_runtime,
+        reading_converter=lambda text: text,
+    )
+    cached_adapter.prepare([_job()], artifacts, voices)
+    assert cached_runtime.prepare_count == 0
+    assert cached_runtime.synthesize_calls == []
+    assert cached_adapter.generation_input(
+        _job(),
+        _take_context(cached_adapter),
+    )["reference_source"] == "generated-role-anchor"
+
+
+@pytest.mark.parametrize(
+    ("field", "changed"),
+    [
+        ("name", "別の給仕"),
+        ("kind", "machine"),
+        ("gender", "male"),
+        ("age", "elderly"),
+        ("archetype", "衛兵"),
+        ("voice", "低く重い声。"),
+        ("personality", "冷淡で無口。"),
+    ],
+)
+def test_role_field_change_fails_on_cache_identity_mismatch(
+    tmp_path: Path,
+    field: str,
+    changed: str,
+) -> None:
+    artifacts = tmp_path / "artifacts"
+    voices = _voices_dir(tmp_path)
+    IrodoriTTSAdapter(
+        runtime=FakeRuntime(),
+        reading_converter=lambda text: text,
+    ).prepare([_job()], artifacts, voices)
+    changed_args = {field: changed}
+    with pytest.raises(IrodoriTTSAdapterError, match="cache identity"):
+        IrodoriTTSAdapter(
+            runtime=FakeRuntime(),
+            reading_converter=lambda text: text,
+        ).prepare([_job(**changed_args)], artifacts, voices)
+
+
+def test_legacy_reference_path_is_not_read_as_role_anchor(tmp_path: Path) -> None:
+    artifacts = tmp_path / "artifacts"
+    legacy = (
+        artifacts
+        / "voices"
+        / MODEL_ID
+        / "tavern-night"
+        / "barmaid"
+    )
+    legacy.mkdir(parents=True)
+    (legacy / "reference.wav").write_bytes(b"legacy")
+    (legacy / "reference.json").write_text("{}", encoding="utf-8")
+
+    runtime = FakeRuntime()
+    IrodoriTTSAdapter(
+        runtime=runtime,
+        reading_converter=lambda text: text,
+    ).prepare([_job()], artifacts, _voices_dir(tmp_path))
+
+    assert len(runtime.synthesize_calls) == 1
+    assert runtime.synthesize_calls[0]["output_wav"].is_relative_to(
+        artifacts / ROLE_REFERENCE_CACHE_DIRECTORY,
+    )
+
+
+def test_role_anchor_cache_half_pair_and_invalid_json_fail_fast(
+    tmp_path: Path,
+) -> None:
+    artifacts = tmp_path / "artifacts"
+    cache_dir = (
+        artifacts
+        / ROLE_REFERENCE_CACHE_DIRECTORY
+        / MODEL_ID
+        / "tavern-night"
+        / "barmaid"
+    )
+    cache_dir.mkdir(parents=True)
+    (cache_dir / "anchor.json").write_text("{}", encoding="utf-8")
+    with pytest.raises(IrodoriTTSAdapterError, match="pair が壊れています"):
+        IrodoriTTSAdapter(
+            runtime=FakeRuntime(),
+            reading_converter=lambda text: text,
+        ).prepare([_job()], artifacts, _voices_dir(tmp_path))
+
+    (cache_dir / "anchor.wav").write_bytes(b"not a wav")
+    (cache_dir / "anchor.json").write_text("{", encoding="utf-8")
+    with pytest.raises(IrodoriTTSAdapterError, match="metadata が不正"):
+        IrodoriTTSAdapter(
+            runtime=FakeRuntime(),
+            reading_converter=lambda text: text,
+        ).prepare([_job()], artifacts, _voices_dir(tmp_path / "invalid-json"))
+
+
+def test_role_anchor_cache_wav_hash_mismatch_fails_fast(tmp_path: Path) -> None:
+    artifacts = tmp_path / "artifacts"
+    voices = _voices_dir(tmp_path)
+    IrodoriTTSAdapter(
+        runtime=FakeRuntime(),
+        reading_converter=lambda text: text,
+    ).prepare([_job()], artifacts, voices)
+    wav_path = (
+        artifacts
+        / ROLE_REFERENCE_CACHE_DIRECTORY
+        / MODEL_ID
+        / "tavern-night"
+        / "barmaid"
+        / "anchor.wav"
+    )
+    data = wav_path.read_bytes()
+    wav_path.write_bytes(data[:-2] + b"\x01\x00")
+
+    with pytest.raises(IrodoriTTSAdapterError, match="WAV SHA-256"):
+        IrodoriTTSAdapter(
+            runtime=FakeRuntime(),
+            reading_converter=lambda text: text,
+        ).prepare([_job()], artifacts, voices)
+
+
+def test_role_anchor_pending_file_fails_fast(tmp_path: Path) -> None:
+    artifacts = tmp_path / "artifacts"
+    cache_dir = (
+        artifacts
+        / ROLE_REFERENCE_CACHE_DIRECTORY
+        / MODEL_ID
+        / "tavern-night"
+        / "barmaid"
+    )
+    cache_dir.mkdir(parents=True)
+    (cache_dir / ".anchor.pending.wav").write_bytes(b"interrupted")
+
+    with pytest.raises(IrodoriTTSAdapterError, match="pending file"):
+        IrodoriTTSAdapter(
+            runtime=FakeRuntime(),
+            reading_converter=lambda text: text,
+        ).prepare([_job()], artifacts, _voices_dir(tmp_path))
+
+
+def test_missing_reference_voice_policy_fails_fast(tmp_path: Path) -> None:
+    job = _job()
+    character = dict(job.character)
+    del character["reference_voice"]
+    missing_policy = LineJob(
+        scene=job.scene,
+        character=character,
+        line=job.line,
+        locale=job.locale,
+    )
+
+    with pytest.raises(IrodoriTTSAdapterError, match="reference_voice"):
+        IrodoriTTSAdapter(
+            runtime=FakeRuntime(),
+            reading_converter=lambda text: text,
+        ).prepare(
+            [missing_policy],
+            tmp_path / "artifacts",
+            _voices_dir(tmp_path),
+        )
+
+
+def test_role_anchor_requires_watermark_receipt(tmp_path: Path) -> None:
+    runtime = FakeRuntime()
+    runtime.watermark_executed = False
+    with pytest.raises(IrodoriTTSAdapterError, match="watermark"):
+        IrodoriTTSAdapter(
+            runtime=runtime,
+            reading_converter=lambda text: text,
+        ).prepare(
+            [_job()],
+            tmp_path / "artifacts",
+            _voices_dir(tmp_path),
+        )
+
+
+def test_target_generation_requires_watermark_receipt(tmp_path: Path) -> None:
+    runtime = FakeRuntime()
+    adapter = IrodoriTTSAdapter(
+        runtime=runtime,
+        reading_converter=lambda text: text,
+    )
+    job = _job(reference_voice="test-voice")
     adapter.prepare(
         [job],
         tmp_path / "artifacts",
-        _voices_dir(tmp_path / "generate"),
+        _voices_dir(tmp_path),
     )
-    runtime.oom_on = "synthesize"
-    with pytest.raises(IrodoriTTSAdapterError, match="CUDA out of memory"):
-        adapter.generate(job, _take_context(adapter), tmp_path / "failed.wav")
-    assert not (tmp_path / "failed.wav").exists()
+    runtime.watermark_executed = False
+    with pytest.raises(IrodoriTTSAdapterError, match="watermark"):
+        adapter.generate(job, _take_context(adapter), tmp_path / "target.wav")
 
 
 def test_native_runtime_rejects_non_windows(

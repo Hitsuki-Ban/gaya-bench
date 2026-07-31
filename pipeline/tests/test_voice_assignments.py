@@ -42,6 +42,15 @@ def _characters() -> dict[tuple[str, str], dict[str, Any]]:
     return characters
 
 
+def _registered_voices() -> dict[str, dict[str, Any]]:
+    voices = yaml.safe_load(
+        (REPOSITORY_ROOT / "assets" / "voices" / "metadata.yaml").read_text(
+            encoding="utf-8",
+        ),
+    )["voices"]
+    return {voice["id"]: voice for voice in voices}
+
+
 def test_clone_assignments_exactly_cover_null_reference_characters() -> None:
     characters = _characters()
     null_reference_keys = {
@@ -49,19 +58,33 @@ def test_clone_assignments_exactly_cover_null_reference_characters() -> None:
         for key, character in characters.items()
         if character["reference_voice"] is None
     }
-    registered_voices = {
-        voice["id"]
-        for voice in yaml.safe_load(
-            (
-                REPOSITORY_ROOT / "assets" / "voices" / "metadata.yaml"
-            ).read_text(encoding="utf-8"),
-        )["voices"]
-    }
+    registered_voices = set(_registered_voices())
 
     assert len(characters) == 58
     assert len(null_reference_keys) == 53
     assert set(CLONE_REFERENCE_ASSIGNMENTS) == null_reference_keys
     assert set(CLONE_REFERENCE_ASSIGNMENTS.values()) <= registered_voices
+
+
+def test_clone_assignments_never_cross_declared_binary_gender() -> None:
+    characters = _characters()
+    voices = _registered_voices()
+
+    for key, reference_voice in CLONE_REFERENCE_ASSIGNMENTS.items():
+        character_gender = characters[key]["gender"]
+        if character_gender == "neutral":
+            continue
+        assert voices[reference_voice]["voice"]["gender"] == character_gender, key
+
+
+def test_explicit_references_never_cross_declared_binary_gender() -> None:
+    voices = _registered_voices()
+
+    for key, character in _characters().items():
+        reference_voice = character["reference_voice"]
+        if reference_voice is None or character["gender"] == "neutral":
+            continue
+        assert voices[reference_voice]["voice"]["gender"] == character["gender"], key
 
 
 def test_supertonic_assignments_exactly_cover_current_characters() -> None:

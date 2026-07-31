@@ -4,6 +4,8 @@ from collections.abc import Mapping
 
 # character.reference_voice が null のキャラクターだけを列挙する。
 # scenario 側に明示された参照音声は、各 adapter がこの表より優先する。
+# 現在の素材には男性 child / teen がないため、該当役は年齢近似より
+# binary gender の一致を優先して成人男性 hadou を使う。年齢近似は audit に明示する。
 CLONE_REFERENCE_ASSIGNMENTS: Mapping[tuple[str, str], str] = {
     # battlefield-camp
     ("battlefield-camp", "wounded"): "hadou-emotion-11",
@@ -39,13 +41,13 @@ CLONE_REFERENCE_ASSIGNMENTS: Mapping[tuple[str, str], str] = {
     ("festival-night", "matsuri-kid"): "tsukuyomi-corpus-94",
     ("festival-night", "mikoshi-katsugite"): "hadou-emotion-11",
     # goblin-camp
-    ("goblin-camp", "goblin-lookout"): "tsukuyomi-corpus-94",
+    ("goblin-camp", "goblin-lookout"): "hadou-emotion-11",
     ("goblin-camp", "goblin-cook"): "tsukuyomi-corpus-94",
     ("goblin-camp", "orc-brother"): "hadou-emotion-11",
     ("goblin-camp", "goblin-shaman"): "sayoko-emotion-75",
     # guild-hall
     ("guild-hall", "veteran"): "hadou-emotion-11",
-    ("guild-hall", "rookie"): "tsukuyomi-corpus-94",
+    ("guild-hall", "rookie"): "hadou-emotion-11",
     ("guild-hall", "weary"): "lux-emotion-76",
     # market-day
     ("market-day", "fruit-vendor"): "hadou-emotion-11",
@@ -60,13 +62,13 @@ CLONE_REFERENCE_ASSIGNMENTS: Mapping[tuple[str, str], str] = {
     ("tavern-night", "drunkard"): "hadou-emotion-11",
     ("tavern-night", "old-regular"): "hadou-emotion-11",
     # village-morning
-    ("village-morning", "teen-boy"): "tsukuyomi-corpus-94",
+    ("village-morning", "teen-boy"): "hadou-emotion-11",
     ("village-morning", "farm-wife"): "amitaro-countdown",
     ("village-morning", "farmer-man"): "hadou-emotion-11",
     # west-crowd
     ("west-crowd", "isogi-shinshi"): "hadou-emotion-11",
     ("west-crowd", "oshaberi-fujin"): "amitaro-countdown",
-    ("west-crowd", "shinbun-shounen"): "tsukuyomi-corpus-94",
+    ("west-crowd", "shinbun-shounen"): "hadou-emotion-11",
     ("west-crowd", "machibouke-seinen"): "hadou-emotion-11",
     # west-market
     ("west-market", "hana-uri"): "lux-emotion-76",
