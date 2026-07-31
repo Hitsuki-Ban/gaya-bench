@@ -1,0 +1,203 @@
+{
+  "format_version": 1,
+  "source": {
+    "issue_url": "https://github.com/Hitsuki-Ban/gaya-bench/issues/159",
+    "human_evidence": {
+      "url": "https://github.com/Hitsuki-Ban/gaya-bench/issues/158#issuecomment-5131323334",
+      "scope": "first_seven_batch",
+      "word_reading_incorrect_count": 7,
+      "current_detected_count": 2,
+      "human_asr_missed_count": 5,
+      "per_case_decision_exported": false
+    },
+    "model": "chatterbox-multilingual-v3",
+    "candidate_manifest_sha256": "f9dfda542fd1120fe0f74daae3036eab5211d7394d155f7b9953978e59bbe89d",
+    "upstream": {
+      "repository": "resemble-ai/chatterbox",
+      "revision": "65b18437192794391a0308a8f705b1e33e633948",
+      "component": "chatterbox.models.tokenizers.tokenizer.hiragana_normalize",
+      "pykakasi_version": "2.3.0"
+    },
+    "asr": {
+      "model": "sbintuitions/kana-whisper",
+      "revision": "88ecb3d79c5846cb4fcf76f4107b84c8fa2acd82"
+    }
+  },
+  "cases": [
+    {
+      "identity": {
+        "scenario": "battlefield-camp",
+        "line": "medic-001",
+        "variant": "dry",
+        "take_index": 1,
+        "take_id": "8cb59df295d631ee09ca4b683cc83ca11c88230a021cca3e2ac863b92e330bae",
+        "generation_input_sha256": "acee75a3cea17b065ab0ee323d6d2937132525e6e80ae79e81965a419b512d05"
+      },
+      "audio_sha256": "0dcd88141b6b44f7683e533fdf659f3d34d540d7dd77e35fd3f8060f049f8cbd",
+      "surface_text": "圧迫して！血が止まらない！",
+      "expected_reading": "アッパクシテ！チガトマラナイ！",
+      "upstream_g2p": {
+        "text": "あっぱくして!ちがとまらない!",
+        "assessment": "equivalent",
+        "semantic_targets": []
+      },
+      "asr_transcript": "アッパクシテチガトマラナイ",
+      "current_decision": {
+        "status": "pass",
+        "review_reason": null,
+        "reading_mismatch": false
+      }
+    },
+    {
+      "identity": {
+        "scenario": "battlefield-camp",
+        "line": "medic-002",
+        "variant": "dry",
+        "take_index": 1,
+        "take_id": "fb1ed5ac931e21b6b3b7a46a992ab9b28d8019f84f84c620ab8381aee98925f3",
+        "generation_input_sha256": "b195a3d0818fbd6264f2c406603b559ea9cfc11144e032e939244c1a58b49d3c"
+      },
+      "audio_sha256": "cc1d2779ff6297eceb90e853969d834dc034270c18b3c52e22dbc17aa8abf14f",
+      "surface_text": "お願い、まだ死なないで……",
+      "expected_reading": "オネガイ、マダシナナイデ……",
+      "upstream_g2p": {
+        "text": "おねがい、まだしなないで......",
+        "assessment": "equivalent",
+        "semantic_targets": []
+      },
+      "asr_transcript": "オネガイマダシナナイデ",
+      "current_decision": {
+        "status": "pass",
+        "review_reason": null,
+        "reading_mismatch": false
+      }
+    },
+    {
+      "identity": {
+        "scenario": "battlefield-camp",
+        "line": "medic-003",
+        "variant": "dry",
+        "take_index": 1,
+        "take_id": "9eae21786b997586363fef71126d5cd3476ecb2aca4fb79d447b24c13e6dec70",
+        "generation_input_sha256": "bc6d1cd55113d06df2058332a43feacc4da977ce3932d93f1f023c4cc90bcc29"
+      },
+      "audio_sha256": "5f6560682e3dbd58c6833768f5d0979b1ccb16f08abcba6628387828b91d6863",
+      "surface_text": "包帯が……もう足りない……",
+      "expected_reading": "ホータイガ……モータリナイ……",
+      "upstream_g2p": {
+        "text": "ほうたいが......もうたりない......",
+        "assessment": "equivalent",
+        "semantic_targets": []
+      },
+      "asr_transcript": "ホータイガモータリナイ",
+      "current_decision": {
+        "status": "pass",
+        "review_reason": null,
+        "reading_mismatch": false
+      }
+    },
+    {
+      "identity": {
+        "scenario": "battlefield-camp",
+        "line": "medic-004",
+        "variant": "dry",
+        "take_index": 1,
+        "take_id": "77638990b9af9d3f32194b02f164aea913c3acfdda8eb9b06977cf23effc86c7",
+        "generation_input_sha256": "b468b548d504e0c272447d651fa1b20cc68d508b0fd2816db4395ad34192e8bf"
+      },
+      "audio_sha256": "79abd4076b1579a71c3a73e1e4688cbda969dc14a51ba93095d38654efcce514",
+      "surface_text": "大丈夫、すぐ楽になりますから",
+      "expected_reading": "ダイジョーブ、スグラクニナリマスカラ",
+      "upstream_g2p": {
+        "text": "だいじょうぶ、すぐらくになりますから",
+        "assessment": "equivalent",
+        "semantic_targets": []
+      },
+      "asr_transcript": "ンダイジョーブスバラクニナリマスカラ",
+      "current_decision": {
+        "status": "review_required",
+        "review_reason": "explicit_reading_mismatch",
+        "reading_mismatch": true
+      }
+    },
+    {
+      "identity": {
+        "scenario": "battlefield-camp",
+        "line": "messenger-001",
+        "variant": "dry",
+        "take_index": 1,
+        "take_id": "b0219940d23cfa6b7684383d754dd19c9bcfde005af6826ba47cca1aabc4a495",
+        "generation_input_sha256": "9776cd9f7c6a763ef2cbe682bcbf6784b02786c0fd81ca7bf11143ba64c21686"
+      },
+      "audio_sha256": "925000d452bab9d7e713b57057d1ac4115f9d88875e15949f3baab5059803ae1",
+      "surface_text": "伝令、前線の守りが崩れます！",
+      "expected_reading": "デンレー、ゼンセンノマモリガクズレマス！",
+      "upstream_g2p": {
+        "text": "でんれい、ぜんせんのまもりがくずれます!",
+        "assessment": "equivalent",
+        "semantic_targets": []
+      },
+      "asr_transcript": "デンレー、ゼンセンノマモリガクズレマス",
+      "current_decision": {
+        "status": "pass",
+        "review_reason": null,
+        "reading_mismatch": false
+      }
+    },
+    {
+      "identity": {
+        "scenario": "battlefield-camp",
+        "line": "messenger-002",
+        "variant": "dry",
+        "take_index": 1,
+        "take_id": "cf599777514456727fe180a66481832235f876c6f215334fc80826e2815a4d94",
+        "generation_input_sha256": "b5f6135c3923e09b649b3dd45d4f1909d8729e74aa20479618f1194231e5bee2"
+      },
+      "audio_sha256": "e55c7a69957f73f1b02c8261a3d60c5142a84d02a10e246f56fba1de7ab3a053",
+      "surface_text": "数が多すぎます……このままでは……",
+      "expected_reading": "カズガオースギマス……コノママデワ……",
+      "upstream_g2p": {
+        "text": "かずがおおすぎます......このままでは......",
+        "assessment": "equivalent",
+        "semantic_targets": []
+      },
+      "asr_transcript": "カズガオースギマス、コノママデワ",
+      "current_decision": {
+        "status": "pass",
+        "review_reason": null,
+        "reading_mismatch": false
+      }
+    },
+    {
+      "identity": {
+        "scenario": "battlefield-camp",
+        "line": "messenger-003",
+        "variant": "dry",
+        "take_index": 1,
+        "take_id": "6044472ba7ca8e6730f97654f85fd4afd2f81539a7a45f17fefa4b0969b61dd2",
+        "generation_input_sha256": "85817ae6273fd56fcdae4ff335f907506cb3cabb1f512f1b7e3f79b3c024b0b6"
+      },
+      "audio_sha256": "5975257f26b0966bab74729ab131ea0a6eb65f596131d291b9e4fa91f6ddcec9",
+      "surface_text": "退がれ！全員、今すぐ退がれ！",
+      "expected_reading": "サガレ！ゼンイン、イマスグサガレ！",
+      "upstream_g2p": {
+        "text": "たいがれ!ぜんいん、いますぐたいがれ!",
+        "assessment": "meaning_changed",
+        "semantic_targets": [
+          {
+            "surface": "退がれ",
+            "expected": "サガレ",
+            "upstream": "タイガレ",
+            "assessment": "meaning_changed"
+          }
+        ]
+      },
+      "asr_transcript": "シリソガレ、ゼンインイマスグシリソガレ",
+      "current_decision": {
+        "status": "review_required",
+        "review_reason": "explicit_reading_mismatch",
+        "reading_mismatch": true
+      }
+    }
+  ]
+}
