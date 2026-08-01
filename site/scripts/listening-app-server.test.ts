@@ -93,6 +93,22 @@ describe("listening bundle validation", () => {
     });
   });
 
+  it("topupのattempt 5..8を受理し、重複attemptを拒否する", async () => {
+    await withFixture(async ({ bundleRoot, bundle }) => {
+      for (const group of bundle.groups) {
+        group.candidates.forEach((candidate, index) => {
+          candidate.attempt = index + 5;
+        });
+      }
+      writeBundle(bundleRoot, bundle);
+      await expect(validateListeningBundle(bundleRoot)).resolves.toBeDefined();
+
+      bundle.groups[0]!.candidates[1]!.attempt = 5;
+      writeBundle(bundleRoot, bundle);
+      await expect(validateListeningBundle(bundleRoot)).rejects.toThrow("一意な昇順正整数");
+    });
+  });
+
   it("bundle/output相互包含とsite directoryとの重複を拒否する", () => {
     const bundle = path.join(tmpdir(), "bundle");
     const output = path.join(tmpdir(), "output");
@@ -123,6 +139,17 @@ describe("listening bundle validation", () => {
 
       first.rubric.gender = "fail";
       expect(() => validateDecisionDocument(decision, validated)).not.toThrow();
+    });
+  });
+
+  it("性別不一致のselected anchorをdecisionとして拒否する", async () => {
+    await withFixture(async ({ bundleRoot, bundle }) => {
+      const validated = await validateListeningBundle(bundleRoot);
+      const decision = makeDecision(bundle);
+      const first = (decision.groups as Array<{ rubric: Record<string, unknown> }>)[0]!;
+      first.rubric.gender = "fail";
+
+      expect(() => validateDecisionDocument(decision, validated)).toThrow("gender=pass");
     });
   });
 });

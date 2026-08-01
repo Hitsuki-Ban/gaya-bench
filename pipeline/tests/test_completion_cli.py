@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
@@ -7,6 +8,7 @@ from typing import Any
 import pytest
 
 from gaya_pipeline import cli
+from gaya_pipeline import completion_anchor
 
 
 def _common(tmp_path: Path) -> list[str]:
@@ -214,6 +216,94 @@ def test_completion_commandは相対pathを拒否する(
     )
     assert result == 1
     assert "絶対path" in capsys.readouterr().err
+
+
+def test_anchor_topup_generateは単一model_runと全authorityを明示する(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    captured: dict[str, Any] = {}
+    plan = object()
+    monkeypatch.setattr(cli, "load_anchor_topup_plan", lambda **_kwargs: plan)
+    monkeypatch.setattr(
+        cli,
+        "run_role_anchor_topup_generation",
+        lambda **kwargs: captured.update(kwargs)
+        or SimpleNamespace(
+            rejected_count=0,
+            failed_count=0,
+            eligible_count=4,
+            ledger_path=(tmp_path / "ledger.json").resolve(),
+        ),
+    )
+    monkeypatch.setattr(
+        cli,
+        "_print_anchor_topup_generation_summary",
+        lambda _summary: None,
+    )
+    paths = {
+        name: (tmp_path / f"{name}.json").resolve()
+        for name in ("plan", "candidate-set", "decision", "topup-plan")
+    }
+    artifacts = (tmp_path / "artifacts").resolve()
+    result = cli.main(
+        [
+            "completion",
+            "anchor-topup-generate",
+            *(
+                item
+                for name, path in paths.items()
+                for item in (f"--{name}", str(path))
+            ),
+            "--artifacts",
+            str(artifacts),
+            "--model",
+            "irodori-tts-600m-v3-voicedesign",
+            "--run-id",
+            "irodori-topup-1",
+        ],
+    )
+    assert result == 0
+    assert captured == {
+        "plan": plan,
+        "candidate_set_path": paths["candidate-set"],
+        "decision_path": paths["decision"],
+        "topup_plan_path": paths["topup-plan"],
+        "model_id": "irodori-tts-600m-v3-voicedesign",
+        "run_id": "irodori-topup-1",
+        "artifacts_dir": artifacts,
+    }
+
+
+def test_anchor_sourceとcurrent_candidate_authorityを別loaderで固定する(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    candidate_path = (tmp_path / "candidate-set.json").resolve()
+    candidate_path.write_bytes(b"{}")
+    source_sha256 = hashlib.sha256(b"{}").hexdigest()
+    plan = SimpleNamespace(
+        anchor_source_candidate_set_sha256=source_sha256,
+        anchor_candidate_set_sha256="0" * 64,
+    )
+    monkeypatch.setattr(
+        completion_anchor,
+        "load_anchor_source_plan",
+        lambda **_kwargs: plan,
+    )
+
+    assert (
+        completion_anchor.load_anchor_topup_plan(
+            plan_path=(tmp_path / "plan.json").resolve(),
+            source_candidate_set_path=candidate_path,
+        )
+        is plan
+    )
+    with pytest.raises(completion_anchor.CompletionAnchorError, match="現在の固定authority"):
+        completion_anchor.load_anchor_review_plan(
+            plan_path=(tmp_path / "plan.json").resolve(),
+            candidate_set_path=candidate_path,
+        )
 
 
 def test_completion_listenは八主runとtopupを分離する(

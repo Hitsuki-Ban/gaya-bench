@@ -2,12 +2,17 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 import shutil
+import struct
 import tempfile
+import wave
 from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
-from typing import Any
+from typing import Any, Protocol, Sequence
+
+from gaya_pipeline.adapters.base import ModelProfile
 
 from gaya_pipeline.completion_plan import (
     ANCHOR_CANDIDATE_SET_SHA256,
@@ -21,15 +26,24 @@ from gaya_pipeline.take_identity import canonical_json
 
 __all__ = [
     "AnchorReviewPlan",
+    "AnchorTopupGenerationSummary",
+    "AnchorTopupMergeSummary",
+    "AnchorTopupPlanSummary",
+    "AnchorTopupDraftSummary",
     "CompletionAnchorError",
     "RoleAnchorSelectionSummary",
     "RoleReviewBundleSummary",
     "SelectedRoleAnchor",
     "build_role_review_bundle_v2",
+    "build_role_anchor_topup_plan",
+    "build_role_anchor_topup_draft",
     "finalize_role_anchor_selection",
     "load_anchor_review_plan",
     "load_anchor_source_plan",
+    "load_anchor_topup_plan",
+    "merge_role_anchor_topup",
     "resolve_selected_anchor",
+    "run_role_anchor_topup_generation",
     "validate_anchor_selection",
 ]
 
@@ -48,6 +62,18 @@ _REVIEW_CANDIDATE_COUNT = 4
 _REVIEW_MODELS = (IRODORI_MODEL, QWEN_MODEL)
 _CANDIDATE_SET_FORMAT_VERSION = 1
 _CANDIDATE_SET_PROTOCOL = "role-anchor-candidate-set-v1"
+_TOPUP_PLAN_FORMAT_VERSION = 1
+_TOPUP_PLAN_PROTOCOL = "role-anchor-topup-v1"
+_TOPUP_RUN_FORMAT_VERSION = 1
+_TOPUP_RUN_PROTOCOL = "role-anchor-topup-run-v1"
+_DRAFT_FORMAT_VERSION = 2
+_DRAFT_PROTOCOL = "role-review-draft-v2"
+_TOPUP_ATTEMPTS = (5, 6, 7, 8)
+_ANCHOR_SEED_POLICY = "role-anchor-derived-sha256-v1"
+_ANCHOR_SEED_BASE = 177
+_ANCHOR_SOURCE_CANDIDATE_SET_SHA256 = (
+    "9ff3bb11452ca80899944121edaba5e9a361a1cd8000a1ef716375e673062765"
+)
 _CANDIDATE_SET_ROOT_FIELDS = {
     "format_version",
     "protocol",
@@ -79,6 +105,78 @@ _CANDIDATE_SET_CANDIDATE_FIELDS = {
     "audio_sha256",
     "generation_input_sha256",
     "qc",
+}
+_TOPUP_PLAN_ROOT_FIELDS = {
+    "format_version",
+    "protocol",
+    "plan_sha256",
+    "candidate_set_sha256",
+    "decision_sha256",
+    "targets",
+}
+_TOPUP_PLAN_TARGET_FIELDS = {
+    "model",
+    "scenario",
+    "character",
+    "role_identity_sha256",
+    "role_epoch_sha256",
+    "attempts",
+    "seeds",
+}
+_TOPUP_RUN_ROOT_FIELDS = {
+    "format_version",
+    "protocol",
+    "plan_sha256",
+    "candidate_set_sha256",
+    "decision_sha256",
+    "topup_plan_sha256",
+    "run_id",
+    "model",
+    "model_revision",
+    "attempts",
+}
+_TOPUP_RUN_ATTEMPT_FIELDS = {
+    "model",
+    "model_revision",
+    "scenario",
+    "character",
+    "role_identity_sha256",
+    "role_epoch_sha256",
+    "attempt",
+    "seed",
+    "generation_input",
+    "generation_input_sha256",
+    "status",
+    "anchor_id",
+    "audio_path",
+    "audio_sha256",
+    "qc",
+    "realized",
+    "error",
+}
+_TOPUP_GENERATION_INPUT_FIELDS = {
+    "protocol",
+    "plan_sha256",
+    "model",
+    "model_revision",
+    "scenario",
+    "character",
+    "role_identity_sha256",
+    "role_epoch_sha256",
+    "attempt",
+    "seed",
+    "anchor_text",
+    "anchor_text_sha256",
+    "conditioning",
+}
+_DRAFT_ROOT_FIELDS = {
+    "format_version",
+    "protocol",
+    "phase",
+    "plan_sha256",
+    "candidate_set_sha256",
+    "current_group_id",
+    "groups",
 }
 _QC_FIELDS = {"mechanical", "content", "notes"}
 _REVIEW_ROOT_FIELDS = {
@@ -265,6 +363,7 @@ _HEX = frozenset("0123456789abcdef")
 class AnchorReviewPlan:
     plan_id: str
     anchor_source_plan_sha256: str
+    anchor_source_candidate_set_sha256: str
     anchor_candidate_set_sha256: str
     models: Mapping[str, str]
     roles: tuple[RoleSnapshot, ...]
@@ -280,6 +379,56 @@ class AnchorReviewPlan:
                 f"Anchor plan roleが一意ではありません: {scenario}/{character}",
             )
         return matches[0]
+
+
+class RoleAnchorGenerator(Protocol):
+    profile: ModelProfile
+
+    def role_anchor_generation_input(
+        self,
+        role: RoleSnapshot,
+    ) -> Mapping[str, Any]: ...
+
+    def generate_role_anchor(
+        self,
+        role: RoleSnapshot,
+        *,
+        seed: int,
+        output_wav: Path,
+    ) -> Mapping[str, Any]: ...
+
+    def close_role_anchor_generation(self) -> None: ...
+
+
+@dataclass(frozen=True)
+class AnchorTopupPlanSummary:
+    path: Path
+    target_count: int
+    attempt_count: int
+
+
+@dataclass(frozen=True)
+class AnchorTopupGenerationSummary:
+    run_id: str
+    ledger_path: Path
+    eligible_count: int
+    rejected_count: int
+    failed_count: int
+
+
+@dataclass(frozen=True)
+class AnchorTopupMergeSummary:
+    path: Path
+    candidate_set_sha256: str
+    replaced_group_count: int
+    candidate_count: int
+
+
+@dataclass(frozen=True)
+class AnchorTopupDraftSummary:
+    path: Path
+    inherited_count: int
+    reset_count: int
 
 
 @dataclass(frozen=True)
@@ -348,6 +497,7 @@ def load_anchor_source_plan(
         raise CompletionAnchorError(
             "Anchor source plan SHAが現在の固定authorityと一致しません。",
         )
+    source_candidate_set_sha256 = _ANCHOR_SOURCE_CANDIDATE_SET_SHA256
     candidate_set_sha256 = ANCHOR_CANDIDATE_SET_SHA256
 
     root = _exact(document, _ANCHOR_PLAN_ROOT_FIELDS, "Anchor source plan")
@@ -484,6 +634,7 @@ def load_anchor_source_plan(
     plan = AnchorReviewPlan(
         plan_id=plan_sha256,
         anchor_source_plan_sha256=plan_sha256,
+        anchor_source_candidate_set_sha256=source_candidate_set_sha256,
         anchor_candidate_set_sha256=candidate_set_sha256,
         models=models,
         roles=tuple(roles),
@@ -576,6 +727,659 @@ def load_anchor_review_plan(
     return plan
 
 
+def load_anchor_topup_plan(
+    *,
+    plan_path: Path,
+    source_candidate_set_path: Path,
+) -> AnchorReviewPlan:
+    """固定initial/source candidate authorityをtopup lineage用に読む。"""
+
+    _require_absolute(source_candidate_set_path, "source anchor candidate set")
+    plan = load_anchor_source_plan(plan_path=plan_path)
+    candidate_raw, _candidate_document = _read_canonical_json(
+        source_candidate_set_path,
+        "source anchor candidate set",
+    )
+    candidate_set_sha256 = hashlib.sha256(candidate_raw).hexdigest()
+    if candidate_set_sha256 != plan.anchor_source_candidate_set_sha256:
+        raise CompletionAnchorError(
+            "source anchor candidate set SHAが固定initial authorityと一致しません。",
+        )
+    return plan
+
+
+def build_role_anchor_topup_plan(
+    *,
+    plan: CompletionPlan | AnchorReviewPlan,
+    candidate_set_path: Path,
+    decision_path: Path,
+    output_path: Path,
+) -> AnchorTopupPlanSummary:
+    """確定decisionから再生成対象とattempt 5..8を固定する。"""
+
+    for path, label in (
+        (candidate_set_path, "anchor candidate set"),
+        (decision_path, "role review decision"),
+        (output_path, "anchor topup plan output"),
+    ):
+        _require_absolute(path, label)
+    candidate_set, candidate_sha256, decision, decision_sha256 = (
+        _load_topup_source_authority(
+            plan=plan,
+            candidate_set_path=candidate_set_path,
+            decision_path=decision_path,
+        )
+    )
+    candidate_groups = {
+        (group["model"], group["scenario"], group["character"]): group
+        for group in candidate_set["groups"]
+    }
+    targets: list[dict[str, Any]] = []
+    for group in decision["groups"]:
+        if not (
+            group["no_usable_candidate"]
+            or group["rubric"]["gender"] != "pass"
+        ):
+            continue
+        identity = (group["model"], group["scenario"], group["character"])
+        candidate_group = candidate_groups[identity]
+        seeds = [
+            _derive_anchor_seed(
+                plan_sha256=plan.anchor_source_plan_sha256,
+                model=identity[0],
+                scenario=identity[1],
+                character=identity[2],
+                attempt=attempt,
+            )
+            for attempt in _TOPUP_ATTEMPTS
+        ]
+        targets.append(
+            {
+                "model": identity[0],
+                "scenario": identity[1],
+                "character": identity[2],
+                "role_identity_sha256": candidate_group["role_identity_sha256"],
+                "role_epoch_sha256": candidate_group["role_epoch_sha256"],
+                "attempts": list(_TOPUP_ATTEMPTS),
+                "seeds": seeds,
+            },
+        )
+    if not targets:
+        raise CompletionAnchorError("anchor topup対象はありません。")
+    topup = _validate_anchor_topup_plan(
+        {
+            "format_version": _TOPUP_PLAN_FORMAT_VERSION,
+            "protocol": _TOPUP_PLAN_PROTOCOL,
+            "plan_sha256": plan.anchor_source_plan_sha256,
+            "candidate_set_sha256": candidate_sha256,
+            "decision_sha256": decision_sha256,
+            "targets": targets,
+        },
+        plan=plan,
+        candidate_set=candidate_set,
+        decision=decision,
+        decision_sha256=decision_sha256,
+    )
+    _write_canonical_new(output_path, topup)
+    return AnchorTopupPlanSummary(
+        path=output_path,
+        target_count=len(targets),
+        attempt_count=len(targets) * len(_TOPUP_ATTEMPTS),
+    )
+
+
+def run_role_anchor_topup_generation(
+    *,
+    plan: CompletionPlan | AnchorReviewPlan,
+    candidate_set_path: Path,
+    decision_path: Path,
+    topup_plan_path: Path,
+    model_id: str,
+    run_id: str,
+    artifacts_dir: Path,
+    generator: RoleAnchorGenerator | None = None,
+) -> AnchorTopupGenerationSummary:
+    """topup planの単一model分を独立runとして生成する。"""
+
+    for path, label in (
+        (candidate_set_path, "anchor candidate set"),
+        (decision_path, "role review decision"),
+        (topup_plan_path, "anchor topup plan"),
+        (artifacts_dir, "anchor artifacts"),
+    ):
+        _require_absolute(path, label)
+    run_id = _path_segment(run_id, "anchor topup run id")
+    candidate_set, candidate_sha256, decision, decision_sha256 = (
+        _load_topup_source_authority(
+            plan=plan,
+            candidate_set_path=candidate_set_path,
+            decision_path=decision_path,
+        )
+    )
+    topup_raw, topup_document = _read_canonical_json(
+        topup_plan_path,
+        "anchor topup plan",
+    )
+    topup = _validate_anchor_topup_plan(
+        topup_document,
+        plan=plan,
+        candidate_set=candidate_set,
+        decision=decision,
+        decision_sha256=decision_sha256,
+    )
+    topup_sha256 = hashlib.sha256(topup_raw).hexdigest()
+    targets = [target for target in topup["targets"] if target["model"] == model_id]
+    if not targets:
+        raise CompletionAnchorError(
+            f"anchor topup planにmodel対象がありません: {model_id}",
+        )
+    revision = _model_revision(plan, model_id)
+    effective_generator = (
+        _create_anchor_generator(model_id) if generator is None else generator
+    )
+    if (
+        effective_generator.profile.id != model_id
+        or effective_generator.profile.version != revision
+    ):
+        raise CompletionAnchorError(
+            "anchor generatorのmodel/revisionがauthority planと一致しません。",
+        )
+    run_root = artifacts_dir / "role-anchors" / "runs" / run_id
+    if run_root.exists():
+        raise CompletionAnchorError(
+            f"anchor topup run directoryは新規である必要があります: {run_root}",
+        )
+    pending = run_root.with_name(f".{run_root.name}.pending")
+    if pending.exists():
+        raise CompletionAnchorError(
+            f"anchor topup pending directoryが既に存在します: {pending}",
+        )
+    pending.mkdir(parents=True)
+    records: list[dict[str, Any]] = []
+    try:
+        try:
+            for target in targets:
+                role = plan.role(target["scenario"], target["character"])
+                for attempt, seed in zip(
+                    target["attempts"],
+                    target["seeds"],
+                    strict=True,
+                ):
+                    generation_input = _topup_generation_input(
+                        plan=plan,
+                        target=target,
+                        role=role,
+                        attempt=attempt,
+                        seed=seed,
+                        generator=effective_generator,
+                    )
+                    generation_input_sha256 = _canonical_sha256(generation_input)
+                    relative_base = PurePosixPath(
+                        "role-anchors",
+                        "runs",
+                        run_id,
+                        model_id,
+                        target["scenario"],
+                        target["character"],
+                        f"attempt-{attempt:04d}",
+                    )
+                    pending_base = pending.joinpath(
+                        model_id,
+                        target["scenario"],
+                        target["character"],
+                        f"attempt-{attempt:04d}",
+                    )
+                    output_wav = pending_base.with_suffix(".wav")
+                    sidecar_path = pending_base.with_suffix(".json")
+                    output_wav.parent.mkdir(parents=True, exist_ok=True)
+                    realized = dict(
+                        effective_generator.generate_role_anchor(
+                            role,
+                            seed=seed,
+                            output_wav=output_wav,
+                        ),
+                    )
+                    canonical_json(realized)
+                    if not output_wav.is_file():
+                        raise CompletionAnchorError(
+                            "anchor generatorがWAVを書き込みませんでした: "
+                            f"{output_wav}",
+                        )
+                    audio_sha256 = _sha256_file(output_wav)
+                    qc = _mechanical_qc(output_wav)
+                    anchor_id = _canonical_sha256(
+                        {
+                            "protocol": "role-anchor-identity-v1",
+                            "plan_sha256": plan.anchor_source_plan_sha256,
+                            "model": model_id,
+                            "model_revision": revision,
+                            "scenario": target["scenario"],
+                            "character": target["character"],
+                            "role_identity_sha256": target[
+                                "role_identity_sha256"
+                            ],
+                            "role_epoch_sha256": target["role_epoch_sha256"],
+                            "attempt": attempt,
+                            "seed": seed,
+                            "generation_input_sha256": generation_input_sha256,
+                            "audio_sha256": audio_sha256,
+                        },
+                    )
+                    status = "eligible" if qc["mechanical"] == "pass" else "rejected"
+                    record = {
+                        "model": model_id,
+                        "model_revision": revision,
+                        "scenario": target["scenario"],
+                        "character": target["character"],
+                        "role_identity_sha256": target["role_identity_sha256"],
+                        "role_epoch_sha256": target["role_epoch_sha256"],
+                        "attempt": attempt,
+                        "seed": seed,
+                        "generation_input": generation_input,
+                        "generation_input_sha256": generation_input_sha256,
+                        "status": status,
+                        "anchor_id": anchor_id,
+                        "audio_path": f"{relative_base.as_posix()}.wav",
+                        "audio_sha256": audio_sha256,
+                        "qc": qc,
+                        "realized": realized,
+                        "error": None,
+                    }
+                    _write_canonical_new(sidecar_path, record)
+                    records.append(record)
+        finally:
+            effective_generator.close_role_anchor_generation()
+        records.sort(
+            key=lambda item: (
+                item["model"],
+                item["scenario"],
+                item["character"],
+                item["attempt"],
+            ),
+        )
+        ledger = _validate_anchor_topup_run(
+            {
+                "format_version": _TOPUP_RUN_FORMAT_VERSION,
+                "protocol": _TOPUP_RUN_PROTOCOL,
+                "plan_sha256": plan.anchor_source_plan_sha256,
+                "candidate_set_sha256": candidate_sha256,
+                "decision_sha256": decision_sha256,
+                "topup_plan_sha256": topup_sha256,
+                "run_id": run_id,
+                "model": model_id,
+                "model_revision": revision,
+                "attempts": records,
+            },
+            plan=plan,
+            topup=topup,
+            candidate_set_sha256=candidate_sha256,
+            decision_sha256=decision_sha256,
+            topup_plan_sha256=topup_sha256,
+        )
+        _write_canonical_new(pending / "ledger.json", ledger)
+        _publish_pending_directory(pending, run_root)
+    except CompletionAnchorError:
+        shutil.rmtree(pending, ignore_errors=True)
+        raise
+    except Exception as error:
+        shutil.rmtree(pending, ignore_errors=True)
+        raise CompletionAnchorError(
+            f"anchor topup generationに失敗しました: {error}",
+        ) from error
+    ledger_path = run_root / "ledger.json"
+    return AnchorTopupGenerationSummary(
+        run_id=run_id,
+        ledger_path=ledger_path,
+        eligible_count=sum(item["status"] == "eligible" for item in records),
+        rejected_count=sum(item["status"] == "rejected" for item in records),
+        failed_count=sum(item["status"] == "failed" for item in records),
+    )
+
+
+def merge_role_anchor_topup(
+    *,
+    plan: CompletionPlan | AnchorReviewPlan,
+    candidate_set_path: Path,
+    decision_path: Path,
+    topup_plan_path: Path,
+    run_ids: Sequence[str],
+    artifacts_dir: Path,
+    output_path: Path,
+) -> AnchorTopupMergeSummary:
+    """topup対象groupだけをN4で整組置換したcandidate setを作る。"""
+
+    for path, label in (
+        (candidate_set_path, "anchor candidate set"),
+        (decision_path, "role review decision"),
+        (topup_plan_path, "anchor topup plan"),
+        (artifacts_dir, "anchor artifacts"),
+        (output_path, "merged anchor candidate set output"),
+    ):
+        _require_absolute(path, label)
+    if not run_ids or len(run_ids) != len(set(run_ids)):
+        raise CompletionAnchorError("topup run_idsは重複のない1件以上が必要です。")
+    normalized_run_ids = sorted(
+        _path_segment(run_id, "anchor topup run id") for run_id in run_ids
+    )
+    candidate_set, candidate_sha256, decision, decision_sha256 = (
+        _load_topup_source_authority(
+            plan=plan,
+            candidate_set_path=candidate_set_path,
+            decision_path=decision_path,
+        )
+    )
+    _verify_anchor_candidate_set_audio(
+        candidate_set=candidate_set,
+        artifacts_dir=artifacts_dir,
+        label="source anchor candidate audio",
+    )
+    topup_raw, topup_document = _read_canonical_json(
+        topup_plan_path,
+        "anchor topup plan",
+    )
+    topup = _validate_anchor_topup_plan(
+        topup_document,
+        plan=plan,
+        candidate_set=candidate_set,
+        decision=decision,
+        decision_sha256=decision_sha256,
+    )
+    topup_sha256 = hashlib.sha256(topup_raw).hexdigest()
+    attempts_by_identity: dict[tuple[str, str, str], list[dict[str, Any]]] = {}
+    run_models: set[str] = set()
+    for run_id in normalized_run_ids:
+        ledger_path = (
+            artifacts_dir / "role-anchors" / "runs" / run_id / "ledger.json"
+        )
+        _raw, ledger_document = _read_canonical_json(
+            ledger_path,
+            "anchor topup run ledger",
+        )
+        ledger = _validate_anchor_topup_run(
+            ledger_document,
+            plan=plan,
+            topup=topup,
+            candidate_set_sha256=candidate_sha256,
+            decision_sha256=decision_sha256,
+            topup_plan_sha256=topup_sha256,
+        )
+        if ledger["run_id"] != run_id or ledger["model"] in run_models:
+            raise CompletionAnchorError(
+                "topup run idまたはmodelがrun集合内で重複しています。",
+            )
+        run_models.add(ledger["model"])
+        for attempt in ledger["attempts"]:
+            if attempt["status"] != "eligible":
+                raise CompletionAnchorError(
+                    "merged candidate setにはtopup全attemptのeligibleが必要です。",
+                )
+            assert attempt["audio_path"] is not None
+            assert attempt["audio_sha256"] is not None
+            _verify_file_sha256(
+                _relative_child(
+                    artifacts_dir,
+                    attempt["audio_path"],
+                    "anchor topup audio",
+                ),
+                attempt["audio_sha256"],
+                "anchor topup audio",
+            )
+            identity = (
+                attempt["model"],
+                attempt["scenario"],
+                attempt["character"],
+            )
+            attempts_by_identity.setdefault(identity, []).append(attempt)
+    expected_models = {target["model"] for target in topup["targets"]}
+    if run_models != expected_models:
+        raise CompletionAnchorError(
+            "topup run集合は対象modelとexact一致する必要があります。",
+        )
+    target_identities = {
+        (target["model"], target["scenario"], target["character"])
+        for target in topup["targets"]
+    }
+    if set(attempts_by_identity) != target_identities:
+        raise CompletionAnchorError(
+            "topup run集合は対象groupとexact一致する必要があります。",
+        )
+    groups: list[dict[str, Any]] = []
+    for source_group in candidate_set["groups"]:
+        identity = (
+            source_group["model"],
+            source_group["scenario"],
+            source_group["character"],
+        )
+        if identity not in target_identities:
+            groups.append(json.loads(canonical_json(source_group)))
+            continue
+        attempts = sorted(
+            attempts_by_identity[identity],
+            key=lambda item: item["attempt"],
+        )
+        groups.append(
+            {
+                **{
+                    key: source_group[key]
+                    for key in (
+                        "model",
+                        "model_revision",
+                        "scenario",
+                        "character",
+                        "role_identity_sha256",
+                        "role_epoch_sha256",
+                    )
+                },
+                "attempts": [attempt["attempt"] for attempt in attempts],
+                "candidates": [_candidate_from_topup_attempt(item) for item in attempts],
+            },
+        )
+    merged = {
+        "format_version": _CANDIDATE_SET_FORMAT_VERSION,
+        "protocol": _CANDIDATE_SET_PROTOCOL,
+        "plan_sha256": plan.anchor_source_plan_sha256,
+        "runs": sorted([*candidate_set["runs"], *normalized_run_ids]),
+        "groups": groups,
+    }
+    merged_sha256 = _canonical_sha256(merged)
+    normalized = _validate_anchor_candidate_set_v1(
+        merged,
+        plan=plan,
+        candidate_set_sha256=merged_sha256,
+        expected_candidate_set_sha256=merged_sha256,
+    )
+    _verify_anchor_candidate_set_audio(
+        candidate_set=normalized,
+        artifacts_dir=artifacts_dir,
+        label="merged anchor candidate audio",
+    )
+    _write_canonical_new(output_path, normalized)
+    return AnchorTopupMergeSummary(
+        path=output_path,
+        candidate_set_sha256=merged_sha256,
+        replaced_group_count=len(target_identities),
+        candidate_count=sum(len(group["candidates"]) for group in groups),
+    )
+
+
+def build_role_anchor_topup_draft(
+    *,
+    plan: CompletionPlan | AnchorReviewPlan,
+    source_candidate_set_path: Path,
+    decision_path: Path,
+    topup_plan_path: Path,
+    merged_candidate_set_path: Path,
+    merged_bundle_dir: Path,
+    output_path: Path,
+) -> AnchorTopupDraftSummary:
+    """非対象判断を継承し、topup対象だけを未確認へ戻すdraftを作る。"""
+
+    for path, label in (
+        (source_candidate_set_path, "source anchor candidate set"),
+        (decision_path, "source role review decision"),
+        (topup_plan_path, "anchor topup plan"),
+        (merged_candidate_set_path, "merged anchor candidate set"),
+        (merged_bundle_dir, "merged role review bundle"),
+        (output_path, "role review inherited draft output"),
+    ):
+        _require_absolute(path, label)
+    source_set, source_sha256, decision, decision_sha256 = (
+        _load_topup_source_authority(
+            plan=plan,
+            candidate_set_path=source_candidate_set_path,
+            decision_path=decision_path,
+        )
+    )
+    _topup_raw, topup_document = _read_canonical_json(
+        topup_plan_path,
+        "anchor topup plan",
+    )
+    topup = _validate_anchor_topup_plan(
+        topup_document,
+        plan=plan,
+        candidate_set=source_set,
+        decision=decision,
+        decision_sha256=decision_sha256,
+    )
+    merged_raw, merged_document = _read_canonical_json(
+        merged_candidate_set_path,
+        "merged anchor candidate set",
+    )
+    merged_sha256 = hashlib.sha256(merged_raw).hexdigest()
+    merged_set = _validate_anchor_candidate_set_v1(
+        merged_document,
+        plan=plan,
+        candidate_set_sha256=merged_sha256,
+        expected_candidate_set_sha256=merged_sha256,
+    )
+    target_identities = {
+        (target["model"], target["scenario"], target["character"])
+        for target in topup["targets"]
+    }
+    source_groups = {
+        (group["model"], group["scenario"], group["character"]): group
+        for group in source_set["groups"]
+    }
+    merged_groups = {
+        (group["model"], group["scenario"], group["character"]): group
+        for group in merged_set["groups"]
+    }
+    for identity, source_group in source_groups.items():
+        merged_group = merged_groups[identity]
+        if identity not in target_identities and merged_group != source_group:
+            raise CompletionAnchorError(
+                "topup非対象candidate groupのobjectが変更されています: "
+                f"{'/'.join(identity)}",
+            )
+        if identity in target_identities and merged_group["attempts"] != list(
+            _TOPUP_ATTEMPTS
+        ):
+            raise CompletionAnchorError(
+                "topup対象candidate groupがattempt 5..8へ整組置換されていません: "
+                f"{'/'.join(identity)}",
+            )
+    _assert_exact_directory_files(
+        merged_bundle_dir,
+        {
+            "role-review-v2.json",
+            *(
+                f"audio/{candidate['id']}.wav"
+                for group in merged_set["groups"]
+                for candidate in group["candidates"]
+            ),
+        },
+        "merged role review bundle",
+    )
+    _bundle_raw, bundle_document = _read_canonical_json(
+        merged_bundle_dir / "role-review-v2.json",
+        "merged role review bundle",
+    )
+    bundle = _validate_role_review_bundle_v2(
+        bundle_document,
+        plan=plan,
+        candidate_set=merged_set,
+        candidate_set_sha256=merged_sha256,
+    )
+    for group in bundle["groups"]:
+        for candidate in group["candidates"]:
+            _verify_file_sha256(
+                _relative_child(
+                    merged_bundle_dir,
+                    candidate["audio_path"],
+                    "merged role review audio",
+                ),
+                candidate["audio_sha256"],
+                "merged role review audio",
+            )
+    decision_groups = {
+        (group["model"], group["scenario"], group["character"]): group
+        for group in decision["groups"]
+    }
+    draft_groups: list[dict[str, Any]] = []
+    target_group_ids: list[str] = []
+    empty_rubric = {
+        **{key: None for key in _APPLICABLE_RUBRIC_FIELDS},
+        "voice_identity": None,
+        "delivery": None,
+        "naturalness_quality": None,
+        "notes": "",
+    }
+    for review_group in bundle["groups"]:
+        identity = (
+            review_group["model"],
+            review_group["scenario"],
+            review_group["character"],
+        )
+        source_decision = decision_groups[identity]
+        new_group_sha256 = _canonical_sha256(review_group)
+        if identity not in target_identities:
+            if new_group_sha256 != source_decision["group_sha256"]:
+                raise CompletionAnchorError(
+                    "topup非対象review group hashが変更されています: "
+                    f"{'/'.join(identity)}",
+                )
+            draft_groups.append(json.loads(canonical_json(source_decision)))
+            continue
+        target_group_ids.append(review_group["id"])
+        draft_groups.append(
+            {
+                "id": review_group["id"],
+                "model": review_group["model"],
+                "scenario": review_group["scenario"],
+                "character": review_group["character"],
+                "line": None,
+                "role_epoch_sha256": review_group["role_epoch_sha256"],
+                "group_sha256": new_group_sha256,
+                "heard_candidate_ids": [],
+                "selected_candidate_id": None,
+                "no_usable_candidate": False,
+                "rubric": dict(empty_rubric),
+                "confirmed": False,
+            },
+        )
+    if len(target_group_ids) != len(target_identities):
+        raise CompletionAnchorError("inherited draftにtopup targetの欠落があります。")
+    draft = _validate_role_review_draft_v2(
+        {
+            "format_version": _DRAFT_FORMAT_VERSION,
+            "protocol": _DRAFT_PROTOCOL,
+            "phase": _PHASE,
+            "plan_sha256": plan.anchor_source_plan_sha256,
+            "candidate_set_sha256": merged_sha256,
+            "current_group_id": target_group_ids[0],
+            "groups": draft_groups,
+        },
+        bundle=bundle,
+        target_identities=target_identities,
+    )
+    _write_canonical_new(output_path, draft)
+    return AnchorTopupDraftSummary(
+        path=output_path,
+        inherited_count=len(draft_groups) - len(target_group_ids),
+        reset_count=len(target_group_ids),
+    )
+
+
 def build_role_review_bundle_v2(
     *,
     plan: CompletionPlan | AnchorReviewPlan,
@@ -602,6 +1406,7 @@ def build_role_review_bundle_v2(
         candidate_document,
         plan=plan,
         candidate_set_sha256=candidate_sha256,
+        expected_candidate_set_sha256=plan.anchor_candidate_set_sha256,
     )
 
     review_groups: list[dict[str, Any]] = []
@@ -710,6 +1515,7 @@ def finalize_role_anchor_selection(
         candidate_document,
         plan=plan,
         candidate_set_sha256=candidate_sha256,
+        expected_candidate_set_sha256=plan.anchor_candidate_set_sha256,
     )
     _assert_exact_directory_files(
         bundle_dir,
@@ -758,6 +1564,7 @@ def finalize_role_anchor_selection(
     decision = _validate_role_review_decision_v2(
         decision_document,
         bundle=bundle,
+        require_selected_gender_pass=True,
     )
     blocked_groups = [
         group for group in decision["groups"] if group["no_usable_candidate"]
@@ -1154,19 +1961,401 @@ def resolve_selected_anchor(
     )
 
 
+def _load_topup_source_authority(
+    *,
+    plan: CompletionPlan | AnchorReviewPlan,
+    candidate_set_path: Path,
+    decision_path: Path,
+) -> tuple[dict[str, Any], str, dict[str, Any], str]:
+    candidate_raw, candidate_document = _read_canonical_json(
+        candidate_set_path,
+        "anchor candidate set",
+    )
+    candidate_sha256 = hashlib.sha256(candidate_raw).hexdigest()
+    candidate_set = _validate_anchor_candidate_set_v1(
+        candidate_document,
+        plan=plan,
+        candidate_set_sha256=candidate_sha256,
+        expected_candidate_set_sha256=plan.anchor_source_candidate_set_sha256,
+    )
+    review_groups = [
+        _role_review_group_v2(plan=plan, group=group)
+        for group in candidate_set["groups"]
+    ]
+    bundle = _validate_role_review_bundle_v2(
+        {
+            "format_version": _REVIEW_FORMAT_VERSION,
+            "protocol": _REVIEW_PROTOCOL,
+            "phase": _PHASE,
+            "plan_sha256": plan.anchor_source_plan_sha256,
+            "candidate_set_sha256": candidate_sha256,
+            "groups": review_groups,
+        },
+        plan=plan,
+        candidate_set=candidate_set,
+        candidate_set_sha256=candidate_sha256,
+    )
+    decision_raw, decision_document = _read_canonical_json(
+        decision_path,
+        "role review decision",
+    )
+    decision_sha256 = hashlib.sha256(decision_raw).hexdigest()
+    _verify_adjacent_sha256_marker(
+        decision_path.with_suffix(".sha256"),
+        decision_sha256,
+        "role review decision",
+    )
+    decision = _validate_role_review_decision_v2(
+        decision_document,
+        bundle=bundle,
+        require_selected_gender_pass=False,
+    )
+    return candidate_set, candidate_sha256, decision, decision_sha256
+
+
+def _validate_anchor_topup_plan(
+    document: Any,
+    *,
+    plan: CompletionPlan | AnchorReviewPlan,
+    candidate_set: Mapping[str, Any],
+    decision: Mapping[str, Any],
+    decision_sha256: str,
+) -> dict[str, Any]:
+    root = _exact(document, _TOPUP_PLAN_ROOT_FIELDS, "anchor topup plan")
+    if (
+        root["format_version"] != _TOPUP_PLAN_FORMAT_VERSION
+        or root["protocol"] != _TOPUP_PLAN_PROTOCOL
+    ):
+        raise CompletionAnchorError("anchor topup plan root contractが不正です。")
+    plan_sha256 = _sha256(root["plan_sha256"], "anchor topup plan.plan_sha256")
+    if plan_sha256 != plan.anchor_source_plan_sha256:
+        raise CompletionAnchorError("anchor topup planがauthority planと一致しません。")
+    candidate_set_sha256 = _sha256(
+        root["candidate_set_sha256"],
+        "anchor topup plan.candidate_set_sha256",
+    )
+    if candidate_set_sha256 != _canonical_sha256(candidate_set):
+        raise CompletionAnchorError(
+            "anchor topup planがsource candidate setと一致しません。",
+        )
+    normalized_decision_sha256 = _sha256(
+        root["decision_sha256"],
+        "anchor topup plan.decision_sha256",
+    )
+    if normalized_decision_sha256 != decision_sha256:
+        raise CompletionAnchorError("anchor topup planがfinal decisionと一致しません。")
+    values = root["targets"]
+    if not isinstance(values, list) or not values:
+        raise CompletionAnchorError("anchor topup plan.targetsは空でない配列が必要です。")
+    candidate_groups = {
+        (group["model"], group["scenario"], group["character"]): group
+        for group in candidate_set["groups"]
+    }
+    decision_groups = {
+        (group["model"], group["scenario"], group["character"]): group
+        for group in decision["groups"]
+    }
+    targets: list[dict[str, Any]] = []
+    seen_seeds: set[int] = set()
+    for index, value in enumerate(values):
+        field = f"anchor topup plan.targets[{index}]"
+        item = _exact(value, _TOPUP_PLAN_TARGET_FIELDS, field)
+        model = _anchor_model(item["model"], f"{field}.model")
+        scenario = _safe_segment(item["scenario"], f"{field}.scenario")
+        character = _safe_segment(item["character"], f"{field}.character")
+        identity = (model, scenario, character)
+        try:
+            candidate_group = candidate_groups[identity]
+            decision_group = decision_groups[identity]
+        except KeyError as error:
+            raise CompletionAnchorError(f"{field}がsource authority対象外です。") from error
+        role_identity_sha256 = _sha256(
+            item["role_identity_sha256"],
+            f"{field}.role_identity_sha256",
+        )
+        role_epoch_sha256 = _sha256(
+            item["role_epoch_sha256"],
+            f"{field}.role_epoch_sha256",
+        )
+        if (
+            role_identity_sha256 != candidate_group["role_identity_sha256"]
+            or role_epoch_sha256 != candidate_group["role_epoch_sha256"]
+        ):
+            raise CompletionAnchorError(f"{field}のrole identity/epochが不正です。")
+        attempts_value = item["attempts"]
+        if attempts_value != list(_TOPUP_ATTEMPTS):
+            raise CompletionAnchorError(f"{field}.attemptsはexactly [5,6,7,8]が必要です。")
+        seeds_value = item["seeds"]
+        if not isinstance(seeds_value, list) or len(seeds_value) != len(
+            _TOPUP_ATTEMPTS
+        ):
+            raise CompletionAnchorError(f"{field}.seedsはexactly 4件が必要です。")
+        seeds = [
+            _non_negative_safe_integer(seed, f"{field}.seeds[{seed_index}]")
+            for seed_index, seed in enumerate(seeds_value)
+        ]
+        expected_seeds = [
+            _derive_anchor_seed(
+                plan_sha256=plan_sha256,
+                model=model,
+                scenario=scenario,
+                character=character,
+                attempt=attempt,
+            )
+            for attempt in _TOPUP_ATTEMPTS
+        ]
+        if seeds != expected_seeds or any(seed in seen_seeds for seed in seeds):
+            raise CompletionAnchorError(f"{field}.seedsがcanonical derivationと不一致です。")
+        seen_seeds.update(seeds)
+        if not (
+            decision_group["no_usable_candidate"]
+            or decision_group["rubric"]["gender"] != "pass"
+        ):
+            raise CompletionAnchorError(f"{field}はtopup判定対象ではありません。")
+        targets.append(
+            {
+                "model": model,
+                "scenario": scenario,
+                "character": character,
+                "role_identity_sha256": role_identity_sha256,
+                "role_epoch_sha256": role_epoch_sha256,
+                "attempts": list(_TOPUP_ATTEMPTS),
+                "seeds": seeds,
+            },
+        )
+    if targets != sorted(
+        targets,
+        key=lambda item: (item["model"], item["scenario"], item["character"]),
+    ):
+        raise CompletionAnchorError("anchor topup plan.targetsはcanonical順が必要です。")
+    actual_identities = {
+        (target["model"], target["scenario"], target["character"])
+        for target in targets
+    }
+    expected_identities = {
+        (group["model"], group["scenario"], group["character"])
+        for group in decision["groups"]
+        if group["no_usable_candidate"] or group["rubric"]["gender"] != "pass"
+    }
+    if actual_identities != expected_identities or len(actual_identities) != len(targets):
+        raise CompletionAnchorError(
+            "anchor topup plan.targetsはdecision由来対象とexact一致が必要です。",
+        )
+    return {
+        "format_version": _TOPUP_PLAN_FORMAT_VERSION,
+        "protocol": _TOPUP_PLAN_PROTOCOL,
+        "plan_sha256": plan_sha256,
+        "candidate_set_sha256": candidate_set_sha256,
+        "decision_sha256": normalized_decision_sha256,
+        "targets": targets,
+    }
+
+
+def _validate_anchor_topup_run(
+    document: Any,
+    *,
+    plan: CompletionPlan | AnchorReviewPlan,
+    topup: Mapping[str, Any],
+    candidate_set_sha256: str,
+    decision_sha256: str,
+    topup_plan_sha256: str,
+) -> dict[str, Any]:
+    root = _exact(document, _TOPUP_RUN_ROOT_FIELDS, "anchor topup run")
+    if (
+        root["format_version"] != _TOPUP_RUN_FORMAT_VERSION
+        or root["protocol"] != _TOPUP_RUN_PROTOCOL
+    ):
+        raise CompletionAnchorError("anchor topup run root contractが不正です。")
+    bindings = {
+        "plan_sha256": plan.anchor_source_plan_sha256,
+        "candidate_set_sha256": candidate_set_sha256,
+        "decision_sha256": decision_sha256,
+        "topup_plan_sha256": topup_plan_sha256,
+    }
+    for key, expected in bindings.items():
+        if _sha256(root[key], f"anchor topup run.{key}") != expected:
+            raise CompletionAnchorError(f"anchor topup run.{key}がauthorityと不一致です。")
+    run_id = _path_segment(root["run_id"], "anchor topup run.run_id")
+    model = _anchor_model(root["model"], "anchor topup run.model")
+    revision = _trimmed_text(
+        root["model_revision"],
+        "anchor topup run.model_revision",
+    )
+    if revision != _model_revision(plan, model):
+        raise CompletionAnchorError("anchor topup run model revisionが不正です。")
+    expected_targets = {
+        (target["scenario"], target["character"]): target
+        for target in topup["targets"]
+        if target["model"] == model
+    }
+    values = root["attempts"]
+    if not isinstance(values, list) or not values:
+        raise CompletionAnchorError("anchor topup run.attemptsは空でない配列が必要です。")
+    attempts: list[dict[str, Any]] = []
+    slots: set[tuple[str, str, int]] = set()
+    for index, value in enumerate(values):
+        field = f"anchor topup run.attempts[{index}]"
+        item = _exact(value, _TOPUP_RUN_ATTEMPT_FIELDS, field)
+        item_model = _anchor_model(item["model"], f"{field}.model")
+        item_revision = _trimmed_text(item["model_revision"], f"{field}.model_revision")
+        scenario = _safe_segment(item["scenario"], f"{field}.scenario")
+        character = _safe_segment(item["character"], f"{field}.character")
+        try:
+            target = expected_targets[(scenario, character)]
+        except KeyError as error:
+            raise CompletionAnchorError(f"{field}がtopup plan対象外です。") from error
+        attempt = _positive_integer(item["attempt"], f"{field}.attempt")
+        if attempt not in target["attempts"]:
+            raise CompletionAnchorError(f"{field}.attemptがtopup plan対象外です。")
+        target_index = target["attempts"].index(attempt)
+        seed = _non_negative_safe_integer(item["seed"], f"{field}.seed")
+        if (
+            item_model != model
+            or item_revision != revision
+            or item["role_identity_sha256"] != target["role_identity_sha256"]
+            or item["role_epoch_sha256"] != target["role_epoch_sha256"]
+            or seed != target["seeds"][target_index]
+        ):
+            raise CompletionAnchorError(f"{field}がtopup plan identityと不一致です。")
+        slot = (scenario, character, attempt)
+        if slot in slots:
+            raise CompletionAnchorError("anchor topup run attempt slotが重複しています。")
+        slots.add(slot)
+        generation_input = _exact(
+            item["generation_input"],
+            _TOPUP_GENERATION_INPUT_FIELDS,
+            f"{field}.generation_input",
+        )
+        expected_input_identity = {
+            "protocol": "role-anchor-input-v1",
+            "plan_sha256": plan.anchor_source_plan_sha256,
+            "model": model,
+            "model_revision": revision,
+            "scenario": scenario,
+            "character": character,
+            "role_identity_sha256": target["role_identity_sha256"],
+            "role_epoch_sha256": target["role_epoch_sha256"],
+            "attempt": attempt,
+            "seed": seed,
+            "anchor_text": _anchor_texts()[model],
+            "anchor_text_sha256": hashlib.sha256(
+                _anchor_texts()[model].encode("utf-8"),
+            ).hexdigest(),
+        }
+        if any(generation_input[key] != expected for key, expected in expected_input_identity.items()):
+            raise CompletionAnchorError(f"{field}.generation_input identityが不正です。")
+        conditioning = generation_input["conditioning"]
+        if not isinstance(conditioning, dict):
+            raise CompletionAnchorError(f"{field}.generation_input.conditioningが不正です。")
+        canonical_json(conditioning)
+        recursive_keys = _recursive_keys(conditioning)
+        if "emotion" in recursive_keys or "intensity" in recursive_keys:
+            raise CompletionAnchorError(
+                f"{field}.generation_inputにemotion/intensityを含められません。",
+            )
+        generation_input_sha256 = _sha256(
+            item["generation_input_sha256"],
+            f"{field}.generation_input_sha256",
+        )
+        if generation_input_sha256 != _canonical_sha256(generation_input):
+            raise CompletionAnchorError(f"{field}.generation input SHAが不正です。")
+        status = _enum(item["status"], {"eligible", "rejected", "failed"}, f"{field}.status")
+        qc = _validate_review_qc(item["qc"], f"{field}.qc")
+        if status == "eligible" and qc["mechanical"] != "pass":
+            raise CompletionAnchorError("eligible anchorはmechanical passが必要です。")
+        if status in {"rejected", "failed"} and qc["mechanical"] != "fail":
+            raise CompletionAnchorError("非eligible anchorはmechanical failが必要です。")
+        if status == "failed":
+            if any(item[key] is not None for key in ("anchor_id", "audio_path", "audio_sha256", "realized")):
+                raise CompletionAnchorError("failed anchorにaudio identityは持てません。")
+            anchor_id = audio_path = audio_sha256 = realized = None
+            error = _trimmed_text(item["error"], f"{field}.error")
+        else:
+            anchor_id = _sha256(item["anchor_id"], f"{field}.anchor_id")
+            audio_path = _relative_anchor_artifact_path(item["audio_path"], f"{field}.audio_path")
+            if PurePosixPath(audio_path).parts[2] != run_id:
+                raise CompletionAnchorError(f"{field}.audio_pathがrun idと不一致です。")
+            audio_sha256 = _sha256(item["audio_sha256"], f"{field}.audio_sha256")
+            expected_anchor_id = _canonical_sha256(
+                {
+                    "protocol": "role-anchor-identity-v1",
+                    "plan_sha256": plan.anchor_source_plan_sha256,
+                    "model": model,
+                    "model_revision": revision,
+                    "scenario": scenario,
+                    "character": character,
+                    "role_identity_sha256": target["role_identity_sha256"],
+                    "role_epoch_sha256": target["role_epoch_sha256"],
+                    "attempt": attempt,
+                    "seed": seed,
+                    "generation_input_sha256": generation_input_sha256,
+                    "audio_sha256": audio_sha256,
+                },
+            )
+            if anchor_id != expected_anchor_id:
+                raise CompletionAnchorError(f"{field}.anchor_idがcontent identityと不一致です。")
+            realized = item["realized"]
+            if not isinstance(realized, dict):
+                raise CompletionAnchorError(f"{field}.realizedはobjectが必要です。")
+            canonical_json(realized)
+            error = None
+            if item["error"] is not None:
+                raise CompletionAnchorError(f"{field}.errorはnullが必要です。")
+        attempts.append(
+            {
+                "model": model,
+                "model_revision": revision,
+                "scenario": scenario,
+                "character": character,
+                "role_identity_sha256": target["role_identity_sha256"],
+                "role_epoch_sha256": target["role_epoch_sha256"],
+                "attempt": attempt,
+                "seed": seed,
+                "generation_input": generation_input,
+                "generation_input_sha256": generation_input_sha256,
+                "status": status,
+                "anchor_id": anchor_id,
+                "audio_path": audio_path,
+                "audio_sha256": audio_sha256,
+                "qc": qc,
+                "realized": realized,
+                "error": error,
+            },
+        )
+    expected_slots = {
+        (target["scenario"], target["character"], attempt)
+        for target in expected_targets.values()
+        for attempt in target["attempts"]
+    }
+    if slots != expected_slots:
+        raise CompletionAnchorError("anchor topup runはmodel対象×attempt 5..8とexact一致が必要です。")
+    if attempts != sorted(attempts, key=lambda item: (item["model"], item["scenario"], item["character"], item["attempt"])):
+        raise CompletionAnchorError("anchor topup run.attemptsはcanonical順が必要です。")
+    return {
+        "format_version": _TOPUP_RUN_FORMAT_VERSION,
+        "protocol": _TOPUP_RUN_PROTOCOL,
+        **bindings,
+        "run_id": run_id,
+        "model": model,
+        "model_revision": revision,
+        "attempts": attempts,
+    }
+
+
 def _validate_anchor_candidate_set_v1(
     document: Any,
     *,
     plan: CompletionPlan | AnchorReviewPlan,
     candidate_set_sha256: str,
+    expected_candidate_set_sha256: str,
 ) -> dict[str, Any]:
     expected_source_plan_sha256 = _sha256(
         plan.anchor_source_plan_sha256,
         "completion plan.anchor_source_plan_sha256",
     )
     expected_candidate_set_sha256 = _sha256(
-        plan.anchor_candidate_set_sha256,
-        "completion plan.anchor_candidate_set_sha256",
+        expected_candidate_set_sha256,
+        "expected anchor candidate set SHA-256",
     )
     actual_candidate_set_sha256 = _sha256(
         candidate_set_sha256,
@@ -1300,9 +2489,20 @@ def _validate_anchor_candidate_set_v1(
             )
 
         attempts_value = item["attempts"]
-        if attempts_value != [1, 2, 3, 4]:
+        if (
+            not isinstance(attempts_value, list)
+            or len(attempts_value) != _REVIEW_CANDIDATE_COUNT
+        ):
             raise CompletionAnchorError(
-                f"{field}.attemptsはexactly [1,2,3,4]が必要です。",
+                f"{field}.attemptsはexactly 4件が必要です。",
+            )
+        attempts = [
+            _positive_integer(value, f"{field}.attempts[{attempt_index}]")
+            for attempt_index, value in enumerate(attempts_value)
+        ]
+        if attempts != sorted(set(attempts)):
+            raise CompletionAnchorError(
+                f"{field}.attemptsは4件のunique厳密昇順正整数が必要です。",
             )
         candidates_value = item["candidates"]
         if (
@@ -1320,7 +2520,7 @@ def _validate_anchor_candidate_set_v1(
                 _CANDIDATE_SET_CANDIDATE_FIELDS,
                 candidate_field,
             )
-            expected_attempt = candidate_index + 1
+            expected_attempt = attempts[candidate_index]
             if candidate["attempt"] != expected_attempt:
                 raise CompletionAnchorError(
                     f"{candidate_field}.attemptは{expected_attempt}が必要です。",
@@ -1393,7 +2593,7 @@ def _validate_anchor_candidate_set_v1(
                 "character": character,
                 "role_identity_sha256": role_identity_sha256,
                 "role_epoch_sha256": role_epoch_sha256,
-                "attempts": [1, 2, 3, 4],
+                "attempts": attempts,
                 "candidates": candidates,
             },
         )
@@ -1604,11 +2804,10 @@ def _validate_role_review_group_v2(value: Any, *, field: str) -> dict[str, Any]:
             _REVIEW_CANDIDATE_FIELDS,
             candidate_field,
         )
-        expected_attempt = index + 1
-        if candidate["attempt"] != expected_attempt:
-            raise CompletionAnchorError(
-                f"{candidate_field}.attemptは{expected_attempt}が必要です。",
-            )
+        attempt = _positive_integer(
+            candidate["attempt"],
+            f"{candidate_field}.attempt",
+        )
         candidate_id = _sha256(candidate["id"], f"{candidate_field}.id")
         audio_path = _relative_bundle_path(
             candidate["audio_path"],
@@ -1621,7 +2820,7 @@ def _validate_role_review_group_v2(value: Any, *, field: str) -> dict[str, Any]:
         candidates.append(
             {
                 "id": candidate_id,
-                "attempt": expected_attempt,
+                "attempt": attempt,
                 "seed": _non_negative_safe_integer(
                     candidate["seed"],
                     f"{candidate_field}.seed",
@@ -1636,6 +2835,11 @@ def _validate_role_review_group_v2(value: Any, *, field: str) -> dict[str, Any]:
                     f"{candidate_field}.qc",
                 ),
             },
+        )
+    attempts = [candidate["attempt"] for candidate in candidates]
+    if attempts != sorted(set(attempts)):
+        raise CompletionAnchorError(
+            f"{field}.candidatesはunique厳密昇順attemptが必要です。",
         )
     candidate_ids = _sha256_array(
         item["candidate_ids"],
@@ -1674,6 +2878,7 @@ def _validate_role_review_decision_v2(
     document: Any,
     *,
     bundle: Mapping[str, Any],
+    require_selected_gender_pass: bool,
 ) -> dict[str, Any]:
     root = _exact(document, _DECISION_ROOT_FIELDS, "role review decision")
     if (
@@ -1710,6 +2915,7 @@ def _validate_role_review_decision_v2(
         decision = _validate_role_review_decision_group_v2(
             value,
             field=field,
+            require_selected_gender_pass=require_selected_gender_pass,
         )
         expected = {
             "id": review_group["id"],
@@ -1749,10 +2955,100 @@ def _validate_role_review_decision_v2(
     }
 
 
+def _validate_role_review_draft_v2(
+    document: Any,
+    *,
+    bundle: Mapping[str, Any],
+    target_identities: set[tuple[str, str, str]],
+) -> dict[str, Any]:
+    root = _exact(document, _DRAFT_ROOT_FIELDS, "role review draft")
+    if (
+        root["format_version"] != _DRAFT_FORMAT_VERSION
+        or root["protocol"] != _DRAFT_PROTOCOL
+        or root["phase"] != _PHASE
+        or root["plan_sha256"] != bundle["plan_sha256"]
+        or root["candidate_set_sha256"] != bundle["candidate_set_sha256"]
+    ):
+        raise CompletionAnchorError("role review draft root authorityが不正です。")
+    values = root["groups"]
+    if not isinstance(values, list) or len(values) != _REVIEW_GROUP_COUNT:
+        raise CompletionAnchorError("role review draft.groupsはexactly 106件が必要です。")
+    empty_rubric = {
+        **{key: None for key in _APPLICABLE_RUBRIC_FIELDS},
+        "voice_identity": None,
+        "delivery": None,
+        "naturalness_quality": None,
+        "notes": "",
+    }
+    groups: list[dict[str, Any]] = []
+    target_ids: list[str] = []
+    for index, (value, review_group) in enumerate(
+        zip(values, bundle["groups"], strict=True),
+    ):
+        field = f"role review draft.groups[{index}]"
+        item = _exact(value, _DECISION_FIELDS, field)
+        identity = (
+            review_group["model"],
+            review_group["scenario"],
+            review_group["character"],
+        )
+        expected_binding = {
+            "id": review_group["id"],
+            "model": review_group["model"],
+            "scenario": review_group["scenario"],
+            "character": review_group["character"],
+            "line": None,
+            "role_epoch_sha256": review_group["role_epoch_sha256"],
+            "group_sha256": _canonical_sha256(review_group),
+        }
+        if any(item[key] != expected for key, expected in expected_binding.items()):
+            raise CompletionAnchorError(f"{field}がmerged bundleと一致しません。")
+        if identity in target_identities:
+            target_ids.append(review_group["id"])
+            if any(
+                (
+                    item["heard_candidate_ids"] != [],
+                    item["selected_candidate_id"] is not None,
+                    item["no_usable_candidate"] is not False,
+                    item["rubric"] != empty_rubric,
+                    item["confirmed"] is not False,
+                ),
+            ):
+                raise CompletionAnchorError(f"{field}のtopup target resetが不正です。")
+            groups.append(json.loads(canonical_json(item)))
+            continue
+        normalized = _validate_role_review_decision_group_v2(
+            item,
+            field=field,
+            require_selected_gender_pass=True,
+        )
+        if normalized["heard_candidate_ids"] != review_group["candidate_ids"]:
+            raise CompletionAnchorError(f"{field}は全candidate聴取済みが必要です。")
+        groups.append(normalized)
+    current_group_id = _sha256(
+        root["current_group_id"],
+        "role review draft.current_group_id",
+    )
+    if not target_ids or current_group_id != target_ids[0]:
+        raise CompletionAnchorError(
+            "role review draft.current_group_idは先頭topup targetが必要です。",
+        )
+    return {
+        "format_version": _DRAFT_FORMAT_VERSION,
+        "protocol": _DRAFT_PROTOCOL,
+        "phase": _PHASE,
+        "plan_sha256": bundle["plan_sha256"],
+        "candidate_set_sha256": bundle["candidate_set_sha256"],
+        "current_group_id": current_group_id,
+        "groups": groups,
+    }
+
+
 def _validate_role_review_decision_group_v2(
     value: Any,
     *,
     field: str,
+    require_selected_gender_pass: bool,
 ) -> dict[str, Any]:
     decision = _exact(value, _DECISION_FIELDS, field)
     if decision["line"] is not None:
@@ -1786,6 +3082,19 @@ def _validate_role_review_decision_group_v2(
         raise CompletionAnchorError(
             f"{field}.confirmedはtrueが必要です。",
         )
+    rubric = _validate_role_review_rubric_v2(
+        decision["rubric"],
+        f"{field}.rubric",
+    )
+    if (
+        require_selected_gender_pass
+        and not no_usable_candidate
+        and rubric["gender"] != "pass"
+    ):
+        raise CompletionAnchorError(
+            f"{field}はselected anchorのgender=passが必要です。"
+            "性別不一致ならno_usable_candidate=trueで再生成対象にしてください。",
+        )
     return {
         "id": _sha256(decision["id"], f"{field}.id"),
         "model": _path_segment(decision["model"], f"{field}.model"),
@@ -1806,10 +3115,7 @@ def _validate_role_review_decision_group_v2(
         "heard_candidate_ids": heard,
         "selected_candidate_id": selected_candidate_id,
         "no_usable_candidate": no_usable_candidate,
-        "rubric": _validate_role_review_rubric_v2(
-            decision["rubric"],
-            f"{field}.rubric",
-        ),
+        "rubric": rubric,
         "confirmed": True,
     }
 
@@ -1834,6 +3140,166 @@ def _validate_role_review_rubric_v2(value: Any, field: str) -> dict[str, Any]:
     normalized["naturalness_quality"] = score
     normalized["notes"] = _string(rubric["notes"], f"{field}.notes")
     return normalized
+
+
+def _derive_anchor_seed(
+    *,
+    plan_sha256: str,
+    model: str,
+    scenario: str,
+    character: str,
+    attempt: int,
+) -> int:
+    identity = {
+        "policy": _ANCHOR_SEED_POLICY,
+        "seed_base": _ANCHOR_SEED_BASE,
+        "plan_sha256": _sha256(plan_sha256, "anchor seed plan SHA"),
+        "model": _anchor_model(model, "anchor seed model"),
+        "scenario": _safe_segment(scenario, "anchor seed scenario"),
+        "character": _safe_segment(character, "anchor seed character"),
+        "attempt": _positive_integer(attempt, "anchor seed attempt"),
+    }
+    return int.from_bytes(
+        hashlib.sha256(canonical_json(identity).encode("utf-8")).digest()[:4],
+        "big",
+    )
+
+
+def _topup_generation_input(
+    *,
+    plan: CompletionPlan | AnchorReviewPlan,
+    target: Mapping[str, Any],
+    role: RoleSnapshot,
+    attempt: int,
+    seed: int,
+    generator: RoleAnchorGenerator,
+) -> dict[str, Any]:
+    conditioning = dict(generator.role_anchor_generation_input(role))
+    canonical_json(conditioning)
+    recursive_keys = _recursive_keys(conditioning)
+    if "emotion" in recursive_keys or "intensity" in recursive_keys:
+        raise CompletionAnchorError(
+            "anchor conditioningにemotion/intensityを含められません。",
+        )
+    anchor_text = _anchor_texts()[target["model"]]
+    return {
+        "protocol": "role-anchor-input-v1",
+        "plan_sha256": plan.anchor_source_plan_sha256,
+        "model": target["model"],
+        "model_revision": _model_revision(plan, target["model"]),
+        "scenario": target["scenario"],
+        "character": target["character"],
+        "role_identity_sha256": target["role_identity_sha256"],
+        "role_epoch_sha256": target["role_epoch_sha256"],
+        "attempt": attempt,
+        "seed": seed,
+        "anchor_text": anchor_text,
+        "anchor_text_sha256": hashlib.sha256(anchor_text.encode("utf-8")).hexdigest(),
+        "conditioning": conditioning,
+    }
+
+
+def _candidate_from_topup_attempt(attempt: Mapping[str, Any]) -> dict[str, Any]:
+    return {
+        "id": attempt["anchor_id"],
+        "model": attempt["model"],
+        "model_revision": attempt["model_revision"],
+        "scenario": attempt["scenario"],
+        "character": attempt["character"],
+        "role_identity_sha256": attempt["role_identity_sha256"],
+        "role_epoch_sha256": attempt["role_epoch_sha256"],
+        "attempt": attempt["attempt"],
+        "seed": attempt["seed"],
+        "audio_path": attempt["audio_path"],
+        "audio_sha256": attempt["audio_sha256"],
+        "generation_input_sha256": attempt["generation_input_sha256"],
+        "qc": dict(attempt["qc"]),
+    }
+
+
+def _mechanical_qc(path: Path) -> dict[str, Any]:
+    notes: list[str] = []
+    try:
+        with wave.open(str(path), "rb") as wav:
+            channels = wav.getnchannels()
+            sample_width = wav.getsampwidth()
+            sample_rate = wav.getframerate()
+            frame_count = wav.getnframes()
+            compression = wav.getcomptype()
+            frames = wav.readframes(frame_count)
+    except (OSError, EOFError, wave.Error) as error:
+        return {
+            "mechanical": "fail",
+            "content": "not_checked",
+            "notes": [f"invalid_wav:{error}"],
+        }
+    if channels != 1:
+        notes.append(f"channels={channels}")
+    if sample_width != 2:
+        notes.append(f"sample_width={sample_width}")
+    if compression != "NONE":
+        notes.append(f"compression={compression}")
+    if not 8_000 <= sample_rate <= 96_000:
+        notes.append(f"sample_rate={sample_rate}")
+    duration = frame_count / sample_rate if sample_rate > 0 else 0.0
+    if not 0.25 <= duration <= 30.0:
+        notes.append(f"duration={duration:.6f}")
+    if sample_width == 2 and frames:
+        sample_count = len(frames) // 2
+        samples = struct.unpack(f"<{sample_count}h", frames[: sample_count * 2])
+        peak = max((abs(sample) for sample in samples), default=0)
+        rms = math.sqrt(
+            sum(float(sample) ** 2 for sample in samples) / max(1, len(samples)),
+        )
+        if peak < 32 or rms < 8:
+            notes.append(f"silence_peak={peak},rms={rms:.3f}")
+    else:
+        notes.append("no_pcm16_samples")
+    return {
+        "mechanical": "fail" if notes else "pass",
+        "content": "not_checked",
+        "notes": notes,
+    }
+
+
+def _create_anchor_generator(model_id: str) -> RoleAnchorGenerator:
+    from gaya_pipeline.adapters import create_adapter
+
+    adapter = create_adapter(model_id)
+    for name in (
+        "role_anchor_generation_input",
+        "generate_role_anchor",
+        "close_role_anchor_generation",
+    ):
+        if not callable(getattr(adapter, name, None)):
+            raise CompletionAnchorError(
+                f"modelはPhase A anchor interfaceを実装していません: {model_id}",
+            )
+    return adapter  # type: ignore[return-value]
+
+
+def _model_revision(
+    plan: CompletionPlan | AnchorReviewPlan,
+    model: str,
+) -> str:
+    try:
+        return plan.models[model]
+    except KeyError as error:
+        raise CompletionAnchorError(
+            f"authority planにmodel revisionがありません: {model}",
+        ) from error
+
+
+def _recursive_keys(value: Any) -> set[str]:
+    if isinstance(value, Mapping):
+        return set(value) | {
+            key
+            for child in value.values()
+            for key in _recursive_keys(child)
+        }
+    if isinstance(value, list | tuple):
+        return {key for child in value for key in _recursive_keys(child)}
+    return set()
 
 
 def _anchor_texts() -> dict[str, str]:
@@ -2120,6 +3586,25 @@ def _verify_file_sha256(path: Path, expected: str, label: str) -> None:
         raise CompletionAnchorError(
             f"{label} SHA-256が一致しません: expected={expected}, actual={actual}",
         )
+
+
+def _verify_anchor_candidate_set_audio(
+    *,
+    candidate_set: Mapping[str, Any],
+    artifacts_dir: Path,
+    label: str,
+) -> None:
+    for group in candidate_set["groups"]:
+        for candidate in group["candidates"]:
+            _verify_file_sha256(
+                _relative_child(
+                    artifacts_dir,
+                    candidate["audio_path"],
+                    label,
+                ),
+                candidate["audio_sha256"],
+                label,
+            )
 
 
 def _sha256_file(path: Path) -> str:

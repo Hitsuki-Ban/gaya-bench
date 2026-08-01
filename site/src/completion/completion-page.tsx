@@ -438,7 +438,9 @@ function EvidencePanel({ group }: { group: RoleReviewGroup }) {
         </p>
         <div className="mt-2 flex items-start gap-1.5 text-xs leading-5 text-muted-foreground">
           <Info aria-hidden="true" className="mt-0.5 size-3.5 shrink-0" />
-          <span>选最符合角色的一条；若四条都不合格，标记整组不可用。不用判断情绪表演。</span>
+          <span>
+            本轮只看：性别必须符合；年龄和角色感觉大致符合；没有读错、提示词泄漏或明显音质问题。无需判断情绪表演。
+          </span>
         </div>
       </div>
     </section>

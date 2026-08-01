@@ -104,6 +104,24 @@ describe("role review v2 draft", () => {
     });
   });
 
+  it("性别不符的候选不能确认为可用anchor", () => {
+    const catalog = makeRoleReviewCatalog();
+    const group = catalog.groups[0]!;
+    let draft = createRoleReviewDraft(catalog);
+    for (const candidateId of group.candidate_ids) {
+      draft = markRoleReviewCandidateHeard(catalog, draft, group.id, candidateId);
+    }
+    draft = selectRoleReviewCandidate(catalog, draft, group.id, group.candidate_ids[0]!);
+    const rubric = completeAnchorRubric({
+      ...draft.groups[0]!.rubric,
+      gender: "fail",
+    });
+
+    expect(() => confirmRoleReviewGroup(catalog, draft, group.id, rubric)).toThrow(
+      "所选候选性别不符",
+    );
+  });
+
   it("只有自然播放结束会记录为完整听过", () => {
     const catalog = makeRoleReviewCatalog();
     const draft = createRoleReviewDraft(catalog);

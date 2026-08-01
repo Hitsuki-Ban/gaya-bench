@@ -427,6 +427,9 @@ function assertConfirmationAllowed(draft: RoleReviewGroupDraft, group: RoleRevie
   if (!draft.no_usable_candidate && draft.selected_candidate_id === null) {
     throw new Error("确认前需要选择一个候选。");
   }
+  if (!draft.no_usable_candidate && draft.rubric.gender !== "pass") {
+    throw new Error("所选候选性别不符；请改选性别相符的候选，或标记四条都不可用。");
+  }
   if (
     draft.selected_candidate_id !== null &&
     !draft.heard_candidate_ids.includes(draft.selected_candidate_id)

@@ -345,10 +345,15 @@ def test_profile_and_params_use_selected_anchor_contract() -> None:
         "role-anchor-selection-v1"
     )
     assert params["role_reference"]["selection_required_for_null_reference"] is True
+    assert params["role_reference"]["anchor_caption_policy"] == (
+        "gender-age-voice-acoustics-only"
+    )
     assert "cache_directory" not in params["role_reference"]
 
 
-def test_Phase_A_caption_is_role_complete_and_seeded(tmp_path: Path) -> None:
+def test_Phase_A_caption_is_short_acoustic_Japanese_and_seeded(
+    tmp_path: Path,
+) -> None:
     runtime = FakeRuntime()
     adapter = IrodoriTTSAdapter(runtime=runtime)
     role = _role(_job())
@@ -356,16 +361,28 @@ def test_Phase_A_caption_is_role_complete_and_seeded(tmp_path: Path) -> None:
 
     assert generation_input["text"] == ROLE_ANCHOR_TEXT
     caption = str(generation_input["caption"])
-    for value in role.role.values():
-        assert value in caption
-    assert "感情:" not in caption
-    assert "場面:" not in caption
+    assert caption == "若い成人の女性。明るく通る若い女性の声。"
+    for excluded in (
+        "給仕の女性",
+        "human",
+        "female",
+        "young_adult",
+        "人間",
+        "給仕",
+        "気さくで世話焼き。",
+        "夜の酒場。",
+        "模倣",
+        "中立",
+        "演技",
+    ):
+        assert excluded not in caption
 
     output = tmp_path / "anchor.wav"
     realized = adapter.generate_role_anchor(role, seed=998, output_wav=output)
     assert runtime.prepare_count == 1
     assert runtime.synthesize_calls[0]["seed"] == 998
     assert runtime.synthesize_calls[0]["reference_wav"] is None
+    assert runtime.synthesize_calls[0]["caption"] == caption
     assert realized["seed"] == 998
     assert output.is_file()
 

@@ -826,7 +826,7 @@ class IrodoriTTSAdapter:
                 "control": REFERENCE_CONTROL,
                 "key": ["scenario", "character"],
                 "anchor_text": ROLE_ANCHOR_TEXT,
-                "anchor_caption_policy": "complete-role-identity-neutral-performance",
+                "anchor_caption_policy": "gender-age-voice-acoustics-only",
                 "anchor_sampling": _role_anchor_sampling(),
                 "selection_protocol": "role-anchor-selection-v1",
                 "selection_required_for_null_reference": True,
@@ -1078,13 +1078,14 @@ def _role_caption(identity: Mapping[str, str]) -> str:
 
 
 def _role_anchor_caption(identity: Mapping[str, str]) -> str:
-    return "\n".join(
-        (
-            _role_caption(identity),
-            "発声: この役柄の声の同一性を定める中立な読み。"
-            "場面固有の感情や演技を加えない。",
-        ),
+    age = _AGE_LABEL[identity["age"]]
+    gender = identity["gender"]
+    subject = (
+        f"{age}の中性的な声"
+        if gender == "neutral"
+        else f"{age}の{_GENDER_LABEL[gender]}"
     )
+    return f"{subject}。{identity['voice']}"
 
 
 def _role_anchor_sampling() -> dict[str, Any]:

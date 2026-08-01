@@ -58,7 +58,7 @@ describe("role-review-v2 contract", () => {
     ).toThrow("anchor_text");
   });
 
-  it("每个模型必须exact 53组且每组attempt为1..4", () => {
+  it("每个模型必须exact 53组且每组attempt为四个递增正整数", () => {
     const bundle = makeRoleReviewBundle();
     const unevenGroups = bundle.groups
       .map((group, index) =>
@@ -78,21 +78,29 @@ describe("role-review-v2 contract", () => {
     expect(() => validateRoleReviewBundle({ ...bundle, groups: unevenGroups })).toThrow(
       "各model 53 group",
     );
+    const topupGroups = bundle.groups.map((group) => ({
+      ...group,
+      candidates: group.candidates.map((candidate, candidateIndex) => ({
+        ...candidate,
+        attempt: candidateIndex + 5,
+      })),
+    }));
+    expect(() => validateRoleReviewBundle({ ...bundle, groups: topupGroups })).not.toThrow();
     expect(() =>
       validateRoleReviewBundle({
         ...bundle,
-        groups: bundle.groups.map((group, index) =>
+        groups: topupGroups.map((group, index) =>
           index === 0
             ? {
                 ...group,
                 candidates: group.candidates.map((candidate, candidateIndex) =>
-                  candidateIndex === 0 ? { ...candidate, attempt: 2 } : candidate,
+                  candidateIndex === 1 ? { ...candidate, attempt: 5 } : candidate,
                 ),
               }
             : group,
         ),
       }),
-    ).toThrow("attempt は 1");
+    ).toThrow("一意な昇順正整数");
   });
 
   it("同一modelのrole座標重複とmodel間の座標差を拒否する", () => {

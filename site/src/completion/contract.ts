@@ -194,8 +194,13 @@ function validateGroup(value: unknown, label: string): RoleReviewInputGroup {
     throw new Error(`${label}.candidates はexactly ${ROLE_REVIEW_CANDIDATE_COUNT}件が必要です。`);
   }
   const candidates = group.candidates.map((candidate, index) =>
-    validateCandidate(candidate, index + 1, `${label}.candidates[${index}]`),
+    validateCandidate(candidate, `${label}.candidates[${index}]`),
   );
+  for (const [index, candidate] of candidates.entries()) {
+    if (index > 0 && candidate.attempt <= candidates[index - 1]!.attempt) {
+      throw new Error(`${label}.candidates attempt は4件の一意な昇順正整数が必要です。`);
+    }
+  }
   const candidateIds = shaArray(group.candidate_ids, `${label}.candidate_ids`);
   if (
     candidateIds.length !== candidates.length ||
@@ -264,23 +269,17 @@ function validateCoverage(value: unknown, role: RoleReviewRole, label: string): 
   return result;
 }
 
-function validateCandidate(
-  value: unknown,
-  expectedAttempt: number,
-  label: string,
-): RoleReviewCandidate {
+function validateCandidate(value: unknown, label: string): RoleReviewCandidate {
   const candidate = exactObject(value, CANDIDATE_KEYS, label);
   const id = sha(candidate.id, `${label}.id`);
-  if (candidate.attempt !== expectedAttempt) {
-    throw new Error(`${label}.attempt は ${expectedAttempt} が必要です。`);
-  }
+  const attempt = positiveInteger(candidate.attempt, `${label}.attempt`);
   const audioPath = nonEmptyText(candidate.audio_path, `${label}.audio_path`);
   if (!AUDIO_PATH_PATTERN.test(audioPath) || audioPath !== `audio/${id}.wav`) {
     throw new Error(`${label}.audio_path は candidate id 由来の安全なWAV pathが必要です。`);
   }
   return {
     id,
-    attempt: expectedAttempt,
+    attempt,
     seed: nonNegativeInteger(candidate.seed, `${label}.seed`),
     audio_path: audioPath,
     audio_sha256: sha(candidate.audio_sha256, `${label}.audio_sha256`),
@@ -377,6 +376,14 @@ function nonNegativeInteger(value: unknown, label: string): number {
     throw new Error(`${label} は0以上の整数が必要です。`);
   }
   return value;
+}
+
+function positiveInteger(value: unknown, label: string): number {
+  const result = nonNegativeInteger(value, label);
+  if (result === 0) {
+    throw new Error(`${label} は1以上の整数が必要です。`);
+  }
+  return result;
 }
 
 function enumValue<const Values extends readonly string[]>(

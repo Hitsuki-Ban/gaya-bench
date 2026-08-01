@@ -216,10 +216,53 @@ plan、base manifest、scenario root、voice metadata、artifacts rootを全て�
 `gaya voices validate-local --voices <absolute-voices>`で検証する。
 
 参照音声を持たない53 roleのQwen3-TTS / Irodori anchorは、旧source planの下で
-生成・人評した106 groupの外部権威である。現行`completion` CLIはPhase A生成系を持たず、
-確定した`role-anchor-selection-v1`と隣接SHA markerだけを消費する。v2 planの
+生成・人評した106 groupの外部権威である。通常のPhase Bは確定した
+`role-anchor-selection-v1`と隣接SHA markerだけを消費する。v2 planの
 `anchor_authority`は旧source plan SHA、candidate-set SHA、owner selection SHAをexactに
 固定し、selection rootのplan SHAをv2 plan SHAへ書き換えない。
+
+final decisionで`no_usable_candidate=true`、またはselected済みでも`gender!=pass`の
+groupがある場合だけ、明示topup経路を使う。planは対象をdecisionからexact導出し、各
+targetをattempt 5..8のN=4へ固定する。生成はmodelごとの独立runなのでQwenとIrodoriを
+同時にVRAMへ載せない。mergeは非対象groupのJSON objectをそのまま保持し、対象groupを
+topup N4で整組置換する（初回候補との拼接はしない）。全pathは絶対pathが必要である。
+生成runは同階層のpending directoryでledgerまで完成させてからatomic publishし、例外時は
+pendingだけを除去する。mergeは指定artifacts root配下のsource・topup・merged全WAVを
+SHA-256照合し、全件成功するまでcandidate set outputを書かない。
+candidate authorityは二つを混同しない。`source` SHAは初回N4を永久に指しtopup lineage
+だけが使う。`current` SHAは現在レビュー対象のcandidate setを指し、merge確定時に更新
+して`anchor-review-build` / `anchor-review-finalize`が使う。両SHAが同値でもloaderは
+別であり、一方の不一致時に他方へfallbackしない。
+
+```console
+uv run --project <pipeline> --locked gaya completion anchor-topup-plan \
+  --plan <absolute-source-plan.json> --candidate-set <absolute-initial-candidate-set.json> \
+  --decision <absolute-final-decision.json> --output <absolute-topup-plan.json>
+
+uv run --project <pipeline> --locked --extra <model-extra> gaya completion anchor-topup-generate \
+  --plan <absolute-source-plan.json> --candidate-set <absolute-initial-candidate-set.json> \
+  --decision <absolute-final-decision.json> --topup-plan <absolute-topup-plan.json> \
+  --model <qwen-or-irodori> --run-id <explicit-model-run-id> \
+  --artifacts <absolute-artifacts>
+
+uv run --project <pipeline> --locked gaya completion anchor-topup-merge \
+  --plan <absolute-source-plan.json> --candidate-set <absolute-initial-candidate-set.json> \
+  --decision <absolute-final-decision.json> --topup-plan <absolute-topup-plan.json> \
+  --run-id <explicit-irodori-run-id> --run-id <explicit-qwen-run-id> \
+  --artifacts <absolute-artifacts> --output <absolute-merged-candidate-set.json>
+```
+
+targeted再聴取では、merged bundleを作成後に旧判断の明示継承draftを生成する。非対象
+groupは旧decisionを保持し、targetだけ未聴取・未選択・rubric未入力・未確認へ戻る。
+
+```console
+uv run --project <pipeline> --locked gaya completion anchor-topup-draft \
+  --plan <absolute-source-plan.json> \
+  --source-candidate-set <absolute-initial-candidate-set.json> \
+  --decision <absolute-final-decision.json> --topup-plan <absolute-topup-plan.json> \
+  --merged-candidate-set <absolute-merged-candidate-set.json> \
+  --merged-bundle <absolute-merged-bundle> --output <absolute-draft.json>
+```
 
 Phase Bでは8 modelを各1つのprimary runとして生成する。`--anchor-selection`は全modelで
 role epochを決める権威入力として必須だが、adapterへ渡すのはQwen3-TTS / Irodoriだけで

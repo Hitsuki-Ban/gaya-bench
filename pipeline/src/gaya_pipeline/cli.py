@@ -7,12 +7,21 @@ from datetime import date
 from pathlib import Path
 
 from gaya_pipeline.completion_anchor import (
+    AnchorTopupDraftSummary,
+    AnchorTopupGenerationSummary,
+    AnchorTopupMergeSummary,
+    AnchorTopupPlanSummary,
     CompletionAnchorError,
     RoleAnchorSelectionSummary,
     RoleReviewBundleSummary,
     build_role_review_bundle_v2,
+    build_role_anchor_topup_draft,
+    build_role_anchor_topup_plan,
     finalize_role_anchor_selection,
     load_anchor_review_plan,
+    load_anchor_topup_plan,
+    merge_role_anchor_topup,
+    run_role_anchor_topup_generation,
 )
 from gaya_pipeline.completion_listen import (
     CompletionListeningError,
@@ -253,6 +262,73 @@ def build_parser() -> argparse.ArgumentParser:
         metavar="SCENARIO/LINE",
         help="topupで整組取代するplan内group（繰返し指定）",
     )
+
+    completion_anchor_topup_plan_parser = completion_subparsers.add_parser(
+        "anchor-topup-plan",
+        help="final decisionからPhase Aの再生成対象とattempt 5..8を固定する",
+    )
+    for name in ("plan", "candidate-set", "decision", "output"):
+        completion_anchor_topup_plan_parser.add_argument(
+            f"--{name}",
+            required=True,
+            type=Path,
+        )
+
+    completion_anchor_topup_generate_parser = completion_subparsers.add_parser(
+        "anchor-topup-generate",
+        help="固定topup planを単一modelの独立runとして生成する",
+    )
+    for name in ("plan", "candidate-set", "decision", "topup-plan", "artifacts"):
+        completion_anchor_topup_generate_parser.add_argument(
+            f"--{name}",
+            required=True,
+            type=Path,
+        )
+    completion_anchor_topup_generate_parser.add_argument("--model", required=True)
+    completion_anchor_topup_generate_parser.add_argument("--run-id", required=True)
+
+    completion_anchor_topup_merge_parser = completion_subparsers.add_parser(
+        "anchor-topup-merge",
+        help="topup対象groupをN4で整組置換して106x4 candidate setを作る",
+    )
+    for name in (
+        "plan",
+        "candidate-set",
+        "decision",
+        "topup-plan",
+        "artifacts",
+        "output",
+    ):
+        completion_anchor_topup_merge_parser.add_argument(
+            f"--{name}",
+            required=True,
+            type=Path,
+        )
+    completion_anchor_topup_merge_parser.add_argument(
+        "--run-id",
+        action="append",
+        dest="run_ids",
+        required=True,
+    )
+
+    completion_anchor_topup_draft_parser = completion_subparsers.add_parser(
+        "anchor-topup-draft",
+        help="非対象判断を継承しtopup対象だけを未確認へ戻すdraftを作る",
+    )
+    for name in (
+        "plan",
+        "source-candidate-set",
+        "decision",
+        "topup-plan",
+        "merged-candidate-set",
+        "merged-bundle",
+        "output",
+    ):
+        completion_anchor_topup_draft_parser.add_argument(
+            f"--{name}",
+            required=True,
+            type=Path,
+        )
 
     completion_anchor_review_build_parser = completion_subparsers.add_parser(
         "anchor-review-build",
@@ -784,6 +860,36 @@ def main(argv: Sequence[str] | None = None) -> int:
                 "voices",
                 "anchor_selection",
             ),
+            "anchor-topup-plan": (
+                "plan",
+                "candidate_set",
+                "decision",
+                "output",
+            ),
+            "anchor-topup-generate": (
+                "plan",
+                "candidate_set",
+                "decision",
+                "topup_plan",
+                "artifacts",
+            ),
+            "anchor-topup-merge": (
+                "plan",
+                "candidate_set",
+                "decision",
+                "topup_plan",
+                "artifacts",
+                "output",
+            ),
+            "anchor-topup-draft": (
+                "plan",
+                "source_candidate_set",
+                "decision",
+                "topup_plan",
+                "merged_candidate_set",
+                "merged_bundle",
+                "output",
+            ),
             "anchor-review-build": (
                 "plan",
                 "candidate_set",
@@ -846,6 +952,70 @@ def main(argv: Sequence[str] | None = None) -> int:
                 file=sys.stderr,
             )
             return 1
+
+        if args.completion_command.startswith("anchor-topup-"):
+            source_candidate_set = (
+                args.source_candidate_set
+                if args.completion_command == "anchor-topup-draft"
+                else args.candidate_set
+            )
+            try:
+                plan = load_anchor_topup_plan(
+                    plan_path=args.plan,
+                    source_candidate_set_path=source_candidate_set,
+                )
+                if args.completion_command == "anchor-topup-plan":
+                    summary = build_role_anchor_topup_plan(
+                        plan=plan,
+                        candidate_set_path=args.candidate_set,
+                        decision_path=args.decision,
+                        output_path=args.output,
+                    )
+                    _print_anchor_topup_plan_summary(summary)
+                    return 0
+                if args.completion_command == "anchor-topup-generate":
+                    generation_summary = run_role_anchor_topup_generation(
+                        plan=plan,
+                        candidate_set_path=args.candidate_set,
+                        decision_path=args.decision,
+                        topup_plan_path=args.topup_plan,
+                        model_id=args.model,
+                        run_id=args.run_id,
+                        artifacts_dir=args.artifacts,
+                    )
+                    _print_anchor_topup_generation_summary(generation_summary)
+                    return (
+                        1
+                        if generation_summary.rejected_count
+                        or generation_summary.failed_count
+                        else 0
+                    )
+                if args.completion_command == "anchor-topup-merge":
+                    merge_summary = merge_role_anchor_topup(
+                        plan=plan,
+                        candidate_set_path=args.candidate_set,
+                        decision_path=args.decision,
+                        topup_plan_path=args.topup_plan,
+                        run_ids=args.run_ids,
+                        artifacts_dir=args.artifacts,
+                        output_path=args.output,
+                    )
+                    _print_anchor_topup_merge_summary(merge_summary)
+                    return 0
+                draft_summary = build_role_anchor_topup_draft(
+                    plan=plan,
+                    source_candidate_set_path=args.source_candidate_set,
+                    decision_path=args.decision,
+                    topup_plan_path=args.topup_plan,
+                    merged_candidate_set_path=args.merged_candidate_set,
+                    merged_bundle_dir=args.merged_bundle,
+                    output_path=args.output,
+                )
+                _print_anchor_topup_draft_summary(draft_summary)
+                return 0
+            except CompletionAnchorError as error:
+                print(f"ERROR: {error}", file=sys.stderr)
+                return 1
 
         if args.completion_command == "anchor-review-build":
             try:
@@ -1257,6 +1427,39 @@ def _print_role_review_bundle_summary(summary: RoleReviewBundleSummary) -> None:
     print(f"role-review-v2.json SHA-256: {summary.review_sha256}")
     print(
         f"完了: group {summary.group_count} / candidate {summary.candidate_count}",
+    )
+
+
+def _print_anchor_topup_plan_summary(summary: AnchorTopupPlanSummary) -> None:
+    print(f"Anchor topup plan: {summary.path.as_posix()}")
+    print(
+        f"完了: target {summary.target_count} / attempt {summary.attempt_count}",
+    )
+
+
+def _print_anchor_topup_generation_summary(
+    summary: AnchorTopupGenerationSummary,
+) -> None:
+    print(f"Anchor topup ledger: {summary.ledger_path.as_posix()}")
+    print(
+        f"完了: eligible {summary.eligible_count} / "
+        f"rejected {summary.rejected_count} / failed {summary.failed_count}",
+    )
+
+
+def _print_anchor_topup_merge_summary(summary: AnchorTopupMergeSummary) -> None:
+    print(f"Merged anchor candidate set: {summary.path.as_posix()}")
+    print(f"Candidate set SHA-256: {summary.candidate_set_sha256}")
+    print(
+        f"完了: replaced group {summary.replaced_group_count} / "
+        f"candidate {summary.candidate_count}",
+    )
+
+
+def _print_anchor_topup_draft_summary(summary: AnchorTopupDraftSummary) -> None:
+    print(f"Inherited role review draft: {summary.path.as_posix()}")
+    print(
+        f"完了: inherited {summary.inherited_count} / reset {summary.reset_count}",
     )
 
 

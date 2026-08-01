@@ -107,7 +107,7 @@ VoxCPM2 の145件は source 側では role-design identity を検証できるが
 `match` とせず `unverifiable` とした。これらを committed snapshot に隠さず記録し、
 再生成・公開 provenance 更新後に解消する。
 `source-audit.json` SHA-256 は
-`a774f175323f81575ca02c38f1f1659f6b290a0b903afa37e9112d3ccf91ba4f`。
+`c1ad1c5aebcca6e4f6e17e68c859473f9998a264df4e2c55a10473ff050d79ec`。
 
 ## 日本語 reading の全量監査
 

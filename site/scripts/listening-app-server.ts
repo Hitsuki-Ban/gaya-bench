@@ -672,6 +672,7 @@ export function validateDraftDocument(
       validateHeardAndSelected(group, binding, `draft.groups[${index}]`, true);
       validateRubric(group.rubric, `draft.groups[${index}].rubric`, true);
       validateNoUsableReason(group, `draft.groups[${index}]`);
+      validateSelectedGender(group, `draft.groups[${index}]`);
     }
   }
   return root;
@@ -689,6 +690,7 @@ export function validateDecisionDocument(
     validateHeardAndSelected(group, binding, `decision.groups[${index}]`, true);
     validateRubric(group.rubric, `decision.groups[${index}].rubric`, true);
     validateNoUsableReason(group, `decision.groups[${index}]`);
+    validateSelectedGender(group, `decision.groups[${index}]`);
     if (group.confirmed !== true) {
       throw new Error(`decision.groups[${index}].confirmed はtrueが必要です。`);
     }
@@ -772,8 +774,8 @@ function validateBundleDocument(value: unknown): Record<string, unknown> {
       validateCandidate(candidate, `${label}.candidates[${index}]`),
     );
     for (const [candidateIndex, candidate] of candidates.entries()) {
-      if (candidate.attempt !== candidateIndex + 1) {
-        throw new Error(`${label}.candidates attempt は1..4のexact順が必要です。`);
+      if (candidateIndex > 0 && candidate.attempt <= candidates[candidateIndex - 1]!.attempt) {
+        throw new Error(`${label}.candidates attempt は4件の一意な昇順正整数が必要です。`);
       }
     }
     const candidateIds = shaArray(group.candidate_ids, `${label}.candidate_ids`, false);
@@ -971,6 +973,18 @@ function validateNoUsableReason(group: Record<string, unknown>, label: string): 
   const hasNotes = typeof rubric.notes === "string" && rubric.notes.trim().length > 0;
   if (!hasFailedField && !hasQualityProblem && !hasNotes) {
     throw new Error(`${label} は四候補が使用不可な理由をrubricに記録する必要があります。`);
+  }
+}
+
+function validateSelectedGender(group: Record<string, unknown>, label: string): void {
+  if (group.no_usable_candidate === true) {
+    return;
+  }
+  const rubric = group.rubric as Record<string, unknown>;
+  if (rubric.gender !== "pass") {
+    throw new Error(
+      `${label} はselected anchorのgender=passが必要です。性別不一致なら四候補とも使用不可にしてください。`,
+    );
   }
 }
 

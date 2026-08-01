@@ -2,9 +2,12 @@ from __future__ import annotations
 
 import hashlib
 import json
+import struct
+import wave
 from copy import deepcopy
 from dataclasses import dataclass, replace
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 
 import pytest
@@ -12,8 +15,12 @@ from gaya_pipeline.adapters.irodori_tts import ROLE_ANCHOR_TEXT
 from gaya_pipeline.adapters.qwen3_tts import REFERENCE_TEXT
 from gaya_pipeline.completion_anchor import (
     CompletionAnchorError,
+    build_role_anchor_topup_draft,
+    build_role_anchor_topup_plan,
     build_role_review_bundle_v2,
     finalize_role_anchor_selection,
+    merge_role_anchor_topup,
+    run_role_anchor_topup_generation,
     validate_anchor_selection,
 )
 from gaya_pipeline.completion_plan import IRODORI_MODEL, QWEN_MODEL, RoleSnapshot
@@ -33,6 +40,7 @@ ANCHOR_TEXTS = {
 @dataclass(frozen=True)
 class _Plan:
     anchor_source_plan_sha256: str
+    anchor_source_candidate_set_sha256: str
     anchor_candidate_set_sha256: str
     models: dict[str, str]
     roles: tuple[RoleSnapshot, ...]
@@ -182,6 +190,7 @@ def _fixture(tmp_path: Path) -> _Fixture:
     _write_canonical(candidate_set_path, candidate_set)
     plan = _Plan(
         anchor_source_plan_sha256=source_plan_sha256,
+        anchor_source_candidate_set_sha256=_sha256(candidate_set_path.read_bytes()),
         anchor_candidate_set_sha256=_sha256(candidate_set_path.read_bytes()),
         models=dict(MODEL_REVISIONS),
         roles=roles,
@@ -456,6 +465,28 @@ def test_no_usable_decisionを保存可能だがselection確定は拒否する(
     assert not output_dir.exists()
 
 
+def test_gender不一致のselected_anchorを拒否する(tmp_path: Path) -> None:
+    fixture = _fixture(tmp_path)
+    bundle_dir = _build_bundle(fixture, tmp_path)
+    decision = _decision(bundle_dir)
+    decision["groups"][0]["rubric"]["gender"] = "fail"
+    decision_path = (
+        tmp_path / "decision-gender-fail" / "role-review-anchor-decision-v2.json"
+    ).resolve()
+    _write_decision(decision_path, decision)
+    output_dir = (tmp_path / "selection-gender-fail").resolve()
+
+    with pytest.raises(CompletionAnchorError, match="gender=pass"):
+        finalize_role_anchor_selection(
+            plan=fixture.plan,  # type: ignore[arg-type]
+            candidate_set_path=fixture.candidate_set_path,
+            bundle_dir=bundle_dir,
+            decision_path=decision_path,
+            output_dir=output_dir,
+        )
+    assert not output_dir.exists()
+
+
 def test_no_usableとselected_candidateの排他的contractを強制する(
     tmp_path: Path,
 ) -> None:
@@ -526,4 +557,294 @@ def test_noncanonical_decisionとbundle_audio欠落を拒否する(tmp_path: Pat
             bundle_dir=bundle_dir,
             decision_path=canonical_decision_path,
             output_dir=(tmp_path / "selection-b").resolve(),
+        )
+
+
+class _TopupGenerator:
+    def __init__(self, model: str, *, fail_on_call: int | None = None) -> None:
+        self.profile = SimpleNamespace(
+            id=model,
+            version=MODEL_REVISIONS[model],
+        )
+        self.closed = False
+        self.calls = 0
+        self.fail_on_call = fail_on_call
+
+    def role_anchor_generation_input(self, role: RoleSnapshot) -> dict[str, Any]:
+        return {"role_identity_sha256": role.role_identity_sha256}
+
+    def generate_role_anchor(
+        self,
+        role: RoleSnapshot,
+        *,
+        seed: int,
+        output_wav: Path,
+    ) -> dict[str, Any]:
+        del role
+        self.calls += 1
+        if self.calls == self.fail_on_call:
+            raise RuntimeError("synthetic topup generation failure")
+        output_wav.parent.mkdir(parents=True, exist_ok=True)
+        samples = [1200 if index % 2 else -1200 for index in range(4_800)]
+        with wave.open(str(output_wav), "wb") as wav:
+            wav.setnchannels(1)
+            wav.setsampwidth(2)
+            wav.setframerate(16_000)
+            wav.writeframes(struct.pack(f"<{len(samples)}h", *samples))
+        return {"seed": seed, "sample_rate_hz": 16_000}
+
+    def close_role_anchor_generation(self) -> None:
+        self.closed = True
+
+
+def test_topupはdecision由来targetをattempt5から8で整組置換しdraftを継承する(
+    tmp_path: Path,
+) -> None:
+    fixture = _fixture(tmp_path)
+    bundle_dir = _build_bundle(fixture, tmp_path)
+    decision = _decision(bundle_dir)
+    first, second = decision["groups"][:2]
+    first["no_usable_candidate"] = True
+    first["selected_candidate_id"] = None
+    second["rubric"]["gender"] = "fail"
+    decision_path = (
+        tmp_path / "topup-decision" / "role-review-anchor-decision-v2.json"
+    ).resolve()
+    _write_decision(decision_path, decision)
+    topup_plan_path = (tmp_path / "anchor-topup.json").resolve()
+    topup_summary = build_role_anchor_topup_plan(
+        plan=fixture.plan,  # type: ignore[arg-type]
+        candidate_set_path=fixture.candidate_set_path,
+        decision_path=decision_path,
+        output_path=topup_plan_path,
+    )
+    topup = json.loads(topup_plan_path.read_bytes())
+    assert topup_summary.target_count == 2
+    assert topup_summary.attempt_count == 8
+    assert all(target["attempts"] == [5, 6, 7, 8] for target in topup["targets"])
+    assert len(
+        {
+            seed
+            for target in topup["targets"]
+            for seed in target["seeds"]
+        },
+    ) == 8
+
+    model = topup["targets"][0]["model"]
+    generator = _TopupGenerator(model)
+    generation = run_role_anchor_topup_generation(
+        plan=fixture.plan,  # type: ignore[arg-type]
+        candidate_set_path=fixture.candidate_set_path,
+        decision_path=decision_path,
+        topup_plan_path=topup_plan_path,
+        model_id=model,
+        run_id="topup-irodori",
+        artifacts_dir=fixture.artifacts_dir,
+        generator=generator,  # type: ignore[arg-type]
+    )
+    assert generation.eligible_count == 8
+    assert generation.failed_count == 0
+    assert generator.closed
+    ledger = json.loads(generation.ledger_path.read_bytes())
+    assert {attempt["attempt"] for attempt in ledger["attempts"]} == {5, 6, 7, 8}
+    assert not generation.ledger_path.parent.with_name(
+        f".{generation.run_id}.pending",
+    ).exists()
+
+    source = json.loads(fixture.candidate_set_path.read_bytes())
+    untouched_identity = (
+        source["groups"][2]["model"],
+        source["groups"][2]["scenario"],
+        source["groups"][2]["character"],
+    )
+    untouched_before = deepcopy(source["groups"][2])
+    merged_path = (tmp_path / "merged-candidate-set.json").resolve()
+    wrong_artifacts_dir = (tmp_path / "wrong-artifacts").resolve()
+    wrong_artifacts_dir.mkdir()
+    wrong_output_path = (tmp_path / "wrong-merged-candidate-set.json").resolve()
+    with pytest.raises(CompletionAnchorError, match="source anchor candidate audio"):
+        merge_role_anchor_topup(
+            plan=fixture.plan,  # type: ignore[arg-type]
+            candidate_set_path=fixture.candidate_set_path,
+            decision_path=decision_path,
+            topup_plan_path=topup_plan_path,
+            run_ids=[generation.run_id],
+            artifacts_dir=wrong_artifacts_dir,
+            output_path=wrong_output_path,
+        )
+    assert not wrong_output_path.exists()
+
+    merged_summary = merge_role_anchor_topup(
+        plan=fixture.plan,  # type: ignore[arg-type]
+        candidate_set_path=fixture.candidate_set_path,
+        decision_path=decision_path,
+        topup_plan_path=topup_plan_path,
+        run_ids=[generation.run_id],
+        artifacts_dir=fixture.artifacts_dir,
+        output_path=merged_path,
+    )
+    merged = json.loads(merged_path.read_bytes())
+    assert merged_summary.candidate_count == 106 * 4
+    assert merged["runs"] == sorted([*source["runs"], generation.run_id])
+    untouched_after = next(
+        group
+        for group in merged["groups"]
+        if (group["model"], group["scenario"], group["character"])
+        == untouched_identity
+    )
+    assert untouched_after == untouched_before
+    target_identities = {
+        (target["model"], target["scenario"], target["character"])
+        for target in topup["targets"]
+    }
+    assert all(
+        group["attempts"] == [5, 6, 7, 8]
+        and [candidate["attempt"] for candidate in group["candidates"]]
+        == [5, 6, 7, 8]
+        for group in merged["groups"]
+        if (group["model"], group["scenario"], group["character"])
+        in target_identities
+    )
+
+    merged_plan = replace(
+        fixture.plan,
+        anchor_candidate_set_sha256=merged_summary.candidate_set_sha256,
+    )
+    merged_bundle_dir = (tmp_path / "merged-bundle").resolve()
+    build_role_review_bundle_v2(
+        plan=merged_plan,  # type: ignore[arg-type]
+        candidate_set_path=merged_path,
+        artifacts_dir=fixture.artifacts_dir,
+        output_dir=merged_bundle_dir,
+    )
+    draft_path = (tmp_path / "inherited-draft.json").resolve()
+    draft_summary = build_role_anchor_topup_draft(
+        plan=fixture.plan,  # type: ignore[arg-type]
+        source_candidate_set_path=fixture.candidate_set_path,
+        decision_path=decision_path,
+        topup_plan_path=topup_plan_path,
+        merged_candidate_set_path=merged_path,
+        merged_bundle_dir=merged_bundle_dir,
+        output_path=draft_path,
+    )
+    draft = json.loads(draft_path.read_bytes())
+    assert draft_summary.inherited_count == 104
+    assert draft_summary.reset_count == 2
+    assert draft["current_group_id"] == draft["groups"][0]["id"]
+    assert all(
+        group["confirmed"] is False
+        and group["heard_candidate_ids"] == []
+        and group["selected_candidate_id"] is None
+        and group["rubric"]["gender"] is None
+        for group in draft["groups"][:2]
+    )
+    assert draft["groups"][2] == decision["groups"][2]
+
+
+def test_topup生成は二対象目の例外でpendingを消して同じrun_idを再利用できる(
+    tmp_path: Path,
+) -> None:
+    fixture = _fixture(tmp_path)
+    bundle_dir = _build_bundle(fixture, tmp_path)
+    decision = _decision(bundle_dir)
+    for group in decision["groups"][:2]:
+        group["no_usable_candidate"] = True
+        group["selected_candidate_id"] = None
+    decision_path = (
+        tmp_path / "retry-decision" / "role-review-anchor-decision-v2.json"
+    ).resolve()
+    _write_decision(decision_path, decision)
+    topup_plan_path = (tmp_path / "retry-anchor-topup.json").resolve()
+    build_role_anchor_topup_plan(
+        plan=fixture.plan,  # type: ignore[arg-type]
+        candidate_set_path=fixture.candidate_set_path,
+        decision_path=decision_path,
+        output_path=topup_plan_path,
+    )
+
+    run_id = "retryable-topup"
+    run_root = fixture.artifacts_dir / "role-anchors" / "runs" / run_id
+    pending = run_root.with_name(f".{run_id}.pending")
+    failed_generator = _TopupGenerator(IRODORI_MODEL, fail_on_call=5)
+    with pytest.raises(CompletionAnchorError, match="synthetic topup generation failure"):
+        run_role_anchor_topup_generation(
+            plan=fixture.plan,  # type: ignore[arg-type]
+            candidate_set_path=fixture.candidate_set_path,
+            decision_path=decision_path,
+            topup_plan_path=topup_plan_path,
+            model_id=IRODORI_MODEL,
+            run_id=run_id,
+            artifacts_dir=fixture.artifacts_dir,
+            generator=failed_generator,  # type: ignore[arg-type]
+        )
+    assert failed_generator.closed
+    assert not run_root.exists()
+    assert not pending.exists()
+
+    retry_generator = _TopupGenerator(IRODORI_MODEL)
+    summary = run_role_anchor_topup_generation(
+        plan=fixture.plan,  # type: ignore[arg-type]
+        candidate_set_path=fixture.candidate_set_path,
+        decision_path=decision_path,
+        topup_plan_path=topup_plan_path,
+        model_id=IRODORI_MODEL,
+        run_id=run_id,
+        artifacts_dir=fixture.artifacts_dir,
+        generator=retry_generator,  # type: ignore[arg-type]
+    )
+    assert retry_generator.closed
+    assert summary.eligible_count == 8
+    assert summary.ledger_path == run_root / "ledger.json"
+    assert summary.ledger_path.is_file()
+    assert not pending.exists()
+
+
+def test_candidate_setは四attemptの重複とtopup_target欠落を拒否する(
+    tmp_path: Path,
+) -> None:
+    fixture = _fixture(tmp_path)
+    candidate_set = json.loads(fixture.candidate_set_path.read_bytes())
+    candidate_set["groups"][0]["attempts"] = [1, 2, 2, 4]
+    invalid_path = (tmp_path / "invalid-attempts.json").resolve()
+    _write_canonical(invalid_path, candidate_set)
+    invalid_plan = replace(
+        fixture.plan,
+        anchor_candidate_set_sha256=_sha256(invalid_path.read_bytes()),
+    )
+    with pytest.raises(CompletionAnchorError, match="unique厳密昇順"):
+        build_role_review_bundle_v2(
+            plan=invalid_plan,  # type: ignore[arg-type]
+            candidate_set_path=invalid_path,
+            artifacts_dir=fixture.artifacts_dir,
+            output_dir=(tmp_path / "invalid-bundle").resolve(),
+        )
+
+    bundle_dir = _build_bundle(fixture, tmp_path)
+    decision = _decision(bundle_dir)
+    decision["groups"][0]["no_usable_candidate"] = True
+    decision["groups"][0]["selected_candidate_id"] = None
+    decision_path = (
+        tmp_path / "valid-decision" / "role-review-anchor-decision-v2.json"
+    ).resolve()
+    _write_decision(decision_path, decision)
+    topup_path = (tmp_path / "valid-topup.json").resolve()
+    build_role_anchor_topup_plan(
+        plan=fixture.plan,  # type: ignore[arg-type]
+        candidate_set_path=fixture.candidate_set_path,
+        decision_path=decision_path,
+        output_path=topup_path,
+    )
+    tampered = json.loads(topup_path.read_bytes())
+    tampered["targets"] = []
+    _write_canonical(topup_path, tampered)
+    with pytest.raises(CompletionAnchorError, match="空でない"):
+        run_role_anchor_topup_generation(
+            plan=fixture.plan,  # type: ignore[arg-type]
+            candidate_set_path=fixture.candidate_set_path,
+            decision_path=decision_path,
+            topup_plan_path=topup_path,
+            model_id=IRODORI_MODEL,
+            run_id="invalid-topup",
+            artifacts_dir=fixture.artifacts_dir,
+            generator=_TopupGenerator(IRODORI_MODEL),  # type: ignore[arg-type]
         )
