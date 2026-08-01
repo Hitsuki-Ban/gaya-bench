@@ -8,9 +8,12 @@ exact 1,288 slot とする。
 ## 権威入力
 
 唯一の Phase B 計画は [`plan.json`](plan.json) の canonical JSON bytes である。
+この v2 plan 以外を Phase B の実行入力として扱わない。
 
 - format: `2`
 - protocol: `role-baseline-plan-v2`
+- plan SHA-256:
+  `35439ab2cea389dd16cc945132014aba61fd5c03e6bdeb9fed3d49da54e6919b`
 - base manifest SHA-256:
   `f9dfda542fd1120fe0f74daae3036eab5211d7394d155f7b9953978e59bbe89d`
 - base manifest Git blob: `44061fafe330a9bebfed7a97a0b69ebe234c8724`
@@ -25,12 +28,17 @@ loader は plan、base manifest、15 scenario file、voice metadata、8 model re
 58 role snapshot を実ファイルから再計算する。古い protocol、非 canonical JSON、相対
 path、未知／欠落 field、revision 差異、既定 plan や latest run の探索は生成前に拒否
 する。
+production の generate、listening bundle、finalize は artifact を作る前に上記 plan
+SHA-256 との exact 一致を検証し、audit-only synthetic v2 plan を拒否する。
 
 ## role anchor authority
 
 Phase A は旧 plan の下で既に生成した 106 group を人が選定する一度限りの外部権威で
-あり、Phase B plan へ生成手順を複製しない。v2 plan の `anchor_authority` は次を exact
-に拘束する。
+あり、Phase B plan へ生成手順を複製しない。旧 plan の原 bytes は
+[`anchor-source-plan-v1.json`](anchor-source-plan-v1.json) に保存し、その SHA-256 は
+`f21f7ffa598c38b24f345b8c05f4d18fe3073618deaa742bb55ff30e0a26a0e5` である。この archive
+は Phase A lineage の証拠だけであり、Phase B の実行 plan、代替入力、fallback ではない。
+v2 plan の `anchor_authority` は次を exact に拘束する。
 
 - source plan SHA-256:
   `f21f7ffa598c38b24f345b8c05f4d18fe3073618deaa742bb55ff30e0a26a0e5`
@@ -38,7 +46,8 @@ Phase A は旧 plan の下で既に生成した 106 group を人が選定する�
   `67fa107310069af37089d09172e1403a375f210461b945c50f88d18ac5fde444`
 - top-up lineage の initial candidate set SHA-256:
   `9ff3bb11452ca80899944121edaba5e9a361a1cd8000a1ef716375e673062765`
-- owner が 106 group を確認して export／finalize した selection の実 SHA-256
+- owner が 106 group を確認して export／finalize した selection SHA-256:
+  `ba819c5e51725d0231365ecd31bfbe0fd6499e1c6161748340ad2c0133fe7611`
 
 selection は `role-anchor-selection-v1` と隣接 `.sha256` marker を持つ。selection root
 の `plan_sha256` は旧 source plan SHA であり、新しい Phase B `plan_id` へ書き換えない。

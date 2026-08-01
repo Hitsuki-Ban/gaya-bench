@@ -19,6 +19,7 @@ from gaya_pipeline.completion_plan import (
     MODEL_REVISIONS,
     QWEN_MODEL,
     CompletionPlan,
+    require_production_completion_plan,
 )
 from gaya_pipeline.curation import (
     CurationError,
@@ -91,6 +92,7 @@ def phase_b_generation_binding(
 ) -> tuple[str, dict[tuple[str, str], str]]:
     """Resolve the exact anchor digest and per-line role epochs for one run."""
 
+    require_production_completion_plan(plan)
     anchor_sha, anchor_epochs = _load_anchor_selection(
         anchor_selection_path,
         plan,
@@ -123,6 +125,7 @@ def build_completion_listening_bundle(
     voices_dir: Path,
     output_dir: Path,
 ) -> CompletionListeningSummary:
+    require_production_completion_plan(plan)
     if output_dir.exists():
         raise CompletionListeningError(
             f"listening output は既存 path を拒否します: {output_dir}",

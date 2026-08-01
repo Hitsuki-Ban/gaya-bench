@@ -1,7 +1,8 @@
 # 役柄 conditioning / 連続生成監査
 
-監査日: 2026-07-31
-対象 Issue: [#177](https://github.com/Hitsuki-Ban/gaya-bench/issues/177)
+監査日: 2026-08-02
+対象 Issue: [#177](https://github.com/Hitsuki-Ban/gaya-bench/issues/177)、
+Phase B authority 更新 [#174](https://github.com/Hitsuki-Ban/gaya-bench/issues/174)
 
 ## 結論
 
@@ -52,16 +53,19 @@ evidence を同じ行で対照する。生成コマンドは次のとおり。
 `reference.audit_fixture_source_sha256` は一時 WAV の source SHA である。fixture は
 監査終了時に削除され、公開素材や生成物として扱わない。
 
-Qwen / Irodori の `reference_voice=null` 53役については、repository の
-`docs/research/full-baseline-completion/plan.json` を pre-hearing の固定 v1 source plan
-として専用 loader で検証し、2モデル×53役の deterministic PCM anchor、canonical
-`role-anchor-selection-v1`、隣接 SHA marker を一時領域へ構築する。synthetic selection
-の実 SHA が確定した後だけ、正式 builder / loader で audit-only v2 completion plan を
-同じ一時領域へ作る。repository の正式 plan は書き換えず、owner decision の
-export / finalize 前に production v2 authority が存在するとは記録しない。各選択は正式
-`resolve_selected_anchor()` で source plan SHA、model revision、完全 role identity、
-review/selected role epoch、decision/audio SHA を再検証してから production adapter の
-`prepare()` へ渡す。
+Qwen / Irodori の `reference_voice=null` 53役については、Phase A の原 bytes を保存した
+`docs/research/full-baseline-completion/anchor-source-plan-v1.json` を専用 loader で検証し、
+2モデル×53役の deterministic PCM anchor、canonical `role-anchor-selection-v1`、隣接 SHA
+marker を一時領域へ構築する。synthetic selection の実 SHA が確定した後だけ、正式
+builder / loader で audit-only v2 completion plan を同じ一時領域へ作る。
+
+repository の `docs/research/full-baseline-completion/plan.json` は人評済み selection を
+拘束する正式な Phase B v2 authority である。一方、CI は gitignored の実 selection WAV
+を持たないため、この source audit の runtime transport probe だけは上記の一時 fixture を
+使う。fixture は正式 plan／selection の代替入力や欠落時 fallback ではなく、両 committed
+plan を変更しない。各一時選択も正式 `resolve_selected_anchor()` で source plan SHA、model
+revision、完全 role identity、review/selected role epoch、decision/audio SHA を再検証して
+から production adapter の `prepare()` へ渡す。
 各 receipt の `reference.selected_anchor` は `generation_input()` が返した実値であり、
 selection / marker / WAV / epoch のいずれを改変しても監査は fail-fast する。
 
@@ -107,7 +111,7 @@ VoxCPM2 の145件は source 側では role-design identity を検証できるが
 `match` とせず `unverifiable` とした。これらを committed snapshot に隠さず記録し、
 再生成・公開 provenance 更新後に解消する。
 `source-audit.json` SHA-256 は
-`e83e66f2a97d98129a36a63e3c253d5e8e13e23ef760b6ccff0155404c862bdf`。
+`0456aca9a1d8c9a57049ce07f9106c16452067e8fa3ebdc88111beae70f2544c`。
 
 ## 日本語 reading の全量監査
 

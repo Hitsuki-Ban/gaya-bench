@@ -26,6 +26,7 @@ from gaya_pipeline.completion_plan import (
     PROTOCOL,
     CompletionPlanError,
     load_completion_plan,
+    require_production_completion_plan,
 )
 from gaya_pipeline.role_conditioning_audit import (
     RoleConditioningAuditError,
@@ -43,11 +44,22 @@ SNAPSHOT_PATH = (
 )
 README_PATH = SNAPSHOT_PATH.with_name("README.md")
 SOURCE_PLAN_PATH = (
-    REPOSITORY_ROOT / "docs" / "research" / "full-baseline-completion" / "plan.json"
+    REPOSITORY_ROOT
+    / "docs"
+    / "research"
+    / "full-baseline-completion"
+    / "anchor-source-plan-v1.json"
+)
+CURRENT_PLAN_PATH = SOURCE_PLAN_PATH.with_name("plan.json")
+CURRENT_PLAN_SHA256 = (
+    "35439ab2cea389dd16cc945132014aba61fd5c03e6bdeb9fed3d49da54e6919b"
+)
+PRODUCTION_ANCHOR_SELECTION_SHA256 = (
+    "ba819c5e51725d0231365ecd31bfbe0fd6499e1c6161748340ad2c0133fe7611"
 )
 
 
-def test_pre_hearingの正式planはv1_source_authorityのまま固定する() -> None:
+def test_archiveのPhase_A_source_authorityはv1のまま固定する() -> None:
     raw = SOURCE_PLAN_PATH.read_bytes()
     document = json.loads(raw)
     source_plan = load_anchor_source_plan(plan_path=SOURCE_PLAN_PATH.resolve())
@@ -57,19 +69,33 @@ def test_pre_hearingの正式planはv1_source_authorityのまま固定する() -
     assert hashlib.sha256(raw).hexdigest() == ANCHOR_SOURCE_PLAN_SHA256
     assert source_plan.plan_id == ANCHOR_SOURCE_PLAN_SHA256
     assert source_plan.anchor_candidate_set_sha256 == (ANCHOR_CANDIDATE_SET_SHA256)
-    with pytest.raises(CompletionPlanError, match="exact contract"):
-        load_completion_plan(
-            SOURCE_PLAN_PATH.resolve(),
-            base_manifest_path=(REPOSITORY_ROOT / "data" / "manifest.json").resolve(),
-            scenarios_dir=(REPOSITORY_ROOT / "scenarios").resolve(),
-            voices_dir=(REPOSITORY_ROOT / "assets" / "voices").resolve(),
-        )
+
+
+def test_current_planはv2_production_authorityと597_targetsを固定する() -> None:
+    raw = CURRENT_PLAN_PATH.read_bytes()
+    document = json.loads(raw)
+    plan = load_completion_plan(
+        CURRENT_PLAN_PATH.resolve(),
+        base_manifest_path=(REPOSITORY_ROOT / "data" / "manifest.json").resolve(),
+        scenarios_dir=(REPOSITORY_ROOT / "scenarios").resolve(),
+        voices_dir=(REPOSITORY_ROOT / "assets" / "voices").resolve(),
+    )
+
+    assert document["format_version"] == 2
+    assert document["protocol"] == PROTOCOL
+    assert hashlib.sha256(raw).hexdigest() == CURRENT_PLAN_SHA256
+    assert plan.plan_id == CURRENT_PLAN_SHA256
+    assert plan.anchor_source_plan_sha256 == ANCHOR_SOURCE_PLAN_SHA256
+    assert plan.anchor_candidate_set_sha256 == ANCHOR_CANDIDATE_SET_SHA256
+    assert plan.anchor_selection_sha256 == PRODUCTION_ANCHOR_SELECTION_SHA256
+    assert len(plan.targets) == 597
 
 
 def test_synthetic_selection確定後だけaudit_v2_planを作る(
     tmp_path: Path,
 ) -> None:
     source_raw_before = SOURCE_PLAN_PATH.read_bytes()
+    current_raw_before = CURRENT_PLAN_PATH.read_bytes()
     authority = role_conditioning_audit._build_audit_role_anchor_selection(
         root=REPOSITORY_ROOT,
         output_dir=tmp_path / "audit-anchor",
@@ -85,6 +111,7 @@ def test_synthetic_selection確定後だけaudit_v2_planを作る(
     )
 
     assert SOURCE_PLAN_PATH.read_bytes() == source_raw_before
+    assert CURRENT_PLAN_PATH.read_bytes() == current_raw_before
     assert hashlib.sha256(selection_raw).hexdigest() == (authority.selection_sha256)
     assert authority.completion_plan_sha256 == plan.plan_id
     assert authority.anchor_source_plan_sha256 == plan.anchor_source_plan_sha256
@@ -93,7 +120,11 @@ def test_synthetic_selection確定後だけaudit_v2_planを作る(
     assert plan.anchor_selection_sha256 == authority.selection_sha256
     assert completion_document["protocol"] == PROTOCOL
     assert plan.plan_id != plan.anchor_source_plan_sha256
+    assert plan.plan_id != CURRENT_PLAN_SHA256
+    assert plan.anchor_selection_sha256 != PRODUCTION_ANCHOR_SELECTION_SHA256
     assert len(authority.bindings) == 106
+    with pytest.raises(CompletionPlanError, match="Phase B production"):
+        require_production_completion_plan(plan)
 
 
 def test_8x161の実generate呼び出しでreading_transportを検証する() -> None:
@@ -233,7 +264,10 @@ def test_current_role_truth_reference_split_and_8x161_receipts() -> None:
         "kind": "deterministic_audit_fixture",
         "protocol": "role-anchor-selection-v1",
         "anchor_source_plan": {
-            "file": "docs/research/full-baseline-completion/plan.json",
+            "file": (
+                "docs/research/full-baseline-completion/"
+                "anchor-source-plan-v1.json"
+            ),
             "sha256": ANCHOR_SOURCE_PLAN_SHA256,
         },
         "completion_plan": {

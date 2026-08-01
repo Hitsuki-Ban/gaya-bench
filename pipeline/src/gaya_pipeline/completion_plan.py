@@ -34,6 +34,9 @@ ANCHOR_SOURCE_PLAN_SHA256 = (
 ANCHOR_CANDIDATE_SET_SHA256 = (
     "67fa107310069af37089d09172e1403a375f210461b945c50f88d18ac5fde444"
 )
+PRODUCTION_PLAN_SHA256 = (
+    "35439ab2cea389dd16cc945132014aba61fd5c03e6bdeb9fed3d49da54e6919b"
+)
 
 QWEN_MODEL = "qwen3-tts-12hz-1.7b"
 IRODORI_MODEL = "irodori-tts-600m-v3-voicedesign"
@@ -335,6 +338,17 @@ def load_completion_plan(
         targets=targets,
         raw_sha256=plan_sha256,
     )
+
+
+def require_production_completion_plan(plan: CompletionPlan) -> None:
+    if (
+        plan.plan_id != PRODUCTION_PLAN_SHA256
+        or plan.raw_sha256 != PRODUCTION_PLAN_SHA256
+    ):
+        raise CompletionPlanError(
+            "Phase B production は正式 plan SHA-256 "
+            f"{PRODUCTION_PLAN_SHA256} だけを受理します。",
+        )
 
 
 def compute_completion_plan_id(document: Any) -> str:

@@ -981,7 +981,13 @@ def _build_audit_role_anchor_selection(
     root: Path,
     output_dir: Path,
 ) -> _AuditRoleAnchorSelection:
-    plan_path = root / "docs" / "research" / "full-baseline-completion" / "plan.json"
+    plan_path = (
+        root
+        / "docs"
+        / "research"
+        / "full-baseline-completion"
+        / "anchor-source-plan-v1.json"
+    )
     for path, label in ((plan_path, "frozen Phase A source plan"),):
         if not path.exists():
             raise RoleConditioningAuditError(f"{label} がありません: {path}")

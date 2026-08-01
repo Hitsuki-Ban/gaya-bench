@@ -10,6 +10,7 @@ from typing import Any
 import pytest
 
 from gaya_pipeline.completion_plan import (
+    CompletionPlanError,
     build_frozen_plan_document,
     load_completion_plan,
 )
@@ -20,6 +21,7 @@ from gaya_pipeline.completion_release import (
     _validate_candidate_set_manifest_join,
     _validate_audit_partition,
     _validate_provenance_document,
+    finalize_completion_release,
 )
 from gaya_pipeline.completion_selection import reconstruct_base_selection
 from gaya_pipeline.take_identity import canonical_json
@@ -73,6 +75,24 @@ def _base_selection() -> dict[str, Any]:
         base_manifest=json.loads(BASE_MANIFEST_PATH.read_bytes()),
         qwen_curation=json.loads(curation.read_bytes()),
     )
+
+
+def test_finalizeは非正式planを処理前に拒否する(tmp_path: Path) -> None:
+    with pytest.raises(CompletionPlanError, match="Phase B production"):
+        finalize_completion_release(
+            plan=_plan(tmp_path),
+            base_manifest_path=tmp_path / "manifest.json",
+            qwen_curation_path=tmp_path / "curation.json",
+            source_audit_path=tmp_path / "audit.json",
+            decision_path=tmp_path / "decision.json",
+            primary_run_ids=(),
+            topup_run_ids=(),
+            anchor_selection_path=tmp_path / "anchor.json",
+            artifacts_dir=tmp_path / "artifacts",
+            scenarios_dir=tmp_path / "scenarios",
+            voices_dir=tmp_path / "voices",
+            output_dir=tmp_path / "output",
+        )
 
 
 def _key(value: dict[str, Any]) -> tuple[str, str, str, str]:
@@ -150,7 +170,7 @@ def test_provenanceはinherited_unverifiable列挙を拒否する() -> None:
         "format_version": 1,
         "protocol": "role-baseline-release-v1",
         "plan_sha256": (
-            "f21f7ffa598c38b24f345b8c05f4d18fe3073618deaa742bb55ff30e0a26a0e5"
+            "35439ab2cea389dd16cc945132014aba61fd5c03e6bdeb9fed3d49da54e6919b"
         ),
         "anchor_selection_sha256": "b" * 64,
         "manifest_sha256": "c" * 64,
@@ -174,7 +194,7 @@ def test_provenanceはinherited_unverifiable列挙を拒否する() -> None:
                 "629cc80346160eb8e687757e6f792ef519da9a4fb74f79bdf97eb4d00f56126e"
             ),
             "source_audit_sha256": (
-                "d7d48a053474251996ce5b63e509dce2a8b8df10189fb7fc49d0cdc859bad5cc"
+                "0456aca9a1d8c9a57049ce07f9106c16452067e8fa3ebdc88111beae70f2544c"
             ),
             "matched_candidate_count": 691,
             "inherited_identity_unverifiable": [{"unexpected": True}],

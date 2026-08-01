@@ -19,7 +19,9 @@ from gaya_pipeline.completion_listen import (
 from gaya_pipeline.completion_plan import (
     BASE_MANIFEST_GIT_BLOB,
     BASE_MANIFEST_SHA256,
+    PRODUCTION_PLAN_SHA256,
     CompletionPlan,
+    require_production_completion_plan,
 )
 from gaya_pipeline.completion_selection import (
     BASE_CANDIDATE_SET_SHA256,
@@ -47,10 +49,7 @@ class CompletionReleaseError(RuntimeError):
 
 RELEASE_PROTOCOL = "role-baseline-release-v1"
 SOURCE_AUDIT_SHA256 = (
-    "d7d48a053474251996ce5b63e509dce2a8b8df10189fb7fc49d0cdc859bad5cc"
-)
-FROZEN_PLAN_SHA256 = (
-    "f21f7ffa598c38b24f345b8c05f4d18fe3073618deaa742bb55ff30e0a26a0e5"
+    "0456aca9a1d8c9a57049ce07f9106c16452067e8fa3ebdc88111beae70f2544c"
 )
 EXPECTED_REPLACEMENT_COUNT = 597
 EXPECTED_INHERITED_COUNT = 691
@@ -93,6 +92,7 @@ def finalize_completion_release(
     voices_dir: Path,
     output_dir: Path,
 ) -> CompletionReleaseSummary:
+    require_production_completion_plan(plan)
     try:
         return _finalize_completion_release(
             plan=plan,
@@ -797,7 +797,7 @@ def _validate_provenance_document(
     if (
         value["format_version"] != 1
         or value["protocol"] != RELEASE_PROTOCOL
-        or value["plan_sha256"] != FROZEN_PLAN_SHA256
+        or value["plan_sha256"] != PRODUCTION_PLAN_SHA256
         or value["manifest_sha256"] != manifest_sha
         or value["candidate_set_sha256"] != candidate_sha
         or value["selection_sha256"] != selection_sha

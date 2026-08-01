@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 from collections import Counter
 from pathlib import Path
 from typing import Any, Callable
@@ -11,12 +12,14 @@ from gaya_pipeline.completion_plan import (
     ANCHOR_SOURCE_PLAN_SHA256,
     BASE_MANIFEST_SHA256,
     IRODORI_MODEL,
+    PRODUCTION_PLAN_SHA256,
     PROTOCOL,
     QWEN_MODEL,
     CompletionPlanError,
     build_frozen_plan_document,
     compute_completion_plan_id,
     load_completion_plan,
+    require_production_completion_plan,
 )
 from gaya_pipeline.take_identity import canonical_json
 
@@ -26,6 +29,32 @@ MANIFEST_PATH = REPOSITORY_ROOT / "data" / "manifest.json"
 SCENARIOS_DIR = REPOSITORY_ROOT / "scenarios"
 VOICES_DIR = REPOSITORY_ROOT / "assets" / "voices"
 ANCHOR_SELECTION_SHA256 = "a" * 64
+COMMITTED_PLAN_PATH = (
+    REPOSITORY_ROOT
+    / "docs"
+    / "research"
+    / "full-baseline-completion"
+    / "plan.json"
+)
+ANCHOR_SOURCE_PLAN_ARCHIVE_PATH = (
+    REPOSITORY_ROOT
+    / "docs"
+    / "research"
+    / "full-baseline-completion"
+    / "anchor-source-plan-v1.json"
+)
+COMMITTED_PLAN_SHA256 = (
+    "35439ab2cea389dd16cc945132014aba61fd5c03e6bdeb9fed3d49da54e6919b"
+)
+COMMITTED_ANCHOR_SOURCE_PLAN_SHA256 = (
+    "f21f7ffa598c38b24f345b8c05f4d18fe3073618deaa742bb55ff30e0a26a0e5"
+)
+COMMITTED_ANCHOR_CANDIDATE_SET_SHA256 = (
+    "67fa107310069af37089d09172e1403a375f210461b945c50f88d18ac5fde444"
+)
+COMMITTED_ANCHOR_SELECTION_SHA256 = (
+    "ba819c5e51725d0231365ecd31bfbe0fd6499e1c6161748340ad2c0133fe7611"
+)
 
 
 def _plan_document() -> dict[str, Any]:
@@ -52,6 +81,56 @@ def _load(tmp_path: Path, document: dict[str, Any] | None = None):
         scenarios_dir=SCENARIOS_DIR,
         voices_dir=VOICES_DIR,
     )
+
+
+def test_committed_v2_planはlive_buildとexact一致する() -> None:
+    raw = COMMITTED_PLAN_PATH.read_bytes()
+    expected = build_frozen_plan_document(
+        scenarios_dir=SCENARIOS_DIR,
+        voices_dir=VOICES_DIR,
+        anchor_selection_sha256=COMMITTED_ANCHOR_SELECTION_SHA256,
+    )
+
+    assert hashlib.sha256(raw).hexdigest() == COMMITTED_PLAN_SHA256
+    assert PRODUCTION_PLAN_SHA256 == COMMITTED_PLAN_SHA256
+    assert raw == canonical_json(expected).encode("utf-8")
+
+    plan = load_completion_plan(
+        COMMITTED_PLAN_PATH,
+        base_manifest_path=MANIFEST_PATH,
+        scenarios_dir=SCENARIOS_DIR,
+        voices_dir=VOICES_DIR,
+    )
+    assert plan.plan_id == COMMITTED_PLAN_SHA256
+    assert plan.raw_sha256 == COMMITTED_PLAN_SHA256
+    assert (
+        plan.anchor_source_plan_sha256
+        == COMMITTED_ANCHOR_SOURCE_PLAN_SHA256
+    )
+    assert (
+        plan.anchor_candidate_set_sha256
+        == COMMITTED_ANCHOR_CANDIDATE_SET_SHA256
+    )
+    assert plan.anchor_selection_sha256 == COMMITTED_ANCHOR_SELECTION_SHA256
+    assert len(plan.targets) == 597
+    assert plan.inherited_groups == 691
+    assert plan.final_groups == 1_288
+
+    archive_raw = ANCHOR_SOURCE_PLAN_ARCHIVE_PATH.read_bytes()
+    assert (
+        hashlib.sha256(archive_raw).hexdigest()
+        == COMMITTED_ANCHOR_SOURCE_PLAN_SHA256
+    )
+    require_production_completion_plan(plan)
+
+
+def test_synthetic_v2_planはproduction_authorityとして拒否する(
+    tmp_path: Path,
+) -> None:
+    plan = _load(tmp_path)
+
+    with pytest.raises(CompletionPlanError, match="Phase B production"):
+        require_production_completion_plan(plan)
 
 
 def test_v2_planはanchor権威と597対象を固定する(tmp_path: Path) -> None:

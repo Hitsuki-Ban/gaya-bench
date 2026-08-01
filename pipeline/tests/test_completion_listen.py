@@ -15,11 +15,38 @@ from gaya_pipeline.completion_listen import (
     PRIMARY_MODELS,
     _load_target_lines,
     _validate_manifest_candidate_authority,
+    build_completion_listening_bundle,
+    phase_b_generation_binding,
     resolve_completion_sources,
 )
-from gaya_pipeline.completion_plan import CompletionTarget
+from gaya_pipeline.completion_plan import CompletionPlanError, CompletionTarget
 from gaya_pipeline.qc_report import QCAuthority
 from gaya_pipeline.take_identity import canonical_json, derive_seed, make_take_id
+
+
+def test_production_generationとlisteningは非正式planを処理前に拒否する(
+    tmp_path: Path,
+) -> None:
+    plan = SimpleNamespace(plan_id="a" * 64, raw_sha256="a" * 64)
+
+    with pytest.raises(CompletionPlanError, match="Phase B production"):
+        phase_b_generation_binding(
+            plan=plan,
+            model="qwen3-tts-12hz-1.7b",
+            scenarios_dir=tmp_path / "scenarios",
+            anchor_selection_path=tmp_path / "anchor.json",
+        )
+    with pytest.raises(CompletionPlanError, match="Phase B production"):
+        build_completion_listening_bundle(
+            plan=plan,
+            primary_run_ids=(),
+            topup_run_ids=(),
+            anchor_selection_path=tmp_path / "anchor.json",
+            artifacts_dir=tmp_path / "artifacts",
+            scenarios_dir=tmp_path / "scenarios",
+            voices_dir=tmp_path / "voices",
+            output_dir=tmp_path / "output",
+        )
 
 
 def test_target_linesは重複modelを除いたscenario_line集合を構成する(
