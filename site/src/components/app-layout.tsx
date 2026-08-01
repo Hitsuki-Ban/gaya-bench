@@ -20,6 +20,7 @@ export function AppLayout() {
           <NavLink
             aria-label="比較トップ"
             className="flex items-center gap-3"
+            data-navigation-brand=""
             to={{ pathname: "/", search: location.search }}
           >
             <span className="grid size-9 place-items-center rounded-md border border-primary/35 bg-primary/10 text-primary">

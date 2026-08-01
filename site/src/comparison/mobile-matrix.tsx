@@ -113,6 +113,9 @@ export function MobileMatrix({ controller, model, projection, search }: MobileMa
                 cursor.rowIndex === rowIndex ? "border-primary/70" : "",
                 isCurrent ? "shadow-[inset_3px_0_0_var(--primary)]" : "",
               ].join(" ")}
+              data-current={isCurrent}
+              data-cursor={cursor.rowIndex === rowIndex}
+              data-mobile-card=""
               key={`${row.scenario.id}/${row.line.id}`}
             >
               <ScenarioContextLink density="card" scenario={row.scenario} search={search} />

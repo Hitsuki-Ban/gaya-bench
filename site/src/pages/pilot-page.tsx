@@ -174,7 +174,10 @@ export function PilotPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <label className="inline-flex min-h-9 cursor-pointer items-center gap-2 rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground hover:bg-primary/80">
+          <label
+            className="inline-flex min-h-9 cursor-pointer items-center gap-2 rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground hover:bg-primary/80"
+            data-slot="file-trigger"
+          >
             <FolderOpen aria-hidden="true" className="size-4" />
             {busy ? "検証中…" : "事前確認フォルダーを選択"}
             <input
@@ -403,6 +406,10 @@ export function PilotGroupEditor({
                   ? "ring-primary/70"
                   : "ring-primary/20"
               }
+              data-selected={
+                draft.decision?.type === "selected" &&
+                draft.decision.candidate_id === candidate.candidateId
+              }
               key={candidate.candidateId}
             >
               <CardHeader>
@@ -493,6 +500,8 @@ function PilotPlayButton({
   return (
     <Button
       className="w-full"
+      data-active={active}
+      data-playback-status={status}
       onClick={() => void player.toggle(candidate.audio)}
       variant={active ? "secondary" : "outline"}
     >

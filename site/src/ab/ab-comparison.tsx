@@ -291,6 +291,8 @@ function CandidateCard({
   return (
     <Card
       className={isActive ? "h-full bg-primary/[0.035] ring-primary/60" : "h-full ring-primary/20"}
+      data-active={isActive}
+      data-playback-status={status}
     >
       <CardHeader>
         <div className="flex items-center justify-between gap-3">
@@ -314,6 +316,8 @@ function CandidateCard({
         <Button
           aria-keyshortcuts={shortcut}
           className="h-12 w-full text-base"
+          data-active={isActive}
+          data-playback-status={status}
           onClick={onPlay}
           variant={isActive ? "secondary" : "outline"}
         >

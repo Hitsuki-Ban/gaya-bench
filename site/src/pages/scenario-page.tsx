@@ -207,7 +207,10 @@ function ScenarioOutcome({ outcome }: { outcome: ArtifactOutcome }) {
     },
   }[outcome.kind];
   return (
-    <div className={`rounded-md border p-3 text-xs ${presentation.className}`}>
+    <div
+      className={`rounded-md border p-3 text-xs ${presentation.className}`}
+      data-visual-intent={outcome.kind === "failure" ? "error" : "unavailable"}
+    >
       <p className="font-medium">{presentation.label}</p>
       <p className="mt-1 text-muted-foreground">
         {model.name} · {presentation.detail}
