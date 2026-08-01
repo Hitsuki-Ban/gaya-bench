@@ -35,7 +35,7 @@ Phase A は旧 plan の下で既に生成した 106 group を人が選定する�
 - source plan SHA-256:
   `f21f7ffa598c38b24f345b8c05f4d18fe3073618deaa742bb55ff30e0a26a0e5`
 - current candidate set SHA-256:
-  `4b9edbfa17b6843ce240ff76c107a33f5967223417015a10c9170d1decd3ea4d`
+  `67fa107310069af37089d09172e1403a375f210461b945c50f88d18ac5fde444`
 - top-up lineage の initial candidate set SHA-256:
   `9ff3bb11452ca80899944121edaba5e9a361a1cd8000a1ef716375e673062765`
 - owner が 106 group を確認して export／finalize した selection の実 SHA-256

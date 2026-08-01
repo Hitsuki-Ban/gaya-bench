@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import hashlib
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
@@ -8,7 +7,6 @@ from typing import Any
 import pytest
 
 from gaya_pipeline import cli
-from gaya_pipeline import completion_anchor
 
 
 def _common(tmp_path: Path) -> list[str]:
@@ -223,8 +221,13 @@ def test_anchor_topup_generateは単一model_runと全authorityを明示する(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     captured: dict[str, Any] = {}
+    loaded: dict[str, Any] = {}
     plan = object()
-    monkeypatch.setattr(cli, "load_anchor_topup_plan", lambda **_kwargs: plan)
+    monkeypatch.setattr(
+        cli,
+        "load_anchor_source_plan",
+        lambda **kwargs: loaded.update(kwargs) or plan,
+    )
     monkeypatch.setattr(
         cli,
         "run_role_anchor_topup_generation",
@@ -264,6 +267,7 @@ def test_anchor_topup_generateは単一model_runと全authorityを明示する(
         ],
     )
     assert result == 0
+    assert loaded == {"plan_path": paths["plan"]}
     assert captured == {
         "plan": plan,
         "candidate_set_path": paths["candidate-set"],
@@ -275,35 +279,61 @@ def test_anchor_topup_generateは単一model_runと全authorityを明示する(
     }
 
 
-def test_anchor_sourceとcurrent_candidate_authorityを別loaderで固定する(
+def test_anchor_topup_planだけがcurrent_candidate_loaderを使う(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    candidate_path = (tmp_path / "candidate-set.json").resolve()
-    candidate_path.write_bytes(b"{}")
-    source_sha256 = hashlib.sha256(b"{}").hexdigest()
-    plan = SimpleNamespace(
-        anchor_source_candidate_set_sha256=source_sha256,
-        anchor_candidate_set_sha256="0" * 64,
+    loaded: dict[str, Any] = {}
+    captured: dict[str, Any] = {}
+    plan = object()
+    monkeypatch.setattr(
+        cli,
+        "load_anchor_review_plan",
+        lambda **kwargs: loaded.update(kwargs) or plan,
     )
     monkeypatch.setattr(
-        completion_anchor,
+        cli,
         "load_anchor_source_plan",
-        lambda **_kwargs: plan,
+        lambda **_kwargs: pytest.fail("plan作成はsource-only loaderを使わない"),
+    )
+    monkeypatch.setattr(
+        cli,
+        "build_role_anchor_topup_plan",
+        lambda **kwargs: captured.update(kwargs) or object(),
+    )
+    monkeypatch.setattr(
+        cli,
+        "_print_anchor_topup_plan_summary",
+        lambda _summary: None,
+    )
+    paths = {
+        name: (tmp_path / f"{name}.json").resolve()
+        for name in ("plan", "candidate-set", "decision", "output")
+    }
+
+    result = cli.main(
+        [
+            "completion",
+            "anchor-topup-plan",
+            *(
+                item
+                for name, path in paths.items()
+                for item in (f"--{name}", str(path))
+            ),
+        ],
     )
 
-    assert (
-        completion_anchor.load_anchor_topup_plan(
-            plan_path=(tmp_path / "plan.json").resolve(),
-            source_candidate_set_path=candidate_path,
-        )
-        is plan
-    )
-    with pytest.raises(completion_anchor.CompletionAnchorError, match="現在の固定authority"):
-        completion_anchor.load_anchor_review_plan(
-            plan_path=(tmp_path / "plan.json").resolve(),
-            candidate_set_path=candidate_path,
-        )
+    assert result == 0
+    assert loaded == {
+        "plan_path": paths["plan"],
+        "candidate_set_path": paths["candidate-set"],
+    }
+    assert captured == {
+        "plan": plan,
+        "candidate_set_path": paths["candidate-set"],
+        "decision_path": paths["decision"],
+        "output_path": paths["output"],
+    }
 
 
 def test_completion_listenは八主runとtopupを分離する(

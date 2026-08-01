@@ -19,7 +19,7 @@ from gaya_pipeline.completion_anchor import (
     build_role_anchor_topup_plan,
     finalize_role_anchor_selection,
     load_anchor_review_plan,
-    load_anchor_topup_plan,
+    load_anchor_source_plan,
     merge_role_anchor_topup,
     run_role_anchor_topup_generation,
 )
@@ -265,7 +265,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     completion_anchor_topup_plan_parser = completion_subparsers.add_parser(
         "anchor-topup-plan",
-        help="final decisionからPhase Aの再生成対象とattempt 5..8を固定する",
+        help="final decisionとcurrent candidateから次のPhase A N4を固定する",
     )
     for name in ("plan", "candidate-set", "decision", "output"):
         completion_anchor_topup_plan_parser.add_argument(
@@ -954,17 +954,12 @@ def main(argv: Sequence[str] | None = None) -> int:
             return 1
 
         if args.completion_command.startswith("anchor-topup-"):
-            source_candidate_set = (
-                args.source_candidate_set
-                if args.completion_command == "anchor-topup-draft"
-                else args.candidate_set
-            )
             try:
-                plan = load_anchor_topup_plan(
-                    plan_path=args.plan,
-                    source_candidate_set_path=source_candidate_set,
-                )
                 if args.completion_command == "anchor-topup-plan":
+                    plan = load_anchor_review_plan(
+                        plan_path=args.plan,
+                        candidate_set_path=args.candidate_set,
+                    )
                     summary = build_role_anchor_topup_plan(
                         plan=plan,
                         candidate_set_path=args.candidate_set,
@@ -973,6 +968,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                     )
                     _print_anchor_topup_plan_summary(summary)
                     return 0
+                plan = load_anchor_source_plan(plan_path=args.plan)
                 if args.completion_command == "anchor-topup-generate":
                     generation_summary = run_role_anchor_topup_generation(
                         plan=plan,

@@ -222,35 +222,42 @@ plan、base manifest、scenario root、voice metadata、artifacts rootを全て�
 固定し、selection rootのplan SHAをv2 plan SHAへ書き換えない。
 
 final decisionで`no_usable_candidate=true`、またはselected済みでも`gender!=pass`の
-groupがある場合だけ、明示topup経路を使う。planは対象をdecisionからexact導出し、各
-targetをattempt 5..8のN=4へ固定する。生成はmodelごとの独立runなのでQwenとIrodoriを
-同時にVRAMへ載せない。mergeは非対象groupのJSON objectをそのまま保持し、対象groupを
-topup N4で整組置換する（初回候補との拼接はしない）。全pathは絶対pathが必要である。
+groupがある場合だけ、format v2の明示topup経路を使う。planは対象をdecisionからexact
+導出し、各targetのsource N4がattempt 1..4なら5..8、5..8なら9..12を固定する。
+source 9..12以降は2回のtopup上限として拒否し、13..16を生成しない。生成はmodelごとの
+独立runなのでQwenとIrodoriを同時にVRAMへ載せない。mergeは非対象groupのJSON objectを
+そのまま保持し、対象groupをplan自身のN4で整組置換する（旧候補との拼接はしない）。
+全pathは絶対pathが必要である。
 生成runは同階層のpending directoryでledgerまで完成させてからatomic publishし、例外時は
 pendingだけを除去する。mergeは指定artifacts root配下のsource・topup・merged全WAVを
 SHA-256照合し、全件成功するまでcandidate set outputを書かない。
-candidate authorityは二つを混同しない。`source` SHAは初回N4を永久に指しtopup lineage
-だけが使う。`current` SHAは現在レビュー対象のcandidate setを指し、merge確定時に更新
-して`anchor-review-build` / `anchor-review-finalize`が使う。両SHAが同値でもloaderは
-別であり、一方の不一致時に他方へfallbackしない。
+`anchor-topup-plan`だけがcurrent candidate authorityをgateし、生成した
+`role-anchor-topup-v2`へsource candidate SHAとdecision SHAを固定する。その後のgenerate /
+merge / draftはsource planを読み、必ずtopup planを先に検証してから、その2 SHAとdecision
+markerに一致する入力だけを重放する。current candidate authorityが次のmerged setへ進んでも
+既存planの重放契約は変わらない。format v1のtopup plan / runは明示的に拒否し、fallbackや
+自動変換は行わない。
 
 ```console
 uv run --project <pipeline> --locked gaya completion anchor-topup-plan \
-  --plan <absolute-source-plan.json> --candidate-set <absolute-initial-candidate-set.json> \
+  --plan <absolute-source-plan.json> --candidate-set <absolute-current-candidate-set.json> \
   --decision <absolute-final-decision.json> --output <absolute-topup-plan.json>
 
 uv run --project <pipeline> --locked --extra <model-extra> gaya completion anchor-topup-generate \
-  --plan <absolute-source-plan.json> --candidate-set <absolute-initial-candidate-set.json> \
+  --plan <absolute-source-plan.json> --candidate-set <absolute-plan-bound-source-candidate-set.json> \
   --decision <absolute-final-decision.json> --topup-plan <absolute-topup-plan.json> \
   --model <qwen-or-irodori> --run-id <explicit-model-run-id> \
   --artifacts <absolute-artifacts>
 
 uv run --project <pipeline> --locked gaya completion anchor-topup-merge \
-  --plan <absolute-source-plan.json> --candidate-set <absolute-initial-candidate-set.json> \
+  --plan <absolute-source-plan.json> --candidate-set <absolute-plan-bound-source-candidate-set.json> \
   --decision <absolute-final-decision.json> --topup-plan <absolute-topup-plan.json> \
-  --run-id <explicit-irodori-run-id> --run-id <explicit-qwen-run-id> \
+  --run-id <one-exact-run-id-per-target-model> \
   --artifacts <absolute-artifacts> --output <absolute-merged-candidate-set.json>
 ```
+
+`--run-id`はtopup planにtargetを持つmodelごとにexactly 1件だけ渡す。Irodoriだけを
+対象にするplanへQwen runを追加するなど、欠落・余分・重複するmodel runは拒否する。
 
 targeted再聴取では、merged bundleを作成後に旧判断の明示継承draftを生成する。非対象
 groupは旧decisionを保持し、targetだけ未聴取・未選択・rubric未入力・未確認へ戻る。
@@ -258,7 +265,7 @@ groupは旧decisionを保持し、targetだけ未聴取・未選択・rubric未�
 ```console
 uv run --project <pipeline> --locked gaya completion anchor-topup-draft \
   --plan <absolute-source-plan.json> \
-  --source-candidate-set <absolute-initial-candidate-set.json> \
+  --source-candidate-set <absolute-plan-bound-source-candidate-set.json> \
   --decision <absolute-final-decision.json> --topup-plan <absolute-topup-plan.json> \
   --merged-candidate-set <absolute-merged-candidate-set.json> \
   --merged-bundle <absolute-merged-bundle> --output <absolute-draft.json>

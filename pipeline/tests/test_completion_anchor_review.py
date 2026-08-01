@@ -40,7 +40,6 @@ ANCHOR_TEXTS = {
 @dataclass(frozen=True)
 class _Plan:
     anchor_source_plan_sha256: str
-    anchor_source_candidate_set_sha256: str
     anchor_candidate_set_sha256: str
     models: dict[str, str]
     roles: tuple[RoleSnapshot, ...]
@@ -190,7 +189,6 @@ def _fixture(tmp_path: Path) -> _Fixture:
     _write_canonical(candidate_set_path, candidate_set)
     plan = _Plan(
         anchor_source_plan_sha256=source_plan_sha256,
-        anchor_source_candidate_set_sha256=_sha256(candidate_set_path.read_bytes()),
         anchor_candidate_set_sha256=_sha256(candidate_set_path.read_bytes()),
         models=dict(MODEL_REVISIONS),
         roles=roles,
@@ -199,6 +197,30 @@ def _fixture(tmp_path: Path) -> _Fixture:
         plan=plan,
         candidate_set_path=candidate_set_path,
         artifacts_dir=artifacts_dir,
+    )
+
+
+def _fixture_with_group_attempts(
+    fixture: _Fixture,
+    tmp_path: Path,
+    attempts: list[int],
+    *,
+    group_index: int = 0,
+) -> _Fixture:
+    candidate_set = json.loads(fixture.candidate_set_path.read_bytes())
+    group = candidate_set["groups"][group_index]
+    group["attempts"] = attempts
+    for candidate, attempt in zip(group["candidates"], attempts, strict=True):
+        candidate["attempt"] = attempt
+    candidate_set_path = (tmp_path / f"candidate-set-{attempts[0]}.json").resolve()
+    _write_canonical(candidate_set_path, candidate_set)
+    return _Fixture(
+        plan=replace(
+            fixture.plan,
+            anchor_candidate_set_sha256=_sha256(candidate_set_path.read_bytes()),
+        ),
+        candidate_set_path=candidate_set_path,
+        artifacts_dir=fixture.artifacts_dir,
     )
 
 
@@ -603,10 +625,12 @@ def test_topupはdecision由来targetをattempt5から8で整組置換しdraft�
     fixture = _fixture(tmp_path)
     bundle_dir = _build_bundle(fixture, tmp_path)
     decision = _decision(bundle_dir)
-    first, second = decision["groups"][:2]
+    first, second, third = decision["groups"][:3]
     first["no_usable_candidate"] = True
     first["selected_candidate_id"] = None
     second["rubric"]["gender"] = "fail"
+    third["no_usable_candidate"] = True
+    third["selected_candidate_id"] = None
     decision_path = (
         tmp_path / "topup-decision" / "role-review-anchor-decision-v2.json"
     ).resolve()
@@ -619,8 +643,10 @@ def test_topupはdecision由来targetをattempt5から8で整組置換しdraft�
         output_path=topup_plan_path,
     )
     topup = json.loads(topup_plan_path.read_bytes())
-    assert topup_summary.target_count == 2
-    assert topup_summary.attempt_count == 8
+    assert topup["format_version"] == 2
+    assert topup["protocol"] == "role-anchor-topup-v2"
+    assert topup_summary.target_count == 3
+    assert topup_summary.attempt_count == 12
     assert all(target["attempts"] == [5, 6, 7, 8] for target in topup["targets"])
     assert len(
         {
@@ -628,12 +654,17 @@ def test_topupはdecision由来targetをattempt5から8で整組置換しdraft�
             for target in topup["targets"]
             for seed in target["seeds"]
         },
-    ) == 8
+    ) == 12
+
+    replay_plan = replace(
+        fixture.plan,
+        anchor_candidate_set_sha256="f" * 64,
+    )
 
     model = topup["targets"][0]["model"]
     generator = _TopupGenerator(model)
     generation = run_role_anchor_topup_generation(
-        plan=fixture.plan,  # type: ignore[arg-type]
+        plan=replay_plan,  # type: ignore[arg-type]
         candidate_set_path=fixture.candidate_set_path,
         decision_path=decision_path,
         topup_plan_path=topup_plan_path,
@@ -642,10 +673,12 @@ def test_topupはdecision由来targetをattempt5から8で整組置換しdraft�
         artifacts_dir=fixture.artifacts_dir,
         generator=generator,  # type: ignore[arg-type]
     )
-    assert generation.eligible_count == 8
+    assert generation.eligible_count == 12
     assert generation.failed_count == 0
     assert generator.closed
     ledger = json.loads(generation.ledger_path.read_bytes())
+    assert ledger["format_version"] == 2
+    assert ledger["protocol"] == "role-anchor-topup-run-v2"
     assert {attempt["attempt"] for attempt in ledger["attempts"]} == {5, 6, 7, 8}
     assert not generation.ledger_path.parent.with_name(
         f".{generation.run_id}.pending",
@@ -653,18 +686,36 @@ def test_topupはdecision由来targetをattempt5から8で整組置換しdraft�
 
     source = json.loads(fixture.candidate_set_path.read_bytes())
     untouched_identity = (
-        source["groups"][2]["model"],
-        source["groups"][2]["scenario"],
-        source["groups"][2]["character"],
+        source["groups"][3]["model"],
+        source["groups"][3]["scenario"],
+        source["groups"][3]["character"],
     )
-    untouched_before = deepcopy(source["groups"][2])
+    untouched_before = deepcopy(source["groups"][3])
     merged_path = (tmp_path / "merged-candidate-set.json").resolve()
+
+    ledger_raw = generation.ledger_path.read_bytes()
+    v1_ledger = json.loads(ledger_raw)
+    v1_ledger["format_version"] = 1
+    v1_ledger["protocol"] = "role-anchor-topup-run-v1"
+    _write_canonical(generation.ledger_path, v1_ledger)
+    with pytest.raises(CompletionAnchorError, match="role-anchor-topup-run-v2"):
+        merge_role_anchor_topup(
+            plan=replay_plan,  # type: ignore[arg-type]
+            candidate_set_path=fixture.candidate_set_path,
+            decision_path=decision_path,
+            topup_plan_path=topup_plan_path,
+            run_ids=[generation.run_id],
+            artifacts_dir=fixture.artifacts_dir,
+            output_path=(tmp_path / "v1-run-merged.json").resolve(),
+        )
+    generation.ledger_path.write_bytes(ledger_raw)
+
     wrong_artifacts_dir = (tmp_path / "wrong-artifacts").resolve()
     wrong_artifacts_dir.mkdir()
     wrong_output_path = (tmp_path / "wrong-merged-candidate-set.json").resolve()
     with pytest.raises(CompletionAnchorError, match="source anchor candidate audio"):
         merge_role_anchor_topup(
-            plan=fixture.plan,  # type: ignore[arg-type]
+            plan=replay_plan,  # type: ignore[arg-type]
             candidate_set_path=fixture.candidate_set_path,
             decision_path=decision_path,
             topup_plan_path=topup_plan_path,
@@ -675,7 +726,7 @@ def test_topupはdecision由来targetをattempt5から8で整組置換しdraft�
     assert not wrong_output_path.exists()
 
     merged_summary = merge_role_anchor_topup(
-        plan=fixture.plan,  # type: ignore[arg-type]
+        plan=replay_plan,  # type: ignore[arg-type]
         candidate_set_path=fixture.candidate_set_path,
         decision_path=decision_path,
         topup_plan_path=topup_plan_path,
@@ -697,6 +748,22 @@ def test_topupはdecision由来targetをattempt5から8で整組置換しdraft�
         (target["model"], target["scenario"], target["character"])
         for target in topup["targets"]
     }
+    source_groups = {
+        (group["model"], group["scenario"], group["character"]): group
+        for group in source["groups"]
+    }
+    untouched_groups = [
+        group
+        for group in merged["groups"]
+        if (group["model"], group["scenario"], group["character"])
+        not in target_identities
+    ]
+    assert len(untouched_groups) == 103
+    assert all(
+        group
+        == source_groups[(group["model"], group["scenario"], group["character"])]
+        for group in untouched_groups
+    )
     assert all(
         group["attempts"] == [5, 6, 7, 8]
         and [candidate["attempt"] for candidate in group["candidates"]]
@@ -719,7 +786,7 @@ def test_topupはdecision由来targetをattempt5から8で整組置換しdraft�
     )
     draft_path = (tmp_path / "inherited-draft.json").resolve()
     draft_summary = build_role_anchor_topup_draft(
-        plan=fixture.plan,  # type: ignore[arg-type]
+        plan=replay_plan,  # type: ignore[arg-type]
         source_candidate_set_path=fixture.candidate_set_path,
         decision_path=decision_path,
         topup_plan_path=topup_plan_path,
@@ -728,17 +795,17 @@ def test_topupはdecision由来targetをattempt5から8で整組置換しdraft�
         output_path=draft_path,
     )
     draft = json.loads(draft_path.read_bytes())
-    assert draft_summary.inherited_count == 104
-    assert draft_summary.reset_count == 2
+    assert draft_summary.inherited_count == 103
+    assert draft_summary.reset_count == 3
     assert draft["current_group_id"] == draft["groups"][0]["id"]
     assert all(
         group["confirmed"] is False
         and group["heard_candidate_ids"] == []
         and group["selected_candidate_id"] is None
         and group["rubric"]["gender"] is None
-        for group in draft["groups"][:2]
+        for group in draft["groups"][:3]
     )
-    assert draft["groups"][2] == decision["groups"][2]
+    assert draft["groups"][3] == decision["groups"][3]
 
 
 def test_topup生成は二対象目の例外でpendingを消して同じrun_idを再利用できる(
@@ -797,6 +864,222 @@ def test_topup生成は二対象目の例外でpendingを消して同じrun_id�
     assert summary.ledger_path == run_root / "ledger.json"
     assert summary.ledger_path.is_file()
     assert not pending.exists()
+
+
+def test_topup_v2はsource_attempt5から8を9から12へ進める(
+    tmp_path: Path,
+) -> None:
+    source = _fixture_with_group_attempts(
+        _fixture(tmp_path),
+        tmp_path,
+        [5, 6, 7, 8],
+    )
+    bundle_dir = _build_bundle(source, tmp_path)
+    decision = _decision(bundle_dir)
+    decision["groups"][0]["no_usable_candidate"] = True
+    decision["groups"][0]["selected_candidate_id"] = None
+    decision_path = (
+        tmp_path / "second-topup-decision" / "role-review-anchor-decision-v2.json"
+    ).resolve()
+    _write_decision(decision_path, decision)
+    output_path = (tmp_path / "second-anchor-topup.json").resolve()
+
+    summary = build_role_anchor_topup_plan(
+        plan=source.plan,  # type: ignore[arg-type]
+        candidate_set_path=source.candidate_set_path,
+        decision_path=decision_path,
+        output_path=output_path,
+    )
+
+    topup = json.loads(output_path.read_bytes())
+    assert summary.attempt_count == 4
+    assert topup["format_version"] == 2
+    assert topup["protocol"] == "role-anchor-topup-v2"
+    assert topup["targets"][0]["attempts"] == [9, 10, 11, 12]
+
+    replay_plan = replace(source.plan, anchor_candidate_set_sha256="d" * 64)
+    generation = run_role_anchor_topup_generation(
+        plan=replay_plan,  # type: ignore[arg-type]
+        candidate_set_path=source.candidate_set_path,
+        decision_path=decision_path,
+        topup_plan_path=output_path,
+        model_id=IRODORI_MODEL,
+        run_id="second-topup-run",
+        artifacts_dir=source.artifacts_dir,
+        generator=_TopupGenerator(IRODORI_MODEL),  # type: ignore[arg-type]
+    )
+    ledger = json.loads(generation.ledger_path.read_bytes())
+    assert [attempt["attempt"] for attempt in ledger["attempts"]] == [9, 10, 11, 12]
+
+    merged_path = (tmp_path / "second-merged-candidate-set.json").resolve()
+    merged_summary = merge_role_anchor_topup(
+        plan=replay_plan,  # type: ignore[arg-type]
+        candidate_set_path=source.candidate_set_path,
+        decision_path=decision_path,
+        topup_plan_path=output_path,
+        run_ids=[generation.run_id],
+        artifacts_dir=source.artifacts_dir,
+        output_path=merged_path,
+    )
+    merged = json.loads(merged_path.read_bytes())
+    assert merged["groups"][0]["attempts"] == [9, 10, 11, 12]
+
+    merged_plan = replace(
+        source.plan,
+        anchor_candidate_set_sha256=merged_summary.candidate_set_sha256,
+    )
+    merged_bundle_dir = (tmp_path / "second-merged-bundle").resolve()
+    build_role_review_bundle_v2(
+        plan=merged_plan,  # type: ignore[arg-type]
+        candidate_set_path=merged_path,
+        artifacts_dir=source.artifacts_dir,
+        output_dir=merged_bundle_dir,
+    )
+    draft_path = (tmp_path / "second-inherited-draft.json").resolve()
+    draft_summary = build_role_anchor_topup_draft(
+        plan=replay_plan,  # type: ignore[arg-type]
+        source_candidate_set_path=source.candidate_set_path,
+        decision_path=decision_path,
+        topup_plan_path=output_path,
+        merged_candidate_set_path=merged_path,
+        merged_bundle_dir=merged_bundle_dir,
+        output_path=draft_path,
+    )
+    assert draft_summary.reset_count == 1
+    assert json.loads(draft_path.read_bytes())["groups"][0]["confirmed"] is False
+
+
+@pytest.mark.parametrize(
+    ("source_attempts", "message"),
+    [
+        ([1, 2, 4, 5], "連続"),
+        ([9, 10, 11, 12], "2回の上限"),
+        ([13, 14, 15, 16], "2回の上限"),
+    ],
+)
+def test_topup_v2は不正source_slotと第三回を拒否する(
+    tmp_path: Path,
+    source_attempts: list[int],
+    message: str,
+) -> None:
+    source = _fixture_with_group_attempts(
+        _fixture(tmp_path),
+        tmp_path,
+        source_attempts,
+    )
+    bundle_dir = _build_bundle(source, tmp_path)
+    decision = _decision(bundle_dir)
+    decision["groups"][0]["no_usable_candidate"] = True
+    decision["groups"][0]["selected_candidate_id"] = None
+    decision_path = (
+        tmp_path / "invalid-source-decision" / "role-review-anchor-decision-v2.json"
+    ).resolve()
+    _write_decision(decision_path, decision)
+
+    with pytest.raises(CompletionAnchorError, match=message):
+        build_role_anchor_topup_plan(
+            plan=source.plan,  # type: ignore[arg-type]
+            candidate_set_path=source.candidate_set_path,
+            decision_path=decision_path,
+            output_path=(tmp_path / "invalid-source-topup.json").resolve(),
+        )
+
+
+def test_topup_v2はv1とsource_authority改変を明示拒否する(
+    tmp_path: Path,
+) -> None:
+    fixture = _fixture(tmp_path)
+    bundle_dir = _build_bundle(fixture, tmp_path)
+    decision = _decision(bundle_dir)
+    decision["groups"][0]["no_usable_candidate"] = True
+    decision["groups"][0]["selected_candidate_id"] = None
+    decision_path = (
+        tmp_path / "bound-decision" / "role-review-anchor-decision-v2.json"
+    ).resolve()
+    _write_decision(decision_path, decision)
+    topup_plan_path = (tmp_path / "bound-topup.json").resolve()
+    build_role_anchor_topup_plan(
+        plan=fixture.plan,  # type: ignore[arg-type]
+        candidate_set_path=fixture.candidate_set_path,
+        decision_path=decision_path,
+        output_path=topup_plan_path,
+    )
+    replay_plan = replace(
+        fixture.plan,
+        anchor_candidate_set_sha256="e" * 64,
+    )
+    with pytest.raises(CompletionAnchorError, match="candidate set SHA"):
+        build_role_anchor_topup_plan(
+            plan=replay_plan,  # type: ignore[arg-type]
+            candidate_set_path=fixture.candidate_set_path,
+            decision_path=decision_path,
+            output_path=(tmp_path / "advanced-current-topup.json").resolve(),
+        )
+
+    v1_plan = json.loads(topup_plan_path.read_bytes())
+    v1_plan["format_version"] = 1
+    v1_plan["protocol"] = "role-anchor-topup-v1"
+    v1_plan_path = (tmp_path / "v1-topup.json").resolve()
+    _write_canonical(v1_plan_path, v1_plan)
+    with pytest.raises(CompletionAnchorError, match="role-anchor-topup-v2"):
+        run_role_anchor_topup_generation(
+            plan=replay_plan,  # type: ignore[arg-type]
+            candidate_set_path=fixture.candidate_set_path,
+            decision_path=decision_path,
+            topup_plan_path=v1_plan_path,
+            model_id=IRODORI_MODEL,
+            run_id="reject-v1-plan",
+            artifacts_dir=fixture.artifacts_dir,
+            generator=_TopupGenerator(IRODORI_MODEL),  # type: ignore[arg-type]
+        )
+
+    tampered_candidate = json.loads(fixture.candidate_set_path.read_bytes())
+    tampered_candidate["runs"].append("tampered-run")
+    tampered_candidate["runs"].sort()
+    tampered_candidate_path = (tmp_path / "tampered-candidate.json").resolve()
+    _write_canonical(tampered_candidate_path, tampered_candidate)
+    with pytest.raises(CompletionAnchorError, match="candidate set SHA"):
+        run_role_anchor_topup_generation(
+            plan=replay_plan,  # type: ignore[arg-type]
+            candidate_set_path=tampered_candidate_path,
+            decision_path=decision_path,
+            topup_plan_path=topup_plan_path,
+            model_id=IRODORI_MODEL,
+            run_id="reject-candidate-tamper",
+            artifacts_dir=fixture.artifacts_dir,
+            generator=_TopupGenerator(IRODORI_MODEL),  # type: ignore[arg-type]
+        )
+
+    tampered_decision = deepcopy(decision)
+    tampered_decision["groups"][0]["rubric"]["notes"] = "tampered"
+    tampered_decision_path = (
+        tmp_path / "tampered-decision" / "role-review-anchor-decision-v2.json"
+    ).resolve()
+    _write_decision(tampered_decision_path, tampered_decision)
+    with pytest.raises(CompletionAnchorError, match="final decision"):
+        run_role_anchor_topup_generation(
+            plan=replay_plan,  # type: ignore[arg-type]
+            candidate_set_path=fixture.candidate_set_path,
+            decision_path=tampered_decision_path,
+            topup_plan_path=topup_plan_path,
+            model_id=IRODORI_MODEL,
+            run_id="reject-decision-tamper",
+            artifacts_dir=fixture.artifacts_dir,
+            generator=_TopupGenerator(IRODORI_MODEL),  # type: ignore[arg-type]
+        )
+
+    decision_path.with_suffix(".sha256").write_bytes(f"{'0' * 64}\n".encode())
+    with pytest.raises(CompletionAnchorError, match="隣接SHA-256 marker"):
+        run_role_anchor_topup_generation(
+            plan=replay_plan,  # type: ignore[arg-type]
+            candidate_set_path=fixture.candidate_set_path,
+            decision_path=decision_path,
+            topup_plan_path=topup_plan_path,
+            model_id=IRODORI_MODEL,
+            run_id="reject-marker-tamper",
+            artifacts_dir=fixture.artifacts_dir,
+            generator=_TopupGenerator(IRODORI_MODEL),  # type: ignore[arg-type]
+        )
 
 
 def test_candidate_setは四attemptの重複とtopup_target欠落を拒否する(

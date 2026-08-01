@@ -40,7 +40,6 @@ __all__ = [
     "finalize_role_anchor_selection",
     "load_anchor_review_plan",
     "load_anchor_source_plan",
-    "load_anchor_topup_plan",
     "merge_role_anchor_topup",
     "resolve_selected_anchor",
     "run_role_anchor_topup_generation",
@@ -62,18 +61,14 @@ _REVIEW_CANDIDATE_COUNT = 4
 _REVIEW_MODELS = (IRODORI_MODEL, QWEN_MODEL)
 _CANDIDATE_SET_FORMAT_VERSION = 1
 _CANDIDATE_SET_PROTOCOL = "role-anchor-candidate-set-v1"
-_TOPUP_PLAN_FORMAT_VERSION = 1
-_TOPUP_PLAN_PROTOCOL = "role-anchor-topup-v1"
-_TOPUP_RUN_FORMAT_VERSION = 1
-_TOPUP_RUN_PROTOCOL = "role-anchor-topup-run-v1"
+_TOPUP_PLAN_FORMAT_VERSION = 2
+_TOPUP_PLAN_PROTOCOL = "role-anchor-topup-v2"
+_TOPUP_RUN_FORMAT_VERSION = 2
+_TOPUP_RUN_PROTOCOL = "role-anchor-topup-run-v2"
 _DRAFT_FORMAT_VERSION = 2
 _DRAFT_PROTOCOL = "role-review-draft-v2"
-_TOPUP_ATTEMPTS = (5, 6, 7, 8)
 _ANCHOR_SEED_POLICY = "role-anchor-derived-sha256-v1"
 _ANCHOR_SEED_BASE = 177
-_ANCHOR_SOURCE_CANDIDATE_SET_SHA256 = (
-    "9ff3bb11452ca80899944121edaba5e9a361a1cd8000a1ef716375e673062765"
-)
 _CANDIDATE_SET_ROOT_FIELDS = {
     "format_version",
     "protocol",
@@ -363,7 +358,6 @@ _HEX = frozenset("0123456789abcdef")
 class AnchorReviewPlan:
     plan_id: str
     anchor_source_plan_sha256: str
-    anchor_source_candidate_set_sha256: str
     anchor_candidate_set_sha256: str
     models: Mapping[str, str]
     roles: tuple[RoleSnapshot, ...]
@@ -497,7 +491,6 @@ def load_anchor_source_plan(
         raise CompletionAnchorError(
             "Anchor source plan SHAが現在の固定authorityと一致しません。",
         )
-    source_candidate_set_sha256 = _ANCHOR_SOURCE_CANDIDATE_SET_SHA256
     candidate_set_sha256 = ANCHOR_CANDIDATE_SET_SHA256
 
     root = _exact(document, _ANCHOR_PLAN_ROOT_FIELDS, "Anchor source plan")
@@ -634,7 +627,6 @@ def load_anchor_source_plan(
     plan = AnchorReviewPlan(
         plan_id=plan_sha256,
         anchor_source_plan_sha256=plan_sha256,
-        anchor_source_candidate_set_sha256=source_candidate_set_sha256,
         anchor_candidate_set_sha256=candidate_set_sha256,
         models=models,
         roles=tuple(roles),
@@ -727,27 +719,6 @@ def load_anchor_review_plan(
     return plan
 
 
-def load_anchor_topup_plan(
-    *,
-    plan_path: Path,
-    source_candidate_set_path: Path,
-) -> AnchorReviewPlan:
-    """固定initial/source candidate authorityをtopup lineage用に読む。"""
-
-    _require_absolute(source_candidate_set_path, "source anchor candidate set")
-    plan = load_anchor_source_plan(plan_path=plan_path)
-    candidate_raw, _candidate_document = _read_canonical_json(
-        source_candidate_set_path,
-        "source anchor candidate set",
-    )
-    candidate_set_sha256 = hashlib.sha256(candidate_raw).hexdigest()
-    if candidate_set_sha256 != plan.anchor_source_candidate_set_sha256:
-        raise CompletionAnchorError(
-            "source anchor candidate set SHAが固定initial authorityと一致しません。",
-        )
-    return plan
-
-
 def build_role_anchor_topup_plan(
     *,
     plan: CompletionPlan | AnchorReviewPlan,
@@ -755,7 +726,7 @@ def build_role_anchor_topup_plan(
     decision_path: Path,
     output_path: Path,
 ) -> AnchorTopupPlanSummary:
-    """確定decisionから再生成対象とattempt 5..8を固定する。"""
+    """確定decisionとcurrent candidateから次のN4 attemptを固定する。"""
 
     for path, label in (
         (candidate_set_path, "anchor candidate set"),
@@ -768,6 +739,7 @@ def build_role_anchor_topup_plan(
             plan=plan,
             candidate_set_path=candidate_set_path,
             decision_path=decision_path,
+            expected_candidate_set_sha256=plan.anchor_candidate_set_sha256,
         )
     )
     candidate_groups = {
@@ -783,6 +755,10 @@ def build_role_anchor_topup_plan(
             continue
         identity = (group["model"], group["scenario"], group["character"])
         candidate_group = candidate_groups[identity]
+        attempts = _next_anchor_topup_attempts(
+            candidate_group["attempts"],
+            f"anchor topup source group {'/'.join(identity)}",
+        )
         seeds = [
             _derive_anchor_seed(
                 plan_sha256=plan.anchor_source_plan_sha256,
@@ -791,7 +767,7 @@ def build_role_anchor_topup_plan(
                 character=identity[2],
                 attempt=attempt,
             )
-            for attempt in _TOPUP_ATTEMPTS
+            for attempt in attempts
         ]
         targets.append(
             {
@@ -800,7 +776,7 @@ def build_role_anchor_topup_plan(
                 "character": identity[2],
                 "role_identity_sha256": candidate_group["role_identity_sha256"],
                 "role_epoch_sha256": candidate_group["role_epoch_sha256"],
-                "attempts": list(_TOPUP_ATTEMPTS),
+                "attempts": attempts,
                 "seeds": seeds,
             },
         )
@@ -824,7 +800,7 @@ def build_role_anchor_topup_plan(
     return AnchorTopupPlanSummary(
         path=output_path,
         target_count=len(targets),
-        attempt_count=len(targets) * len(_TOPUP_ATTEMPTS),
+        attempt_count=sum(len(target["attempts"]) for target in targets),
     )
 
 
@@ -849,23 +825,18 @@ def run_role_anchor_topup_generation(
     ):
         _require_absolute(path, label)
     run_id = _path_segment(run_id, "anchor topup run id")
-    candidate_set, candidate_sha256, decision, decision_sha256 = (
-        _load_topup_source_authority(
-            plan=plan,
-            candidate_set_path=candidate_set_path,
-            decision_path=decision_path,
-        )
-    )
-    topup_raw, topup_document = _read_canonical_json(
-        topup_plan_path,
-        "anchor topup plan",
-    )
-    topup = _validate_anchor_topup_plan(
-        topup_document,
+    (
+        topup_raw,
+        topup,
+        _candidate_set,
+        candidate_sha256,
+        _decision,
+        decision_sha256,
+    ) = _load_topup_replay_authority(
         plan=plan,
-        candidate_set=candidate_set,
-        decision=decision,
-        decision_sha256=decision_sha256,
+        candidate_set_path=candidate_set_path,
+        decision_path=decision_path,
+        topup_plan_path=topup_plan_path,
     )
     topup_sha256 = hashlib.sha256(topup_raw).hexdigest()
     targets = [target for target in topup["targets"] if target["model"] == model_id]
@@ -1061,28 +1032,23 @@ def merge_role_anchor_topup(
     normalized_run_ids = sorted(
         _path_segment(run_id, "anchor topup run id") for run_id in run_ids
     )
-    candidate_set, candidate_sha256, decision, decision_sha256 = (
-        _load_topup_source_authority(
-            plan=plan,
-            candidate_set_path=candidate_set_path,
-            decision_path=decision_path,
-        )
+    (
+        topup_raw,
+        topup,
+        candidate_set,
+        candidate_sha256,
+        _decision,
+        decision_sha256,
+    ) = _load_topup_replay_authority(
+        plan=plan,
+        candidate_set_path=candidate_set_path,
+        decision_path=decision_path,
+        topup_plan_path=topup_plan_path,
     )
     _verify_anchor_candidate_set_audio(
         candidate_set=candidate_set,
         artifacts_dir=artifacts_dir,
         label="source anchor candidate audio",
-    )
-    topup_raw, topup_document = _read_canonical_json(
-        topup_plan_path,
-        "anchor topup plan",
-    )
-    topup = _validate_anchor_topup_plan(
-        topup_document,
-        plan=plan,
-        candidate_set=candidate_set,
-        decision=decision,
-        decision_sha256=decision_sha256,
     )
     topup_sha256 = hashlib.sha256(topup_raw).hexdigest()
     attempts_by_identity: dict[tuple[str, str, str], list[dict[str, Any]]] = {}
@@ -1223,23 +1189,18 @@ def build_role_anchor_topup_draft(
         (output_path, "role review inherited draft output"),
     ):
         _require_absolute(path, label)
-    source_set, source_sha256, decision, decision_sha256 = (
-        _load_topup_source_authority(
-            plan=plan,
-            candidate_set_path=source_candidate_set_path,
-            decision_path=decision_path,
-        )
-    )
-    _topup_raw, topup_document = _read_canonical_json(
-        topup_plan_path,
-        "anchor topup plan",
-    )
-    topup = _validate_anchor_topup_plan(
-        topup_document,
+    (
+        _topup_raw,
+        topup,
+        source_set,
+        _source_sha256,
+        decision,
+        _decision_sha256,
+    ) = _load_topup_replay_authority(
         plan=plan,
-        candidate_set=source_set,
-        decision=decision,
-        decision_sha256=decision_sha256,
+        candidate_set_path=source_candidate_set_path,
+        decision_path=decision_path,
+        topup_plan_path=topup_plan_path,
     )
     merged_raw, merged_document = _read_canonical_json(
         merged_candidate_set_path,
@@ -1252,10 +1213,11 @@ def build_role_anchor_topup_draft(
         candidate_set_sha256=merged_sha256,
         expected_candidate_set_sha256=merged_sha256,
     )
-    target_identities = {
-        (target["model"], target["scenario"], target["character"])
+    targets_by_identity = {
+        (target["model"], target["scenario"], target["character"]): target
         for target in topup["targets"]
     }
+    target_identities = set(targets_by_identity)
     source_groups = {
         (group["model"], group["scenario"], group["character"]): group
         for group in source_set["groups"]
@@ -1271,11 +1233,13 @@ def build_role_anchor_topup_draft(
                 "topup非対象candidate groupのobjectが変更されています: "
                 f"{'/'.join(identity)}",
             )
-        if identity in target_identities and merged_group["attempts"] != list(
-            _TOPUP_ATTEMPTS
+        if (
+            identity in target_identities
+            and merged_group["attempts"]
+            != targets_by_identity[identity]["attempts"]
         ):
             raise CompletionAnchorError(
-                "topup対象candidate groupがattempt 5..8へ整組置換されていません: "
+                "topup対象candidate groupがplan attemptへ整組置換されていません: "
                 f"{'/'.join(identity)}",
             )
     _assert_exact_directory_files(
@@ -1961,11 +1925,36 @@ def resolve_selected_anchor(
     )
 
 
+def _next_anchor_topup_attempts(value: Any, field: str) -> list[int]:
+    if not isinstance(value, list) or len(value) != _REVIEW_CANDIDATE_COUNT:
+        raise CompletionAnchorError(
+            f"{field}.attemptsは4件の連続する正整数が必要です。",
+        )
+    attempts = [
+        _positive_integer(attempt, f"{field}.attempts[{index}]")
+        for index, attempt in enumerate(value)
+    ]
+    if any(current != previous + 1 for previous, current in zip(attempts, attempts[1:])):
+        raise CompletionAnchorError(
+            f"{field}.attemptsは4件の連続する正整数が必要です。",
+        )
+    if attempts[0] >= 9:
+        raise CompletionAnchorError(
+            f"{field}はPhase A topup 2回の上限に達しています。",
+        )
+    if attempts not in ([1, 2, 3, 4], [5, 6, 7, 8]):
+        raise CompletionAnchorError(
+            f"{field}.attemptsは[1,2,3,4]または[5,6,7,8]が必要です。",
+        )
+    return [attempt + _REVIEW_CANDIDATE_COUNT for attempt in attempts]
+
+
 def _load_topup_source_authority(
     *,
     plan: CompletionPlan | AnchorReviewPlan,
     candidate_set_path: Path,
     decision_path: Path,
+    expected_candidate_set_sha256: str,
 ) -> tuple[dict[str, Any], str, dict[str, Any], str]:
     candidate_raw, candidate_document = _read_canonical_json(
         candidate_set_path,
@@ -1976,7 +1965,7 @@ def _load_topup_source_authority(
         candidate_document,
         plan=plan,
         candidate_set_sha256=candidate_sha256,
-        expected_candidate_set_sha256=plan.anchor_source_candidate_set_sha256,
+        expected_candidate_set_sha256=expected_candidate_set_sha256,
     )
     review_groups = [
         _role_review_group_v2(plan=plan, group=group)
@@ -2013,6 +2002,86 @@ def _load_topup_source_authority(
     return candidate_set, candidate_sha256, decision, decision_sha256
 
 
+def _load_topup_replay_authority(
+    *,
+    plan: CompletionPlan | AnchorReviewPlan,
+    candidate_set_path: Path,
+    decision_path: Path,
+    topup_plan_path: Path,
+) -> tuple[
+    bytes,
+    dict[str, Any],
+    dict[str, Any],
+    str,
+    dict[str, Any],
+    str,
+]:
+    topup_raw, topup_document = _read_canonical_json(
+        topup_plan_path,
+        "anchor topup plan",
+    )
+    (
+        _root,
+        expected_candidate_set_sha256,
+        expected_decision_sha256,
+    ) = _anchor_topup_plan_root(topup_document, plan=plan)
+    candidate_set, candidate_sha256, decision, decision_sha256 = (
+        _load_topup_source_authority(
+            plan=plan,
+            candidate_set_path=candidate_set_path,
+            decision_path=decision_path,
+            expected_candidate_set_sha256=expected_candidate_set_sha256,
+        )
+    )
+    if decision_sha256 != expected_decision_sha256:
+        raise CompletionAnchorError(
+            "anchor topup planがfinal decisionと一致しません。",
+        )
+    topup = _validate_anchor_topup_plan(
+        topup_document,
+        plan=plan,
+        candidate_set=candidate_set,
+        decision=decision,
+        decision_sha256=decision_sha256,
+    )
+    return (
+        topup_raw,
+        topup,
+        candidate_set,
+        candidate_sha256,
+        decision,
+        decision_sha256,
+    )
+
+
+def _anchor_topup_plan_root(
+    document: Any,
+    *,
+    plan: CompletionPlan | AnchorReviewPlan,
+) -> tuple[Mapping[str, Any], str, str]:
+    root = _exact(document, _TOPUP_PLAN_ROOT_FIELDS, "anchor topup plan")
+    if (
+        root["format_version"] != _TOPUP_PLAN_FORMAT_VERSION
+        or root["protocol"] != _TOPUP_PLAN_PROTOCOL
+    ):
+        raise CompletionAnchorError(
+            "anchor topup planはformat_version=2 / "
+            "role-anchor-topup-v2が必要です。",
+        )
+    plan_sha256 = _sha256(root["plan_sha256"], "anchor topup plan.plan_sha256")
+    if plan_sha256 != plan.anchor_source_plan_sha256:
+        raise CompletionAnchorError("anchor topup planがauthority planと一致しません。")
+    candidate_set_sha256 = _sha256(
+        root["candidate_set_sha256"],
+        "anchor topup plan.candidate_set_sha256",
+    )
+    decision_sha256 = _sha256(
+        root["decision_sha256"],
+        "anchor topup plan.decision_sha256",
+    )
+    return root, candidate_set_sha256, decision_sha256
+
+
 def _validate_anchor_topup_plan(
     document: Any,
     *,
@@ -2021,27 +2090,14 @@ def _validate_anchor_topup_plan(
     decision: Mapping[str, Any],
     decision_sha256: str,
 ) -> dict[str, Any]:
-    root = _exact(document, _TOPUP_PLAN_ROOT_FIELDS, "anchor topup plan")
-    if (
-        root["format_version"] != _TOPUP_PLAN_FORMAT_VERSION
-        or root["protocol"] != _TOPUP_PLAN_PROTOCOL
-    ):
-        raise CompletionAnchorError("anchor topup plan root contractが不正です。")
-    plan_sha256 = _sha256(root["plan_sha256"], "anchor topup plan.plan_sha256")
-    if plan_sha256 != plan.anchor_source_plan_sha256:
-        raise CompletionAnchorError("anchor topup planがauthority planと一致しません。")
-    candidate_set_sha256 = _sha256(
-        root["candidate_set_sha256"],
-        "anchor topup plan.candidate_set_sha256",
+    root, candidate_set_sha256, normalized_decision_sha256 = (
+        _anchor_topup_plan_root(document, plan=plan)
     )
+    plan_sha256 = plan.anchor_source_plan_sha256
     if candidate_set_sha256 != _canonical_sha256(candidate_set):
         raise CompletionAnchorError(
             "anchor topup planがsource candidate setと一致しません。",
         )
-    normalized_decision_sha256 = _sha256(
-        root["decision_sha256"],
-        "anchor topup plan.decision_sha256",
-    )
     if normalized_decision_sha256 != decision_sha256:
         raise CompletionAnchorError("anchor topup planがfinal decisionと一致しません。")
     values = root["targets"]
@@ -2082,12 +2138,18 @@ def _validate_anchor_topup_plan(
             or role_epoch_sha256 != candidate_group["role_epoch_sha256"]
         ):
             raise CompletionAnchorError(f"{field}のrole identity/epochが不正です。")
+        expected_attempts = _next_anchor_topup_attempts(
+            candidate_group["attempts"],
+            f"{field}.source",
+        )
         attempts_value = item["attempts"]
-        if attempts_value != list(_TOPUP_ATTEMPTS):
-            raise CompletionAnchorError(f"{field}.attemptsはexactly [5,6,7,8]が必要です。")
+        if attempts_value != expected_attempts:
+            raise CompletionAnchorError(
+                f"{field}.attemptsがsource attempts + 4と一致しません。",
+            )
         seeds_value = item["seeds"]
         if not isinstance(seeds_value, list) or len(seeds_value) != len(
-            _TOPUP_ATTEMPTS
+            expected_attempts
         ):
             raise CompletionAnchorError(f"{field}.seedsはexactly 4件が必要です。")
         seeds = [
@@ -2102,7 +2164,7 @@ def _validate_anchor_topup_plan(
                 character=character,
                 attempt=attempt,
             )
-            for attempt in _TOPUP_ATTEMPTS
+            for attempt in expected_attempts
         ]
         if seeds != expected_seeds or any(seed in seen_seeds for seed in seeds):
             raise CompletionAnchorError(f"{field}.seedsがcanonical derivationと不一致です。")
@@ -2119,7 +2181,7 @@ def _validate_anchor_topup_plan(
                 "character": character,
                 "role_identity_sha256": role_identity_sha256,
                 "role_epoch_sha256": role_epoch_sha256,
-                "attempts": list(_TOPUP_ATTEMPTS),
+                "attempts": expected_attempts,
                 "seeds": seeds,
             },
         )
@@ -2165,7 +2227,10 @@ def _validate_anchor_topup_run(
         root["format_version"] != _TOPUP_RUN_FORMAT_VERSION
         or root["protocol"] != _TOPUP_RUN_PROTOCOL
     ):
-        raise CompletionAnchorError("anchor topup run root contractが不正です。")
+        raise CompletionAnchorError(
+            "anchor topup runはformat_version=2 / "
+            "role-anchor-topup-run-v2が必要です。",
+        )
     bindings = {
         "plan_sha256": plan.anchor_source_plan_sha256,
         "candidate_set_sha256": candidate_set_sha256,
@@ -2328,7 +2393,9 @@ def _validate_anchor_topup_run(
         for attempt in target["attempts"]
     }
     if slots != expected_slots:
-        raise CompletionAnchorError("anchor topup runはmodel対象×attempt 5..8とexact一致が必要です。")
+        raise CompletionAnchorError(
+            "anchor topup runはmodel対象×plan attemptsとexact一致が必要です。",
+        )
     if attempts != sorted(attempts, key=lambda item: (item["model"], item["scenario"], item["character"], item["attempt"])):
         raise CompletionAnchorError("anchor topup run.attemptsはcanonical順が必要です。")
     return {
