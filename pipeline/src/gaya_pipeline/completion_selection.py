@@ -31,7 +31,6 @@ DECISION_FORMAT_VERSION = 1
 DECISION_PROTOCOL = "role-baseline-decision-v1"
 BEST_AVAILABLE_POLICY = "missing-slot-best-of-n-v1"
 BEST_AVAILABLE_REVIEWER = "owner"
-MINIMUM_ELIGIBLE_CANDIDATES = 3
 BASE_CANDIDATE_SET_SHA256 = (
     "91913e08f97497f1f7604f109a6d0f7308742237277f6bbc5483678ac9858cc2"
 )
@@ -389,11 +388,16 @@ def _validate_authority(value: Any, field: str) -> dict[str, Any]:
             "type": "best_available",
             "policy_version": BEST_AVAILABLE_POLICY,
             "reviewer": BEST_AVAILABLE_REVIEWER,
-            "minimum_eligible_candidates": MINIMUM_ELIGIBLE_CANDIDATES,
         }
-        if authority != expected:
+        minimum = authority["minimum_eligible_candidates"]
+        if (
+            {key: authority[key] for key in expected} != expected
+            or not isinstance(minimum, int)
+            or isinstance(minimum, bool)
+            or minimum < 1
+        ):
             raise CurationError(f"{field} の best_available 契約が不正です。")
-        return expected
+        return {**expected, "minimum_eligible_candidates": minimum}
     raise CurationError(f"{field}.type が不正です。")
 
 

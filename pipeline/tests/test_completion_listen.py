@@ -13,9 +13,6 @@ from gaya_pipeline.completion_listen import (
     CompletionListeningError,
     CompletionSourceRun,
     PRIMARY_MODELS,
-    VOX_LEGACY_GROUPS,
-    VOX_LEGACY_RUN_ID,
-    _load_vox_legacy_run,
     _load_target_lines,
     _validate_manifest_candidate_authority,
     resolve_completion_sources,
@@ -146,10 +143,21 @@ def _source_run(
         manifest={"models": [], "candidates": [], "failures": []},
         groups=frozenset(groups),
         role_epochs={group: "e" * 64 for group in groups},
-        seed_base=104 if kind == "primary" else 204,
+        seed_base=(
+            None
+            if model == "aivisspeech-kohaku"
+            else 104 if kind == "primary" else 204
+        ),
         attempt_seeds={
-            group: frozenset(
-                {index + (0 if kind == "primary" else 1_000) for index in range(4)},
+            group: (
+                frozenset()
+                if model == "aivisspeech-kohaku"
+                else frozenset(
+                    {
+                        index + (0 if kind == "primary" else 1_000)
+                        for index in range(4)
+                    },
+                )
             )
             for group in groups
         },
@@ -161,16 +169,25 @@ def test_topupはsuperseded_primaryのgroupを整組取代する(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     (tmp_path / "artifacts" / "takes").mkdir(parents=True)
-    counts = [100, 100, 54, 54, 53]
+    counts = {
+        "aivisspeech-kohaku": 25,
+        "chatterbox-multilingual-v3": 13,
+        "cosyvoice3-0.5b-2512": 14,
+        "gpt-sovits-v2-pro-plus": 37,
+        "irodori-tts-600m-v3-voicedesign": 161,
+        "qwen3-tts-12hz-1.7b": 161,
+        "supertonic-3": 25,
+        "voxcpm2": 161,
+    }
     targets: list[CompletionTarget] = []
     primary: dict[str, CompletionSourceRun] = {}
-    for model, count in zip(sorted(PRIMARY_MODELS), counts, strict=True):
+    for model in sorted(PRIMARY_MODELS):
         groups = {
             (model, "scene", f"{model}-{index:03d}", "dry")
-            for index in range(count)
+            for index in range(counts[model])
         }
         targets.extend(
-            CompletionTarget(*group, source="generate") for group in sorted(groups)
+            CompletionTarget(*group) for group in sorted(groups)
         )
         primary[f"primary-{model}"] = _source_run(
             f"primary-{model}",
@@ -178,11 +195,9 @@ def test_topupはsuperseded_primaryのgroupを整組取代する(
             groups,
             kind="primary",
         )
-    targets.extend(
-        CompletionTarget(*group, source="reuse")
-        for group in sorted(VOX_LEGACY_GROUPS)
+    first_primary = next(
+        run for run in primary.values() if run.model != "aivisspeech-kohaku"
     )
-    first_primary = next(iter(primary.values()))
     replaced_group = next(iter(first_primary.groups))
     topup = _source_run(
         "topup-1",
@@ -191,16 +206,17 @@ def test_topupはsuperseded_primaryのgroupを整組取代する(
         kind="topup",
         supersedes=first_primary.run_id,
     )
-    vox = _source_run(
-        "20260730T204323380360Z-voxcpm2-n4",
-        "voxcpm2",
-        set(VOX_LEGACY_GROUPS),
-        kind="fixed_legacy_reuse",
-    )
     plan = SimpleNamespace(
         targets=tuple(targets),
         targets_for_model=lambda model: tuple(
             target for target in targets if target.model == model
+        ),
+        policy_for_model=lambda model: SimpleNamespace(
+            seed_policy=(
+                "none"
+                if model == "aivisspeech-kohaku"
+                else "derived-sha256-v1"
+            ),
         ),
     )
     expected = {target.identity: "e" * 64 for target in targets}
@@ -221,23 +237,16 @@ def test_topupはsuperseded_primaryのgroupを整組取代する(
             topup if kwargs["run_id"] == "topup-1" else primary[kwargs["run_id"]]
         ),
     )
-    monkeypatch.setattr(
-        completion_listen,
-        "_load_vox_legacy_run",
-        lambda *_args: vox,
-    )
-
     resolution = resolve_completion_sources(
         plan=plan,
         primary_run_ids=list(primary),
         topup_run_ids=["topup-1"],
-        vox_run_id="20260730T204323380360Z-voxcpm2-n4",
         anchor_selection_path=(tmp_path / "anchor.json").resolve(),
         artifacts_dir=(tmp_path / "artifacts").resolve(),
         scenarios_dir=(tmp_path / "scenarios").resolve(),
     )
 
-    assert len(resolution.group_sources) == 363
+    assert len(resolution.group_sources) == 597
     assert resolution.group_sources[replaced_group] is topup
 
     overlapping_topup = replace(
@@ -260,7 +269,6 @@ def test_topupはsuperseded_primaryのgroupを整組取代する(
             plan=plan,
             primary_run_ids=list(primary),
             topup_run_ids=["topup-1"],
-            vox_run_id="20260730T204323380360Z-voxcpm2-n4",
             anchor_selection_path=(tmp_path / "anchor.json").resolve(),
             artifacts_dir=(tmp_path / "artifacts").resolve(),
             scenarios_dir=(tmp_path / "scenarios").resolve(),
@@ -271,35 +279,22 @@ def test_topupは既に取代済みgroupへの古いsupersedesを拒否する(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    # 同じfixtureを使う代わりにsource resolverの順序違反だけを直接作る。
+    counts = {
+        "aivisspeech-kohaku": 25,
+        "chatterbox-multilingual-v3": 13,
+        "cosyvoice3-0.5b-2512": 14,
+        "gpt-sovits-v2-pro-plus": 37,
+        "irodori-tts-600m-v3-voicedesign": 161,
+        "qwen3-tts-12hz-1.7b": 161,
+        "supertonic-3": 25,
+        "voxcpm2": 161,
+    }
     plan_targets = [
-        CompletionTarget(
-            model,
-            "scene",
-            f"line-{index:03d}",
-            "dry",
-            "generate",
-        )
-        for index, model in enumerate(
-            [*sorted(PRIMARY_MODELS)] * 73,
-        )
-    ][:361]
-    # model別coverageをexactにするため、上のidentityを一意化する。
-    plan_targets = [
-        CompletionTarget(
-            target.model,
-            target.scenario,
-            f"{target.model}-{index:03d}",
-            target.variant,
-            target.source,
-        )
-        for index, target in enumerate(plan_targets)
+        CompletionTarget(model, "scene", f"{model}-{index:03d}", "dry")
+        for model in sorted(PRIMARY_MODELS)
+        for index in range(counts[model])
     ]
-    plan_targets.extend(
-        CompletionTarget(*group, source="reuse")
-        for group in sorted(VOX_LEGACY_GROUPS)
-    )
-    assert len(plan_targets) == 363
+    assert len(plan_targets) == 597
     (tmp_path / "artifacts" / "takes").mkdir(parents=True)
     by_model = {
         model: {target.identity for target in plan_targets if target.model == model}
@@ -309,7 +304,9 @@ def test_topupは既に取代済みgroupへの古いsupersedesを拒否する(
         f"p-{model}": _source_run(f"p-{model}", model, groups, kind="primary")
         for model, groups in by_model.items()
     }
-    predecessor = next(iter(primaries.values()))
+    predecessor = next(
+        run for run in primaries.values() if run.model != "aivisspeech-kohaku"
+    )
     group = next(iter(predecessor.groups))
     topup1 = _source_run(
         "t1",
@@ -331,6 +328,13 @@ def test_topupは既に取代済みgroupへの古いsupersedesを拒否する(
         targets_for_model=lambda model: tuple(
             target for target in plan_targets if target.model == model
         ),
+        policy_for_model=lambda model: SimpleNamespace(
+            seed_policy=(
+                "none"
+                if model == "aivisspeech-kohaku"
+                else "derived-sha256-v1"
+            ),
+        ),
     )
     expected = {target.identity: "e" * 64 for target in plan_targets}
     monkeypatch.setattr(
@@ -348,48 +352,24 @@ def test_topupは既に取代済みgroupへの古いsupersedesを拒否する(
         "_load_phase_b_run",
         lambda **kwargs: runs[kwargs["run_id"]],
     )
-    monkeypatch.setattr(
-        completion_listen,
-        "_load_vox_legacy_run",
-        lambda *_args: _source_run(
-            "20260730T204323380360Z-voxcpm2-n4",
-            "voxcpm2",
-            set(VOX_LEGACY_GROUPS),
-            kind="fixed_legacy_reuse",
-        ),
-    )
     with pytest.raises(CompletionListeningError, match="supersedes chain"):
         resolve_completion_sources(
             plan=plan,
             primary_run_ids=list(primaries),
             topup_run_ids=["t1", "t2"],
-            vox_run_id="20260730T204323380360Z-voxcpm2-n4",
             anchor_selection_path=(tmp_path / "anchor.json").resolve(),
             artifacts_dir=(tmp_path / "artifacts").resolve(),
             scenarios_dir=(tmp_path / "scenarios").resolve(),
         )
-
-
-def test_固定Voxは四摘要の漂移を即時拒否する(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    takes = tmp_path / "takes"
-    (takes / VOX_LEGACY_RUN_ID).mkdir(parents=True)
-    monkeypatch.setattr(completion_listen, "_file_sha256", lambda _path: "0" * 64)
-
-    with pytest.raises(CompletionListeningError, match="4摘要|digest"):
-        _load_vox_legacy_run(takes.resolve(), VOX_LEGACY_RUN_ID)
-
-
 def test_candidateはledger_QC_generation_provenanceへ逐slot_exact_joinする() -> None:
     group = ("model", "scene", "line", "dry")
     provenance = {
-        "protocol": "phase-b-generation-v1",
+        "protocol": "phase-b-generation-v2",
         "plan_sha256": "a" * 64,
         "run_kind": "primary",
         "supersedes_run_id": None,
         "anchor_selection_sha256": None,
+        "anchor_plan_sha256": None,
         "target_group": {
             "model": group[0],
             "scenario": group[1],
@@ -504,6 +484,7 @@ def test_candidateはledger_QC_generation_provenanceへ逐slot_exact_joinする(
             "run_kind",
             "supersedes_run_id",
             "anchor_selection_sha256",
+            "anchor_plan_sha256",
         )
     }
     phase_b["target_groups"] = [provenance["target_group"]]
@@ -531,6 +512,37 @@ def test_candidateはledger_QC_generation_provenanceへ逐slot_exact_joinする(
         phase_b=phase_b,
         seed_policy=seed_policy,
     )
+
+    seedless_attempt = {
+        **attempt,
+        "generation": {**attempt["generation"], "seed": None},
+    }
+    seedless_candidate = {
+        **candidate,
+        "gen_params": {**candidate["gen_params"], "seed": None},
+    }
+    seedless_ledger = {
+        **ledger,
+        "source": {**ledger["source"], "seed_base": None},
+        "attempts": [seedless_attempt],
+    }
+    _validate_manifest_candidate_authority(
+        run_id="aivis-run",
+        ledger=seedless_ledger,
+        manifest={"candidates": [seedless_candidate]},
+        qc_authority=authority,
+        phase_b=phase_b,
+        seed_policy="none",
+    )
+    with pytest.raises(CompletionListeningError, match="seed contract"):
+        _validate_manifest_candidate_authority(
+            run_id="aivis-forged",
+            ledger=ledger,
+            manifest={"candidates": [candidate]},
+            qc_authority=authority,
+            phase_b=phase_b,
+            seed_policy="none",
+        )
 
     forged = {**candidate, "gate": {**candidate["gate"], "content": "pass"}}
     with pytest.raises(CompletionListeningError, match="authority"):

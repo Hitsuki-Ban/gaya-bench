@@ -6,23 +6,13 @@ from collections.abc import Sequence
 from datetime import date
 from pathlib import Path
 
-from gaya_pipeline.curation import (
-    CurationError,
-    CurationSummary,
-    apply_curation,
-)
 from gaya_pipeline.completion_anchor import (
-    AnchorCandidateSetSummary,
-    AnchorGenerationSummary,
-    AnchorListeningSummary,
-    AnchorSelectionSummary,
-    AnchorTopupSummary,
     CompletionAnchorError,
-    build_anchor_listening_bundle,
-    build_anchor_topup_plan,
-    finalize_anchor_selection,
-    merge_anchor_runs,
-    run_anchor_generation,
+    RoleAnchorSelectionSummary,
+    RoleReviewBundleSummary,
+    build_role_review_bundle_v2,
+    finalize_role_anchor_selection,
+    load_anchor_review_plan,
 )
 from gaya_pipeline.completion_listen import (
     CompletionListeningError,
@@ -44,6 +34,11 @@ from gaya_pipeline.completion_release import (
     CompletionReleaseSummary,
     finalize_completion_release,
 )
+from gaya_pipeline.curation import (
+    CurationError,
+    CurationSummary,
+    apply_curation,
+)
 from gaya_pipeline.generation import (
     GenerationError,
     GenerationSummary,
@@ -61,17 +56,19 @@ from gaya_pipeline.pilot import (
     analyze_pilot_bundle,
     build_pilot_bundle,
 )
+from gaya_pipeline.public_audio import (
+    PublicAudioError,
+    PublicAudioSummary,
+    verify_public_audio,
+)
 from gaya_pipeline.publish import (
     PublishError,
     PublishSummary,
     create_r2_client,
     run_publish,
 )
-from gaya_pipeline.public_audio import (
-    PublicAudioError,
-    PublicAudioSummary,
-    verify_public_audio,
-)
+from gaya_pipeline.qc import QCError, QCSummary, run_qc
+from gaya_pipeline.qc_runtime import KanaWhisperQCRuntime
 from gaya_pipeline.reference_bundles import (
     ReferenceBundleCatalogError,
     validate_reference_bundle_catalog,
@@ -82,8 +79,6 @@ from gaya_pipeline.release import (
     finalize_release,
 )
 from gaya_pipeline.selection import AUTOMATIC_SELECTION_POLICY
-from gaya_pipeline.qc import QCError, QCSummary, run_qc
-from gaya_pipeline.qc_runtime import KanaWhisperQCRuntime
 from gaya_pipeline.validation import default_scenarios_dir, validate_scenarios
 from gaya_pipeline.voice_assets import (
     default_voices_dir,
@@ -198,7 +193,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     completion_parser = subparsers.add_parser(
         "completion",
-        help="frozen planの363 replacementと925 inheritedを確定する",
+        help="frozen planの597 replacementと691 inheritedを確定する",
     )
     completion_subparsers = completion_parser.add_subparsers(
         dest="completion_command",
@@ -206,7 +201,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     completion_generate_parser = completion_subparsers.add_parser(
         "generate",
-        help="canonical plan の対象をmodel単位でN=4生成する",
+        help="canonical plan の対象をmodel policyどおり生成する",
     )
     completion_generate_parser.add_argument("--plan", required=True, type=Path)
     completion_generate_parser.add_argument(
@@ -247,8 +242,8 @@ def build_parser() -> argparse.ArgumentParser:
     )
     completion_generate_parser.add_argument(
         "--seed-base",
-        required=True,
         type=int,
+        help="seedを使うtopupの派生基準。primaryはplan policyとexact一致が必要",
     )
     completion_generate_parser.add_argument(
         "--target",
@@ -259,124 +254,44 @@ def build_parser() -> argparse.ArgumentParser:
         help="topupで整組取代するplan内group（繰返し指定）",
     )
 
-    completion_anchor_generate_parser = completion_subparsers.add_parser(
-        "anchor-generate",
-        help="Phase Aのrole anchor候補をrun単位で生成する",
+    completion_anchor_review_build_parser = completion_subparsers.add_parser(
+        "anchor-review-build",
+        help="固定N4候補からrole-review-v2聴取directoryを構築する",
     )
-    completion_anchor_generate_parser.add_argument(
-        "--plan",
-        required=True,
-        type=Path,
-    )
-    completion_anchor_generate_parser.add_argument(
-        "--base-manifest",
-        required=True,
-        type=Path,
-    )
-    completion_anchor_generate_parser.add_argument(
-        "--scenarios",
-        required=True,
-        type=Path,
-    )
-    completion_anchor_generate_parser.add_argument(
-        "--voices",
-        required=True,
-        type=Path,
-    )
-    completion_anchor_generate_parser.add_argument(
-        "--artifacts",
-        required=True,
-        type=Path,
-    )
-    completion_anchor_generate_parser.add_argument("--model", required=True)
-    completion_anchor_generate_parser.add_argument("--run-id", required=True)
-    completion_anchor_generate_parser.add_argument(
-        "--topup-plan",
-        type=Path,
-    )
-    completion_anchor_generate_parser.add_argument(
-        "--candidate-set",
-        type=Path,
-    )
-
-    completion_anchor_merge_parser = completion_subparsers.add_parser(
-        "anchor-merge",
-        help="明示runからimmutable anchor candidate setを作る",
-    )
-    for name in ("plan", "base-manifest", "scenarios", "voices", "artifacts"):
-        completion_anchor_merge_parser.add_argument(
+    for name in ("plan", "candidate-set", "artifacts", "output"):
+        completion_anchor_review_build_parser.add_argument(
             f"--{name}",
             required=True,
             type=Path,
         )
-    completion_anchor_merge_parser.add_argument(
-        "--run-id",
-        action="append",
-        dest="run_ids",
-        required=True,
+
+    completion_anchor_review_finalize_parser = completion_subparsers.add_parser(
+        "anchor-review-finalize",
+        help=(
+            "daemonのrole-review-anchor-decision-v2.jsonを"
+            "Phase B用anchor selectionへ回収する。no-usable groupがあれば停止する"
+        ),
     )
-    completion_anchor_merge_parser.add_argument(
+    for name in ("plan", "candidate-set", "bundle"):
+        completion_anchor_review_finalize_parser.add_argument(
+            f"--{name}",
+            required=True,
+            type=Path,
+        )
+    completion_anchor_review_finalize_parser.add_argument(
+        "--decision",
+        required=True,
+        type=Path,
+        help=(
+            "daemonが保存したrole-review-anchor-decision-v2.json。"
+            "no_usable_candidate=trueは再生成根拠として保持され、selection化しない"
+        ),
+    )
+    completion_anchor_review_finalize_parser.add_argument(
         "--output",
         required=True,
         type=Path,
     )
-
-    completion_anchor_topup_parser = completion_subparsers.add_parser(
-        "anchor-topup",
-        help="eligible不足groupの追加attemptを固定する",
-    )
-    for name in (
-        "plan",
-        "base-manifest",
-        "scenarios",
-        "voices",
-        "candidate-set",
-        "output",
-    ):
-        completion_anchor_topup_parser.add_argument(
-            f"--{name}",
-            required=True,
-            type=Path,
-        )
-
-    completion_anchor_listen_parser = completion_subparsers.add_parser(
-        "anchor-listen",
-        help="106 roleのrole-review-v1 listening bundleを作る",
-    )
-    for name in (
-        "plan",
-        "base-manifest",
-        "scenarios",
-        "voices",
-        "candidate-set",
-        "artifacts",
-        "output",
-    ):
-        completion_anchor_listen_parser.add_argument(
-            f"--{name}",
-            required=True,
-            type=Path,
-        )
-
-    completion_anchor_finalize_parser = completion_subparsers.add_parser(
-        "anchor-finalize",
-        help="Owner decisionからPhase B用anchor selectionを確定する",
-    )
-    for name in (
-        "plan",
-        "base-manifest",
-        "scenarios",
-        "voices",
-        "candidate-set",
-        "decision",
-        "artifacts",
-        "output",
-    ):
-        completion_anchor_finalize_parser.add_argument(
-            f"--{name}",
-            required=True,
-            type=Path,
-        )
 
     completion_qc_parser = completion_subparsers.add_parser(
         "qc",
@@ -426,7 +341,6 @@ def build_parser() -> argparse.ArgumentParser:
         dest="topup_run_ids",
         default=[],
     )
-    completion_listen_parser.add_argument("--vox-run-id", required=True)
     completion_listen_parser.add_argument(
         "--anchor-selection",
         required=True,
@@ -455,7 +369,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     completion_finalize_parser = completion_subparsers.add_parser(
         "finalize",
-        help="公開済みbaseと363 replacement decisionからreleaseを確定する",
+        help="公開済みbaseと597 replacement decisionからreleaseを確定する",
     )
     completion_finalize_parser.add_argument(
         "--base-manifest",
@@ -490,7 +404,6 @@ def build_parser() -> argparse.ArgumentParser:
         dest="topup_run_ids",
         default=[],
     )
-    completion_finalize_parser.add_argument("--vox-run-id", required=True)
     completion_finalize_parser.add_argument(
         "--anchor-selection",
         required=True,
@@ -871,48 +784,17 @@ def main(argv: Sequence[str] | None = None) -> int:
                 "voices",
                 "anchor_selection",
             ),
-            "anchor-generate": (
+            "anchor-review-build": (
                 "plan",
-                "base_manifest",
-                "scenarios",
-                "voices",
-                "artifacts",
-                "topup_plan",
-                "candidate_set",
-            ),
-            "anchor-merge": (
-                "plan",
-                "base_manifest",
-                "scenarios",
-                "voices",
-                "artifacts",
-                "output",
-            ),
-            "anchor-topup": (
-                "plan",
-                "base_manifest",
-                "scenarios",
-                "voices",
-                "candidate_set",
-                "output",
-            ),
-            "anchor-listen": (
-                "plan",
-                "base_manifest",
-                "scenarios",
-                "voices",
                 "candidate_set",
                 "artifacts",
                 "output",
             ),
-            "anchor-finalize": (
+            "anchor-review-finalize": (
                 "plan",
-                "base_manifest",
-                "scenarios",
-                "voices",
                 "candidate_set",
+                "bundle",
                 "decision",
-                "artifacts",
                 "output",
             ),
             "qc": (
@@ -965,67 +847,42 @@ def main(argv: Sequence[str] | None = None) -> int:
             )
             return 1
 
-        if args.completion_command.startswith("anchor-"):
+        if args.completion_command == "anchor-review-build":
             try:
-                plan = load_completion_plan(
-                    args.plan,
-                    base_manifest_path=args.base_manifest,
-                    scenarios_dir=args.scenarios,
-                    voices_dir=args.voices,
+                plan = load_anchor_review_plan(
+                    plan_path=args.plan,
+                    candidate_set_path=args.candidate_set,
                 )
-                if args.completion_command == "anchor-generate":
-                    summary = run_anchor_generation(
-                        plan=plan,
-                        model_id=args.model,
-                        run_id=args.run_id,
-                        artifacts_dir=args.artifacts,
-                        topup_plan_path=args.topup_plan,
-                        candidate_set_path=args.candidate_set,
-                    )
-                    _print_anchor_generation_summary(summary)
-                    return 1 if summary.rejected_count or summary.failed_count else 0
-                if args.completion_command == "anchor-merge":
-                    merge_summary = merge_anchor_runs(
-                        plan=plan,
-                        run_ids=args.run_ids,
-                        artifacts_dir=args.artifacts,
-                        output_path=args.output,
-                    )
-                    _print_anchor_candidate_set_summary(merge_summary)
-                    return 0
-                if args.completion_command == "anchor-topup":
-                    topup_summary = build_anchor_topup_plan(
-                        plan=plan,
-                        candidate_set_path=args.candidate_set,
-                        output_path=args.output,
-                    )
-                    _print_anchor_topup_summary(topup_summary)
-                    return 0
-                if args.completion_command == "anchor-listen":
-                    listening_summary = build_anchor_listening_bundle(
-                        plan=plan,
-                        candidate_set_path=args.candidate_set,
-                        artifacts_dir=args.artifacts,
-                        output_dir=args.output,
-                    )
-                    _print_anchor_listening_summary(listening_summary)
-                    return 0
-                if args.completion_command == "anchor-finalize":
-                    selection_summary = finalize_anchor_selection(
-                        plan=plan,
-                        candidate_set_path=args.candidate_set,
-                        decision_path=args.decision,
-                        artifacts_dir=args.artifacts,
-                        output_dir=args.output,
-                    )
-                    _print_anchor_selection_summary(selection_summary)
-                    return 0
-                raise AssertionError(
-                    f"unknown anchor command: {args.completion_command}",
+                summary = build_role_review_bundle_v2(
+                    plan=plan,
+                    candidate_set_path=args.candidate_set,
+                    artifacts_dir=args.artifacts,
+                    output_dir=args.output,
                 )
-            except (CompletionPlanError, CompletionAnchorError) as error:
+            except CompletionAnchorError as error:
                 print(f"ERROR: {error}", file=sys.stderr)
                 return 1
+            _print_role_review_bundle_summary(summary)
+            return 0
+
+        if args.completion_command == "anchor-review-finalize":
+            try:
+                plan = load_anchor_review_plan(
+                    plan_path=args.plan,
+                    candidate_set_path=args.candidate_set,
+                )
+                summary = finalize_role_anchor_selection(
+                    plan=plan,
+                    candidate_set_path=args.candidate_set,
+                    bundle_dir=args.bundle,
+                    decision_path=args.decision,
+                    output_dir=args.output,
+                )
+            except CompletionAnchorError as error:
+                print(f"ERROR: {error}", file=sys.stderr)
+                return 1
+            _print_role_anchor_selection_summary(summary)
+            return 0
 
         if args.completion_command == "generate":
             try:
@@ -1040,6 +897,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                     raise GenerationError(
                         f"completion plan 対象外 model です: {args.model}",
                     )
+                policy = plan.policy_for_model(args.model)
                 anchor_selection_sha256, role_epochs = phase_b_generation_binding(
                     plan=plan,
                     model=args.model,
@@ -1055,11 +913,20 @@ def main(argv: Sequence[str] | None = None) -> int:
                         raise GenerationError(
                             "primary runに--supersedes-run-idは指定できません。",
                         )
-                    if args.seed_base != plan.seed_base:
+                    if args.seed_base != policy.primary_seed_base:
                         raise GenerationError(
-                            f"primary runの--seed-baseは{plan.seed_base}が必要です。",
+                            "primary runの--seed-baseはmodel policyと"
+                            f"exact一致が必要です: {policy.primary_seed_base!r}",
                         )
                 else:
+                    if policy.seed_policy == "none":
+                        raise GenerationError(
+                            f"seedを持たないmodelはtopupできません: {args.model}",
+                        )
+                    if args.seed_base is None:
+                        raise GenerationError(
+                            "topup runには--seed-baseが必要です。",
+                        )
                     if args.supersedes_run_id is None:
                         raise GenerationError(
                             "topup runに--supersedes-run-idが必要です。",
@@ -1078,7 +945,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                     artifacts_dir=args.artifacts,
                     voices_dir=args.voices,
                     target_lines=target_lines,
-                    takes=plan.takes,
+                    takes=policy.takes,
                     seed_base=args.seed_base,
                     completion_plan_sha256=plan.plan_id,
                     role_epochs=role_epochs,
@@ -1094,7 +961,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                         else None
                     ),
                     role_anchor_plan_sha256=(
-                        plan.plan_id
+                        plan.anchor_source_plan_sha256
                         if args.model
                         in {
                             "qwen3-tts-12hz-1.7b",
@@ -1149,7 +1016,6 @@ def main(argv: Sequence[str] | None = None) -> int:
                     plan=plan,
                     primary_run_ids=args.primary_run_ids,
                     topup_run_ids=args.topup_run_ids,
-                    vox_run_id=args.vox_run_id,
                     anchor_selection_path=args.anchor_selection,
                     artifacts_dir=args.artifacts,
                     scenarios_dir=args.scenarios,
@@ -1178,7 +1044,6 @@ def main(argv: Sequence[str] | None = None) -> int:
                     decision_path=args.decision,
                     primary_run_ids=args.primary_run_ids,
                     topup_run_ids=args.topup_run_ids,
-                    vox_run_id=args.vox_run_id,
                     anchor_selection_path=args.anchor_selection,
                     artifacts_dir=args.artifacts,
                     scenarios_dir=args.scenarios,
@@ -1375,50 +1240,6 @@ def _parse_completion_targets(
     return tuple(sorted(targets))
 
 
-def _print_anchor_generation_summary(
-    summary: AnchorGenerationSummary,
-) -> None:
-    print(
-        f"anchor run: {summary.run_id} / eligible {summary.eligible_count} / "
-        f"rejected {summary.rejected_count} / failed {summary.failed_count}",
-    )
-    print(f"ledger: {summary.ledger_path}")
-
-
-def _print_anchor_candidate_set_summary(
-    summary: AnchorCandidateSetSummary,
-) -> None:
-    print(
-        f"anchor candidate set: {summary.group_count} groups / "
-        f"{summary.eligible_count} eligible",
-    )
-    print(f"sha256: {summary.candidate_set_sha256}")
-    print(f"path: {summary.path}")
-
-
-def _print_anchor_topup_summary(summary: AnchorTopupSummary) -> None:
-    print(f"anchor topup: {summary.target_count} attempts")
-    print(f"path: {summary.path}")
-
-
-def _print_anchor_listening_summary(
-    summary: AnchorListeningSummary,
-) -> None:
-    print(
-        f"anchor listening: {summary.group_count} groups / "
-        f"{summary.candidate_count} candidates",
-    )
-    print(f"review: {summary.review_path}")
-
-
-def _print_anchor_selection_summary(
-    summary: AnchorSelectionSummary,
-) -> None:
-    print(f"anchor selection: {summary.selected_count} groups")
-    print(f"sha256: {summary.selection_sha256}")
-    print(f"path: {summary.selection_path}")
-
-
 def _print_completion_listening_summary(
     summary: CompletionListeningSummary,
 ) -> None:
@@ -1429,6 +1250,22 @@ def _print_completion_listening_summary(
         f"完了: model {summary.model_count} / group {summary.group_count} / "
         f"candidate {summary.candidate_count}",
     )
+
+
+def _print_role_review_bundle_summary(summary: RoleReviewBundleSummary) -> None:
+    print(f"Role review bundle: {summary.output_dir.as_posix()}")
+    print(f"role-review-v2.json SHA-256: {summary.review_sha256}")
+    print(
+        f"完了: group {summary.group_count} / candidate {summary.candidate_count}",
+    )
+
+
+def _print_role_anchor_selection_summary(
+    summary: RoleAnchorSelectionSummary,
+) -> None:
+    print(f"Role anchor selection: {summary.output_dir.as_posix()}")
+    print(f"Selection SHA-256: {summary.selection_sha256}")
+    print(f"完了: selected {summary.selected_count}")
 
 
 def _print_completion_release_summary(

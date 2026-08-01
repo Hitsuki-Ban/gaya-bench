@@ -30,6 +30,7 @@ export interface BaselineGroup {
   readonly delivery: string;
   readonly roleEpochSha256: string;
   readonly sourceRunId: string;
+  readonly minimumEligibleCandidates: number;
   readonly groupSha256: string;
   readonly candidates: readonly BaselineCandidatePresentation[];
   readonly exportCandidates: readonly BaselineExportCandidate[];

@@ -1,14 +1,7 @@
 import type { AudioClip } from "@/audio/playback-manager";
 
-export type RoleReviewPhase = "anchor" | "line";
-export type RoleCoverage = "exact" | "approximate" | "neutral";
-export type RubricResult = "pass" | "fail" | "not_applicable";
-
-export interface RoleReviewLine {
-  readonly id: string;
-  readonly text: string;
-  readonly delivery: string;
-}
+export type RoleCoverage = "exact" | "neutral";
+export type RubricResult = "pass" | "fail";
 
 export interface RoleReviewRole {
   readonly name: string;
@@ -32,7 +25,7 @@ export interface RoleReviewCoverage {
 }
 
 export interface RoleReviewQc {
-  readonly mechanical: "pass" | "fail";
+  readonly mechanical: "pass";
   readonly content: "not_checked" | "pass" | "review_required";
   readonly notes: readonly string[];
 }
@@ -51,22 +44,22 @@ export interface RoleReviewInputGroup {
   readonly model: string;
   readonly scenario: string;
   readonly character: string;
-  readonly line: RoleReviewLine | null;
+  readonly line: null;
+  readonly anchor_text: string;
   readonly role_epoch_sha256: string;
   readonly role: RoleReviewRole;
   readonly conditioning: RoleReviewConditioning;
   readonly coverage: RoleReviewCoverage;
-  readonly comparison_required: boolean;
+  readonly comparison_required: true;
   readonly comparison_reasons: readonly string[];
   readonly candidate_ids: readonly string[];
-  readonly provisional_candidate_id: string;
   readonly candidates: readonly RoleReviewCandidate[];
 }
 
 export interface RoleReviewBundle {
-  readonly format_version: 1;
-  readonly protocol: "role-review-v1";
-  readonly phase: RoleReviewPhase;
+  readonly format_version: 2;
+  readonly protocol: "role-review-v2";
+  readonly phase: "anchor";
   readonly plan_sha256: string;
   readonly candidate_set_sha256: string;
   readonly groups: readonly RoleReviewInputGroup[];
@@ -81,18 +74,16 @@ export interface RoleReviewGroup extends Omit<
   RoleReviewInputGroup,
   "candidate_ids" | "candidates"
 > {
-  readonly phase: RoleReviewPhase;
   readonly group_sha256: string;
   readonly candidate_ids: readonly string[];
   readonly candidates: readonly RoleReviewCandidatePresentation[];
 }
 
 export interface RoleReviewCatalog {
-  readonly phase: RoleReviewPhase;
+  readonly phase: "anchor";
   readonly planSha256: string;
   readonly candidateSetSha256: string;
   readonly groups: readonly RoleReviewGroup[];
-  dispose(): void;
 }
 
 export interface RoleReviewRubric {
@@ -103,51 +94,46 @@ export interface RoleReviewRubric {
   readonly gender: RubricResult | null;
   readonly age: RubricResult | null;
   readonly archetype: RubricResult | null;
-  readonly voice_identity: RubricResult | null;
-  readonly delivery: RubricResult | null;
+  readonly voice_identity: "not_applicable" | null;
+  readonly delivery: "not_applicable" | null;
   readonly naturalness_quality: number | null;
   readonly notes: string;
 }
 
 export interface RoleReviewGroupDraft {
   readonly id: string;
-  readonly phase: RoleReviewPhase;
   readonly model: string;
   readonly scenario: string;
   readonly character: string;
-  readonly line: string | null;
+  readonly line: null;
   readonly role_epoch_sha256: string;
   readonly group_sha256: string;
-  readonly plan_sha256: string;
-  readonly role_reopen_reason: string | null;
-  readonly candidate_group_change_reason: string | null;
   readonly heard_candidate_ids: readonly string[];
-  readonly selected_candidate_id: string;
+  readonly selected_candidate_id: string | null;
+  readonly no_usable_candidate: boolean;
   readonly rubric: RoleReviewRubric;
   readonly confirmed: boolean;
 }
 
-export interface RoleReopenRequest {
-  readonly model: string;
-  readonly character: string;
-  readonly role_epoch_sha256: string;
-  readonly reason: string;
-}
-
 export interface RoleReviewDraft {
-  readonly format_version: 1;
-  readonly protocol: "role-review-draft-v1";
-  readonly phase: RoleReviewPhase;
+  readonly format_version: 2;
+  readonly protocol: "role-review-draft-v2";
+  readonly phase: "anchor";
   readonly plan_sha256: string;
   readonly candidate_set_sha256: string;
+  readonly current_group_id: string;
   readonly groups: readonly RoleReviewGroupDraft[];
-  readonly role_reopen_requests: readonly RoleReopenRequest[];
 }
 
-export function roleKey(
-  value: Pick<RoleReviewGroup | RoleReviewGroupDraft, "model" | "character">,
-): string {
-  return JSON.stringify([value.model, value.character]);
+export interface RoleReviewDecision {
+  readonly format_version: 2;
+  readonly protocol: "role-review-decision-v2";
+  readonly phase: "anchor";
+  readonly plan_sha256: string;
+  readonly candidate_set_sha256: string;
+  readonly groups: readonly (RoleReviewGroupDraft & {
+    readonly confirmed: true;
+  })[];
 }
 
 export function roleReviewGroupKey(

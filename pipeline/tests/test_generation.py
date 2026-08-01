@@ -204,13 +204,25 @@ class FakeStochasticAdapter:
         }
 
 
+class FakeFixedAdapter(FakeStochasticAdapter):
+    def take_recipe(self) -> TakeRecipe:
+        return TakeRecipe(
+            version="fixed-single-v1",
+            seed_policy="fixed",
+            single_take_seed=42,
+            seed_range=(0, 2**32 - 1),
+            sampling=(("temperature", 0.8),),
+            supports_multiple=False,
+        )
+
+
 def _run_fake(
     *,
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
     adapter: FakeStochasticAdapter,
     takes: int = 3,
-    seed_base: int = 42,
+    seed_base: int | None = 42,
     force: bool = False,
 ) -> GenerationSummary:
     monkeypatch.setattr(generation, "create_adapter", lambda _model: adapter)
@@ -224,6 +236,66 @@ def _run_fake(
         seed_base=seed_base,
         force=force,
     )
+
+
+def test_Aivis式seedなしrecipeはnull_seed契約で生成する(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    fake_audio: AudioTools,
+) -> None:
+    del fake_audio
+    adapter = DummyAdapter()
+    monkeypatch.setattr(generation, "create_adapter", lambda _model: adapter)
+
+    summary = run_generation(
+        model_id=adapter.profile.id,
+        scenarios_dir=_scenarios(tmp_path),
+        artifacts_dir=tmp_path / "artifacts",
+        scenario_id="tavern-night",
+        line_id="barmaid-001",
+        takes=1,
+        seed_base=None,
+    )
+
+    ledger = read_ledger(summary.ledger_path)
+    assert ledger["source"]["seed_base"] is None
+    assert all(
+        attempt["generation"]["seed"] is None
+        for attempt in ledger["attempts"]
+    )
+
+
+@pytest.mark.parametrize(
+    ("adapter", "seed_base", "message"),
+    [
+        (DummyAdapter(), 42, "seed_policy=none"),
+        (FakeStochasticAdapter(), None, "seed_policy=derived-sha256-v1"),
+        (FakeFixedAdapter(), None, "seed_policy=fixed"),
+    ],
+)
+def test_seed_policyとseed_baseの不一致はprepare前に拒否する(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    adapter: DummyAdapter | FakeStochasticAdapter | FakeFixedAdapter,
+    seed_base: int | None,
+    message: str,
+) -> None:
+    monkeypatch.setattr(generation, "create_adapter", lambda _model: adapter)
+
+    with pytest.raises(GenerationError, match=message):
+        run_generation(
+            model_id=adapter.profile.id,
+            scenarios_dir=_scenarios(tmp_path),
+            artifacts_dir=tmp_path / "artifacts",
+            scenario_id="tavern-night",
+            line_id="barmaid-001",
+            takes=1,
+            seed_base=seed_base,
+        )
+
+    if isinstance(adapter, FakeStochasticAdapter):
+        assert adapter.prepare_count == 0
+    assert not (tmp_path / "artifacts" / "takes").exists()
 
 
 def test_line_jobにcharacter_kindをそのまま渡す(tmp_path: Path) -> None:

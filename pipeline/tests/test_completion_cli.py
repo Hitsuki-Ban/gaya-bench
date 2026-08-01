@@ -29,10 +29,15 @@ def test_completion_generateはphase_b契約を全て明示する(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     captured: dict[str, Any] = {}
+    policy = SimpleNamespace(
+        takes=4,
+        seed_policy="derived-sha256-v1",
+        primary_seed_base=104,
+    )
     plan = SimpleNamespace(
         plan_id="a" * 64,
-        takes=4,
-        seed_base=104,
+        anchor_source_plan_sha256="d" * 64,
+        policy_for_model=lambda _model: policy,
         target_lines_for_model=lambda _model: (("scene", "line"),),
     )
     monkeypatch.setattr(cli, "load_completion_plan", lambda *_a, **_k: plan)
@@ -55,7 +60,7 @@ def test_completion_generateはphase_b契約を全て明示する(
             "generate",
             *_common(tmp_path),
             "--model",
-            "chatterbox-multilingual-v3",
+            "qwen3-tts-12hz-1.7b",
             "--anchor-selection",
             str(anchor),
             "--run-kind",
@@ -69,7 +74,70 @@ def test_completion_generateはphase_b契約を全て明示する(
     assert captured["role_epochs"] == {("scene", "line"): "c" * 64}
     assert captured["run_kind"] == "primary"
     assert captured["supersedes_run_id"] is None
-    assert captured["role_anchor_selection_path"] is None
+    assert captured["takes"] == 4
+    assert captured["seed_base"] == 104
+    assert captured["role_anchor_selection_path"] == anchor
+    assert captured["role_anchor_plan_sha256"] == "d" * 64
+
+
+def test_completion_generateはAivisをN1_seedなしに固定しtopupを拒否する(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    captured: dict[str, Any] = {}
+    policy = SimpleNamespace(
+        takes=1,
+        seed_policy="none",
+        primary_seed_base=None,
+    )
+    plan = SimpleNamespace(
+        plan_id="a" * 64,
+        anchor_source_plan_sha256="d" * 64,
+        policy_for_model=lambda _model: policy,
+        target_lines_for_model=lambda _model: (("scene", "line"),),
+    )
+    monkeypatch.setattr(cli, "load_completion_plan", lambda *_a, **_k: plan)
+    monkeypatch.setattr(
+        cli,
+        "phase_b_generation_binding",
+        lambda **_kwargs: ("b" * 64, {("scene", "line"): "c" * 64}),
+    )
+    monkeypatch.setattr(
+        cli,
+        "run_generation",
+        lambda **kwargs: captured.update(kwargs) or SimpleNamespace(failed_count=0),
+    )
+    monkeypatch.setattr(cli, "_print_generation_summary", lambda _summary: None)
+    common = [
+        "completion",
+        "generate",
+        *_common(tmp_path),
+        "--model",
+        "aivisspeech-kohaku",
+        "--anchor-selection",
+        str((tmp_path / "anchor.json").resolve()),
+    ]
+
+    assert cli.main([*common, "--run-kind", "primary"]) == 0
+    assert captured["takes"] == 1
+    assert captured["seed_base"] is None
+
+    assert (
+        cli.main(
+            [
+                *common,
+                "--run-kind",
+                "topup",
+                "--supersedes-run-id",
+                "old-run",
+                "--target",
+                "scene/line",
+            ],
+        )
+        == 1
+    )
+    assert "topup" in capsys.readouterr().err
 
 
 def test_completion_topupはsupersedesを必須にする(
@@ -77,10 +145,15 @@ def test_completion_topupはsupersedesを必須にする(
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
+    policy = SimpleNamespace(
+        takes=4,
+        seed_policy="derived-sha256-v1",
+        primary_seed_base=104,
+    )
     plan = SimpleNamespace(
         plan_id="a" * 64,
-        takes=4,
-        seed_base=104,
+        anchor_source_plan_sha256="d" * 64,
+        policy_for_model=lambda _model: policy,
         target_lines_for_model=lambda _model: (("scene", "line"),),
     )
     monkeypatch.setattr(cli, "load_completion_plan", lambda *_a, **_k: plan)
@@ -143,7 +216,7 @@ def test_completion_commandは相対pathを拒否する(
     assert "絶対path" in capsys.readouterr().err
 
 
-def test_completion_listenは五主run_topup固定Voxを分離する(
+def test_completion_listenは八主runとtopupを分離する(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -161,7 +234,7 @@ def test_completion_listenは五主run_topup固定Voxを分離する(
     )
     primary_args = [
         item
-        for index in range(5)
+        for index in range(8)
         for item in ("--primary-run-id", f"primary-{index}")
     ]
     result = cli.main(
@@ -172,8 +245,6 @@ def test_completion_listenは五主run_topup固定Voxを分離する(
             *primary_args,
             "--topup-run-id",
             "topup-1",
-            "--vox-run-id",
-            "20260730T204323380360Z-voxcpm2-n4",
             "--anchor-selection",
             str((tmp_path / "anchor.json").resolve()),
             "--output",
@@ -181,7 +252,7 @@ def test_completion_listenは五主run_topup固定Voxを分離する(
         ],
     )
     assert result == 0
-    assert captured["primary_run_ids"] == [f"primary-{index}" for index in range(5)]
+    assert captured["primary_run_ids"] == [f"primary-{index}" for index in range(8)]
     assert captured["topup_run_ids"] == ["topup-1"]
 
 

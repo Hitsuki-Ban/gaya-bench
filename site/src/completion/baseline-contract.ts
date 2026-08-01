@@ -15,7 +15,7 @@ import {
 export const BASELINE_PLAN_MARKER = "completion-plan.sha256";
 export const BASELINE_SOURCE_MAP_FILE = "phase-b-source-map-v1.json";
 export const BASELINE_SOURCE_MAP_MARKER = "phase-b-source-map-v1.sha256";
-export const BASELINE_GROUP_COUNT = 363;
+export const BASELINE_GROUP_COUNT = 597;
 
 const SOURCE_MAP_ROOT_KEYS = [
   "format_version",
@@ -32,6 +32,7 @@ const SOURCE_MAP_GROUP_KEYS = [
   "variant",
   "role_epoch_sha256",
   "source_run_id",
+  "minimum_eligible_candidates",
 ] as const;
 const REQUIRED_ROOT_FILES = [
   "manifest-v4.json",
@@ -49,6 +50,7 @@ interface BaselineSourceGroup {
   readonly variant: string;
   readonly role_epoch_sha256: string;
   readonly source_run_id: string;
+  readonly minimum_eligible_candidates: number;
 }
 
 export interface BaselineSourceMap {
@@ -106,8 +108,13 @@ export async function loadBaselineCatalog(
           throw new Error(`source mapにlistening groupがありません: ${key}`);
         }
         const rawExportCandidates = curateCatalog.exportCandidatesByGroup.get(key);
-        if (!rawExportCandidates || rawExportCandidates.length < 3) {
-          throw new Error(`Phase B groupはmechanical-pass candidateが3件以上必要です: ${key}`);
+        if (
+          !rawExportCandidates ||
+          rawExportCandidates.length < source.minimum_eligible_candidates
+        ) {
+          throw new Error(
+            `Phase B groupはmechanical-pass candidateがminimum_eligible_candidates以上必要です: ${key}`,
+          );
         }
         const exportCandidates: BaselineExportCandidate[] = rawExportCandidates.map(
           (candidate, index) => ({
@@ -129,6 +136,7 @@ export async function loadBaselineCatalog(
               delivery: group.delivery,
               role_epoch_sha256: source.role_epoch_sha256,
               source_run_id: source.source_run_id,
+              minimum_eligible_candidates: source.minimum_eligible_candidates,
               candidates: exportCandidates.map((candidate) => ({
                 take_id: candidate.takeId,
                 path: candidate.path,
@@ -143,6 +151,7 @@ export async function loadBaselineCatalog(
           ...group,
           roleEpochSha256: source.role_epoch_sha256,
           sourceRunId: source.source_run_id,
+          minimumEligibleCandidates: source.minimum_eligible_candidates,
           groupSha256,
           exportCandidates,
         };
@@ -203,6 +212,10 @@ export function validateBaselineSourceMap(value: unknown): BaselineSourceMap {
       variant: pathSegment(group.variant, `${field}.variant`),
       role_epoch_sha256: sha(group.role_epoch_sha256, `${field}.role_epoch_sha256`),
       source_run_id: pathSegment(group.source_run_id, `${field}.source_run_id`),
+      minimum_eligible_candidates: positiveInteger(
+        group.minimum_eligible_candidates,
+        `${field}.minimum_eligible_candidates`,
+      ),
     };
     const key = baselineGroupKey(normalized);
     if (seen.has(key)) {
@@ -369,6 +382,13 @@ function nonEmptyText(value: unknown, label: string): string {
 function sha(value: unknown, label: string): string {
   if (typeof value !== "string" || !/^[0-9a-f]{64}$/.test(value)) {
     throw new Error(`${label} は完全な小文字SHA-256が必要です。`);
+  }
+  return value;
+}
+
+function positiveInteger(value: unknown, label: string): number {
+  if (typeof value !== "number" || !Number.isInteger(value) || value < 1) {
+    throw new Error(`${label} は正の整数が必要です。`);
   }
   return value;
 }

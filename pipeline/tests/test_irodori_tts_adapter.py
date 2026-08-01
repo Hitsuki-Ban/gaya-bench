@@ -185,6 +185,7 @@ def _selection(tmp_path: Path, job: LineJob) -> Path:
         "group_sha256": "f" * 64,
         "heard_candidate_ids": [anchor_id, "1" * 64],
         "selected_candidate_id": anchor_id,
+        "no_usable_candidate": False,
         "rubric": {
             "content": "pass",
             "prompt_leakage": "pass",

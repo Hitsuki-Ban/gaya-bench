@@ -51,10 +51,11 @@ PHASE_B_SOURCE_KEYS = {
     "run_kind",
     "supersedes_run_id",
     "anchor_selection_sha256",
+    "anchor_plan_sha256",
     "target_groups",
 }
 PHASE_B_TARGET_KEYS = GROUP_KEYS | {"role_epoch_sha256"}
-PHASE_B_PROTOCOL = "phase-b-generation-v1"
+PHASE_B_PROTOCOL = "phase-b-generation-v2"
 ANCHOR_MODELS = {
     "irodori-tts-600m-v3-voicedesign",
     "qwen3-tts-12hz-1.7b",
@@ -281,8 +282,13 @@ def validate_ledger(document: Any) -> dict[str, Any]:
     _sha(source["scenario_sha256"], "ledger.source.scenario_sha256")
     model = _path_segment(source["model"], "ledger.source.model")
     takes = _positive_int(source["takes"], "ledger.source.takes")
-    if isinstance(source["seed_base"], bool) or not isinstance(source["seed_base"], int):
-        raise TakeLedgerError("ledger.source.seed_base は整数が必要です。")
+    seed_base = source["seed_base"]
+    if seed_base is not None and (
+        isinstance(seed_base, bool) or not isinstance(seed_base, int)
+    ):
+        raise TakeLedgerError(
+            "ledger.source.seed_base は整数または null が必要です。",
+        )
     _string(source["recipe_version"], "ledger.source.recipe_version")
     if not isinstance(source["groups"], list) or not source["groups"]:
         raise TakeLedgerError("ledger.source.groups は空でない配列が必要です。")
@@ -321,6 +327,11 @@ def validate_ledger(document: Any) -> dict[str, Any]:
             f"ledger.attempts[{index}]",
             phase_b=phase_b is not None,
         )
+        if seed_base is None and attempt["generation"]["seed"] is not None:
+            raise TakeLedgerError(
+                "ledger.source.seed_base が null の場合、"
+                "すべての attempt generation.seed は null が必要です。",
+            )
         group = slot[:4]
         if group not in groups:
             raise TakeLedgerError("attempt が source.groups の範囲外です。")
@@ -346,6 +357,7 @@ def validate_ledger(document: Any) -> dict[str, Any]:
                 "anchor_selection_sha256": phase_b[
                     "anchor_selection_sha256"
                 ],
+                "anchor_plan_sha256": phase_b["anchor_plan_sha256"],
                 "target_group": target_group,
             }
             expected_provenance_sha = hashlib.sha256(
@@ -397,14 +409,19 @@ def _validate_phase_b_source(
             "ledger.source.phase_b.supersedes_run_id",
         )
     anchor_sha = phase_b["anchor_selection_sha256"]
+    anchor_plan_sha = phase_b["anchor_plan_sha256"]
     if model in ANCHOR_MODELS:
         _sha(
             anchor_sha,
             "ledger.source.phase_b.anchor_selection_sha256",
         )
-    elif anchor_sha is not None:
+        _sha(
+            anchor_plan_sha,
+            "ledger.source.phase_b.anchor_plan_sha256",
+        )
+    elif anchor_sha is not None or anchor_plan_sha is not None:
         raise TakeLedgerError(
-            "非Qwen/Irodori Phase B runにanchor selectionは指定できません。",
+            "非Qwen/Irodori Phase B runにanchor authorityは指定できません。",
         )
     target_values = phase_b["target_groups"]
     if not isinstance(target_values, list) or not target_values:

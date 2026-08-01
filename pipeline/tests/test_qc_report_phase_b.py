@@ -13,11 +13,12 @@ from gaya_pipeline.take_identity import canonical_json
 def _fixture() -> tuple[dict[str, object], dict[str, object], Path]:
     ledger_path = Path("artifacts/takes/primary-run/ledger.json")
     phase_b = {
-        "protocol": "phase-b-generation-v1",
+        "protocol": "phase-b-generation-v2",
         "plan_sha256": "a" * 64,
         "run_kind": "primary",
         "supersedes_run_id": None,
         "anchor_selection_sha256": None,
+        "anchor_plan_sha256": None,
         "target_groups": [
             {
                 "model": "dummy",
@@ -73,6 +74,7 @@ def _attempt_fixture() -> tuple[dict[str, object], dict[str, object], Path]:
     target = phase_b["target_groups"][0]  # type: ignore[index]
     target["model"] = "qwen3-tts-12hz-1.7b"
     phase_b["anchor_selection_sha256"] = "d" * 64  # type: ignore[index]
+    phase_b["anchor_plan_sha256"] = "e" * 64  # type: ignore[index]
     ledger["source"]["model"] = "qwen3-tts-12hz-1.7b"  # type: ignore[index]
     report["source"]["model"] = "qwen3-tts-12hz-1.7b"  # type: ignore[index]
     report["source"]["phase_b"] = deepcopy(phase_b)  # type: ignore[index]
@@ -84,6 +86,7 @@ def _attempt_fixture() -> tuple[dict[str, object], dict[str, object], Path]:
         "anchor_selection_sha256": phase_b[  # type: ignore[index]
             "anchor_selection_sha256"
         ],
+        "anchor_plan_sha256": phase_b["anchor_plan_sha256"],  # type: ignore[index]
         "target_group": deepcopy(target),
     }
     identity = {
@@ -150,7 +153,7 @@ def _attempt_fixture() -> tuple[dict[str, object], dict[str, object], Path]:
                         ),
                         "selected_anchor": {
                             "anchor_selection_sha256": "d" * 64,
-                            "anchor_plan_sha256": "a" * 64,
+                            "anchor_plan_sha256": "e" * 64,
                             "role_epoch_sha256": "b" * 64,
                         },
                     },
@@ -210,7 +213,7 @@ def test_qc_phase_b_attempt_provenanceをsourceから再構築する() -> None:
         lambda ledger, report: report["attempts"][0]["mechanical"][
             "generation_params"
         ]["realized"]["selected_anchor"].update(
-            anchor_plan_sha256="e" * 64,
+            anchor_plan_sha256="f" * 64,
         ),
         lambda ledger, report: ledger["attempts"][0].update(
             phase_b_provenance_sha256="e" * 64,

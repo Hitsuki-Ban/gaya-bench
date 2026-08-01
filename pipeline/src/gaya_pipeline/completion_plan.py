@@ -4,7 +4,7 @@ import hashlib
 import json
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Literal, Mapping
+from typing import Any, Mapping
 
 import yaml
 
@@ -16,8 +16,8 @@ class CompletionPlanError(RuntimeError):
     pass
 
 
-FORMAT_VERSION = 1
-PROTOCOL = "role-baseline-plan-v1"
+FORMAT_VERSION = 2
+PROTOCOL = "role-baseline-plan-v2"
 BASE_MANIFEST_SHA256 = (
     "f9dfda542fd1120fe0f74daae3036eab5211d7394d155f7b9953978e59bbe89d"
 )
@@ -27,6 +27,12 @@ BASE_CANDIDATE_SET_SHA256 = (
 )
 BASE_SELECTION_SHA256 = (
     "629cc80346160eb8e687757e6f792ef519da9a4fb74f79bdf97eb4d00f56126e"
+)
+ANCHOR_SOURCE_PLAN_SHA256 = (
+    "f21f7ffa598c38b24f345b8c05f4d18fe3073618deaa742bb55ff30e0a26a0e5"
+)
+ANCHOR_CANDIDATE_SET_SHA256 = (
+    "9ff3bb11452ca80899944121edaba5e9a361a1cd8000a1ef716375e673062765"
 )
 
 QWEN_MODEL = "qwen3-tts-12hz-1.7b"
@@ -83,19 +89,10 @@ MODEL_REVISIONS = {
     ),
 }
 
-ANCHOR_TEXTS = {
-    IRODORI_MODEL: "そらにはくもがうかび、とおくでかぜのおとがきこえます。",
-    QWEN_MODEL: "さて、きょうもいちにちをはじめましょう。",
-}
-PHASE_A_TAKES = 4
-PHASE_A_MINIMUM_ELIGIBLE = 3
-PHASE_A_SEED_POLICY = "role-anchor-derived-sha256-v1"
-PHASE_A_SEED_BASE = 177
-PHASE_B_TAKES = 4
-PHASE_B_MINIMUM_ELIGIBLE = 3
-PHASE_B_SEED_POLICY = "derived-sha256-v1"
-PHASE_B_SEED_BASE = 104
-INHERITED_GROUPS = 925
+NO_SEED_POLICY = "none"
+DERIVED_SEED_POLICY = "derived-sha256-v1"
+PRIMARY_SEED_BASE = 104
+INHERITED_GROUPS = 691
 FINAL_GROUPS = 1_288
 ROLE_FIELDS = (
     "name",
@@ -115,7 +112,7 @@ ROOT_FIELDS = {
     "sources",
     "models",
     "roles",
-    "phase_a",
+    "anchor_authority",
     "phase_b",
 }
 BASE_FIELDS = {
@@ -142,30 +139,20 @@ ROLE_SNAPSHOT_FIELDS = {
     "scene_setting",
     "role_identity_sha256",
 }
-PHASE_A_FIELDS = {
-    "takes",
-    "minimum_eligible_candidates",
-    "seed_policy",
-    "seed_base",
-    "anchor_texts",
-    "targets",
+ANCHOR_AUTHORITY_FIELDS = {
+    "source_plan_sha256",
+    "candidate_set_sha256",
+    "selection_sha256",
 }
-ANCHOR_TEXT_FIELDS = {"model", "text", "sha256"}
-PHASE_A_TARGET_FIELDS = {
+PHASE_B_FIELDS = {"model_policies", "targets"}
+MODEL_POLICY_FIELDS = {
     "model",
-    "scenario",
-    "character",
-    "role_identity_sha256",
-    "role_epoch_sha256",
-}
-PHASE_B_FIELDS = {
     "takes",
     "minimum_eligible_candidates",
     "seed_policy",
-    "seed_base",
-    "targets",
+    "primary_seed_base",
 }
-PHASE_B_TARGET_FIELDS = {"model", "scenario", "line", "variant", "source"}
+PHASE_B_TARGET_FIELDS = {"model", "scenario", "line", "variant"}
 
 GroupIdentity = tuple[str, str, str, str]
 RoleIdentity = tuple[str, str]
@@ -196,29 +183,24 @@ class RoleSnapshot:
 
 
 @dataclass(frozen=True)
-class AnchorTarget:
-    model: str
-    scenario: str
-    character: str
-    role_identity_sha256: str
-    role_epoch_sha256: str
-
-    @property
-    def identity(self) -> tuple[str, str, str]:
-        return (self.model, self.scenario, self.character)
-
-
-@dataclass(frozen=True)
 class CompletionTarget:
     model: str
     scenario: str
     line: str
     variant: str
-    source: Literal["generate", "reuse"]
 
     @property
     def identity(self) -> GroupIdentity:
         return (self.model, self.scenario, self.line, self.variant)
+
+
+@dataclass(frozen=True)
+class ModelPolicy:
+    model: str
+    takes: int
+    minimum_eligible_candidates: int
+    seed_policy: str
+    primary_seed_base: int | None
 
 
 @dataclass(frozen=True)
@@ -228,22 +210,16 @@ class CompletionPlan:
     base_manifest_git_blob: str
     base_candidate_set_sha256: str
     base_selection_sha256: str
+    anchor_source_plan_sha256: str
+    anchor_candidate_set_sha256: str
+    anchor_selection_sha256: str
     inherited_groups: int
     final_groups: int
     scenario_registry_sha256: str
     voice_registry_sha256: str
     models: Mapping[str, str]
     roles: tuple[RoleSnapshot, ...]
-    anchor_texts: Mapping[str, str]
-    phase_a_takes: int
-    phase_a_minimum_eligible_candidates: int
-    phase_a_seed_policy: str
-    phase_a_seed_base: int
-    anchor_targets: tuple[AnchorTarget, ...]
-    takes: int
-    minimum_eligible_candidates: int
-    seed_policy: str
-    seed_base: int
+    model_policies: tuple[ModelPolicy, ...]
     targets: tuple[CompletionTarget, ...]
     raw_sha256: str
 
@@ -259,10 +235,15 @@ class CompletionPlan:
             )
         return matches[0]
 
-    def anchor_targets_for_model(self, model_id: str) -> tuple[AnchorTarget, ...]:
-        return tuple(
-            target for target in self.anchor_targets if target.model == model_id
-        )
+    def policy_for_model(self, model_id: str) -> ModelPolicy:
+        matches = [
+            policy for policy in self.model_policies if policy.model == model_id
+        ]
+        if len(matches) != 1:
+            raise CompletionPlanError(
+                f"plan model policy が一意ではありません: {model_id}",
+            )
+        return matches[0]
 
     def targets_for_model(self, model_id: str) -> tuple[CompletionTarget, ...]:
         return tuple(target for target in self.targets if target.model == model_id)
@@ -271,7 +252,6 @@ class CompletionPlan:
         return tuple(
             (target.scenario, target.line)
             for target in self.targets_for_model(model_id)
-            if target.source == "generate"
         )
 
 
@@ -319,14 +299,14 @@ def load_completion_plan(
     expected_phase_b = _expected_phase_b_targets(scenario_documents)
     if normalized["phase_b"]["targets"] != expected_phase_b:
         raise CompletionPlanError(
-            "completion plan phase_b.targets が363 groupの固定対象と一致しません。",
+            "completion plan phase_b.targets が597 groupの固定対象と一致しません。",
         )
 
     models = {
         item["id"]: item["revision"] for item in normalized["models"]
     }
     roles = tuple(parsed["roles"])
-    anchor_targets = tuple(parsed["anchor_targets"])
+    model_policies = tuple(parsed["model_policies"])
     targets = tuple(parsed["targets"])
     return CompletionPlan(
         plan_id=plan_sha256,
@@ -334,6 +314,15 @@ def load_completion_plan(
         base_manifest_git_blob=normalized["base"]["git_blob"],
         base_candidate_set_sha256=normalized["base"]["candidate_set_sha256"],
         base_selection_sha256=normalized["base"]["selection_sha256"],
+        anchor_source_plan_sha256=normalized["anchor_authority"][
+            "source_plan_sha256"
+        ],
+        anchor_candidate_set_sha256=normalized["anchor_authority"][
+            "candidate_set_sha256"
+        ],
+        anchor_selection_sha256=normalized["anchor_authority"][
+            "selection_sha256"
+        ],
         inherited_groups=normalized["base"]["inherited_groups"],
         final_groups=normalized["base"]["final_groups"],
         scenario_registry_sha256=normalized["sources"][
@@ -342,23 +331,7 @@ def load_completion_plan(
         voice_registry_sha256=normalized["sources"]["voice_registry_sha256"],
         models=models,
         roles=roles,
-        anchor_texts={
-            item["model"]: item["text"]
-            for item in normalized["phase_a"]["anchor_texts"]
-        },
-        phase_a_takes=normalized["phase_a"]["takes"],
-        phase_a_minimum_eligible_candidates=normalized["phase_a"][
-            "minimum_eligible_candidates"
-        ],
-        phase_a_seed_policy=normalized["phase_a"]["seed_policy"],
-        phase_a_seed_base=normalized["phase_a"]["seed_base"],
-        anchor_targets=anchor_targets,
-        takes=normalized["phase_b"]["takes"],
-        minimum_eligible_candidates=normalized["phase_b"][
-            "minimum_eligible_candidates"
-        ],
-        seed_policy=normalized["phase_b"]["seed_policy"],
-        seed_base=normalized["phase_b"]["seed_base"],
+        model_policies=model_policies,
         targets=targets,
         raw_sha256=plan_sha256,
     )
@@ -425,6 +398,7 @@ def build_frozen_plan_document(
     *,
     scenarios_dir: Path,
     voices_dir: Path,
+    anchor_selection_sha256: str,
 ) -> dict[str, Any]:
     """Build the one current plan document; callers still write canonical bytes."""
 
@@ -438,48 +412,12 @@ def build_frozen_plan_document(
         {"id": model, "revision": revision}
         for model, revision in sorted(MODEL_REVISIONS.items())
     ]
-    anchor_text_documents = [
-        {
-            "model": model,
-            "text": text,
-            "sha256": hashlib.sha256(text.encode("utf-8")).hexdigest(),
-        }
-        for model, text in sorted(ANCHOR_TEXTS.items())
-    ]
-    roles_by_identity = {role.identity: role for role in roles}
-    anchor_targets: list[dict[str, str]] = []
-    for model in sorted(ANCHOR_TEXTS):
-        revision = MODEL_REVISIONS[model]
-        anchor_text_sha256 = hashlib.sha256(
-            ANCHOR_TEXTS[model].encode("utf-8"),
-        ).hexdigest()
-        for role in roles:
-            if role.reference_voice is not None:
-                continue
-            epoch = {
-                "model": model,
-                "model_revision": revision,
-                "scenario": role.scenario,
-                "character": role.character,
-                "role_identity_sha256": role.role_identity_sha256,
-                "anchor_text_sha256": anchor_text_sha256,
-            }
-            anchor_targets.append(
-                {
-                    "model": model,
-                    "scenario": role.scenario,
-                    "character": role.character,
-                    "role_identity_sha256": role.role_identity_sha256,
-                    "role_epoch_sha256": _canonical_sha256(epoch),
-                },
-            )
-    anchor_targets.sort(
-        key=lambda item: (item["model"], item["scenario"], item["character"]),
+    if len(roles) != 58:
+        raise CompletionPlanError("固定 plan は58 roleが必要です。")
+    anchor_selection = _sha256(
+        anchor_selection_sha256,
+        "anchor_selection_sha256",
     )
-    if len(roles_by_identity) != 58 or len(anchor_targets) != 106:
-        raise CompletionPlanError(
-            "固定 plan は58 role / 106 no-ref anchor targetが必要です。",
-        )
     return {
         "format_version": FORMAT_VERSION,
         "protocol": PROTOCOL,
@@ -494,51 +432,16 @@ def build_frozen_plan_document(
         "sources": sources,
         "models": model_documents,
         "roles": [role.document() for role in roles],
-        "phase_a": {
-            "takes": PHASE_A_TAKES,
-            "minimum_eligible_candidates": PHASE_A_MINIMUM_ELIGIBLE,
-            "seed_policy": PHASE_A_SEED_POLICY,
-            "seed_base": PHASE_A_SEED_BASE,
-            "anchor_texts": anchor_text_documents,
-            "targets": anchor_targets,
+        "anchor_authority": {
+            "source_plan_sha256": ANCHOR_SOURCE_PLAN_SHA256,
+            "candidate_set_sha256": ANCHOR_CANDIDATE_SET_SHA256,
+            "selection_sha256": anchor_selection,
         },
         "phase_b": {
-            "takes": PHASE_B_TAKES,
-            "minimum_eligible_candidates": PHASE_B_MINIMUM_ELIGIBLE,
-            "seed_policy": PHASE_B_SEED_POLICY,
-            "seed_base": PHASE_B_SEED_BASE,
+            "model_policies": _expected_model_policy_documents(),
             "targets": _expected_phase_b_targets(scenario_documents),
         },
     }
-
-
-def derive_anchor_seed(
-    *,
-    plan_sha256: str,
-    seed_base: int,
-    model: str,
-    scenario: str,
-    character: str,
-    attempt: int,
-) -> int:
-    _sha256(plan_sha256, "plan_sha256")
-    if isinstance(seed_base, bool) or not isinstance(seed_base, int):
-        raise CompletionPlanError("anchor seed_base は integer が必要です。")
-    if isinstance(attempt, bool) or not isinstance(attempt, int) or attempt < 1:
-        raise CompletionPlanError("anchor attempt は1以上のintegerが必要です。")
-    identity = {
-        "policy": PHASE_A_SEED_POLICY,
-        "seed_base": seed_base,
-        "plan_sha256": plan_sha256,
-        "model": _path_segment(model, "anchor.model"),
-        "scenario": _path_segment(scenario, "anchor.scenario"),
-        "character": _path_segment(character, "anchor.character"),
-        "attempt": attempt,
-    }
-    return int.from_bytes(
-        hashlib.sha256(canonical_json(identity).encode("utf-8")).digest()[:4],
-        "big",
-    )
 
 
 def _validate_plan_document(
@@ -590,8 +493,8 @@ def _validate_plan_document(
     sources = _validate_sources(root["sources"])
     models = _validate_models(root["models"])
     roles = _validate_roles(root["roles"])
-    phase_a, anchor_targets = _validate_phase_a(root["phase_a"], roles)
-    phase_b, targets = _validate_phase_b(root["phase_b"])
+    anchor_authority = _validate_anchor_authority(root["anchor_authority"])
+    phase_b, model_policies, targets = _validate_phase_b(root["phase_b"])
     normalized = {
         "format_version": FORMAT_VERSION,
         "protocol": PROTOCOL,
@@ -599,12 +502,12 @@ def _validate_plan_document(
         "sources": sources,
         "models": models,
         "roles": [role.document() for role in roles],
-        "phase_a": phase_a,
+        "anchor_authority": anchor_authority,
         "phase_b": phase_b,
     }
     return normalized, {
         "roles": roles,
-        "anchor_targets": anchor_targets,
+        "model_policies": model_policies,
         "targets": targets,
     }
 
@@ -745,190 +648,81 @@ def _validate_roles(value: Any) -> tuple[RoleSnapshot, ...]:
     return tuple(roles)
 
 
-def _validate_phase_a(
-    value: Any,
-    roles: tuple[RoleSnapshot, ...],
-) -> tuple[dict[str, Any], tuple[AnchorTarget, ...]]:
-    phase = _exact(value, PHASE_A_FIELDS, "completion plan.phase_a")
-    takes = _fixed_integer(
-        phase["takes"],
-        PHASE_A_TAKES,
-        "completion plan.phase_a.takes",
+def _validate_anchor_authority(value: Any) -> dict[str, str]:
+    authority = _exact(
+        value,
+        ANCHOR_AUTHORITY_FIELDS,
+        "completion plan.anchor_authority",
     )
-    minimum = _fixed_integer(
-        phase["minimum_eligible_candidates"],
-        PHASE_A_MINIMUM_ELIGIBLE,
-        "completion plan.phase_a.minimum_eligible_candidates",
-    )
-    seed_policy = _fixed_text(
-        phase["seed_policy"],
-        PHASE_A_SEED_POLICY,
-        "completion plan.phase_a.seed_policy",
-    )
-    seed_base = _fixed_integer(
-        phase["seed_base"],
-        PHASE_A_SEED_BASE,
-        "completion plan.phase_a.seed_base",
-    )
-    anchor_text_values = phase["anchor_texts"]
-    if not isinstance(anchor_text_values, list):
-        raise CompletionPlanError(
-            "completion plan.phase_a.anchor_texts は配列が必要です。",
-        )
-    anchor_texts: list[dict[str, str]] = []
-    for index, item_value in enumerate(anchor_text_values):
-        field = f"completion plan.phase_a.anchor_texts[{index}]"
-        item = _exact(item_value, ANCHOR_TEXT_FIELDS, field)
-        model = _path_segment(item["model"], f"{field}.model")
-        text = _text(item["text"], f"{field}.text")
-        sha256 = _sha256(item["sha256"], f"{field}.sha256")
-        if hashlib.sha256(text.encode("utf-8")).hexdigest() != sha256:
-            raise CompletionPlanError(f"{field}.sha256 がanchor textと一致しません。")
-        anchor_texts.append({"model": model, "text": text, "sha256": sha256})
-    expected_anchor_texts = [
-        {
-            "model": model,
-            "text": text,
-            "sha256": hashlib.sha256(text.encode("utf-8")).hexdigest(),
-        }
-        for model, text in sorted(ANCHOR_TEXTS.items())
-    ]
-    if anchor_texts != expected_anchor_texts:
-        raise CompletionPlanError(
-            "completion plan.phase_a.anchor_texts が固定値と一致しません。",
-        )
-
-    targets_value = phase["targets"]
-    if not isinstance(targets_value, list):
-        raise CompletionPlanError(
-            "completion plan.phase_a.targets は配列が必要です。",
-        )
-    roles_by_identity = {role.identity: role for role in roles}
-    targets: list[AnchorTarget] = []
-    for index, item_value in enumerate(targets_value):
-        field = f"completion plan.phase_a.targets[{index}]"
-        item = _exact(item_value, PHASE_A_TARGET_FIELDS, field)
-        model = _path_segment(item["model"], f"{field}.model")
-        scenario = _path_segment(item["scenario"], f"{field}.scenario")
-        character = _path_segment(item["character"], f"{field}.character")
-        role_sha = _sha256(
-            item["role_identity_sha256"],
-            f"{field}.role_identity_sha256",
-        )
-        epoch_sha = _sha256(
-            item["role_epoch_sha256"],
-            f"{field}.role_epoch_sha256",
-        )
-        if model not in ANCHOR_TEXTS:
-            raise CompletionPlanError(f"{field}.model はPhase A対象外です。")
-        role = roles_by_identity.get((scenario, character))
-        if role is None:
-            raise CompletionPlanError(f"{field} に対応するroleがありません。")
-        if role.reference_voice is not None:
-            raise CompletionPlanError(
-                f"{field} は明示reference roleをanchor対象にできません。",
-            )
-        if role.role_identity_sha256 != role_sha:
-            raise CompletionPlanError(f"{field} のrole identityが一致しません。")
-        expected_epoch = _canonical_sha256(
-            {
-                "model": model,
-                "model_revision": MODEL_REVISIONS[model],
-                "scenario": scenario,
-                "character": character,
-                "role_identity_sha256": role_sha,
-                "anchor_text_sha256": hashlib.sha256(
-                    ANCHOR_TEXTS[model].encode("utf-8"),
-                ).hexdigest(),
-            },
-        )
-        if expected_epoch != epoch_sha:
-            raise CompletionPlanError(f"{field} のrole epochが一致しません。")
-        targets.append(
-            AnchorTarget(
-                model=model,
-                scenario=scenario,
-                character=character,
-                role_identity_sha256=role_sha,
-                role_epoch_sha256=epoch_sha,
-            ),
-        )
-    if len(targets) != 106:
-        raise CompletionPlanError(
-            "completion plan.phase_a.targets は106件が必要です。",
-        )
-    if targets != sorted(targets, key=lambda target: target.identity):
-        raise CompletionPlanError(
-            "completion plan.phase_a.targets はcanonical順が必要です。",
-        )
-    if len({target.identity for target in targets}) != len(targets):
-        raise CompletionPlanError(
-            "completion plan.phase_a.targets に重複があります。",
-        )
-    counts = {
-        model: sum(target.model == model for target in targets)
-        for model in ANCHOR_TEXTS
+    return {
+        "source_plan_sha256": _fixed_sha256(
+            authority["source_plan_sha256"],
+            ANCHOR_SOURCE_PLAN_SHA256,
+            "completion plan.anchor_authority.source_plan_sha256",
+        ),
+        "candidate_set_sha256": _fixed_sha256(
+            authority["candidate_set_sha256"],
+            ANCHOR_CANDIDATE_SET_SHA256,
+            "completion plan.anchor_authority.candidate_set_sha256",
+        ),
+        "selection_sha256": _sha256(
+            authority["selection_sha256"],
+            "completion plan.anchor_authority.selection_sha256",
+        ),
     }
-    if counts != {IRODORI_MODEL: 53, QWEN_MODEL: 53}:
-        raise CompletionPlanError(
-            "completion plan.phase_a.targets はmodelごとに53件が必要です。",
-        )
-    expected_target_identities = {
-        (model, role.scenario, role.character)
-        for model in ANCHOR_TEXTS
-        for role in roles
-        if role.reference_voice is None
-    }
-    if {target.identity for target in targets} != expected_target_identities:
-        raise CompletionPlanError(
-            "completion plan.phase_a.targets が全no-ref roleと一致しません。",
-        )
-    return (
-        {
-            "takes": takes,
-            "minimum_eligible_candidates": minimum,
-            "seed_policy": seed_policy,
-            "seed_base": seed_base,
-            "anchor_texts": anchor_texts,
-            "targets": [
-                {
-                    "model": target.model,
-                    "scenario": target.scenario,
-                    "character": target.character,
-                    "role_identity_sha256": target.role_identity_sha256,
-                    "role_epoch_sha256": target.role_epoch_sha256,
-                }
-                for target in targets
-            ],
-        },
-        tuple(targets),
-    )
 
 
 def _validate_phase_b(
     value: Any,
-) -> tuple[dict[str, Any], tuple[CompletionTarget, ...]]:
+) -> tuple[
+    dict[str, Any],
+    tuple[ModelPolicy, ...],
+    tuple[CompletionTarget, ...],
+]:
     phase = _exact(value, PHASE_B_FIELDS, "completion plan.phase_b")
-    takes = _fixed_integer(
-        phase["takes"],
-        PHASE_B_TAKES,
-        "completion plan.phase_b.takes",
-    )
-    minimum = _fixed_integer(
-        phase["minimum_eligible_candidates"],
-        PHASE_B_MINIMUM_ELIGIBLE,
-        "completion plan.phase_b.minimum_eligible_candidates",
-    )
-    seed_policy = _fixed_text(
-        phase["seed_policy"],
-        PHASE_B_SEED_POLICY,
-        "completion plan.phase_b.seed_policy",
-    )
-    seed_base = _fixed_integer(
-        phase["seed_base"],
-        PHASE_B_SEED_BASE,
-        "completion plan.phase_b.seed_base",
-    )
+    policies_value = phase["model_policies"]
+    if not isinstance(policies_value, list):
+        raise CompletionPlanError(
+            "completion plan.phase_b.model_policies は配列が必要です。",
+        )
+    policies: list[ModelPolicy] = []
+    normalized_policies: list[dict[str, Any]] = []
+    for index, item_value in enumerate(policies_value):
+        field = f"completion plan.phase_b.model_policies[{index}]"
+        item = _exact(item_value, MODEL_POLICY_FIELDS, field)
+        model = _path_segment(item["model"], f"{field}.model")
+        expected = _expected_model_policy(model)
+        policy = ModelPolicy(
+            model=model,
+            takes=_fixed_integer(
+                item["takes"],
+                expected.takes,
+                f"{field}.takes",
+            ),
+            minimum_eligible_candidates=_fixed_integer(
+                item["minimum_eligible_candidates"],
+                expected.minimum_eligible_candidates,
+                f"{field}.minimum_eligible_candidates",
+            ),
+            seed_policy=_fixed_text(
+                item["seed_policy"],
+                expected.seed_policy,
+                f"{field}.seed_policy",
+            ),
+            primary_seed_base=_fixed_optional_integer(
+                item["primary_seed_base"],
+                expected.primary_seed_base,
+                f"{field}.primary_seed_base",
+            ),
+        )
+        policies.append(policy)
+        normalized_policies.append(_model_policy_document(policy))
+    if normalized_policies != _expected_model_policy_documents():
+        raise CompletionPlanError(
+            "completion plan.phase_b.model_policies は8 modelの固定policyを"
+            "canonical順で指定する必要があります。",
+        )
+
     targets_value = phase["targets"]
     if not isinstance(targets_value, list):
         raise CompletionPlanError(
@@ -938,26 +732,18 @@ def _validate_phase_b(
     for index, item_value in enumerate(targets_value):
         field = f"completion plan.phase_b.targets[{index}]"
         item = _exact(item_value, PHASE_B_TARGET_FIELDS, field)
-        source = item["source"]
-        if source not in {"generate", "reuse"}:
-            raise CompletionPlanError(f"{field}.source が不正です。")
         target = CompletionTarget(
             model=_path_segment(item["model"], f"{field}.model"),
             scenario=_path_segment(item["scenario"], f"{field}.scenario"),
             line=_path_segment(item["line"], f"{field}.line"),
             variant=_path_segment(item["variant"], f"{field}.variant"),
-            source=source,
         )
         if target.variant != "dry":
             raise CompletionPlanError(f"{field}.variant はdryが必要です。")
-        if (source == "reuse") != (target.model == VOXCPM_MODEL):
-            raise CompletionPlanError(
-                f"{field}.source reuse はVoxCPM2固定2件だけに使用できます。",
-            )
         targets.append(target)
-    if len(targets) != 363:
+    if len(targets) != 597:
         raise CompletionPlanError(
-            "completion plan.phase_b.targets は363件が必要です。",
+            "completion plan.phase_b.targets は597件が必要です。",
         )
     if targets != sorted(targets, key=lambda target: target.identity):
         raise CompletionPlanError(
@@ -968,12 +754,14 @@ def _validate_phase_b(
             "completion plan.phase_b.targets に重複があります。",
         )
     expected_counts = {
+        "aivisspeech-kohaku": 25,
         CHATTERBOX_MODEL: 13,
         COSYVOICE_MODEL: 14,
-        GPT_SOVITS_MODEL: 12,
+        GPT_SOVITS_MODEL: 37,
         IRODORI_MODEL: 161,
         QWEN_MODEL: 161,
-        VOXCPM_MODEL: 2,
+        "supertonic-3": 25,
+        VOXCPM_MODEL: 161,
     }
     counts = {
         model: sum(target.model == model for target in targets)
@@ -985,23 +773,59 @@ def _validate_phase_b(
         )
     return (
         {
-            "takes": takes,
-            "minimum_eligible_candidates": minimum,
-            "seed_policy": seed_policy,
-            "seed_base": seed_base,
+            "model_policies": normalized_policies,
             "targets": [
                 {
                     "model": target.model,
                     "scenario": target.scenario,
                     "line": target.line,
                     "variant": target.variant,
-                    "source": target.source,
                 }
                 for target in targets
             ],
         },
+        tuple(policies),
         tuple(targets),
     )
+
+
+def _expected_model_policy(model: str) -> ModelPolicy:
+    if model not in MODEL_REVISIONS:
+        raise CompletionPlanError(
+            f"completion plan model policy が不明です: {model}",
+        )
+    if model == "aivisspeech-kohaku":
+        return ModelPolicy(
+            model=model,
+            takes=1,
+            minimum_eligible_candidates=1,
+            seed_policy=NO_SEED_POLICY,
+            primary_seed_base=None,
+        )
+    return ModelPolicy(
+        model=model,
+        takes=4,
+        minimum_eligible_candidates=3,
+        seed_policy=DERIVED_SEED_POLICY,
+        primary_seed_base=PRIMARY_SEED_BASE,
+    )
+
+
+def _model_policy_document(policy: ModelPolicy) -> dict[str, Any]:
+    return {
+        "model": policy.model,
+        "takes": policy.takes,
+        "minimum_eligible_candidates": policy.minimum_eligible_candidates,
+        "seed_policy": policy.seed_policy,
+        "primary_seed_base": policy.primary_seed_base,
+    }
+
+
+def _expected_model_policy_documents() -> list[dict[str, Any]]:
+    return [
+        _model_policy_document(_expected_model_policy(model))
+        for model in sorted(MODEL_REVISIONS)
+    ]
 
 
 def _source_snapshot(
@@ -1080,12 +904,15 @@ def _expected_phase_b_targets(
     scenario_documents: tuple[dict[str, Any], ...],
 ) -> list[dict[str, str]]:
     all_lines: list[tuple[str, str]] = []
+    explicit_reading_lines: list[tuple[str, str]] = []
     lines_by_character: dict[tuple[str, str], list[str]] = {}
     for document in scenario_documents:
         scenario = str(document["id"])
         for line in document["lines"]:
             line_id = str(line["id"])
             all_lines.append((scenario, line_id))
+            if "reading" in line:
+                explicit_reading_lines.append((scenario, line_id))
             lines_by_character.setdefault(
                 (scenario, str(line["character"])),
                 [],
@@ -1093,6 +920,10 @@ def _expected_phase_b_targets(
     if len(all_lines) != 161:
         raise CompletionPlanError(
             f"固定 plan は161 lineが必要です: actual={len(all_lines)}",
+        )
+    if len(explicit_reading_lines) != 25:
+        raise CompletionPlanError(
+            "固定 reading 影響対象は25 lineが必要です。",
         )
     changed_roles = (
         ("goblin-camp", "goblin-lookout"),
@@ -1111,50 +942,36 @@ def _expected_phase_b_targets(
         )
 
     targets: list[dict[str, str]] = []
-    for model in (QWEN_MODEL, IRODORI_MODEL):
+    for model in (IRODORI_MODEL, QWEN_MODEL, VOXCPM_MODEL):
         for scenario, line in all_lines:
-            targets.append(_phase_b_target(model, scenario, line, "generate"))
+            targets.append(_phase_b_target(model, scenario, line))
+    for model in (
+        "aivisspeech-kohaku",
+        GPT_SOVITS_MODEL,
+        "supertonic-3",
+    ):
+        for scenario, line in explicit_reading_lines:
+            targets.append(_phase_b_target(model, scenario, line))
     for scenario, line in changed_lines:
-        targets.append(
-            _phase_b_target(CHATTERBOX_MODEL, scenario, line, "generate"),
-        )
-        targets.append(
-            _phase_b_target(COSYVOICE_MODEL, scenario, line, "generate"),
-        )
-        targets.append(
-            _phase_b_target(GPT_SOVITS_MODEL, scenario, line, "generate"),
-        )
+        targets.append(_phase_b_target(CHATTERBOX_MODEL, scenario, line))
+        targets.append(_phase_b_target(COSYVOICE_MODEL, scenario, line))
+        targets.append(_phase_b_target(GPT_SOVITS_MODEL, scenario, line))
     targets.extend(
         (
             _phase_b_target(
                 CHATTERBOX_MODEL,
                 "chinatown-street",
                 "tenshin-okami-002",
-                "generate",
             ),
             _phase_b_target(
                 COSYVOICE_MODEL,
                 "battlefield-camp",
                 "wounded-001",
-                "generate",
             ),
             _phase_b_target(
                 COSYVOICE_MODEL,
                 "west-crowd",
                 "isogi-shinshi-002",
-                "generate",
-            ),
-            _phase_b_target(
-                VOXCPM_MODEL,
-                "goblin-camp",
-                "goblin-cook-001",
-                "reuse",
-            ),
-            _phase_b_target(
-                VOXCPM_MODEL,
-                "spirit-forest",
-                "pixie-003",
-                "reuse",
             ),
         ),
     )
@@ -1166,9 +983,9 @@ def _expected_phase_b_targets(
             item["variant"],
         ),
     )
-    if len(targets) != 363:
+    if len(targets) != 597:
         raise CompletionPlanError(
-            f"固定 phase B target は363件が必要です: actual={len(targets)}",
+            f"固定 phase B target は597件が必要です: actual={len(targets)}",
         )
     return targets
 
@@ -1177,14 +994,12 @@ def _phase_b_target(
     model: str,
     scenario: str,
     line: str,
-    source: str,
 ) -> dict[str, str]:
     return {
         "model": model,
         "scenario": scenario,
         "line": line,
         "variant": "dry",
-        "source": source,
     }
 
 
@@ -1315,3 +1130,15 @@ def _fixed_integer(value: Any, expected: int, field: str) -> int:
     if isinstance(value, bool) or not isinstance(value, int) or value != expected:
         raise CompletionPlanError(f"{field}は{expected}が必要です。")
     return value
+
+
+def _fixed_optional_integer(
+    value: Any,
+    expected: int | None,
+    field: str,
+) -> int | None:
+    if expected is None:
+        if value is not None:
+            raise CompletionPlanError(f"{field}はnullが必要です。")
+        return None
+    return _fixed_integer(value, expected, field)

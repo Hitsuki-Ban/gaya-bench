@@ -1,61 +1,80 @@
 import { describe, expect, it } from "vite-plus/test";
 
-import { buildRoleReviewDecisionJson } from "./export";
-import { createRoleReviewDraft } from "./storage";
-import { confirmAllGroups, makeRoleReviewCatalog, makeRoleReviewGroup } from "./storage.test";
+import { buildRoleReviewDecision, buildRoleReviewDecisionJson } from "./export";
+import {
+  confirmRoleReviewGroup,
+  createRoleReviewDraft,
+  markRoleReviewNoUsableCandidate,
+  markRoleReviewCandidateHeard,
+  selectRoleReviewCandidate,
+} from "./storage";
+import { completeRoleReviewRubric, makeRoleReviewCatalog } from "./storage.test";
 
-describe("role review export", () => {
-  it("plan/candidate-setと各groupのepoch/hash/heard/rubric/confirmedを束縛する", () => {
-    const catalog = makeRoleReviewCatalog({
-      groups: [makeRoleReviewGroup({ comparisonRequired: true })],
+describe("role review v2 decision", () => {
+  it("全候选听取、显式选择、问题记录和候选集绑定进入最终结果", () => {
+    const catalog = makeRoleReviewCatalog();
+    const group = catalog.groups[0]!;
+    let draft = createRoleReviewDraft(catalog);
+    for (const candidateId of group.candidate_ids) {
+      draft = markRoleReviewCandidateHeard(catalog, draft, group.id, candidateId);
+    }
+    draft = selectRoleReviewCandidate(catalog, draft, group.id, group.candidate_ids[2]!);
+    draft = confirmRoleReviewGroup(catalog, draft, group.id, {
+      ...completeRoleReviewRubric(),
+      pitch_accent: "fail",
+      notes: "音调不准",
     });
-    const confirmed = confirmAllGroups(catalog);
-    const reopenReason = "role epochを再確認したため";
-    const draft = {
-      ...confirmed,
-      groups: confirmed.groups.map((group) => ({
-        ...group,
-        role_reopen_reason: reopenReason,
-      })),
-      role_reopen_requests: [
-        {
-          model: "model-a",
-          character: "character-a",
-          role_epoch_sha256: "e".repeat(64),
-          reason: reopenReason,
-        },
-      ],
-    };
 
-    const document = JSON.parse(buildRoleReviewDecisionJson(catalog, draft));
-    expect(document).toMatchObject({
-      format_version: 1,
-      protocol: "role-review-decision-v1",
-      phase: "line",
-      plan_sha256: "1".repeat(64),
-      candidate_set_sha256: "2".repeat(64),
+    const decision = buildRoleReviewDecision(catalog, draft);
+    expect(decision).toMatchObject({
+      format_version: 2,
+      protocol: "role-review-decision-v2",
+      phase: "anchor",
+      plan_sha256: catalog.planSha256,
+      candidate_set_sha256: catalog.candidateSetSha256,
     });
-    expect(document.groups[0]).toMatchObject({
-      id: "9".repeat(64),
-      role_epoch_sha256: "e".repeat(64),
-      group_sha256: "f".repeat(64),
-      selected_candidate_id: "a".repeat(64),
+    expect(decision.groups[0]).toMatchObject({
+      selected_candidate_id: group.candidate_ids[2],
+      heard_candidate_ids: group.candidate_ids,
       confirmed: true,
       rubric: {
-        content: "pass",
-        pitch_accent: "pass",
-        voice_identity: "pass",
-        naturalness_quality: 4,
+        pitch_accent: "fail",
+        voice_identity: "not_applicable",
+        delivery: "not_applicable",
+        notes: "音调不准",
       },
     });
-    expect(document.groups[0].heard_candidate_ids).toEqual(["a".repeat(64), "b".repeat(64)]);
-    expect(document.role_reopen_requests[0].reason).toBe("role epochを再確認したため");
+    expect(buildRoleReviewDecisionJson(catalog, draft)).toBe(
+      JSON.stringify(JSON.parse(buildRoleReviewDecisionJson(catalog, draft))),
+    );
   });
 
-  it("未確認groupが一つでもあればexportを拒否する", () => {
+  it("未确认项目不生成最终结果", () => {
     const catalog = makeRoleReviewCatalog();
-    expect(() => buildRoleReviewDecisionJson(catalog, createRoleReviewDraft(catalog))).toThrow(
-      "全group",
+    expect(() => buildRoleReviewDecision(catalog, createRoleReviewDraft(catalog))).toThrow(
+      "确认全部",
     );
+  });
+
+  it("四条都不可用作为明确结果进入decision而不伪造候选", () => {
+    const catalog = makeRoleReviewCatalog();
+    const group = catalog.groups[0]!;
+    let draft = createRoleReviewDraft(catalog);
+    for (const candidateId of group.candidate_ids) {
+      draft = markRoleReviewCandidateHeard(catalog, draft, group.id, candidateId);
+    }
+    draft = markRoleReviewNoUsableCandidate(catalog, draft, group.id);
+    draft = confirmRoleReviewGroup(catalog, draft, group.id, {
+      ...completeRoleReviewRubric(),
+      reading: "fail",
+      notes: "四条都有误读",
+    });
+
+    expect(buildRoleReviewDecision(catalog, draft).groups[0]).toMatchObject({
+      no_usable_candidate: true,
+      selected_candidate_id: null,
+      confirmed: true,
+      rubric: { reading: "fail", notes: "四条都有误读" },
+    });
   });
 });

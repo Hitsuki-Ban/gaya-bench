@@ -9,10 +9,12 @@ from typing import Any
 
 import pytest
 
-from gaya_pipeline.completion_plan import load_completion_plan
+from gaya_pipeline.completion_plan import (
+    build_frozen_plan_document,
+    load_completion_plan,
+)
 from gaya_pipeline.completion_release import (
     CompletionReleaseError,
-    _audit_unverifiable_records,
     _decision_group_sha256,
     _validate_decision_against_sources,
     _validate_candidate_set_manifest_join,
@@ -20,10 +22,10 @@ from gaya_pipeline.completion_release import (
     _validate_provenance_document,
 )
 from gaya_pipeline.completion_selection import reconstruct_base_selection
+from gaya_pipeline.take_identity import canonical_json
 
 
 ROOT = Path(__file__).resolve().parents[2]
-PLAN_PATH = ROOT / "docs" / "research" / "full-baseline-completion" / "plan.json"
 BASE_MANIFEST_PATH = ROOT / "data" / "manifest.json"
 SCENARIOS = ROOT / "scenarios"
 VOICES = ROOT / "assets" / "voices"
@@ -36,9 +38,20 @@ AUDIT_PATH = (
 )
 
 
-def _plan() -> Any:
+def _plan(tmp_path: Path) -> Any:
+    plan_path = tmp_path / "plan.json"
+    plan_path.write_text(
+        canonical_json(
+            build_frozen_plan_document(
+                scenarios_dir=SCENARIOS.resolve(),
+                voices_dir=VOICES.resolve(),
+                anchor_selection_sha256="a" * 64,
+            ),
+        ),
+        encoding="utf-8",
+    )
     return load_completion_plan(
-        PLAN_PATH.resolve(),
+        plan_path.resolve(),
         base_manifest_path=BASE_MANIFEST_PATH.resolve(),
         scenarios_dir=SCENARIOS.resolve(),
         voices_dir=VOICES.resolve(),
@@ -71,41 +84,46 @@ def _key(value: dict[str, Any]) -> tuple[str, str, str, str]:
     )
 
 
-def test_frozen_planは363_925_1288とmodel分布を固定する() -> None:
-    plan = _plan()
-    assert len(plan.targets) == 363
-    assert plan.inherited_groups == 925
+def test_frozen_planは597_691_1288とmodel分布を固定する(tmp_path: Path) -> None:
+    plan = _plan(tmp_path)
+    assert len(plan.targets) == 597
+    assert plan.inherited_groups == 691
     assert plan.final_groups == 1288
     assert Counter(target.model for target in plan.targets) == {
         "qwen3-tts-12hz-1.7b": 161,
         "irodori-tts-600m-v3-voicedesign": 161,
+        "voxcpm2": 161,
+        "aivisspeech-kohaku": 25,
+        "supertonic-3": 25,
         "chatterbox-multilingual-v3": 13,
         "cosyvoice3-0.5b-2512": 14,
-        "gpt-sovits-v2-pro-plus": 12,
-        "voxcpm2": 2,
+        "gpt-sovits-v2-pro-plus": 37,
     }
 
 
-def test_inheritedはlegacy_selectedからreplacementを引いた925である() -> None:
-    replacement = {target.identity for target in _plan().targets}
+def test_inheritedはpublished_selectedからreplacementを引いた691である(
+    tmp_path: Path,
+) -> None:
+    replacement = {target.identity for target in _plan(tmp_path).targets}
     selected = {
         _key(group): group
         for group in _base_selection()["groups"]
         if group["decision"]["type"] == "selected"
     }
-    assert len(set(selected) & replacement) == 318
+    assert len(set(selected) & replacement) == 552
     inherited = {
         identity: group
         for identity, group in selected.items()
         if identity not in replacement
     }
-    assert len(inherited) == 925
-    # replacementには旧selected 318件と旧skip/failure 45件の両方が含まれる。
+    assert len(inherited) == 691
     assert len(replacement - set(selected)) == 45
 
 
-def test_source_auditは780_matchと145_Vox_unverifiableを逐条固定する() -> None:
-    plan = _plan()
+def test_source_auditはreplacement分布と691_inherited_matchを逐条固定する(
+    tmp_path: Path,
+) -> None:
+    plan = _plan(tmp_path)
     replacement = {target.identity for target in plan.targets}
     selected = {
         _key(group): group
@@ -122,18 +140,12 @@ def test_source_auditは780_matchと145_Vox_unverifiableを逐条固定する() 
         replacement=replacement,
         inherited=inherited,
     )
-    assert partition["matched_candidate_count"] == 780
+    assert partition["matched_candidate_count"] == 691
     records = partition["inherited_identity_unverifiable"]
-    assert len(records) == 145
-    assert all(record["model"] == "voxcpm2" for record in records)
-    assert all(
-        set(record)
-        == {"model", "scenario", "line", "variant", "take_id", "reason"}
-        for record in records
-    )
+    assert records == []
 
 
-def test_provenanceは145列挙の欠落を拒否する() -> None:
+def test_provenanceはinherited_unverifiable列挙を拒否する() -> None:
     value = {
         "format_version": 1,
         "protocol": "role-baseline-release-v1",
@@ -145,8 +157,8 @@ def test_provenanceは145列挙の欠落を拒否する() -> None:
         "candidate_set_sha256": "d" * 64,
         "selection_sha256": "e" * 64,
         "counts": {
-            "replacement_groups": 363,
-            "inherited_groups": 925,
+            "replacement_groups": 597,
+            "inherited_groups": 691,
             "selected_groups": 1288,
             "failures": 0,
         },
@@ -162,22 +174,21 @@ def test_provenanceは145列挙の欠落を拒否する() -> None:
                 "629cc80346160eb8e687757e6f792ef519da9a4fb74f79bdf97eb4d00f56126e"
             ),
             "source_audit_sha256": (
-                "1bcc2d56dc82201942fa36ea4186bee4536243ebf2f4f4ab364e27d6781a70bb"
+                "d7d48a053474251996ce5b63e509dce2a8b8df10189fb7fc49d0cdc859bad5cc"
             ),
-            "matched_candidate_count": 780,
-            "inherited_identity_unverifiable": [],
+            "matched_candidate_count": 691,
+            "inherited_identity_unverifiable": [{"unexpected": True}],
         },
         "source_runs": [
             {"run_id": "20260730T204323380360Z-voxcpm2-n4"},
         ],
     }
-    with pytest.raises(CompletionReleaseError, match="145"):
+    with pytest.raises(CompletionReleaseError, match="0 unverifiable"):
         _validate_provenance_document(
             value,
             manifest_sha="c" * 64,
             candidate_sha="d" * 64,
             selection_sha="e" * 64,
-            source_audit=json.loads(AUDIT_PATH.read_bytes()),
         )
 
 
@@ -210,40 +221,6 @@ def test_candidate_setはmanifestのmodels_candidates_failuresをexact固定す�
             )
 
 
-def test_source_audit由来Vox_unverifiableは一意でtake_idとSHAを再検証する() -> None:
-    audit = json.loads(AUDIT_PATH.read_bytes())
-    records = _audit_unverifiable_records(audit)
-    assert len(records) == 145
-    assert len(
-        {
-            (
-                record["model"],
-                record["scenario"],
-                record["line"],
-                record["variant"],
-            )
-            for record in records
-        },
-    ) == 145
-
-    forged = json.loads(AUDIT_PATH.read_bytes())
-    unverifiable = [
-        receipt
-        for receipt in forged["conditioning_receipts"]
-        if receipt["published_comparison"]["status"] == "unverifiable"
-    ]
-    duplicate = unverifiable[0]
-    unverifiable[1].update(
-        {
-            "model": duplicate["model"],
-            "scenario": duplicate["scenario"],
-            "line": duplicate["line"],
-        },
-    )
-    with pytest.raises(CompletionReleaseError, match="重複"):
-        _audit_unverifiable_records(forged)
-
-
 def test_decision_group_sha256はsite_candidate_catalogと同じexact投影を使う() -> None:
     identity = ("model", "scene", "line", "dry")
     candidate = {
@@ -271,6 +248,7 @@ def test_decision_group_sha256はsite_candidate_catalogと同じexact投影を�
         "delivery": line["delivery"],
         "role_epoch_sha256": "c" * 64,
         "source_run_id": "run-1",
+        "minimum_eligible_candidates": 1,
         "candidates": [
             {
                 "take_id": candidate["take_id"],
@@ -285,6 +263,7 @@ def test_decision_group_sha256はsite_candidate_catalogと同じexact投影を�
         line=line,
         role_epoch_sha256="c" * 64,
         source_run_id="run-1",
+        minimum_eligible_candidates=1,
         candidates=[candidate],
     ) == hashlib.sha256(
         json.dumps(
@@ -333,11 +312,13 @@ def test_releaseはdecision_group_sha256をcandidate_catalogから再計算す�
         line=line,
         role_epoch_sha256=epoch,
         source_run_id=source.run_id,
+        minimum_eligible_candidates=1,
         candidates=[candidate],
     )
     decision_group = {
         "role_epoch_sha256": epoch,
         "group_sha256": group_sha256,
+        "authority": {"minimum_eligible_candidates": 1},
         "candidates": [
             {
                 "take_id": candidate["take_id"],
@@ -348,8 +329,14 @@ def test_releaseはdecision_group_sha256をcandidate_catalogから再計算す�
         ],
     }
     candidate_set = {"lines": [line], "candidates": [candidate]}
+    plan = SimpleNamespace(
+        policy_for_model=lambda _model: SimpleNamespace(
+            minimum_eligible_candidates=1,
+        ),
+    )
     _validate_decision_against_sources(
         decision_groups={identity: decision_group},
+        plan=plan,
         resolution=resolution,
         candidate_set=candidate_set,
     )
@@ -358,6 +345,7 @@ def test_releaseはdecision_group_sha256をcandidate_catalogから再計算す�
             decision_groups={
                 identity: {**decision_group, "group_sha256": "d" * 64},
             },
+            plan=plan,
             resolution=resolution,
             candidate_set=candidate_set,
         )

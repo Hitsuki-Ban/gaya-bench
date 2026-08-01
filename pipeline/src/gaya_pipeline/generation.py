@@ -53,7 +53,7 @@ class GenerationError(RuntimeError):
 
 
 VARIANT = "dry"
-PHASE_B_PROTOCOL = "phase-b-generation-v1"
+PHASE_B_PROTOCOL = "phase-b-generation-v2"
 ANCHOR_MODELS = {
     "irodori-tts-600m-v3-voicedesign",
     "qwen3-tts-12hz-1.7b",
@@ -136,7 +136,7 @@ def run_generation(
     line_id: str | None = None,
     target_lines: Sequence[tuple[str, str]] | None = None,
     takes: int,
-    seed_base: int,
+    seed_base: int | None,
     force: bool = False,
     role_anchor_selection_path: Path | None = None,
     role_anchor_plan_sha256: str | None = None,
@@ -452,7 +452,7 @@ def _validate_cli_inputs(
     line_id: str | None,
     target_lines: Sequence[tuple[str, str]] | None,
     takes: int,
-    seed_base: int,
+    seed_base: int | None,
 ) -> tuple[tuple[str, str], ...] | None:
     normalized_targets: tuple[tuple[str, str], ...] | None = None
     if target_lines is not None:
@@ -485,8 +485,10 @@ def _validate_cli_inputs(
         raise GenerationError("--line には --scenario が必要です。")
     if isinstance(takes, bool) or not isinstance(takes, int) or takes < 1:
         raise GenerationError("--takes は 1 以上の整数が必要です。")
-    if isinstance(seed_base, bool) or not isinstance(seed_base, int):
-        raise GenerationError("--seed-base は整数が必要です。")
+    if seed_base is not None and (
+        isinstance(seed_base, bool) or not isinstance(seed_base, int)
+    ):
+        raise GenerationError("--seed-base は整数または null が必要です。")
     return normalized_targets
 
 
@@ -590,7 +592,7 @@ def _preflight_contexts(
     jobs: list[LineJob],
     recipe: TakeRecipe,
     takes: int,
-    seed_base: int,
+    seed_base: int | None,
 ) -> dict[tuple[str, str, int], TakeContext]:
     if takes > 1 and not recipe.supports_multiple:
         raise GenerationError(
@@ -599,6 +601,16 @@ def _preflight_contexts(
     if takes > 1 and recipe.seed_policy != "derived-sha256-v1":
         raise GenerationError(
             "複数 take は derived-sha256-v1 recipe が必要です。",
+        )
+    if recipe.seed_policy == "none":
+        if seed_base is not None:
+            raise GenerationError(
+                "seed_policy=none の adapter には seed_base=null が必要です。",
+            )
+    elif seed_base is None:
+        raise GenerationError(
+            f"seed_policy={recipe.seed_policy} の adapter には"
+            "整数の seed_base が必要です。",
         )
 
     contexts: dict[tuple[str, str, int], TakeContext] = {}
@@ -610,6 +622,10 @@ def _preflight_contexts(
             elif recipe.seed_policy == "fixed":
                 seed = recipe.single_take_seed
             else:
+                if seed_base is None:
+                    raise GenerationError(
+                        "derived seed recipe に整数の seed_base がありません。",
+                    )
                 if recipe.seed_range is None:
                     raise GenerationError("adapter recipe に seed range がありません。")
                 seed = derive_seed(
@@ -698,10 +714,6 @@ def _phase_b_source(
     role_anchor_plan_sha256: str | None,
     role_anchor_selection_sha256: str | None,
 ) -> dict[str, Any]:
-    if model_id == "voxcpm2":
-        raise GenerationError(
-            "VoxCPM2 Phase B targetはrelease層のexplicit reuse専用です。",
-        )
     plan_sha = _require_sha256(
         completion_plan_sha256,
         "Phase B frozen plan SHA",
@@ -764,10 +776,10 @@ def _phase_b_source(
                 "Qwen/Irodori Phase Bにはanchor selection path/SHAと"
                 "frozen plan SHAが必要です。",
             )
-        if role_anchor_plan_sha256 != plan_sha:
-            raise GenerationError(
-                "anchor frozen plan SHAがPhase B plan SHAと一致しません。",
-            )
+        anchor_plan_sha = _require_sha256(
+            role_anchor_plan_sha256,
+            "anchor source plan SHA",
+        )
         selection_sha = _require_sha256(
             role_anchor_selection_sha256,
             "anchor selection SHA",
@@ -816,9 +828,9 @@ def _phase_b_source(
             raise GenerationError(
                 f"anchor selection contractが不正です: {error}",
             ) from error
-        if validated_selection["plan_sha256"] != plan_sha:
+        if validated_selection["plan_sha256"] != anchor_plan_sha:
             raise GenerationError(
-                "anchor selection root plan SHAがPhase B planと一致しません。",
+                "anchor selection root plan SHAがanchor source planと一致しません。",
             )
     else:
         if any(
@@ -833,6 +845,7 @@ def _phase_b_source(
                 "anchor selection provenanceはQwen/Irodoriだけに指定できます。",
             )
         selection_sha = None
+        anchor_plan_sha = None
 
     target_groups = [
         {
@@ -852,6 +865,7 @@ def _phase_b_source(
         "run_kind": run_kind,
         "supersedes_run_id": supersedes_run_id,
         "anchor_selection_sha256": selection_sha,
+        "anchor_plan_sha256": anchor_plan_sha,
         "target_groups": target_groups,
     }
 
@@ -884,6 +898,7 @@ def _phase_b_attempt_provenance(
         "run_kind": phase_b["run_kind"],
         "supersedes_run_id": phase_b["supersedes_run_id"],
         "anchor_selection_sha256": phase_b["anchor_selection_sha256"],
+        "anchor_plan_sha256": phase_b["anchor_plan_sha256"],
         "target_group": dict(matches[0]),
     }
 
@@ -918,7 +933,7 @@ def _validate_anchor_receipt(
         "anchor_selection_sha256": phase_b_attempt[
             "anchor_selection_sha256"
         ],
-        "anchor_plan_sha256": phase_b_attempt["plan_sha256"],
+        "anchor_plan_sha256": phase_b_attempt["anchor_plan_sha256"],
         "role_epoch_sha256": phase_b_attempt["target_group"][
             "role_epoch_sha256"
         ],
@@ -1145,7 +1160,7 @@ def _ledger_source(
     jobs: list[LineJob],
     model_id: str,
     takes: int,
-    seed_base: int,
+    seed_base: int | None,
     recipe: TakeRecipe,
     scenario_sources: tuple[_ScenarioSource, ...],
     phase_b: dict[str, Any] | None = None,

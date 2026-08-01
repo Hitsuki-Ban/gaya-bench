@@ -89,11 +89,12 @@ def _phase_b_ledger() -> dict[str, object]:
     ledger = _ledger()
     target_group = {**GROUP, "role_epoch_sha256": "b" * 64}
     phase_b = {
-        "protocol": "phase-b-generation-v1",
+        "protocol": "phase-b-generation-v2",
         "plan_sha256": "c" * 64,
         "run_kind": "primary",
         "supersedes_run_id": None,
         "anchor_selection_sha256": None,
+        "anchor_plan_sha256": None,
         "target_groups": [target_group],
     }
     provenance = {
@@ -102,6 +103,7 @@ def _phase_b_ledger() -> dict[str, object]:
         "run_kind": phase_b["run_kind"],
         "supersedes_run_id": phase_b["supersedes_run_id"],
         "anchor_selection_sha256": phase_b["anchor_selection_sha256"],
+        "anchor_plan_sha256": phase_b["anchor_plan_sha256"],
         "target_group": target_group,
     }
     ledger["source"]["phase_b"] = phase_b  # type: ignore[index]
@@ -133,6 +135,20 @@ def test_ledger_v1のexact_contractと合法遷移() -> None:
     )
 
     assert eligible["attempts"][0]["status"] == "eligible"  # type: ignore[index]
+
+
+def test_null_seed_baseは全attemptのnull_seedを要求する() -> None:
+    ledger = _ledger()
+    ledger["source"]["seed_base"] = None  # type: ignore[index]
+    ledger["source"]["takes"] = 2  # type: ignore[index]
+    second = deepcopy(ledger["attempts"][0])  # type: ignore[index]
+    second["take_index"] = 2
+    ledger["attempts"].append(second)  # type: ignore[union-attr]
+    assert validate_ledger(ledger) is ledger
+
+    ledger["attempts"][1]["generation"]["seed"] = 42  # type: ignore[index]
+    with pytest.raises(TakeLedgerError, match="すべての attempt generation.seed"):
+        validate_ledger(ledger)
 
 
 def test_phase_b_provenanceはsourceとattemptをexactに拘束する() -> None:

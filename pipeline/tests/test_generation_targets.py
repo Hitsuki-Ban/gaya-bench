@@ -156,31 +156,34 @@ def test_phase_b_sourceは同一role内のepoch漂移を拒否する() -> None:
         )
 
 
-def test_voxcpm2_phase_bはgeneration層でreuse_fallbackを作らない() -> None:
+def test_voxcpm2_phase_bは全targetを通常生成する() -> None:
     jobs, _sources = _load_jobs(
         SCENARIOS_DIR,
         scenario_id=None,
         line_id=None,
         target_lines=(("battlefield-camp", "wounded-001"),),
     )
-    with pytest.raises(GenerationError, match="explicit reuse"):
-        _phase_b_source(
-            model_id="voxcpm2",
-            jobs=jobs,
-            completion_plan_sha256="a" * 64,
-            role_epochs={
-                ("battlefield-camp", "wounded-001"): "b" * 64,
-            },
-            run_kind="primary",
-            supersedes_run_id=None,
-            role_anchor_selection_path=None,
-            role_anchor_plan_sha256=None,
-            role_anchor_selection_sha256=None,
-        )
+    source = _phase_b_source(
+        model_id="voxcpm2",
+        jobs=jobs,
+        completion_plan_sha256="a" * 64,
+        role_epochs={
+            ("battlefield-camp", "wounded-001"): "b" * 64,
+        },
+        run_kind="primary",
+        supersedes_run_id=None,
+        role_anchor_selection_path=None,
+        role_anchor_plan_sha256=None,
+        role_anchor_selection_sha256=None,
+    )
+    assert source["protocol"] == "phase-b-generation-v2"
+    assert source["anchor_selection_sha256"] is None
+    assert source["anchor_plan_sha256"] is None
 
 
 def test_anchor_selectionとplan_digestの不一致を生成前に拒否(
     tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     jobs, _sources = _load_jobs(
         SCENARIOS_DIR,
@@ -191,9 +194,8 @@ def test_anchor_selectionとplan_digestの不一致を生成前に拒否(
     selection = tmp_path / "role-anchor-selection-v1.json"
     selection.write_bytes(b"{}")
     actual_sha = hashlib.sha256(b"{}").hexdigest()
-    selection.with_suffix(".sha256").write_text(
-        f"{actual_sha}\n",
-        encoding="ascii",
+    selection.with_suffix(".sha256").write_bytes(
+        f"{actual_sha}\n".encode("ascii"),
     )
     arguments = {
         "model_id": "qwen3-tts-12hz-1.7b",
@@ -205,18 +207,29 @@ def test_anchor_selectionとplan_digestの不一致を生成前に拒否(
         "run_kind": "primary",
         "supersedes_run_id": None,
         "role_anchor_selection_path": selection,
-        "role_anchor_plan_sha256": "a" * 64,
+        "role_anchor_plan_sha256": "d" * 64,
     }
     with pytest.raises(GenerationError, match="selection SHA"):
         _phase_b_source(
             **arguments,
             role_anchor_selection_sha256="c" * 64,
         )
-    with pytest.raises(GenerationError, match="plan SHA"):
+    monkeypatch.setattr(
+        "gaya_pipeline.completion_anchor.validate_anchor_selection",
+        lambda _document: {"plan_sha256": "d" * 64},
+    )
+    source = _phase_b_source(
+        **arguments,
+        role_anchor_selection_sha256=actual_sha,
+    )
+    assert source["plan_sha256"] == "a" * 64
+    assert source["anchor_plan_sha256"] == "d" * 64
+
+    with pytest.raises(GenerationError, match="anchor source plan"):
         _phase_b_source(
             **{
                 **arguments,
-                "role_anchor_plan_sha256": "d" * 64,
+                "role_anchor_plan_sha256": "e" * 64,
             },
             role_anchor_selection_sha256=actual_sha,
         )
@@ -224,11 +237,12 @@ def test_anchor_selectionとplan_digestの不一致を生成前に拒否(
 
 def test_selected_anchor_receiptはepoch_plan_selectionをexact照合する() -> None:
     provenance = {
-        "protocol": "phase-b-generation-v1",
+        "protocol": "phase-b-generation-v2",
         "plan_sha256": "a" * 64,
         "run_kind": "primary",
         "supersedes_run_id": None,
         "anchor_selection_sha256": "b" * 64,
+        "anchor_plan_sha256": "e" * 64,
         "target_group": {
             "model": "qwen3-tts-12hz-1.7b",
             "scenario": "battlefield-camp",
@@ -241,7 +255,7 @@ def test_selected_anchor_receiptはepoch_plan_selectionをexact照合する() ->
         "reference_control": "selected_voice_design_anchor",
         "selected_anchor": {
             "anchor_selection_sha256": "b" * 64,
-            "anchor_plan_sha256": "a" * 64,
+            "anchor_plan_sha256": "e" * 64,
             "role_epoch_sha256": "d" * 64,
         },
     }
@@ -339,11 +353,12 @@ def test_topupは明示supersedesと異なるseedを要求する(
     }
     target_group = {**group, "role_epoch_sha256": "b" * 64}
     primary_phase = {
-        "protocol": "phase-b-generation-v1",
+        "protocol": "phase-b-generation-v2",
         "plan_sha256": "a" * 64,
         "run_kind": "primary",
         "supersedes_run_id": None,
         "anchor_selection_sha256": None,
+        "anchor_plan_sha256": None,
         "target_groups": [target_group],
     }
     provenance = {
@@ -354,6 +369,7 @@ def test_topupは明示supersedesと異なるseedを要求する(
         "anchor_selection_sha256": primary_phase[
             "anchor_selection_sha256"
         ],
+        "anchor_plan_sha256": primary_phase["anchor_plan_sha256"],
         "target_group": target_group,
     }
     run_id = "primary-run"

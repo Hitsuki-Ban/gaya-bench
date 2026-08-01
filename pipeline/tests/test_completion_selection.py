@@ -36,7 +36,11 @@ def _rubric(**overrides: Any) -> dict[str, Any]:
     return result
 
 
-def _decision(candidate_count: int = 3) -> dict[str, Any]:
+def _decision(
+    candidate_count: int = 3,
+    *,
+    minimum_eligible_candidates: int = 3,
+) -> dict[str, Any]:
     candidates = [
         {
             "take_id": hashlib.sha256(f"take:{index}".encode()).hexdigest(),
@@ -70,7 +74,7 @@ def _decision(candidate_count: int = 3) -> dict[str, Any]:
                     "type": "best_available",
                     "policy_version": "missing-slot-best-of-n-v1",
                     "reviewer": "owner",
-                    "minimum_eligible_candidates": 3,
+                    "minimum_eligible_candidates": minimum_eligible_candidates,
                 },
                 "candidates": candidates,
                 "decision": {
@@ -118,6 +122,23 @@ def test_best_availableは低品質の真実なrubricでも選択できる() -> 
 def test_best_availableはmechanical_passが3件未満なら拒否する() -> None:
     with pytest.raises(CurationError, match="3件以上"):
         validate_completion_decision(_decision(candidate_count=2))
+
+
+def test_best_availableはgroupが明示した最低1件を受理する() -> None:
+    normalized = validate_completion_decision(
+        _decision(candidate_count=1, minimum_eligible_candidates=1),
+    )
+
+    authority = normalized["groups"][0]["authority"]
+    assert authority["minimum_eligible_candidates"] == 1
+
+
+@pytest.mark.parametrize("minimum", [0, -1, True])
+def test_best_availableは正でない最低候補数を拒否する(minimum: Any) -> None:
+    with pytest.raises(CurationError, match="best_available 契約"):
+        validate_completion_decision(
+            _decision(minimum_eligible_candidates=minimum),
+        )
 
 
 def test_best_availableはrubricを省略できない() -> None:

@@ -6,13 +6,15 @@ import { join, relative, resolve } from "node:path";
 import { describe, expect, it } from "vite-plus/test";
 
 import type { DirectoryFile, ObjectUrlFactory } from "@/lib/local-directory";
+import { canonicalJson } from "@/lib/canonical-json";
+import { sha256Text } from "@/lib/sha256";
 
 import { loadBaselineCatalog } from "./baseline-contract";
 import { buildBaselineDecisionJson } from "./baseline-export";
 import { createBaselineDraft } from "./baseline-storage";
 
 describe("Phase B Python / site cross contract", () => {
-  it("Python producerの363-group実fixtureをsiteで読み、site decisionをPython validatorへ戻す", async () => {
+  it("Python producerの597-group実fixtureとgroup別minimumを検証し、site decisionをPython validatorへ戻す", async () => {
     const temporary = mkdtempSync(join(tmpdir(), "gaya-phase-b-cross-"));
     try {
       const fixtureRoot = join(temporary, "fixture");
@@ -30,10 +32,50 @@ describe("Phase B Python / site cross contract", () => {
       expect(produced.status, processFailure(produced)).toBe(0);
 
       const bundleRoot = join(fixtureRoot, "bundle");
-      const catalog = await loadBaselineCatalog(diskDirectoryFiles(bundleRoot), NOOP_OBJECT_URLS);
-      expect(catalog.groups).toHaveLength(363);
-      expect(catalog.groups.every((group) => group.exportCandidates.length === 3)).toBe(true);
+      const files = diskDirectoryFiles(bundleRoot);
+      const catalog = await loadBaselineCatalog(files, NOOP_OBJECT_URLS);
+      expect(catalog.groups).toHaveLength(597);
+      const aivisGroups = catalog.groups.filter((group) => group.model === "aivisspeech-kohaku");
+      expect(aivisGroups.length).toBeGreaterThan(0);
+      expect(
+        aivisGroups.every(
+          (group) => group.minimumEligibleCandidates === 1 && group.exportCandidates.length === 1,
+        ),
+      ).toBe(true);
       expect(catalog.groups[0]!.roleEpochSha256).toMatch(/^[0-9a-f]{64}$/);
+
+      const sourceMap = JSON.parse(
+        readFileSync(join(bundleRoot, "phase-b-source-map-v1.json"), "utf8"),
+      ) as { groups: Array<Record<string, unknown>> };
+      const belowDeclaredMinimum = structuredClone(sourceMap);
+      const firstGroup = catalog.groups[0]!;
+      belowDeclaredMinimum.groups[0]!.minimum_eligible_candidates =
+        firstGroup.exportCandidates.length + 1;
+      await expect(
+        loadBaselineCatalog(await replaceSourceMap(files, belowDeclaredMinimum), NOOP_OBJECT_URLS),
+      ).rejects.toThrow("minimum_eligible_candidates以上");
+
+      const withUnknownGroupField = structuredClone(sourceMap);
+      withUnknownGroupField.groups[0]!.unexpected = true;
+      await expect(
+        loadBaselineCatalog(await replaceSourceMap(files, withUnknownGroupField), NOOP_OBJECT_URLS),
+      ).rejects.toThrow("exact contract");
+
+      const threeCandidateIndex = catalog.groups.findIndex(
+        (group) => group.minimumEligibleCandidates === 3,
+      );
+      expect(threeCandidateIndex).toBeGreaterThanOrEqual(0);
+      const loweredMinimum = structuredClone(sourceMap);
+      loweredMinimum.groups[threeCandidateIndex]!.minimum_eligible_candidates = 1;
+      const reboundCatalog = await loadBaselineCatalog(
+        await replaceSourceMap(files, loweredMinimum),
+        NOOP_OBJECT_URLS,
+      );
+      expect(reboundCatalog.groups[threeCandidateIndex]!.minimumEligibleCandidates).toBe(1);
+      expect(reboundCatalog.groups[threeCandidateIndex]!.groupSha256).not.toBe(
+        catalog.groups[threeCandidateIndex]!.groupSha256,
+      );
+      reboundCatalog.dispose();
 
       const empty = createBaselineDraft(catalog);
       const rubric = {
@@ -77,7 +119,7 @@ describe("Phase B Python / site cross contract", () => {
             "sys.stdout.buffer.write(canonical_completion_decision_bytes(json.load(sys.stdin)))",
           ].join(";"),
         ],
-        { encoding: "utf8", input: decision },
+        { encoding: "utf8", input: decision, maxBuffer: 16 * 1024 * 1024 },
       );
       expect(validation.status, processFailure(validation)).toBe(0);
       expect(validation.stdout).toBe(decision);
@@ -103,6 +145,33 @@ function diskDirectoryFiles(root: string): readonly DirectoryFile[] {
       },
     };
   });
+}
+
+async function replaceSourceMap(
+  files: readonly DirectoryFile[],
+  sourceMap: unknown,
+): Promise<readonly DirectoryFile[]> {
+  const source = canonicalJson(sourceMap, "Phase B source map test fixture");
+  const marker = await sha256Text(source);
+  return files.map((file) => {
+    if (file.name === "phase-b-source-map-v1.json") {
+      return memoryDirectoryFile(file.webkitRelativePath, source);
+    }
+    if (file.name === "phase-b-source-map-v1.sha256") {
+      return memoryDirectoryFile(file.webkitRelativePath, marker);
+    }
+    return file;
+  });
+}
+
+function memoryDirectoryFile(webkitRelativePath: string, contents: string): DirectoryFile {
+  return {
+    name: webkitRelativePath.split(/[\\/]/).at(-1)!,
+    webkitRelativePath,
+    async arrayBuffer() {
+      return new TextEncoder().encode(contents).buffer;
+    },
+  };
 }
 
 function walk(root: string): readonly string[] {

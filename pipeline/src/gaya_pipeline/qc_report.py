@@ -277,6 +277,7 @@ def _validate_phase_b_attempt_provenance(
         "run_kind": phase_b["run_kind"],
         "supersedes_run_id": phase_b["supersedes_run_id"],
         "anchor_selection_sha256": phase_b["anchor_selection_sha256"],
+        "anchor_plan_sha256": phase_b["anchor_plan_sha256"],
         "target_group": matches[0],
     }
     expected_sha256 = hashlib.sha256(
@@ -347,7 +348,7 @@ def _validate_realized_anchor_receipt(
         return
     expected = {
         "anchor_selection_sha256": provenance["anchor_selection_sha256"],
-        "anchor_plan_sha256": provenance["plan_sha256"],
+        "anchor_plan_sha256": provenance["anchor_plan_sha256"],
         "role_epoch_sha256": provenance["target_group"][
             "role_epoch_sha256"
         ],

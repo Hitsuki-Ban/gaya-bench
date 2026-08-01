@@ -16,8 +16,8 @@ from gaya_pipeline.completion_anchor import (
 )
 from gaya_pipeline.completion_plan import (
     IRODORI_MODEL,
+    MODEL_REVISIONS,
     QWEN_MODEL,
-    VOXCPM_MODEL,
     CompletionPlan,
 )
 from gaya_pipeline.curation import (
@@ -37,31 +37,12 @@ class CompletionListeningError(RuntimeError):
     pass
 
 
-PHASE_B_PROTOCOL = "phase-b-generation-v1"
+PHASE_B_PROTOCOL = "phase-b-generation-v2"
 PHASE_B_SEED_MIN = 0
 PHASE_B_SEED_MAX = 2**32 - 1
 SOURCE_MAP_PROTOCOL = "phase-b-source-map-v1"
 PRIMARY_MODELS = frozenset(
-    {
-        "chatterbox-multilingual-v3",
-        "cosyvoice3-0.5b-2512",
-        "gpt-sovits-v2-pro-plus",
-        IRODORI_MODEL,
-        QWEN_MODEL,
-    },
-)
-VOX_LEGACY_RUN_ID = "20260730T204323380360Z-voxcpm2-n4"
-VOX_LEGACY_DIGESTS = {
-    "ledger_sha256": "589da2bf299cba5d25a07e6af17726795936cd53d33ff71820eaadbc321e24f7",
-    "qc_report_sha256": "5843a783fcbdad585cec0c641f52950a6fb2046d8198e168ea47d42ffc2af0f9",
-    "manifest_sha256": "c096cd388229f0ac60fae42e82a8d3d8423c5e22644983c3da570b5e3bd41563",
-    "candidate_set_sha256": "7be722c866a4f1df013821fa178fe00a755ad75b92fe642f342cddada5ce3954",
-}
-VOX_LEGACY_GROUPS = frozenset(
-    {
-        (VOXCPM_MODEL, "goblin-camp", "goblin-cook-001", "dry"),
-        (VOXCPM_MODEL, "spirit-forest", "pixie-003", "dry"),
-    },
+    MODEL_REVISIONS,
 )
 
 
@@ -89,7 +70,7 @@ class CompletionSourceRun:
     manifest: dict[str, Any]
     groups: frozenset[tuple[str, str, str, str]]
     role_epochs: Mapping[tuple[str, str, str, str], str]
-    seed_base: int
+    seed_base: int | None
     attempt_seeds: Mapping[tuple[str, str, str, str], frozenset[int]]
 
 
@@ -122,7 +103,6 @@ def phase_b_generation_binding(
     )
     model_targets = {
         target.identity for target in plan.targets_for_model(model)
-        if target.source == "generate"
     }
     if not model_targets:
         raise CompletionListeningError(f"Phase B生成対象外modelです: {model}")
@@ -137,7 +117,6 @@ def build_completion_listening_bundle(
     plan: CompletionPlan,
     primary_run_ids: Sequence[str],
     topup_run_ids: Sequence[str],
-    vox_run_id: str,
     anchor_selection_path: Path,
     artifacts_dir: Path,
     scenarios_dir: Path,
@@ -157,7 +136,6 @@ def build_completion_listening_bundle(
         plan=plan,
         primary_run_ids=primary_run_ids,
         topup_run_ids=topup_run_ids,
-        vox_run_id=vox_run_id,
         anchor_selection_path=anchor_selection_path,
         artifacts_dir=artifacts_dir,
         scenarios_dir=scenarios_dir,
@@ -173,10 +151,11 @@ def build_completion_listening_bundle(
             for candidate in run.manifest["candidates"]
             if _group_key(candidate) == identity
         ]
-        if len(group_candidates) < plan.minimum_eligible_candidates:
+        minimum = plan.policy_for_model(identity[0]).minimum_eligible_candidates
+        if len(group_candidates) < minimum:
             raise CompletionListeningError(
-                "最終有効 source の mechanical-pass candidate が3件未満です: "
-                f"{identity}: {run.run_id}",
+                "最終有効 source の mechanical-pass candidate が"
+                f"{minimum}件未満です: {identity}: {run.run_id}",
             )
         models[run.model] = dict(run.manifest["models"][0])
         generated_at.append(str(run.manifest["generated_at"]))
@@ -237,6 +216,9 @@ def build_completion_listening_bundle(
                 "variant": identity[3],
                 "role_epoch_sha256": resolution.expected_role_epochs[identity],
                 "source_run_id": run.run_id,
+                "minimum_eligible_candidates": plan.policy_for_model(
+                    identity[0],
+                ).minimum_eligible_candidates,
             }
             for identity, run in sorted(resolution.group_sources.items())
         ],
@@ -291,20 +273,15 @@ def resolve_completion_sources(
     plan: CompletionPlan,
     primary_run_ids: Sequence[str],
     topup_run_ids: Sequence[str],
-    vox_run_id: str,
     anchor_selection_path: Path,
     artifacts_dir: Path,
     scenarios_dir: Path,
 ) -> CompletionSourceResolution:
-    all_ids = [*primary_run_ids, *topup_run_ids, vox_run_id]
+    all_ids = [*primary_run_ids, *topup_run_ids]
     if len(all_ids) != len(set(all_ids)):
         raise CompletionListeningError("Phase B source run-id が重複しています。")
     if len(primary_run_ids) != len(PRIMARY_MODELS):
-        raise CompletionListeningError("Phase B primary run は5件必要です。")
-    if vox_run_id != VOX_LEGACY_RUN_ID:
-        raise CompletionListeningError(
-            f"Vox legacy run は {VOX_LEGACY_RUN_ID} だけを受理します。",
-        )
+        raise CompletionListeningError("Phase B primary run は8件必要です。")
     takes_root = _require_directory(artifacts_dir / "takes", "takes root")
     anchor_sha, anchor_epochs = _load_anchor_selection(
         anchor_selection_path,
@@ -334,14 +311,12 @@ def resolve_completion_sources(
         primary_runs
     ):
         raise CompletionListeningError(
-            "primary run はQwen/Irodori/Chatterbox/CosyVoice/GPT-SoVITSを"
-            "各1件必要です。",
+            "primary run はplanの8 modelを各1件必要です。",
         )
     for model, run in primary_by_model.items():
         expected_model_groups = {
             target.identity
             for target in plan.targets_for_model(model)
-            if target.source == "generate"
         }
         if run.groups != expected_model_groups:
             raise CompletionListeningError(
@@ -373,6 +348,10 @@ def resolve_completion_sources(
         if not run.groups or not run.groups.issubset(predecessor.groups):
             raise CompletionListeningError(
                 f"topup groups がsuperseded runのexact subsetではありません: {run_id}",
+            )
+        if plan.policy_for_model(run.model).seed_policy == "none":
+            raise CompletionListeningError(
+                f"seedを持たないmodelはtopupできません: {run.model}",
             )
         if run.seed_base == predecessor.seed_base:
             raise CompletionListeningError(
@@ -406,18 +385,15 @@ def resolve_completion_sources(
         runs_by_id[run.run_id] = run
         topup_runs.append(run)
 
-    vox = _load_vox_legacy_run(takes_root, vox_run_id)
-    for identity in vox.groups:
-        group_sources[identity] = vox
-    if set(group_sources) != expected_targets or len(group_sources) != 363:
+    if set(group_sources) != expected_targets or len(group_sources) != 597:
         missing = sorted(expected_targets - set(group_sources))
         extra = sorted(set(group_sources) - expected_targets)
         raise CompletionListeningError(
-            f"最終source mapはplan exact 363 groupが必要です: "
+            f"最終source mapはplan exact 597 groupが必要です: "
             f"missing={missing}, extra={extra}",
         )
     return CompletionSourceResolution(
-        runs=tuple([*primary_runs, *topup_runs, vox]),
+        runs=tuple([*primary_runs, *topup_runs]),
         group_sources=group_sources,
         anchor_selection_sha256=anchor_sha,
         expected_role_epochs=expected_epochs,
@@ -499,17 +475,6 @@ def _load_phase_b_run(
         ) from error
     if ledger["run_id"] != run_id:
         raise CompletionListeningError(f"ledger.run_id がpathと不一致です: {run_id}")
-    if ledger["source"]["takes"] != plan.takes:
-        raise CompletionListeningError(
-            f"Phase B source.takesがfrozen planと一致しません: {run_id}",
-        )
-    if (
-        required_kind == "primary"
-        and ledger["source"]["seed_base"] != plan.seed_base
-    ):
-        raise CompletionListeningError(
-            f"primary seed_baseがfrozen planと一致しません: {run_id}",
-        )
     phase_b = ledger["source"].get("phase_b")
     if not isinstance(phase_b, Mapping):
         raise CompletionListeningError(f"ledger.source.phase_b がありません: {run_id}")
@@ -523,6 +488,7 @@ def _load_phase_b_run(
         "run_kind",
         "supersedes_run_id",
         "anchor_selection_sha256",
+        "anchor_plan_sha256",
         "target_groups",
     }
     if set(phase_b) != expected_phase_fields:
@@ -556,13 +522,38 @@ def _load_phase_b_run(
         raise CompletionListeningError(
             f"Phase B model/revision がplanと一致しません: {run_id}",
         )
+    policy = plan.policy_for_model(model)
+    if ledger["source"]["takes"] != policy.takes:
+        raise CompletionListeningError(
+            f"Phase B source.takesがmodel policyと一致しません: {run_id}",
+        )
+    if (
+        required_kind == "primary"
+        and ledger["source"]["seed_base"] != policy.primary_seed_base
+    ):
+        raise CompletionListeningError(
+            f"primary seed_baseがmodel policyと一致しません: {run_id}",
+        )
+    if required_kind == "topup" and policy.seed_policy == "none":
+        raise CompletionListeningError(
+            f"seedを持たないmodelはtopupできません: {model}",
+        )
     anchor_sha = phase_b["anchor_selection_sha256"]
+    anchor_plan_sha = phase_b["anchor_plan_sha256"]
     expected_run_anchor = (
         expected_anchor_sha256 if model in {QWEN_MODEL, IRODORI_MODEL} else None
     )
-    if anchor_sha != expected_run_anchor:
+    expected_anchor_plan = (
+        plan.anchor_source_plan_sha256
+        if model in {QWEN_MODEL, IRODORI_MODEL}
+        else None
+    )
+    if (
+        anchor_sha != expected_run_anchor
+        or anchor_plan_sha != expected_anchor_plan
+    ):
         raise CompletionListeningError(
-            f"Phase B anchor selection digest が不一致です: {run_id}",
+            f"Phase B anchor authority が不一致です: {run_id}",
         )
     target_groups = phase_b["target_groups"]
     if not isinstance(target_groups, list) or not target_groups:
@@ -611,7 +602,7 @@ def _load_phase_b_run(
         manifest=bundle.manifest,
         qc_authority=qc_authority,
         phase_b=phase_b,
-        seed_policy=plan.seed_policy,
+        seed_policy=policy.seed_policy,
     )
     attempt_seeds = _attempt_seeds_by_group(ledger)
     return CompletionSourceRun(
@@ -632,85 +623,14 @@ def _load_phase_b_run(
     )
 
 
-def _load_vox_legacy_run(takes_root: Path, run_id: str) -> CompletionSourceRun:
-    root = _resolve_direct_child(takes_root, run_id, "fixed Vox legacy run")
-    actual = {
-        "ledger_sha256": _file_sha256(root / "ledger.json"),
-        "qc_report_sha256": _file_sha256(root / "qc-report.json"),
-        "manifest_sha256": _file_sha256(root / "manifest-v4.json"),
-        "candidate_set_sha256": _file_sha256(root / "candidate-set.json"),
-    }
-    if actual != VOX_LEGACY_DIGESTS:
-        raise CompletionListeningError(
-            "固定Vox legacy runのledger/QC/manifest/candidate-set digestが漂移しました。",
-        )
-    try:
-        ledger = read_ledger(root / "ledger.json")
-        bundle = validate_snapshot_bundle(
-            snapshot_path=root / "manifest-v4.json",
-            candidate_set_path=root / "candidate-set.json",
-            marker_path=root / "candidate-set.sha256",
-        )
-        qc_authority = validate_qc_report(
-            _read_json(root / "qc-report.json", "Vox QC report"),
-            ledger_path=root / "ledger.json",
-            ledger=ledger,
-        )
-    except (
-        CurationError,
-        OSError,
-        QCReportError,
-        TakeLedgerError,
-        UnicodeError,
-        json.JSONDecodeError,
-    ) as error:
-        raise CompletionListeningError(f"固定Vox legacy runが不正です: {error}") from error
-    groups = {
-        _group_key(item)
-        for item in [*bundle.manifest["candidates"], *bundle.manifest["failures"]]
-    }
-    if (
-        ledger["run_id"] != run_id
-        or groups != VOX_LEGACY_GROUPS
-        or {_group_key(item) for item in ledger["source"]["groups"]}
-        != VOX_LEGACY_GROUPS
-        or bundle.manifest["failures"]
-    ):
-        raise CompletionListeningError("固定Vox legacy runのexact 2 groupが不正です。")
-    _validate_manifest_candidate_authority(
-        run_id=run_id,
-        ledger=ledger,
-        manifest=bundle.manifest,
-        qc_authority=qc_authority,
-        phase_b=None,
-        seed_policy=None,
-    )
-    return CompletionSourceRun(
-        run_id=run_id,
-        model=VOXCPM_MODEL,
-        kind="fixed_legacy_reuse",
-        supersedes_run_id=None,
-        root=root,
-        ledger_sha256=actual["ledger_sha256"],
-        qc_report_sha256=actual["qc_report_sha256"],
-        manifest_sha256=actual["manifest_sha256"],
-        candidate_set_sha256=actual["candidate_set_sha256"],
-        manifest=bundle.manifest,
-        groups=VOX_LEGACY_GROUPS,
-        role_epochs={identity: "legacy-fixed-voxcpm2" for identity in groups},
-        seed_base=ledger["source"]["seed_base"],
-        attempt_seeds=_attempt_seeds_by_group(ledger),
-    )
-
-
 def _validate_manifest_candidate_authority(
     *,
     run_id: str,
     ledger: Mapping[str, Any],
     manifest: Mapping[str, Any],
     qc_authority: QCAuthority,
-    phase_b: Mapping[str, Any] | None,
-    seed_policy: str | None,
+    phase_b: Mapping[str, Any],
+    seed_policy: str,
 ) -> None:
     ledger_by_slot = {
         _attempt_slot(attempt): attempt for attempt in ledger["attempts"]
@@ -731,11 +651,15 @@ def _validate_manifest_candidate_authority(
             "manifest candidatesがledger eligible terminal attemptと"
             f"exact一致しません: {run_id}: missing={missing}, extra={extra}",
         )
-    if seed_policy is not None:
-        if seed_policy != "derived-sha256-v1":
+    if seed_policy == "none":
+        if ledger["source"]["seed_base"] is not None or any(
+            attempt["generation"]["seed"] is not None
+            for attempt in ledger_by_slot.values()
+        ):
             raise CompletionListeningError(
-                f"Phase B seed policyが不正です: {run_id}",
+                f"seedなしmodelのseed contractが不正です: {run_id}",
             )
+    elif seed_policy == "derived-sha256-v1":
         for slot, attempt in ledger_by_slot.items():
             expected_seed = derive_seed(
                 policy_version=seed_policy,
@@ -753,6 +677,10 @@ def _validate_manifest_candidate_authority(
                     "ledger attempt seedがsource seed_baseからのcanonical"
                     f" derive値と一致しません: {run_id}: {slot}",
                 )
+    else:
+        raise CompletionListeningError(
+            f"Phase B seed policyが不正です: {run_id}",
+        )
     recipe_version = ledger["source"]["recipe_version"]
     for slot, candidate in candidates_by_slot.items():
         attempt = ledger_by_slot[slot]
@@ -818,34 +746,34 @@ def _validate_manifest_candidate_authority(
                 "manifest candidate duration/loudnessがQC mechanical authorityと"
                 f"exact一致しません: {run_id}: {slot}",
             )
-        if phase_b is not None:
-            target_group = next(
-                item
-                for item in phase_b["target_groups"]
-                if _group_key(item) == slot[:4]
+        target_group = next(
+            item
+            for item in phase_b["target_groups"]
+            if _group_key(item) == slot[:4]
+        )
+        provenance = {
+            "protocol": phase_b["protocol"],
+            "plan_sha256": phase_b["plan_sha256"],
+            "run_kind": phase_b["run_kind"],
+            "supersedes_run_id": phase_b["supersedes_run_id"],
+            "anchor_selection_sha256": phase_b[
+                "anchor_selection_sha256"
+            ],
+            "anchor_plan_sha256": phase_b["anchor_plan_sha256"],
+            "target_group": target_group,
+        }
+        provenance_sha = hashlib.sha256(
+            canonical_json(provenance).encode("utf-8"),
+        ).hexdigest()
+        if (
+            attempt["phase_b_provenance_sha256"] != provenance_sha
+            or params["requested"].get("phase_b_provenance") != provenance
+            or params["realized"].get("phase_b_provenance") != provenance
+        ):
+            raise CompletionListeningError(
+                "candidate Phase B provenanceがsource/ledgerと"
+                f"一致しません: {run_id}: {slot}",
             )
-            provenance = {
-                "protocol": phase_b["protocol"],
-                "plan_sha256": phase_b["plan_sha256"],
-                "run_kind": phase_b["run_kind"],
-                "supersedes_run_id": phase_b["supersedes_run_id"],
-                "anchor_selection_sha256": phase_b[
-                    "anchor_selection_sha256"
-                ],
-                "target_group": target_group,
-            }
-            provenance_sha = hashlib.sha256(
-                canonical_json(provenance).encode("utf-8"),
-            ).hexdigest()
-            if (
-                attempt["phase_b_provenance_sha256"] != provenance_sha
-                or params["requested"].get("phase_b_provenance") != provenance
-                or params["realized"].get("phase_b_provenance") != provenance
-            ):
-                raise CompletionListeningError(
-                    "candidate Phase B provenanceがsource/ledgerと"
-                    f"一致しません: {run_id}: {slot}",
-                )
 def _attempt_slot(value: Mapping[str, Any]) -> tuple[str, str, str, str, int]:
     return (
         str(value["model"]),
@@ -896,10 +824,43 @@ def _load_anchor_selection(
         raise CompletionListeningError(
             f"anchor selection SHA markerを読めません: {marker}",
         ) from error
-    if marker_value != digest or selection["plan_sha256"] != plan.plan_id:
+    if (
+        marker_value != digest
+        or digest != plan.anchor_selection_sha256
+        or selection["plan_sha256"] != plan.anchor_source_plan_sha256
+        or selection["candidate_set_sha256"]
+        != plan.anchor_candidate_set_sha256
+    ):
         raise CompletionListeningError(
-            "anchor selection marker/plan SHAがfrozen planと一致しません。",
+            "anchor selection marker/authority SHAがfrozen planと一致しません。",
         )
+    if len(selection["groups"]) != 106:
+        raise CompletionListeningError(
+            "anchor selectionはexact 106 groupが必要です。",
+        )
+    expected_anchor_groups = {
+        (model, role.scenario, role.character)
+        for model in {QWEN_MODEL, IRODORI_MODEL}
+        for role in plan.roles
+        if role.reference_voice is None
+    }
+    actual_anchor_groups = {
+        (group["model"], group["scenario"], group["character"])
+        for group in selection["groups"]
+    }
+    if actual_anchor_groups != expected_anchor_groups:
+        raise CompletionListeningError(
+            "anchor selection group集合が58 roleのno-reference対象と一致しません。",
+        )
+    for group in selection["groups"]:
+        role = plan.role(group["scenario"], group["character"])
+        if (
+            group["model_revision"] != plan.models[group["model"]]
+            or group["role_identity_sha256"] != role.role_identity_sha256
+        ):
+            raise CompletionListeningError(
+                "anchor selection model revision/role identityがplanと一致しません。",
+            )
     epochs = {
         (group["model"], group["scenario"], group["character"]): group[
             "role_epoch_sha256"

@@ -100,6 +100,15 @@ describe("role-baseline-decision-v1 export / UI", () => {
     ).toThrow("phase-b-source-map-v1");
   });
 
+  it("source-map groupのminimum=1を受理し、未知fieldをexact contractで拒否する", () => {
+    const sourceMap = makeSourceMap();
+    expect(validateBaselineSourceMap(sourceMap).groups[0]!.minimum_eligible_candidates).toBe(1);
+
+    const withUnknownGroupField = structuredClone(sourceMap);
+    (withUnknownGroupField.groups[0] as Record<string, unknown>).unexpected = true;
+    expect(() => validateBaselineSourceMap(withUnknownGroupField)).toThrow("exact contract");
+  });
+
   it("新protocolへ全rubricとrole epochをexact exportし旧protocolを拒否する", () => {
     const catalog = makeCatalog("a", [makeGroup(0, "1")]);
     const decision = JSON.parse(
@@ -137,6 +146,33 @@ describe("role-baseline-decision-v1 export / UI", () => {
         protocol: "baseline-completion-decision-v1",
       }),
     ).toThrow("旧decision protocol");
+  });
+
+  it("minimum=1でもOwnerの明示選択を要求し、group閾値をauthorityへ出力する", () => {
+    const catalog = makeCatalog("a", [makeGroup(0, "1", 1, 1)]);
+    const empty = createBaselineDraft(catalog);
+    expect(empty.groups[0]!.decision).toBeNull();
+    expect(() => buildBaselineDecisionJson(catalog, empty)).toThrow("明示選択");
+
+    const decision = JSON.parse(buildBaselineDecisionJson(catalog, completeDraft(empty))) as {
+      groups: Array<Record<string, unknown>>;
+    };
+    expect(decision.groups[0]).toMatchObject({
+      authority: {
+        type: "best_available",
+        reviewer: "owner",
+        minimum_eligible_candidates: 1,
+      },
+    });
+    expect(decision.groups[0]!.candidates).toHaveLength(1);
+
+    const belowDeclaredMinimum = structuredClone(decision);
+    (
+      belowDeclaredMinimum.groups[0]!.authority as Record<string, unknown>
+    ).minimum_eligible_candidates = 2;
+    expect(() => validateBaselineDecision(belowDeclaredMinimum)).toThrow(
+      "minimum_eligible_candidates以上",
+    );
   });
 
   it("desktop/mobile双方で判断基準を常時明示する", () => {
@@ -201,8 +237,14 @@ function makeCatalog(candidateSet: string, groups: readonly BaselineGroup[]): Ba
   };
 }
 
-function makeGroup(index: number, version: string): BaselineGroup {
-  const candidates = [1, 2, 3].map((candidateIndex) => {
+function makeGroup(
+  index: number,
+  version: string,
+  minimumEligibleCandidates = 3,
+  candidateCount = 3,
+): BaselineGroup {
+  const candidates = Array.from({ length: candidateCount }, (_, offset) => {
+    const candidateIndex = offset + 1;
     const takeId = `${index + 1}${candidateIndex}${version}`.padEnd(64, "0");
     const audioSha = `${candidateIndex}${index + 1}${version}`.padEnd(64, "0");
     return {
@@ -228,6 +270,7 @@ function makeGroup(index: number, version: string): BaselineGroup {
     delivery: "natural",
     roleEpochSha256: `${index + 3}${version}`.padEnd(64, "0"),
     sourceRunId: `run-${version}`,
+    minimumEligibleCandidates,
     groupSha256: `${index + 5}${version}`.padEnd(64, "0"),
     candidates: candidates.map((candidate, candidateIndex) => ({
       label: String.fromCharCode(65 + candidateIndex),
@@ -236,6 +279,32 @@ function makeGroup(index: number, version: string): BaselineGroup {
       gateContent: candidate.gate.content,
     })),
     exportCandidates: candidates,
+  };
+}
+
+function makeSourceMap(): {
+  format_version: number;
+  protocol: string;
+  plan_sha256: string;
+  anchor_selection_sha256: string;
+  candidate_set_sha256: string;
+  groups: Array<Record<string, unknown>>;
+} {
+  return {
+    format_version: 1,
+    protocol: "phase-b-source-map-v1",
+    plan_sha256: "a".repeat(64),
+    anchor_selection_sha256: "b".repeat(64),
+    candidate_set_sha256: "c".repeat(64),
+    groups: Array.from({ length: 597 }, (_, index) => ({
+      model: "dummy",
+      scenario: `scene-${String(index).padStart(3, "0")}`,
+      line: `line-${String(index).padStart(3, "0")}`,
+      variant: "dry",
+      role_epoch_sha256: "d".repeat(64),
+      source_run_id: `run-${index}`,
+      minimum_eligible_candidates: index === 0 ? 1 : 3,
+    })),
   };
 }
 

@@ -53,11 +53,15 @@ evidence を同じ行で対照する。生成コマンドは次のとおり。
 監査終了時に削除され、公開素材や生成物として扱わない。
 
 Qwen / Irodori の `reference_voice=null` 53役については、repository の
-`docs/research/full-baseline-completion/plan.json` を正式 loader で検証し、2モデル
-×53役の deterministic PCM anchor、canonical `role-anchor-selection-v1`、隣接
-SHA marker を一時領域へ構築する。各選択は正式 `resolve_selected_anchor()` で
-plan SHA、model revision、完全 role identity、review/selected role epoch、
-decision/audio SHA を再検証してから production adapter の `prepare()` へ渡す。
+`docs/research/full-baseline-completion/plan.json` を pre-hearing の固定 v1 source plan
+として専用 loader で検証し、2モデル×53役の deterministic PCM anchor、canonical
+`role-anchor-selection-v1`、隣接 SHA marker を一時領域へ構築する。synthetic selection
+の実 SHA が確定した後だけ、正式 builder / loader で audit-only v2 completion plan を
+同じ一時領域へ作る。repository の正式 plan は書き換えず、owner decision の
+export / finalize 前に production v2 authority が存在するとは記録しない。各選択は正式
+`resolve_selected_anchor()` で source plan SHA、model revision、完全 role identity、
+review/selected role epoch、decision/audio SHA を再検証してから production adapter の
+`prepare()` へ渡す。
 各 receipt の `reference.selected_anchor` は `generation_input()` が返した実値であり、
 selection / marker / WAV / epoch のいずれを改変しても監査は fail-fast する。
 
@@ -85,6 +89,7 @@ uv run --project pipeline --locked --no-sync python -m gaya_pipeline.role_condit
 | assignment 53参照: gender と age がともに一致 | 13役 |
 | conditioning receipt | 1,288件 |
 | reading receipt | 1,288件 |
+| 実`adapter.generate()` runtime transport probe | 1,288件（8モデル×161行） |
 | `line.reading` 明示行 | 25行 |
 | 明示 reading receipt: 適用 / 非対応 | 50件 / 150件 |
 | 未指定行: 原文入力 / CosyVoice 用自動かな変換 | 952件 / 136件 |
@@ -102,15 +107,19 @@ VoxCPM2 の145件は source 側では role-design identity を検証できるが
 `match` とせず `unverifiable` とした。これらを committed snapshot に隠さず記録し、
 再生成・公開 provenance 更新後に解消する。
 `source-audit.json` SHA-256 は
-`d7d48a053474251996ce5b63e509dce2a8b8df10189fb7fc49d0cdc859bad5cc`。
+`a774f175323f81575ca02c38f1f1659f6b290a0b903afa37e9112d3ccf91ba4f`。
 
 ## 日本語 reading の全量監査
 
 `line.text` / `line.reading`、adapter が宣言する `capabilities.reading`、実際の
-`generation_input()`、実ランタイムへ渡す引数を8モデル×161行で照合した。
-監査側で別の読み変換を再実装せず、production adapter が作る payload 本体を receipt
-に保存する。AivisSpeech と CosyVoice だけが外部 reading を適用し、残る6モデルは
-原文を保持する。
+`generation_input()`を8モデル×161行で照合し、同じ1,288件をすべて実
+`adapter.generate()`へ通して、capture runtimeが受け取った引数を照合した。監査側で
+別の読み変換を再実装せず、production adapter が作るpayload本体と実生成呼び出しを
+比較する。AivisSpeechのsurface / reading / speaker / intonation / tempo、CosyVoiceの
+TTS text / instruction、Irodoriのtext / caption、Qwen3-TTSのtext / language /
+clone prompt、残るadapter固有のstyle・samplingを含む実引数をexact-matchする。
+AivisSpeechとCosyVoiceだけが外部readingを適用し、残る6モデルは原文を保持する。
+`generation_input()`だけ正しく`generate()`で値や補助文脈を置換する改変もfail-fastする。
 
 | model | production の日本語入力 | `line.reading` |
 | --- | --- | --- |
@@ -211,12 +220,14 @@ clean-process 単独生成、通常順、逆順、A-B-A 挿入順を同じ seed 
 
 ## 再生成境界
 
-役柄 conditioning と reading 修正の union は594件である。
+役柄conditioningとreading修正のunion 594件に、同じmodel内でまだunionに含まれない
+旧generation failure 3件を加えたPhase B replacementは597件である。
 
 - Qwen3-TTS / Irodori-TTS / VoxCPM2: 各161行を N>=3。Qwen / Irodori は役柄、
   Irodori / Vox は reading 入力が全行で変わる。
 - GPT-SoVITS: role assignment 12行と reading 明示25行に重複がないため37行を N>=3。
-- Chatterbox / CosyVoice: role assignment を修正した12行を各モデル N>=3。
+- Chatterbox: role assignment 12行と旧failure 1行の13行を N>=3。
+- CosyVoice: role assignment 12行と旧failure 2行の14行を N>=3。
 - AivisSpeech / Supertonic: reading 明示25行を各モデルで再生成する。AivisSpeech は
   deterministic single-take engine のため各行1件、Supertonic は N>=3。
 

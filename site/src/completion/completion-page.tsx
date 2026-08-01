@@ -4,1047 +4,851 @@ import {
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
-  Download,
-  FolderOpen,
+  Circle,
   Headphones,
+  Info,
+  LoaderCircle,
+  LockKeyhole,
   Pause,
   Play,
-  RotateCcw,
-  Split,
-  UserRound,
+  Save,
 } from "lucide-react";
-import { useEffect, useRef, useState, type KeyboardEvent } from "react";
+import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from "react";
 
 import { useAudioPlayer, usePlaybackManager } from "@/audio/audio-provider";
-import { PageIntro } from "@/components/page-intro";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
-import { BaselineCompletionPage } from "./baseline-page";
 import { CompletionRubricFields } from "./completion-rubric-fields";
-import { candidateKeyboardShortcut } from "./candidate-shortcut";
-import { loadRoleReviewCatalog } from "./contract";
-import { buildRoleReviewDecisionJson, downloadRoleReviewDecisionJson } from "./export";
+import { createRoleReviewCatalog } from "./contract";
+import { buildRoleReviewDecision } from "./export";
+import {
+  finalizeLocalListening,
+  loadLocalListeningBootstrap,
+  loadLocalListeningDraft,
+  localCandidateAudioUrl,
+  saveLocalListeningDraft,
+  type LocalListeningBootstrap,
+} from "./local-listening-session";
 import {
   applyRoleReviewPlaybackCompletion,
-  clearRoleReviewConfirmation,
+  completeAnchorRubric,
   confirmRoleReviewGroup,
-  isRoleReviewRubricComplete,
-  readRoleReviewDraft,
-  recoverRoleReviewDraft,
-  reopenRole,
+  createRoleReviewDraft,
+  markRoleReviewNoUsableCandidate,
+  parseRoleReviewDraft,
   requiredHeardCount,
-  resetRoleReviewDraft,
-  RoleReopenRequiredError,
+  roleReviewProblemCount,
+  rubricHasProblems,
   selectRoleReviewCandidate,
+  setCurrentRoleReviewGroup,
   summarizeRoleReviewDraft,
   updateRoleReviewRubric,
-  writeRoleReviewDraft,
 } from "./storage";
-import {
-  roleKey,
-  type RoleReviewCatalog,
-  type RoleReviewDraft,
-  type RoleReviewGroup,
-  type RoleReviewGroupDraft,
-  type RoleReviewQc,
-  type RoleReviewRubric,
+import type {
+  RoleReviewCatalog,
+  RoleReviewDraft,
+  RoleReviewGroup,
+  RoleReviewGroupDraft,
+  RoleReviewRubric,
 } from "./types";
 
-interface ReopenTarget {
-  readonly model: string;
-  readonly character: string;
-  readonly reason: string;
-}
+type SaveState =
+  | { readonly kind: "loading" }
+  | { readonly kind: "saving" }
+  | { readonly kind: "saved"; readonly at: string }
+  | { readonly kind: "failed"; readonly message: string }
+  | { readonly kind: "finalized" };
 
 export function CompletionPage() {
-  const [mode, setMode] = useState<"baseline" | "role-review">("baseline");
-
-  return (
-    <div className="space-y-5">
-      <nav
-        aria-label="听测workflow"
-        className="grid grid-cols-2 gap-2 rounded-lg border bg-muted/35 p-2"
-      >
-        <Button
-          aria-pressed={mode === "baseline"}
-          onClick={() => setMode("baseline")}
-          type="button"
-          variant={mode === "baseline" ? "default" : "ghost"}
-        >
-          Phase B · 欠項baseline
-        </Button>
-        <Button
-          aria-pressed={mode === "role-review"}
-          onClick={() => setMode("role-review")}
-          type="button"
-          variant={mode === "role-review" ? "default" : "ghost"}
-        >
-          Phase A · 役柄continuity
-        </Button>
-      </nav>
-      {mode === "baseline" ? <BaselineCompletionPage /> : <RoleReviewCompletionPage />}
-    </div>
-  );
+  return <RoleReviewCompletionPage />;
 }
 
 export function RoleReviewCompletionPage() {
   const player = useAudioPlayer();
   const playbackManager = usePlaybackManager();
+  const bootstrapRef = useRef<LocalListeningBootstrap | null>(null);
   const catalogRef = useRef<RoleReviewCatalog | null>(null);
+  const draftRef = useRef<RoleReviewDraft | null>(null);
+  const revisionRef = useRef(0);
+  const saveQueueRef = useRef<Promise<void>>(Promise.resolve());
+  const saveSequenceRef = useRef(0);
+  const saveFailureRef = useRef<Error | null>(null);
+  const submissionRef = useRef(false);
   const handledPlaybackSessionRef = useRef<number | null>(null);
-  const loadTokenRef = useRef(0);
+  const [bootstrap, setBootstrap] = useState<LocalListeningBootstrap | null>(null);
   const [catalog, setCatalog] = useState<RoleReviewCatalog | null>(null);
   const [draft, setDraft] = useState<RoleReviewDraft | null>(null);
-  const [groupIndex, setGroupIndex] = useState(0);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [reopenTarget, setReopenTarget] = useState<ReopenTarget | null>(null);
-  const [notice, setNotice] = useState(
-    "role-review-v1 bundle を選ぶと、契約・hash・全候補音声を検証します。",
+  const [saveState, setSaveState] = useState<SaveState>({ kind: "loading" });
+  const [notice, setNotice] = useState("正在读取指定的听测目录…");
+  const [fatalError, setFatalError] = useState<string | null>(null);
+  const [finalized, setFinalized] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+
+  const fail = useCallback((reason: unknown) => {
+    const error = reason instanceof Error ? reason : new Error(String(reason));
+    saveFailureRef.current = error;
+    setFatalError(error.message);
+    setSaveState({ kind: "failed", message: error.message });
+  }, []);
+
+  const persistDraft = useCallback(
+    (next: RoleReviewDraft, message: string): Promise<void> => {
+      draftRef.current = next;
+      setDraft(next);
+      setNotice(message);
+      setSaveState({ kind: "saving" });
+      const saveSequence = saveSequenceRef.current + 1;
+      saveSequenceRef.current = saveSequence;
+      const task = saveQueueRef.current.then(async () => {
+        if (saveFailureRef.current) {
+          return;
+        }
+        const session = bootstrapRef.current;
+        if (!session) {
+          fail(new Error("本地听测会话尚未准备完成。"));
+          return;
+        }
+        try {
+          const saved = await saveLocalListeningDraft(session, revisionRef.current, next);
+          revisionRef.current = saved.revision;
+          if (saveSequence === saveSequenceRef.current) {
+            setSaveState({ kind: "saved", at: saved.saved_at });
+          }
+        } catch (reason: unknown) {
+          fail(reason);
+        }
+      });
+      saveQueueRef.current = task;
+      return task;
+    },
+    [fail],
   );
 
   useEffect(() => {
-    return () => {
-      loadTokenRef.current += 1;
-      playbackManager.stop();
-      catalogRef.current?.dispose();
-    };
-  }, [playbackManager]);
-
-  const loadDirectory = async (files: readonly File[]) => {
-    const loadToken = loadTokenRef.current + 1;
-    loadTokenRef.current = loadToken;
-    setBusy(true);
-    setError(null);
-    setReopenTarget(null);
-    setNotice("role-review-v1、group identity、全候補音声を検証しています…");
-    playbackManager.stop();
-    catalogRef.current?.dispose();
-    catalogRef.current = null;
-    setCatalog(null);
-    setDraft(null);
-    let loaded: RoleReviewCatalog | null = null;
-    try {
-      loaded = await loadRoleReviewCatalog(files);
-      if (loadToken !== loadTokenRef.current) {
-        loaded.dispose();
-        return;
-      }
-      let restored: RoleReviewDraft;
+    let active = true;
+    const load = async () => {
       try {
-        restored = readRoleReviewDraft(localStorage, loaded);
-      } catch (reason: unknown) {
-        if (!(reason instanceof RoleReopenRequiredError)) {
-          throw reason;
+        const session = await loadLocalListeningBootstrap();
+        const loadedCatalog = await createRoleReviewCatalog(session.bundle, localCandidateAudioUrl);
+        const stored = await loadLocalListeningDraft(session);
+        if (!active) {
+          return;
         }
-        catalogRef.current = loaded;
-        setCatalog(loaded);
-        setGroupIndex(0);
-        handleFailure(reason);
+        const loadedDraft = stored
+          ? parseRoleReviewDraft(stored.draft, loadedCatalog)
+          : createRoleReviewDraft(loadedCatalog);
+        bootstrapRef.current = session;
+        catalogRef.current = loadedCatalog;
+        draftRef.current = loadedDraft;
+        revisionRef.current = stored?.revision ?? session.revision;
+        setBootstrap(session);
+        setCatalog(loadedCatalog);
+        setDraft(loadedDraft);
+        setFinalized(session.finalized);
         setNotice(
-          "bundleは検証済みです。保存済み記録と衝突した役柄だけを明示的にreopenしてください。",
+          stored
+            ? `已恢复 ${summarizeRoleReviewDraft(loadedDraft).confirmed} 个已确认项目。`
+            : `已载入 ${loadedCatalog.groups.length} 组候选。`,
         );
-        return;
+        if (session.finalized) {
+          setSaveState({ kind: "finalized" });
+        } else if (stored) {
+          setSaveState({ kind: "saved", at: "已从结果目录恢复" });
+        } else {
+          await persistDraft(loadedDraft, `已载入 ${loadedCatalog.groups.length} 组候选。`);
+        }
+      } catch (reason: unknown) {
+        if (active) {
+          fail(reason);
+        }
       }
-      catalogRef.current = loaded;
-      setCatalog(loaded);
-      setDraft(restored);
-      setGroupIndex(0);
-      setNotice(
-        restored.role_reopen_requests.length > 0
-          ? `${loaded.groups.length} groupを読み込み、epoch変更のあった${restored.role_reopen_requests.length}役だけを再開しました。`
-          : `${loaded.groups.length} groupを読み込みました。candidate set ${loaded.candidateSetSha256.slice(0, 12)}…`,
-      );
-    } catch (reason: unknown) {
-      if (loaded !== null && catalogRef.current !== loaded) {
-        loaded.dispose();
-      }
-      if (loadToken !== loadTokenRef.current) {
-        return;
-      }
-      handleFailure(reason);
-      setNotice("bundleを拒否しました。修正済みbundleを選び直してください。");
-    } finally {
-      if (loadToken === loadTokenRef.current) {
-        setBusy(false);
-      }
-    }
-  };
-
-  const handleFailure = (reason: unknown) => {
-    setError(errorMessage(reason));
-    if (reason instanceof RoleReopenRequiredError) {
-      setReopenTarget({
-        model: reason.model,
-        character: reason.character,
-        reason: reason.message,
-      });
-    }
-  };
-
-  const commitDraft = (next: RoleReviewDraft, message: string) => {
-    if (!catalog) {
-      return;
-    }
-    try {
-      writeRoleReviewDraft(localStorage, catalog, next);
-      setDraft(next);
-      setError(null);
-      setReopenTarget(null);
-      setNotice(message);
-    } catch (reason: unknown) {
-      handleFailure(reason);
-    }
-  };
+    };
+    void load();
+    return () => {
+      active = false;
+      playbackManager.stop();
+    };
+  }, [fail, persistDraft, playbackManager]);
 
   useEffect(() => {
     const completion = player.completion;
-    if (completion === null || handledPlaybackSessionRef.current === completion.sessionId) {
+    if (
+      completion === null ||
+      handledPlaybackSessionRef.current === completion.sessionId ||
+      finalized ||
+      submitting
+    ) {
       return;
     }
     handledPlaybackSessionRef.current = completion.sessionId;
-    if (!catalog || !draft) {
+    const currentCatalog = catalogRef.current;
+    const currentDraft = draftRef.current;
+    if (!currentCatalog || !currentDraft) {
       return;
     }
     try {
-      const next = applyRoleReviewPlaybackCompletion(catalog, draft, completion);
-      if (next === draft) {
+      const next = applyRoleReviewPlaybackCompletion(currentCatalog, currentDraft, completion);
+      if (next !== currentDraft) {
+        void persistDraft(next, "已记录完整播放。请选择最合适的候选。");
+      }
+    } catch (reason: unknown) {
+      fail(reason);
+    }
+  }, [fail, finalized, persistDraft, player.completion, submitting]);
+
+  if (fatalError) {
+    return <ListeningFailure message={fatalError} />;
+  }
+  if (!bootstrap || !catalog || !draft) {
+    return <ListeningLoading />;
+  }
+
+  const groupIndex = catalog.groups.findIndex((group) => group.id === draft.current_group_id);
+  const group = catalog.groups[groupIndex];
+  const groupDraft = draft.groups[groupIndex];
+  if (!group || !groupDraft) {
+    return <ListeningFailure message="草稿指向了不存在的听测项目。" />;
+  }
+  const progress = summarizeRoleReviewDraft(draft);
+
+  const navigate = (index: number) => {
+    if (finalized || submissionRef.current) {
+      return;
+    }
+    const target = catalog.groups[index];
+    if (!target) {
+      return;
+    }
+    playbackManager.stop();
+    void persistDraft(
+      setCurrentRoleReviewGroup(catalog, draftRef.current!, target.id),
+      `已打开第 ${index + 1} 组。`,
+    );
+  };
+
+  const updateRubric = (rubric: RoleReviewRubric) => {
+    if (finalized || submissionRef.current) {
+      return;
+    }
+    void persistDraft(
+      updateRoleReviewRubric(catalog, draftRef.current!, group.id, rubric),
+      "问题标记已进入草稿。",
+    );
+  };
+
+  const selectCandidate = (candidateId: string) => {
+    if (finalized || submissionRef.current) {
+      return;
+    }
+    const currentDraft = draftRef.current!;
+    const currentGroupDraft = currentDraft.groups[groupIndex]!;
+    if (currentGroupDraft.selected_candidate_id === candidateId) {
+      return;
+    }
+    const replacingSelection =
+      currentGroupDraft.selected_candidate_id !== null || currentGroupDraft.no_usable_candidate;
+    const clearedProblems =
+      replacingSelection &&
+      (roleReviewProblemCount(currentGroupDraft.rubric) > 0 ||
+        currentGroupDraft.rubric.notes.trim().length > 0);
+    void persistDraft(
+      selectRoleReviewCandidate(catalog, currentDraft, group.id, candidateId),
+      clearedProblems
+        ? "已改选候选；上一条候选的问题标记已清空。"
+        : replacingSelection
+          ? "已改选候选；最终确认前仍可修改。"
+          : "已选择候选；现在可按需标记这条候选的问题。",
+    );
+  };
+
+  const markNoUsableCandidate = () => {
+    if (finalized || submissionRef.current) {
+      return;
+    }
+    const currentGroupDraft = draftRef.current!.groups[groupIndex]!;
+    if (currentGroupDraft.no_usable_candidate) {
+      return;
+    }
+    const clearedProblems =
+      roleReviewProblemCount(currentGroupDraft.rubric) > 0 ||
+      currentGroupDraft.rubric.notes.trim().length > 0;
+    void persistDraft(
+      markRoleReviewNoUsableCandidate(catalog, draftRef.current!, group.id),
+      clearedProblems
+        ? "已改为整组不可用；之前的问题标记已清空，请重新标记原因。"
+        : "已标记四条都不可用；请至少标记一个原因。",
+    );
+  };
+
+  const confirm = async () => {
+    if (finalized || submissionRef.current) {
+      return;
+    }
+    const currentDraft = draftRef.current!;
+    const currentGroupDraft = currentDraft.groups[groupIndex]!;
+    const reason = confirmationBlockReason(group, currentGroupDraft);
+    if (reason) {
+      setNotice(reason);
+      return;
+    }
+    submissionRef.current = true;
+    setSubmitting(true);
+    try {
+      let next = confirmRoleReviewGroup(
+        catalog,
+        currentDraft,
+        group.id,
+        completeAnchorRubric(currentGroupDraft.rubric),
+      );
+      const nextProgress = summarizeRoleReviewDraft(next);
+      if (nextProgress.confirmed === nextProgress.total) {
+        await persistDraft(next, "全部判断已确认，正在写入最终结果…");
+        await saveQueueRef.current;
+        if (saveFailureRef.current) {
+          return;
+        }
+        const saved = await finalizeLocalListening(
+          bootstrap,
+          revisionRef.current,
+          buildRoleReviewDecision(catalog, next),
+        );
+        revisionRef.current = saved.revision;
+        setFinalized(true);
+        setSaveState({ kind: "finalized" });
+        setNotice(`全部 ${nextProgress.total} 组已完成，最终结果已写入指定目录。`);
         return;
       }
-      writeRoleReviewDraft(localStorage, catalog, next);
-      setDraft(next);
-      setError(null);
-      setReopenTarget(null);
-      setNotice("最後まで再生した候補をheardとして記録しました。");
+      const nextIndex = nextUnconfirmedIndex(next, groupIndex);
+      next = setCurrentRoleReviewGroup(catalog, next, catalog.groups[nextIndex]!.id);
+      await persistDraft(next, `第 ${groupIndex + 1} 组已确认，自动进入下一组。`);
     } catch (reason: unknown) {
-      handleFailure(reason);
-    }
-  }, [catalog, draft, player.completion]);
-
-  const handleReset = () => {
-    if (!catalog) {
-      return;
-    }
-    const next = resetRoleReviewDraft(localStorage, catalog);
-    setDraft(next);
-    setGroupIndex(0);
-    setError(null);
-    setReopenTarget(null);
-    setNotice("現在のbundleに属する一時保存だけをリセットしました。");
-  };
-
-  const handleReopen = () => {
-    if (!catalog || !reopenTarget) {
-      return;
-    }
-    try {
-      const reason = `identity不一致を明示reopen: ${reopenTarget.reason}`;
-      const next =
-        draft === null
-          ? recoverRoleReviewDraft(
-              localStorage,
-              catalog,
-              reopenTarget.model,
-              reopenTarget.character,
-              reason,
-            )
-          : reopenRole(
-              localStorage,
-              catalog,
-              draft,
-              reopenTarget.model,
-              reopenTarget.character,
-              reason,
-            );
-      commitDraft(next, "対象役柄の既存確認を失効させ、role epochから再開しました。");
-    } catch (reason: unknown) {
-      handleFailure(reason);
+      fail(reason);
+    } finally {
+      submissionRef.current = false;
+      setSubmitting(false);
     }
   };
-
-  const handleExport = () => {
-    if (!catalog || !draft) {
-      return;
-    }
-    try {
-      downloadRoleReviewDecisionJson(buildRoleReviewDecisionJson(catalog, draft), catalog.phase);
-      setError(null);
-      setReopenTarget(null);
-      setNotice(`${draft.groups.length} groupのrole review decisionを保存しました。`);
-    } catch (reason: unknown) {
-      handleFailure(reason);
-    }
-  };
-
-  const group = catalog?.groups[groupIndex];
-  const groupDraft = draft?.groups[groupIndex];
-  const progress = draft ? summarizeRoleReviewDraft(draft) : null;
 
   return (
-    <div className="space-y-5" data-role-review-ui="role-continuity-timeline-v1">
-      <PageIntro
-        description="性別・年齢・役柄をanchorで固定し、同じ人物の声が行をまたいで続くかを確認します。初期表示の候補も、必ず人が聴いて確定します。"
-        eyebrow="Issue #174 · role review"
-        title="役柄の連続性を基準線へ固定する"
+    <div
+      className="mx-auto max-w-[1240px] space-y-3 pb-24"
+      data-role-review-ui="anchor-review-v2"
+      lang="zh-CN"
+    >
+      <ProgressStrip
+        current={groupIndex}
+        finalized={finalized}
+        progress={progress}
+        saveState={saveState}
       />
 
-      <MobilePersistentSummary group={group ?? null} />
+      {finalized ? <CompletedBanner decisionFile={bootstrap.output.decision_file} /> : null}
 
-      <Card className="border-primary/35">
-        <CardHeader>
-          <CardTitle>role-review-v1 bundle を選択</CardTitle>
-          <CardDescription>
-            bundle直下の role-review-v1.json と、そこからexactに参照される音声だけを読み込みます。
-            旧completion bundleは受け付けません。
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="flex flex-wrap items-center gap-3">
-          <label className="inline-flex min-h-10 cursor-pointer items-center gap-2 rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground outline-none hover:bg-primary/85 focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 focus-within:ring-offset-background">
-            <FolderOpen aria-hidden="true" className="size-4" />
-            {busy ? "検証中…" : "role review folderを選択"}
-            <input
-              accept=".json,.flac,.mp3,.opus,.wav"
-              className="sr-only"
-              disabled={busy}
-              multiple
-              onChange={(event) => {
-                const files = event.currentTarget.files
-                  ? Array.from(event.currentTarget.files)
-                  : [];
-                event.currentTarget.value = "";
-                void loadDirectory(files);
-              }}
-              type="file"
-              {...({ webkitdirectory: "" } as { webkitdirectory: string })}
-            />
-          </label>
-          {catalog ? (
-            <span className="font-mono text-xs text-muted-foreground">
-              {catalog.phase.toUpperCase()} · SHA {catalog.candidateSetSha256.slice(0, 16)}…
-            </span>
-          ) : null}
-        </CardContent>
-      </Card>
+      <EvidencePanel group={group} />
 
-      {error ? (
-        <Card aria-live="assertive" className="border-destructive/55" role="alert">
-          <CardHeader>
-            <Badge variant="destructive">
-              <AlertTriangle aria-hidden="true" />
-              拒否
-            </Badge>
-            <CardTitle>role reviewデータを使用できません</CardTitle>
-            <CardDescription>{error}</CardDescription>
-          </CardHeader>
-          {reopenTarget ? (
-            <CardContent>
-              <Button onClick={handleReopen} variant="destructive">
-                <Split aria-hidden="true" />
-                この役柄だけを明示的にreopen
-              </Button>
-            </CardContent>
-          ) : null}
-        </Card>
-      ) : null}
+      <RoleReviewWorkspace
+        finalized={finalized}
+        group={group}
+        groupDraft={groupDraft}
+        isFinalConfirmation={!groupDraft.confirmed && progress.total - progress.confirmed === 1}
+        onConfirm={() => void confirm()}
+        onMarkNoUsable={markNoUsableCandidate}
+        onNavigate={navigate}
+        onRubric={updateRubric}
+        onSelect={selectCandidate}
+        player={player}
+        submitting={submitting}
+        total={catalog.groups.length}
+        index={groupIndex}
+      />
 
-      {catalog && draft && group && groupDraft && progress ? (
-        <>
-          <RoleReviewProgressPanel
-            current={groupIndex}
-            onExport={handleExport}
-            onReset={handleReset}
-            phase={catalog.phase}
-            progress={progress}
-          />
-          <PhaseLedger phase={catalog.phase} />
-          <RoleReviewWorkspace
-            catalog={catalog}
-            draft={draft}
-            group={group}
-            groupDraft={groupDraft}
-            groupIndex={groupIndex}
-            onClear={() =>
-              commitDraft(
-                clearRoleReviewConfirmation(catalog, draft, group.id),
-                "明示確認を解除しました。",
-              )
-            }
-            onConfirm={() =>
-              commitDraft(
-                confirmRoleReviewGroup(catalog, draft, group.id),
-                "現在のrole epochとgroup hashへ判断を固定しました。",
-              )
-            }
-            onNavigate={setGroupIndex}
-            onNext={() => setGroupIndex((index) => Math.min(index + 1, catalog.groups.length - 1))}
-            onPrevious={() => setGroupIndex((index) => Math.max(index - 1, 0))}
-            onRubric={(rubric) =>
-              commitDraft(
-                updateRoleReviewRubric(catalog, draft, group.id, rubric),
-                "判断基準をローカル保存しました。",
-              )
-            }
-            onSelect={(candidateId) =>
-              commitDraft(
-                selectRoleReviewCandidate(catalog, draft, group.id, candidateId),
-                "候補を仮選択しました。明示確認までは未確定です。",
-              )
-            }
-            player={player}
-          />
-        </>
-      ) : null}
-
-      <p aria-live="polite" className="min-h-5 text-sm text-muted-foreground" role="status">
+      <p aria-live="polite" className="min-h-5 text-xs text-muted-foreground" role="status">
         {notice}
       </p>
     </div>
   );
 }
 
-export function RoleReviewProgressPanel({
+function ProgressStrip({
   current,
-  onExport,
-  onReset,
-  phase,
+  finalized,
   progress,
+  saveState,
 }: {
   current: number;
-  onExport: () => void;
-  onReset: () => void;
-  phase: RoleReviewCatalog["phase"];
+  finalized: boolean;
   progress: ReturnType<typeof summarizeRoleReviewDraft>;
+  saveState: SaveState;
 }) {
   return (
-    <Card className="bg-background/95 backdrop-blur lg:sticky lg:top-[4.5rem] lg:z-10">
-      <CardContent className="grid gap-4 pt-1 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
-        <div className="min-w-0">
-          <div className="flex flex-wrap gap-2">
+    <header className="sticky top-(--gaya-sticky-header-offset) z-10 -mx-1 rounded-md border bg-background/96 px-3 py-2 shadow-lg shadow-black/10 backdrop-blur">
+      <div className="flex items-center gap-3">
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2 text-xs">
+            <strong className="text-sm text-foreground">角色声音四选一</strong>
             <Badge>
               {current + 1} / {progress.total}
             </Badge>
-            <Badge variant="outline">
-              {phase === "anchor" ? "Anchor" : "Lines"} · 確認 {progress.confirmed}
-            </Badge>
-            <Badge variant="outline">残り {progress.remaining}</Badge>
+            <span className="text-muted-foreground">已确认 {progress.confirmed}</span>
+            {progress.withProblems > 0 ? (
+              <span className="text-destructive">有问题 {progress.withProblems}</span>
+            ) : null}
           </div>
           <div
-            aria-label="role review進捗"
+            aria-label="已确认项目"
             aria-valuemax={progress.total}
             aria-valuemin={0}
             aria-valuenow={progress.confirmed}
-            className="mt-3 h-2 overflow-hidden rounded-full bg-primary/15"
+            className="mt-2 h-1.5 overflow-hidden rounded-full bg-primary/15"
             role="progressbar"
           >
             <div
               className="gaya-progress h-full rounded-full bg-primary transition-[width] duration-150 motion-reduce:transition-none"
-              style={{
-                width:
-                  progress.total === 0 ? "0%" : `${(progress.confirmed / progress.total) * 100}%`,
-              }}
+              style={{ width: `${(progress.confirmed / progress.total) * 100}%` }}
             />
           </div>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <Button disabled={progress.remaining !== 0} onClick={onExport}>
-            <Download aria-hidden="true" />
-            {progress.total}件をexport
-          </Button>
-          <Button onClick={onReset} variant="destructive">
-            <RotateCcw aria-hidden="true" />
-            このbundleをリセット
-          </Button>
-        </div>
-      </CardContent>
-    </Card>
+        <SaveIndicator finalized={finalized} state={saveState} />
+      </div>
+    </header>
   );
 }
 
-function PhaseLedger({ phase }: { phase: RoleReviewCatalog["phase"] }) {
+function EvidencePanel({ group }: { group: RoleReviewGroup }) {
   return (
-    <nav aria-label="公開までのphase ledger" className="overflow-hidden rounded-md border bg-card">
-      <ol className="grid grid-cols-3">
-        {[
-          { key: "anchor", index: "01", label: "Anchor" },
-          { key: "line", index: "02", label: "Lines" },
-          { key: "release", index: "03", label: "Release" },
-        ].map((item) => {
-          const current = item.key === phase;
-          const passed = phase === "line" && item.key === "anchor";
-          return (
-            <li
-              aria-current={current ? "step" : undefined}
-              className={[
-                "min-w-0 border-r px-3 py-3 last:border-r-0 sm:px-4",
-                current ? "bg-primary/[0.08] text-primary" : "text-muted-foreground",
-              ].join(" ")}
-              key={item.key}
-            >
-              <span className="block font-mono text-[10px] tracking-[0.16em]">{item.index}</span>
-              <span className="mt-1 flex items-center gap-1.5 text-sm font-semibold">
-                {passed ? (
-                  <CheckCircle2 aria-hidden="true" className="size-3.5 text-emerald-400" />
-                ) : null}
-                {item.label}
-              </span>
-            </li>
-          );
-        })}
-      </ol>
-    </nav>
-  );
-}
-
-function RoleReviewWorkspace({
-  catalog,
-  draft,
-  group,
-  groupDraft,
-  groupIndex,
-  onClear,
-  onConfirm,
-  onNavigate,
-  onNext,
-  onPrevious,
-  onRubric,
-  onSelect,
-  player,
-}: {
-  catalog: RoleReviewCatalog;
-  draft: RoleReviewDraft;
-  group: RoleReviewGroup;
-  groupDraft: RoleReviewGroupDraft;
-  groupIndex: number;
-  onClear: () => void;
-  onConfirm: () => void;
-  onNavigate: (index: number) => void;
-  onNext: () => void;
-  onPrevious: () => void;
-  onRubric: (rubric: RoleReviewRubric) => void;
-  onSelect: (candidateId: string) => void;
-  player: ReturnType<typeof useAudioPlayer>;
-}) {
-  const sameRole = catalog.groups
-    .map((item, index) => ({ group: item, index, draft: draft.groups[index]! }))
-    .filter((item) => roleKey(item.group) === roleKey(group));
-  const required = requiredHeardCount(group, groupDraft);
-  const canConfirm =
-    isRoleReviewRubricComplete(groupDraft.rubric) &&
-    groupDraft.heard_candidate_ids.includes(groupDraft.selected_candidate_id) &&
-    groupDraft.heard_candidate_ids.length >= required;
-
-  const playCandidate = (candidateIndex: number) => {
-    const candidate = group.candidates[candidateIndex];
-    if (!candidate) {
-      return;
-    }
-    void player.toggle(candidate.audio);
-  };
-
-  const handleKeyDown = (event: KeyboardEvent<HTMLElement>) => {
-    if (isEditableTarget(event.target)) {
-      return;
-    }
-    if (/^[1-9]$/.test(event.key)) {
-      const candidateIndex = Number(event.key) - 1;
-      const candidate = group.candidates[candidateIndex];
-      if (!candidate) {
-        return;
-      }
-      event.preventDefault();
-      if (event.altKey) {
-        onSelect(candidate.id);
-      } else {
-        playCandidate(candidateIndex);
-      }
-      return;
-    }
-    if (event.key.toLowerCase() === "j") {
-      event.preventDefault();
-      onPrevious();
-    }
-    if (event.key.toLowerCase() === "k") {
-      event.preventDefault();
-      onNext();
-    }
-  };
-
-  return (
-    <section
-      className="grid min-w-0 items-start gap-4 outline-none focus-visible:ring-2 focus-visible:ring-ring lg:grid-cols-[15rem_minmax(0,1fr)_18rem]"
-      data-role-review-workspace
-      onKeyDown={handleKeyDown}
-      tabIndex={0}
-    >
-      <div className="min-w-0 lg:sticky lg:top-52">
-        <div className="hidden lg:block">
-          <RolePassport group={group} />
+    <section className="grid gap-3 rounded-md border border-primary/35 bg-card p-3 lg:grid-cols-[minmax(14rem,0.8fr)_minmax(20rem,1.4fr)]">
+      <div className="min-w-0">
+        <div className="flex flex-wrap items-baseline gap-2">
+          <span className="font-mono text-[10px] tracking-[0.16em] text-primary uppercase">
+            角色要求
+          </span>
+          <h1 className="text-lg font-semibold">{group.role.name}</h1>
+          <span className="text-xs text-muted-foreground">
+            {genderLabel(group.role.gender)} · {ageLabel(group.role.age)} · {group.role.archetype}
+          </span>
         </div>
-        <details className="rounded-md border bg-card lg:hidden">
-          <summary className="cursor-pointer px-4 py-3 text-sm font-semibold">
-            役柄passportを開く
-          </summary>
-          <div className="border-t p-4">
-            <RolePassport group={group} />
-          </div>
-        </details>
+        <p className="mt-2 text-sm leading-6">{group.role.voice}</p>
+        <p className="text-xs leading-5 text-muted-foreground">{group.role.personality}</p>
       </div>
-
-      <div className="min-w-0 space-y-4">
-        <RoleContinuityTimeline
-          currentIndex={groupIndex}
-          items={sameRole}
-          onNavigate={onNavigate}
-          reopenReasons={draft.role_reopen_requests
-            .filter((item) => item.model === group.model && item.character === group.character)
-            .map((item) => item.reason)}
-        />
-
-        <Card>
-          <CardHeader>
-            <div className="flex flex-wrap gap-2">
-              <Badge variant="outline">{group.model}</Badge>
-              <Badge variant="outline">{group.scenario}</Badge>
-              <Badge variant="outline">
-                heard {groupDraft.heard_candidate_ids.length} / {required}+
-              </Badge>
-              {groupDraft.confirmed ? (
-                <Badge className="border-emerald-400/35 bg-emerald-400/10 text-emerald-300">
-                  <CheckCircle2 aria-hidden="true" />
-                  明示確認済み
-                </Badge>
-              ) : (
-                <Badge variant="outline">未確認</Badge>
-              )}
-            </div>
-            <CardTitle>{group.line?.text ?? `${group.role.name} のrole anchor`}</CardTitle>
-            <CardDescription>
-              {group.line
-                ? `${group.line.id} · 演技指示: ${group.line.delivery}`
-                : "この役柄の声線を固定するためのanchor候補です。"}
-            </CardDescription>
-          </CardHeader>
-          <CandidateGroupChangeNotice reason={groupDraft.candidate_group_change_reason} />
-          {group.comparison_required ? (
-            <CardContent>
-              <div className="rounded-md border border-destructive/45 bg-destructive/[0.07] p-3 text-sm">
-                <p className="font-medium text-destructive">比較必須 · 異なる候補を2件以上</p>
-                <ul className="mt-2 list-disc space-y-1 pl-5 text-muted-foreground">
-                  {group.comparison_reasons.map((reason) => (
-                    <li key={reason}>{reason}</li>
-                  ))}
-                </ul>
-              </div>
-            </CardContent>
-          ) : null}
-        </Card>
-
-        <div className="grid min-w-0 gap-3 sm:grid-cols-2">
-          {group.candidates.map((candidate, candidateIndex) => {
-            const selected = groupDraft.selected_candidate_id === candidate.id;
-            const heard = groupDraft.heard_candidate_ids.includes(candidate.id);
-            const provisional = group.provisional_candidate_id === candidate.id;
-            const shortcut = candidateKeyboardShortcut(candidateIndex);
-            const status = player.currentClipKey === candidate.audio.key ? player.status : "idle";
-            const active = status === "loading" || status === "playing" || status === "paused";
-            return (
-              <Card
-                className={selected ? "ring-2 ring-primary/75" : "ring-primary/15"}
-                data-candidate-selected={selected ? "true" : "false"}
-                key={candidate.id}
-              >
-                <CardHeader className="gap-3">
-                  <div className="flex items-start justify-between gap-2">
-                    <span className="grid size-10 shrink-0 place-items-center rounded-full border border-primary/40 bg-primary/[0.07] font-mono text-xl font-semibold text-primary">
-                      {candidate.label}
-                    </span>
-                    <div className="flex flex-wrap justify-end gap-1.5">
-                      {heard ? (
-                        <Badge className="border-emerald-400/35 bg-emerald-400/10 text-emerald-300">
-                          heard
-                        </Badge>
-                      ) : null}
-                      <CandidateQcBadge qc={candidate.qc} />
-                    </div>
-                  </div>
-                  <CardTitle className="text-base">
-                    候補 {candidate.label} · attempt {candidate.attempt}
-                  </CardTitle>
-                  <CardDescription className="font-mono text-[11px]">
-                    seed {candidate.seed}
-                  </CardDescription>
-                  {provisional ? (
-                    <p className="rounded-md border border-primary/30 bg-primary/[0.05] px-2.5 py-2 text-xs leading-5">
-                      初期表示候補。機械的な正解・推奨を意味しません。
-                    </p>
-                  ) : null}
-                </CardHeader>
-                <CardContent className="space-y-2">
-                  <Button
-                    className="w-full"
-                    onClick={() => playCandidate(candidateIndex)}
-                    variant={active ? "secondary" : "outline"}
-                  >
-                    {status === "loading" || status === "playing" ? (
-                      <Pause aria-hidden="true" />
-                    ) : (
-                      <Play aria-hidden="true" />
-                    )}
-                    {active ? "一時停止 / 再開" : shortcut === null ? "再生" : `再生 [${shortcut}]`}
-                  </Button>
-                  <Button
-                    className="w-full"
-                    onClick={() => onSelect(candidate.id)}
-                    variant={selected ? "default" : "ghost"}
-                  >
-                    <Check aria-hidden="true" />
-                    {selected
-                      ? "仮選択中"
-                      : shortcut === null
-                        ? "仮選択"
-                        : `仮選択 [Alt+${shortcut}]`}
-                  </Button>
-                </CardContent>
-              </Card>
-            );
-          })}
+      <div className="min-w-0 rounded-md border bg-background/70 px-3 py-2.5">
+        <p className="text-[10px] tracking-[0.14em] text-muted-foreground uppercase">应读文本</p>
+        <p className="mt-1 text-base font-medium leading-7" lang="ja">
+          {group.anchor_text}
+        </p>
+        <div className="mt-2 flex items-start gap-1.5 text-xs leading-5 text-muted-foreground">
+          <Info aria-hidden="true" className="mt-0.5 size-3.5 shrink-0" />
+          <span>选最符合角色的一条；若四条都不合格，标记整组不可用。不用判断情绪表演。</span>
         </div>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>このgroupの判断記録</CardTitle>
-            <CardDescription>
-              全基準を明示し、候補を最後まで再生してからrole epochへ固定します。
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <CompletionRubricFields
-              onChange={onRubric}
-              phase={catalog.phase}
-              value={groupDraft.rubric}
-            />
-          </CardContent>
-        </Card>
-
-        <Card className={groupDraft.confirmed ? "border-emerald-400/35" : "border-primary/35"}>
-          <CardContent className="space-y-3 pt-1">
-            <p className="text-sm leading-6 text-muted-foreground">
-              {canConfirm
-                ? "確認可能です。現在の候補、role epoch、group hashへ判断を固定します。"
-                : `全基準を入力し、選択候補を含む異なる候補を${required}件以上最後まで再生してください。`}
-            </p>
-            <div className="flex flex-wrap gap-2">
-              <Button disabled={!canConfirm || groupDraft.confirmed} onClick={onConfirm}>
-                <CheckCircle2 aria-hidden="true" />
-                このgroupを明示確認
-              </Button>
-              {groupDraft.confirmed ? (
-                <Button onClick={onClear} variant="outline">
-                  確認を解除
-                </Button>
-              ) : null}
-            </div>
-          </CardContent>
-        </Card>
-
-        <div className="flex justify-between gap-3">
-          <Button disabled={groupIndex === 0} onClick={onPrevious} variant="outline">
-            <ChevronLeft aria-hidden="true" />
-            前 [J]
-          </Button>
-          <Button
-            disabled={groupIndex + 1 >= catalog.groups.length}
-            onClick={onNext}
-            variant="outline"
-          >
-            次 [K]
-            <ChevronRight aria-hidden="true" />
-          </Button>
-        </div>
-      </div>
-
-      <div className="min-w-0 lg:sticky lg:top-52">
-        <div className="hidden lg:block">
-          <CompletionJudgmentCriteria />
-        </div>
-        <details className="rounded-md border bg-card lg:hidden">
-          <summary className="cursor-pointer px-4 py-3 text-sm font-semibold">
-            判断基準の詳細を開く
-          </summary>
-          <div className="border-t p-4">
-            <CompletionJudgmentCriteria />
-          </div>
-        </details>
       </div>
     </section>
   );
 }
 
-export function CandidateGroupChangeNotice({ reason }: { reason: string | null }) {
-  if (reason === null) {
-    return null;
-  }
-  return (
-    <CardContent>
-      <div
-        className="rounded-md border border-destructive/55 bg-destructive/[0.08] p-3 text-sm"
-        data-candidate-group-change
-      >
-        <p className="font-semibold text-destructive">候補group変更・要再評価</p>
-        <p className="mt-1 leading-6 text-muted-foreground">{reason}</p>
-      </div>
-    </CardContent>
-  );
-}
-
-export function CandidateQcBadge({ qc }: { qc: RoleReviewQc }) {
-  if (qc.mechanical === "fail") {
-    return <Badge variant="destructive">Mechanical fail</Badge>;
-  }
-  if (qc.content === "review_required") {
-    return <Badge variant="destructive">Content要確認</Badge>;
-  }
-  if (qc.content === "not_checked") {
-    return <Badge variant="outline">Content未確認</Badge>;
-  }
-  return (
-    <Badge className="border-emerald-400/35 bg-emerald-400/10 text-emerald-300">QC pass</Badge>
-  );
-}
-
-export function RolePassport({ group }: { group: RoleReviewGroup }) {
-  const role = group.role;
-  const childReferenceApproximation =
-    role.gender === "male" &&
-    (role.age === "child" || role.age === "teen") &&
-    group.coverage.gender === "exact" &&
-    group.coverage.age === "approximate";
-  return (
-    <Card data-role-passport>
-      <CardHeader>
-        <p className="font-mono text-[10px] tracking-[0.18em] text-primary uppercase">
-          Role passport
-        </p>
-        <CardTitle className="flex items-center gap-2">
-          <UserRound aria-hidden="true" className="size-5 text-primary" />
-          {role.name}
-        </CardTitle>
-        <CardDescription>
-          {group.scenario} / {group.character}
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4 text-sm">
-        <dl className="grid grid-cols-[5rem_minmax(0,1fr)] gap-x-2 gap-y-2">
-          <dt className="text-muted-foreground">Gender</dt>
-          <dd>{genderLabel(role.gender)}</dd>
-          <dt className="text-muted-foreground">Age</dt>
-          <dd>{ageLabel(role.age)}</dd>
-          <dt className="text-muted-foreground">Archetype</dt>
-          <dd>{role.archetype}</dd>
-          <dt className="text-muted-foreground">Kind</dt>
-          <dd>{role.kind}</dd>
-        </dl>
-
-        <div className="space-y-2 border-t pt-3">
-          <PassportText label="声質" value={role.voice} />
-          <PassportText label="人格" value={role.personality} />
-        </div>
-
-        <div className="space-y-2 border-t pt-3">
-          <p className="font-mono text-[10px] tracking-[0.14em] text-muted-foreground uppercase">
-            Conditioning coverage
-          </p>
-          <CoverageRow label="gender" value={group.coverage.gender} />
-          <CoverageRow label="age" value={group.coverage.age} />
-          <CoverageRow label="archetype" value={group.coverage.archetype} />
-          {childReferenceApproximation ? (
-            <p className="rounded-md border border-primary/30 bg-primary/[0.05] p-2 text-xs leading-5">
-              成人男性reference: gender exact / age approximate
-            </p>
-          ) : null}
-        </div>
-
-        <div className="space-y-1 border-t pt-3">
-          <p className="font-medium">{group.conditioning.method}</p>
-          <p className="text-xs leading-5 text-muted-foreground">{group.conditioning.summary}</p>
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
-export function CompletionJudgmentCriteria() {
-  const criteria = [
-    ["内容 / 漏洩", "台詞の欠落・追加・反復と、提示語・メタ文の音声漏洩"],
-    ["漢字読み", "文脈上の正しい読み。漢字の誤読を独立して確認"],
-    ["厳密pitch accent", "理論上読めていても、日本語の音調が違えば不適合"],
-    ["Gender / Age", "指定性別と年齢帯。coverageがapproximateなら特に比較"],
-    ["Archetype", "職能・種別・役柄としての声線"],
-    ["Voice identity", "anchorと同役の前後行が同じ人物として連続するか"],
-    ["Delivery", "感情、強度、話速、声量、語尾の演技指示"],
-    ["自然度 / 音質", "棒読み、ノイズ、破綻を含む総合品質"],
-  ] as const;
-  return (
-    <Card className="border-primary/35" data-judgment-panel>
-      <CardHeader>
-        <p className="font-mono text-[10px] tracking-[0.18em] text-primary uppercase">
-          Always visible
-        </p>
-        <CardTitle className="flex items-center gap-2">
-          <Headphones aria-hidden="true" className="size-5 text-primary" />
-          現在の判断基準
-        </CardTitle>
-        <CardDescription>初期表示候補も人が確認する。skipは作りません。</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <ol className="space-y-3">
-          {criteria.map(([label, help], index) => (
-            <li className="grid grid-cols-[1.5rem_minmax(0,1fr)] gap-2" key={label}>
-              <span className="font-mono text-xs text-primary">
-                {String(index + 1).padStart(2, "0")}
-              </span>
-              <span>
-                <span className="block text-sm font-medium">{label}</span>
-                <span className="mt-0.5 block text-xs leading-5 text-muted-foreground">{help}</span>
-              </span>
-            </li>
-          ))}
-        </ol>
-      </CardContent>
-    </Card>
-  );
-}
-
-function RoleContinuityTimeline({
-  currentIndex,
-  items,
+function RoleReviewWorkspace({
+  finalized,
+  group,
+  groupDraft,
+  index,
+  isFinalConfirmation,
+  onConfirm,
+  onMarkNoUsable,
   onNavigate,
-  reopenReasons,
+  onRubric,
+  onSelect,
+  player,
+  submitting,
+  total,
 }: {
-  currentIndex: number;
-  items: readonly {
-    readonly group: RoleReviewGroup;
-    readonly index: number;
-    readonly draft: RoleReviewGroupDraft;
-  }[];
+  finalized: boolean;
+  group: RoleReviewGroup;
+  groupDraft: RoleReviewGroupDraft;
+  index: number;
+  isFinalConfirmation: boolean;
+  onConfirm: () => void;
+  onMarkNoUsable: () => void;
   onNavigate: (index: number) => void;
-  reopenReasons: readonly string[];
+  onRubric: (rubric: RoleReviewRubric) => void;
+  onSelect: (candidateId: string) => void;
+  player: ReturnType<typeof useAudioPlayer>;
+  submitting: boolean;
+  total: number;
 }) {
-  const first = items[0];
-  if (!first) {
-    throw new Error("role timeline item がありません。");
+  const locked = finalized || submitting;
+  const heardCount = groupDraft.heard_candidate_ids.length;
+  const selectedCandidate = group.candidates.find(
+    (candidate) => candidate.id === groupDraft.selected_candidate_id,
+  );
+  const blockReason = confirmationBlockReason(group, groupDraft);
+  const playCandidate = (candidateIndex: number) => {
+    if (locked) {
+      return;
+    }
+    const candidate = group.candidates[candidateIndex];
+    if (candidate) {
+      void player.toggle(candidate.audio);
+    }
+  };
+  const handleKeyDown = (event: KeyboardEvent<HTMLElement>) => {
+    if (
+      isEditableTarget(event.target) ||
+      locked ||
+      event.ctrlKey ||
+      event.metaKey ||
+      event.altKey
+    ) {
+      return;
+    }
+    const digitMatch = /^Digit([1-4])$/.exec(event.code);
+    if (digitMatch) {
+      const candidateIndex = Number(digitMatch[1]) - 1;
+      const candidate = group.candidates[candidateIndex]!;
+      event.preventDefault();
+      if (event.shiftKey) {
+        onSelect(candidate.id);
+      } else {
+        playCandidate(candidateIndex);
+      }
+    }
+  };
+
+  return (
+    <section className="space-y-3 outline-none" onKeyDown={handleKeyDown} tabIndex={0}>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-sm">
+          <strong>听完四条，再选择结果</strong>
+          <span className="ml-2 text-xs text-muted-foreground">完整听过 {heardCount}/4</span>
+        </p>
+        <span className="text-[11px] text-muted-foreground" title="数字键播放；Shift + 数字键选择">
+          快捷键 1–4
+        </span>
+      </div>
+
+      <div className="grid grid-cols-2 gap-2 lg:grid-cols-4" aria-label="四个盲听候选" role="group">
+        {group.candidates.map((candidate, candidateIndex) => {
+          const heard = groupDraft.heard_candidate_ids.includes(candidate.id);
+          const selected = groupDraft.selected_candidate_id === candidate.id;
+          const playing =
+            player.currentClipKey === candidate.audio.key &&
+            (player.status === "playing" || player.status === "loading");
+          const playbackFailed =
+            player.currentClipKey === candidate.audio.key && player.status === "error";
+          return (
+            <article
+              className={[
+                "rounded-md border p-2 transition-colors",
+                selected ? "border-primary bg-primary/[0.08]" : "bg-card",
+                playing ? "ring-2 ring-primary/55" : "",
+              ].join(" ")}
+              data-active={playing}
+              data-candidate={candidate.label}
+              data-selected={selected}
+              key={candidate.id}
+            >
+              <button
+                aria-label={`${playing ? "暂停" : "播放"}候选 ${candidate.label}`}
+                className="flex min-h-16 w-full items-center justify-center gap-2 rounded-sm bg-secondary px-3 text-left outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring"
+                disabled={locked}
+                onClick={() => playCandidate(candidateIndex)}
+                type="button"
+              >
+                <span className="grid size-8 place-items-center rounded-full bg-background text-primary">
+                  {playing ? <Pause aria-hidden="true" /> : <Play aria-hidden="true" />}
+                </span>
+                <span>
+                  <span className="block text-lg font-semibold">{candidate.label}</span>
+                  <span className="block text-[11px] text-muted-foreground">
+                    {playing
+                      ? "播放中"
+                      : playbackFailed
+                        ? "播放失败"
+                        : heard
+                          ? "已完整听过"
+                          : "尚未听完"}
+                  </span>
+                </span>
+              </button>
+              {playbackFailed ? (
+                <p
+                  className="mt-1 text-center text-[11px] text-destructive"
+                  role="alert"
+                  title={player.error?.message}
+                >
+                  播放失败，请重试
+                </p>
+              ) : null}
+              <button
+                aria-pressed={selected}
+                className={[
+                  "mt-2 flex h-8 w-full items-center justify-center gap-1.5 rounded-sm border text-xs font-medium outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                  selected
+                    ? "border-primary bg-primary text-primary-foreground"
+                    : "border-border bg-background hover:bg-muted",
+                ].join(" ")}
+                disabled={locked}
+                onClick={() => onSelect(candidate.id)}
+                type="button"
+              >
+                {selected ? <CheckCircle2 aria-hidden="true" /> : <Circle aria-hidden="true" />}
+                {selected ? "已选择" : `选择 ${candidate.label}`}
+              </button>
+            </article>
+          );
+        })}
+      </div>
+
+      <Button
+        aria-pressed={groupDraft.no_usable_candidate}
+        className="w-full"
+        disabled={locked}
+        onClick={onMarkNoUsable}
+        type="button"
+        variant={groupDraft.no_usable_candidate ? "destructive" : "outline"}
+      >
+        <AlertTriangle aria-hidden="true" />
+        {groupDraft.no_usable_candidate ? "已标记：四条都不可用" : "四条都不符合角色或质量要求"}
+      </Button>
+
+      <CompletionRubricFields
+        disabled={locked || (selectedCandidate === undefined && !groupDraft.no_usable_candidate)}
+        key={`${group.id}:${selectedCandidate?.id ?? (groupDraft.no_usable_candidate ? "blocked" : "none")}`}
+        onChange={onRubric}
+        subjectLabel={
+          selectedCandidate
+            ? `候选 ${selectedCandidate.label}`
+            : groupDraft.no_usable_candidate
+              ? "整组"
+              : null
+        }
+        value={groupDraft.rubric}
+      />
+
+      <details className="rounded-md border bg-card px-3 py-2 text-xs text-muted-foreground">
+        <summary className="cursor-pointer select-none">技术信息</summary>
+        <dl className="mt-2 grid gap-x-4 gap-y-1 sm:grid-cols-[auto_1fr]">
+          <dt>模型</dt>
+          <dd className="break-all">{group.model}</dd>
+          <dt>场景 / 角色</dt>
+          <dd>
+            {group.scenario} / {group.character}
+          </dd>
+          <dt>生成方式</dt>
+          <dd>{group.conditioning.summary}</dd>
+        </dl>
+      </details>
+
+      <div className="fixed inset-x-0 bottom-0 z-20 border-t bg-background/96 px-3 py-2 backdrop-blur">
+        <div className="mx-auto flex max-w-[1240px] items-center gap-2">
+          <Button
+            aria-label="上一组"
+            disabled={index === 0 || locked}
+            onClick={() => onNavigate(index - 1)}
+            size="icon-lg"
+            type="button"
+            variant="outline"
+          >
+            <ChevronLeft aria-hidden="true" />
+          </Button>
+          <Button
+            aria-label="下一组"
+            disabled={index === total - 1 || locked}
+            onClick={() => onNavigate(index + 1)}
+            size="icon-lg"
+            type="button"
+            variant="outline"
+          >
+            <ChevronRight aria-hidden="true" />
+          </Button>
+          <div className="min-w-0 flex-1 text-right text-xs text-muted-foreground">
+            {finalized
+              ? "结果已锁定"
+              : submitting
+                ? "正在保存并确认…"
+                : (blockReason ??
+                  (isFinalConfirmation
+                    ? `${confirmationSummary(group, groupDraft)} · 完成后锁定，不能再修改`
+                    : confirmationSummary(group, groupDraft)))}
+          </div>
+          <Button
+            aria-disabled={Boolean(blockReason) || finalized}
+            className="min-w-[12rem]"
+            disabled={submitting || finalized}
+            onClick={onConfirm}
+            size="lg"
+            type="button"
+          >
+            {finalized ? (
+              <LockKeyhole aria-hidden="true" />
+            ) : submitting ? (
+              <LoaderCircle
+                aria-hidden="true"
+                className="animate-spin motion-reduce:animate-none"
+              />
+            ) : (
+              <Check aria-hidden="true" />
+            )}
+            {finalized
+              ? "已完成"
+              : submitting
+                ? "正在确认"
+                : isFinalConfirmation
+                  ? "确认本组并完成听测"
+                  : groupDraft.confirmed
+                    ? "更新并进入下一组"
+                    : "确认并进入下一组"}
+          </Button>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function SaveIndicator({ finalized, state }: { finalized: boolean; state: SaveState }) {
+  if (finalized || state.kind === "finalized") {
+    return (
+      <span
+        aria-atomic="true"
+        aria-live="polite"
+        className="flex shrink-0 items-center gap-1.5 text-xs text-emerald-300"
+        role="status"
+      >
+        <LockKeyhole aria-hidden="true" />
+        最终结果已保存
+      </span>
+    );
+  }
+  if (state.kind === "loading" || state.kind === "saving") {
+    return (
+      <span
+        aria-atomic="true"
+        aria-live="polite"
+        className="flex shrink-0 items-center gap-1.5 text-xs text-muted-foreground"
+        role="status"
+      >
+        <LoaderCircle aria-hidden="true" className="animate-spin motion-reduce:animate-none" />
+        正在保存
+      </span>
+    );
+  }
+  if (state.kind === "failed") {
+    return (
+      <span
+        aria-atomic="true"
+        aria-live="polite"
+        className="flex shrink-0 items-center gap-1.5 text-xs text-destructive"
+        role="status"
+      >
+        <AlertTriangle aria-hidden="true" />
+        保存失败
+      </span>
+    );
   }
   return (
-    <Card data-role-continuity-timeline>
-      <CardHeader>
-        <p className="font-mono text-[10px] tracking-[0.18em] text-primary uppercase">
-          Role continuity timeline
-        </p>
-        <CardTitle className="text-base">{first.group.role.name} · 同役の連続確認</CardTitle>
-        <CardDescription className="font-mono text-[11px]">
-          EPOCH {first.group.role_epoch_sha256.slice(0, 16)}…
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <div className="relative space-y-2 pl-5 before:absolute before:top-1 before:bottom-1 before:left-[0.42rem] before:w-px before:bg-border">
-          <div className="relative text-xs text-muted-foreground before:absolute before:top-1 before:-left-[1.13rem] before:size-2 before:rounded-full before:bg-primary">
-            role epoch start
-          </div>
-          {reopenReasons.map((reason) => (
-            <div
-              className="relative rounded-md border border-destructive/45 bg-destructive/[0.06] p-2 text-xs leading-5 before:absolute before:top-3 before:-left-[1.19rem] before:size-2.5 before:rounded-full before:bg-destructive"
-              data-role-reopen-event
-              key={reason}
-            >
-              <span className="font-medium text-destructive">REOPEN</span> {reason}
-            </div>
-          ))}
-          {items.map((item, roleIndex) => (
-            <button
-              aria-current={item.index === currentIndex ? "step" : undefined}
-              className={[
-                "relative block w-full rounded-md border px-3 py-2 text-left text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                item.index === currentIndex
-                  ? "border-primary/50 bg-primary/[0.07]"
-                  : "bg-background hover:border-primary/35",
-                "before:absolute before:top-3 before:-left-[1.19rem] before:size-2.5 before:rounded-full",
-                item.draft.candidate_group_change_reason
-                  ? "before:bg-destructive"
-                  : item.draft.confirmed
-                    ? "before:bg-emerald-400"
-                    : "before:bg-muted-foreground",
-              ].join(" ")}
-              key={item.group.id}
-              onClick={() => onNavigate(item.index)}
-              type="button"
-            >
-              <span className="font-mono text-[10px] text-muted-foreground">
-                {String(roleIndex + 1).padStart(2, "0")}
-              </span>
-              <span
-                className={
-                  item.draft.candidate_group_change_reason ? "ml-2 text-destructive" : "ml-2"
-                }
-              >
-                {item.group.line?.id ?? "anchor"} ·{" "}
-                {item.draft.candidate_group_change_reason
-                  ? "候補変更・要再評価"
-                  : item.draft.confirmed
-                    ? "確認済み"
-                    : "未確認"}
-              </span>
-            </button>
-          ))}
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
-export function MobilePersistentSummary({ group }: { group: RoleReviewGroup | null }) {
-  return (
-    <aside
-      className="sticky top-16 z-10 rounded-md border border-primary/35 bg-background/95 p-3 backdrop-blur lg:hidden"
-      data-mobile-role-summary
+    <span
+      aria-atomic="true"
+      aria-live="polite"
+      className="flex shrink-0 items-center gap-1.5 text-xs text-emerald-300"
+      role="status"
     >
-      <p className="text-xs leading-5 text-muted-foreground">
-        現在の基準: 内容・漏洩 / 漢字読み / 厳密pitch accent / 役柄 / 同一性 / 演技 / 音質
-      </p>
-      {group ? (
-        <div className="mt-2 flex flex-wrap gap-1.5">
-          <Badge variant="outline">Gender {genderLabel(group.role.gender)}</Badge>
-          <Badge variant="outline">Age {ageLabel(group.role.age)}</Badge>
-          <Badge variant="outline">Archetype {group.role.archetype}</Badge>
+      <Save aria-hidden="true" />
+      {state.at === "已从结果目录恢复" ? "草稿已恢复" : `已保存 ${displaySavedAt(state.at)}`}
+    </span>
+  );
+}
+
+function CompletedBanner({ decisionFile }: { decisionFile: string }) {
+  return (
+    <section className="flex items-center gap-3 rounded-md border border-emerald-400/40 bg-emerald-400/10 p-3">
+      <CheckCircle2 aria-hidden="true" className="size-5 text-emerald-300" />
+      <div>
+        <p className="font-medium">本轮听测已完成</p>
+        <p className="text-xs text-muted-foreground">
+          最终结果已写入 {decisionFile}，页面现为只读。
+        </p>
+      </div>
+    </section>
+  );
+}
+
+function ListeningLoading() {
+  return (
+    <section
+      className="mx-auto flex min-h-[50vh] max-w-xl items-center justify-center text-center"
+      lang="zh-CN"
+    >
+      <div>
+        <Headphones aria-hidden="true" className="mx-auto size-8 text-primary" />
+        <h1 className="mt-3 text-lg font-semibold">正在准备听测</h1>
+        <p className="mt-1 text-sm text-muted-foreground">校验候选集并恢复指定结果目录中的草稿。</p>
+      </div>
+    </section>
+  );
+}
+
+function ListeningFailure({ message }: { message: string }) {
+  return (
+    <section
+      className="mx-auto max-w-2xl rounded-md border border-destructive/55 bg-destructive/[0.06] p-5"
+      lang="zh-CN"
+      role="alert"
+    >
+      <div className="flex items-start gap-3">
+        <AlertTriangle aria-hidden="true" className="mt-0.5 size-5 shrink-0 text-destructive" />
+        <div>
+          <h1 className="font-semibold">听测环境未能启动</h1>
+          <p className="mt-1 text-sm leading-6 text-muted-foreground">{message}</p>
+          <p className="mt-3 text-xs text-muted-foreground">
+            请停止当前本地会话，修正目录或数据后重新启动。
+          </p>
         </div>
-      ) : null}
-    </aside>
+      </div>
+    </section>
   );
 }
 
-function CoverageRow({
-  label,
-  value,
-}: {
-  label: string;
-  value: RoleReviewGroup["coverage"]["gender"];
-}) {
-  return (
-    <div className="flex items-center justify-between gap-2">
-      <span className="text-xs text-muted-foreground">{label}</span>
-      <Badge variant="outline">{value}</Badge>
-    </div>
-  );
+function confirmationBlockReason(
+  group: RoleReviewGroup,
+  draft: RoleReviewGroupDraft,
+): string | null {
+  const missing = requiredHeardCount(group) - draft.heard_candidate_ids.length;
+  if (missing > 0) {
+    return `还需完整听 ${missing} 条`;
+  }
+  if (draft.selected_candidate_id === null) {
+    if (!draft.no_usable_candidate) {
+      return "请选择一个候选，或标记四条都不可用";
+    }
+    if (!rubricHasProblems(draft.rubric)) {
+      return "请标记整组不可用的原因";
+    }
+  }
+  return null;
 }
 
-function PassportText({ label, value }: { label: string; value: string }) {
-  return (
-    <div>
-      <p className="text-xs text-muted-foreground">{label}</p>
-      <p className="mt-1 text-xs leading-5">{value}</p>
-    </div>
+function confirmationSummary(group: RoleReviewGroup, draft: RoleReviewGroupDraft): string {
+  const selected = group.candidates.find(
+    (candidate) => candidate.id === draft.selected_candidate_id,
   );
+  const problems = roleReviewProblemCount(draft.rubric);
+  if (draft.no_usable_candidate) {
+    return `四条都不可用 · ${problems > 0 ? `${problems} 个问题` : "已填写说明"}`;
+  }
+  return `${selected ? `候选 ${selected.label}` : "未选择"} · ${problems > 0 ? `${problems} 个问题` : "无明显问题"}`;
+}
+
+function nextUnconfirmedIndex(draft: RoleReviewDraft, current: number): number {
+  for (let offset = 1; offset <= draft.groups.length; offset += 1) {
+    const index = (current + offset) % draft.groups.length;
+    if (!draft.groups[index]!.confirmed) {
+      return index;
+    }
+  }
+  throw new Error("找不到下一条未确认项目。");
+}
+
+function displaySavedAt(value: string): string {
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? value : date.toLocaleTimeString("zh-CN", { hour12: false });
 }
 
 function genderLabel(value: RoleReviewGroup["role"]["gender"]): string {
@@ -1053,24 +857,15 @@ function genderLabel(value: RoleReviewGroup["role"]["gender"]): string {
 
 function ageLabel(value: RoleReviewGroup["role"]["age"]): string {
   return {
-    child: "子供",
-    teen: "十代",
-    young_adult: "若年成人",
-    adult: "成人",
+    child: "儿童",
+    teen: "少年",
+    young_adult: "青年",
+    adult: "成年",
     middle_aged: "中年",
-    elderly: "高齢",
+    elderly: "老年",
   }[value];
 }
 
 function isEditableTarget(target: EventTarget): boolean {
-  return (
-    target instanceof HTMLInputElement ||
-    target instanceof HTMLTextAreaElement ||
-    target instanceof HTMLSelectElement ||
-    target instanceof HTMLButtonElement
-  );
-}
-
-function errorMessage(reason: unknown): string {
-  return reason instanceof Error ? reason.message : String(reason);
+  return target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement;
 }

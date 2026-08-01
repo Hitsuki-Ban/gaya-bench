@@ -203,80 +203,56 @@ scenario SHA、保持元releaseの全digest、model単位curation group digest�
 
 ## 全モデル完全基準線と role anchor
 
-`completion` は固定 plan により、公開版から925 slotを継承し、363 slotを
-生成または明示再利用して 8 × 161 = 1,288 slotを作る。plan、base manifest、
-scenario root、voice metadata、artifacts rootを全て絶対pathで渡す。現在の
-worktree、環境変数、latest run、model cacheから代替入力を探索しない。
+`completion` は format 2 の固定 plan により、公開版から入力一致を証明できる691 slotを
+継承し、役柄 conditioning / 日本語 reading / 既存failureのunionである597 slotを
+再生成して 8 × 161 = 1,288 slotを作る。8 modelはすべて新しいprimary runを持ち、
+VoxCPM2を含めて旧runや旧candidateを再利用しない。
+
+plan、base manifest、scenario root、voice metadata、artifacts rootを全て絶対pathで
+渡す。現在のworktree、環境変数、latest run、model cacheから代替入力を探索しない。
 `--voices`には`metadata.yaml`だけでなく、そこで宣言した権利確認済み5 WAVが
 実在する共有runtime assetsを指定する。gitignored WAVを持たない追加worktree内の
 `assets/voices`は使わず、生成前に同じ絶対pathを
 `gaya voices validate-local --voices <absolute-voices>`で検証する。
 
-参照音声を持たない53 roleについて、Qwen3-TTS / Irodoriの中立role anchorを
-各N=4で先に生成する:
+参照音声を持たない53 roleのQwen3-TTS / Irodori anchorは、旧source planの下で
+生成・人評した106 groupの外部権威である。現行`completion` CLIはPhase A生成系を持たず、
+確定した`role-anchor-selection-v1`と隣接SHA markerだけを消費する。v2 planの
+`anchor_authority`は旧source plan SHA、candidate-set SHA、owner selection SHAをexactに
+固定し、selection rootのplan SHAをv2 plan SHAへ書き換えない。
+
+Phase Bでは8 modelを各1つのprimary runとして生成する。`--anchor-selection`は全modelで
+role epochを決める権威入力として必須だが、adapterへ渡すのはQwen3-TTS / Irodoriだけで
+ある。参照音声なしroleのgeneration inputはselected anchor ID、WAV SHA、decision SHAに
+由来するrole epochを記録する。
+
+AivisSpeechはdeterministic engineのためplan固定のN=1、minimum=1、seed nullであり、
+`--seed-base`を渡さない。
 
 ```console
-uv run --project <pipeline> --locked --extra <model-extra> gaya completion anchor-generate \
+uv run --project <pipeline> --locked gaya completion generate \
   --plan <absolute-plan.json> --base-manifest <absolute-manifest.json> \
+  --model aivisspeech-kohaku --artifacts <absolute-artifacts> \
   --scenarios <absolute-scenarios> --voices <absolute-voices> \
-  --artifacts <absolute-artifacts> --model <qwen-or-irodori> --run-id <new-run-id>
+  --anchor-selection <absolute-role-anchor-selection.json> \
+  --run-kind primary
 ```
 
-2 modelの明示runだけをcandidate setへまとめ、不足時だけattempt 5以降のtopup planを
-作る。topup生成では`--topup-plan`と、そのsourceである`--candidate-set`を両方渡す。
-
-```console
-uv run --project <pipeline> --locked gaya completion anchor-merge \
-  --plan <absolute-plan.json> --base-manifest <absolute-manifest.json> \
-  --scenarios <absolute-scenarios> --voices <absolute-voices> \
-  --artifacts <absolute-artifacts> \
-  --run-id <qwen-run-id> --run-id <irodori-run-id> \
-  --output <absolute-new-candidate-set.json>
-
-uv run --project <pipeline> --locked gaya completion anchor-topup \
-  --plan <absolute-plan.json> --base-manifest <absolute-manifest.json> \
-  --scenarios <absolute-scenarios> --voices <absolute-voices> \
-  --candidate-set <absolute-candidate-set.json> \
-  --output <absolute-new-topup-plan.json>
-```
-
-全106 groupがmechanical-pass 3件以上になったら、ページ用bundleを作る。bundleは
-`role-review-v1.json`と参照WAVだけを含む。ページからexportした全group確認済みの
-`role-review-decision-v1`でPhase B用selectionを確定する。
-
-```console
-uv run --project <pipeline> --locked gaya completion anchor-listen \
-  --plan <absolute-plan.json> --base-manifest <absolute-manifest.json> \
-  --scenarios <absolute-scenarios> --voices <absolute-voices> \
-  --candidate-set <absolute-candidate-set.json> --artifacts <absolute-artifacts> \
-  --output <absolute-new-listening-directory>
-
-uv run --project <pipeline> --locked gaya completion anchor-finalize \
-  --plan <absolute-plan.json> --base-manifest <absolute-manifest.json> \
-  --scenarios <absolute-scenarios> --voices <absolute-voices> \
-  --candidate-set <absolute-candidate-set.json> \
-  --decision <absolute-role-review-decision.json> \
-  --artifacts <absolute-artifacts> --output <absolute-new-anchor-selection>
-```
-
-Phase Bでは5 modelを各1つのprimary runとして生成する。`--anchor-selection`は全model
-でrole epochを決める権威入力として必須だが、adapterへ渡すのはQwen3-TTS / Irodori
-だけである。参照音声なしroleのgeneration inputはselected anchor ID、WAV SHA、
-decision SHAに由来するrole epochを記録する。primaryはplan固定のseed base 104、
-N=4である。
+他7 modelはplan固定のN=4、minimum=3、seed policy `derived-sha256-v1`、primary seed
+base 104である。
 
 ```console
 uv run --project <pipeline> --locked --extra <model-extra> gaya completion generate \
   --plan <absolute-plan.json> --base-manifest <absolute-manifest.json> \
-  --model <one-of-five-models> --artifacts <absolute-artifacts> \
+  --model <one-of-seven-seeded-models> --artifacts <absolute-artifacts> \
   --scenarios <absolute-scenarios> --voices <absolute-voices> \
   --anchor-selection <absolute-role-anchor-selection.json> \
   --run-kind primary --seed-base 104
 ```
 
 各primary runと後述する各topup runは、生成直後に固定QC modelで権威QCを完了させる。
-`completion listen`はledger、manifest、candidate set、QC reportのprovenanceが
-exactに一致しないrunを受け付けない。
+`completion listen`はplan / anchor plan、ledger、manifest、candidate set、QC reportの
+provenanceがexactに一致しないrunを受け付けない。
 
 ```console
 uv run --project <pipeline> --locked --extra qc gaya completion qc \
@@ -287,7 +263,7 @@ uv run --project <pipeline> --locked --extra qc gaya completion qc \
 
 eligibleが3件未満のgroupだけを、異なるseed baseの明示topup runで再生成する。
 topupは`--supersedes-run-id`のexact subsetを整組取代し、primaryとcandidateを
-拼接しない。
+拼接しない。AivisSpeechはtopup対象外である。
 
 ```console
 uv run --project <pipeline> --locked --extra <model-extra> gaya completion generate \
@@ -299,9 +275,7 @@ uv run --project <pipeline> --locked --extra <model-extra> gaya completion gener
   --target <scenario/line> --target <scenario/line>
 ```
 
-listeningは5 primary、必要なtopup、固定Vox run
-`20260730T204323380360Z-voxcpm2-n4`を分離して指定する。Voxはrun IDだけでなく
-ledger / QC / manifest / candidate-setの4摘要と2 groupを固定照合する。
+listeningは8 primaryと必要なtopupだけを分離して指定する。
 
 ```console
 uv run --project <pipeline> --locked gaya completion listen \
@@ -309,17 +283,17 @@ uv run --project <pipeline> --locked gaya completion listen \
   --scenarios <absolute-scenarios> --voices <absolute-voices> \
   --artifacts <absolute-artifacts> \
   --anchor-selection <absolute-role-anchor-selection.json> \
-  --primary-run-id <qwen> --primary-run-id <irodori> \
-  --primary-run-id <chatterbox> --primary-run-id <cosyvoice> \
-  --primary-run-id <gpt-sovits> \
+  --primary-run-id <aivis> --primary-run-id <chatterbox> \
+  --primary-run-id <cosyvoice> --primary-run-id <gpt-sovits> \
+  --primary-run-id <irodori> --primary-run-id <qwen> \
+  --primary-run-id <supertonic> --primary-run-id <voxcpm2> \
   --topup-run-id <explicit-topup-if-any> \
-  --vox-run-id 20260730T204323380360Z-voxcpm2-n4 \
   --output <absolute-new-listening-directory>
 ```
 
-finalizeはsource auditの`357 mismatch + 6 failure`をreplacement 363として照合し、
-legacy selectedからその集合を引いた925だけを継承する。release provenanceは
-780 matchedと、Voxの`inherited_identity_unverifiable` 145件を個別に保存する。
+finalizeはsource auditをreplacement 597
+（mismatch 357 + unverifiable 145 + match 89 + failure 6）とinherited match 691へ
+exact partitionし、重複・欠落なしで1,288 selectedへoverlayする。
 
 ```console
 uv run --project <pipeline> --locked gaya completion finalize \
@@ -330,11 +304,11 @@ uv run --project <pipeline> --locked gaya completion finalize \
   --scenarios <absolute-scenarios> --voices <absolute-voices> \
   --artifacts <absolute-artifacts> \
   --anchor-selection <absolute-role-anchor-selection.json> \
-  --primary-run-id <qwen> --primary-run-id <irodori> \
-  --primary-run-id <chatterbox> --primary-run-id <cosyvoice> \
-  --primary-run-id <gpt-sovits> \
+  --primary-run-id <aivis> --primary-run-id <chatterbox> \
+  --primary-run-id <cosyvoice> --primary-run-id <gpt-sovits> \
+  --primary-run-id <irodori> --primary-run-id <qwen> \
+  --primary-run-id <supertonic> --primary-run-id <voxcpm2> \
   --topup-run-id <explicit-topup-if-any> \
-  --vox-run-id 20260730T204323380360Z-voxcpm2-n4 \
   --output <absolute-new-release-directory>
 ```
 
@@ -351,9 +325,9 @@ uv run --project <pipeline> --locked gaya completion publish \
   --publish-receipt <absolute-new-publish-receipt.json>
 ```
 
-role snapshot、Phase A/Bの固定数、listening/decision contract、selected role epoch、
-release overlayの詳細は
-[全モデル完全基準線・役柄固定プロトコル](../docs/research/full-baseline-completion/protocol.md)
+role snapshot、reading transport、Phase Bの固定数、listening/decision contract、
+selected role epoch、release overlayの詳細は
+[全モデル完全基準線・役柄／reading固定プロトコル](../docs/research/full-baseline-completion/protocol.md)
 を参照する。
 
 ## N3 pilot calibration

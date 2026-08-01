@@ -18,15 +18,23 @@ import yaml
 from gaya_pipeline.adapters.base import LineJob
 from gaya_pipeline.adapters.voice_assignments import CLONE_REFERENCE_ASSIGNMENTS
 from gaya_pipeline.completion_anchor import (
+    AnchorReviewPlan,
+    load_anchor_source_plan,
     resolve_selected_anchor,
     validate_anchor_selection,
 )
-from gaya_pipeline.completion_plan import load_completion_plan
+from gaya_pipeline.completion_plan import (
+    IRODORI_MODEL,
+    QWEN_MODEL,
+    CompletionPlan,
+    build_frozen_plan_document,
+    load_completion_plan,
+)
 from gaya_pipeline.take_identity import canonical_json
 from gaya_pipeline.validation import validate_scenarios
 from gaya_pipeline.voice_assets import validate_voice_metadata
 
-FORMAT_VERSION = 3
+FORMAT_VERSION = 4
 ROLE_FIELDS = (
     "name",
     "kind",
@@ -39,19 +47,13 @@ ROLE_FIELDS = (
 CONDITIONING_FIELDS = (*ROLE_FIELDS, "scene_setting")
 MODEL_ADAPTER_FILES = {
     "aivisspeech-kohaku": "pipeline/src/gaya_pipeline/adapters/aivisspeech.py",
-    "chatterbox-multilingual-v3": (
-        "pipeline/src/gaya_pipeline/adapters/chatterbox.py"
-    ),
+    "chatterbox-multilingual-v3": ("pipeline/src/gaya_pipeline/adapters/chatterbox.py"),
     "cosyvoice3-0.5b-2512": "pipeline/src/gaya_pipeline/adapters/cosyvoice3.py",
-    "gpt-sovits-v2-pro-plus": (
-        "pipeline/src/gaya_pipeline/adapters/gpt_sovits.py"
-    ),
+    "gpt-sovits-v2-pro-plus": ("pipeline/src/gaya_pipeline/adapters/gpt_sovits.py"),
     "irodori-tts-600m-v3-voicedesign": (
         "pipeline/src/gaya_pipeline/adapters/irodori_tts.py"
     ),
-    "qwen3-tts-12hz-1.7b": (
-        "pipeline/src/gaya_pipeline/adapters/qwen3_tts.py"
-    ),
+    "qwen3-tts-12hz-1.7b": ("pipeline/src/gaya_pipeline/adapters/qwen3_tts.py"),
     "supertonic-3": "pipeline/src/gaya_pipeline/adapters/supertonic3.py",
     "voxcpm2": "pipeline/src/gaya_pipeline/adapters/voxcpm2.py",
 }
@@ -70,8 +72,10 @@ class RoleConditioningAuditError(RuntimeError):
 @dataclass(frozen=True)
 class _AuditRoleAnchorSelection:
     selection_path: Path
-    plan_file: str
-    plan_sha256: str
+    completion_plan_path: Path
+    anchor_source_plan_file: str
+    completion_plan_sha256: str
+    anchor_source_plan_sha256: str
     selection_sha256: str
     candidate_set_sha256: str
     bindings: Mapping[tuple[str, str, str], Mapping[str, Any]]
@@ -80,14 +84,32 @@ class _AuditRoleAnchorSelection:
         return {
             "kind": "deterministic_audit_fixture",
             "protocol": "role-anchor-selection-v1",
+            "anchor_source_plan": {
+                "file": self.anchor_source_plan_file,
+                "sha256": self.anchor_source_plan_sha256,
+            },
             "completion_plan": {
-                "file": self.plan_file,
-                "sha256": self.plan_sha256,
+                "kind": "audit_only_v2",
+                "protocol": "role-baseline-plan-v2",
+                "sha256": self.completion_plan_sha256,
             },
             "selection_sha256": self.selection_sha256,
             "candidate_set_sha256": self.candidate_set_sha256,
             "group_count": len(self.bindings),
         }
+
+
+@dataclass(frozen=True)
+class _AuditAnchorTarget:
+    model: str
+    scenario: str
+    character: str
+    role_identity_sha256: str
+    review_role_epoch_sha256: str
+
+    @property
+    def identity(self) -> tuple[str, str, str]:
+        return (self.model, self.scenario, self.character)
 
 
 def build_role_source_audit(repository_root: Path) -> dict[str, Any]:
@@ -114,6 +136,7 @@ def build_role_source_audit(repository_root: Path) -> dict[str, Any]:
         audit_voice_sha256s,
         audit_anchor_selection,
         reading_capabilities,
+        runtime_transport_probes,
     ) = _prepare_production_generation_inputs(
         root=root,
         jobs=jobs,
@@ -152,9 +175,7 @@ def build_role_source_audit(repository_root: Path) -> dict[str, Any]:
                     "role_truth": truth,
                     "adapter_source": adapter_sources[model],
                     "field_transport": source_conditioning["field_transport"],
-                    "unsupported_fields": source_conditioning[
-                        "unsupported_fields"
-                    ],
+                    "unsupported_fields": source_conditioning["unsupported_fields"],
                     "speaker": source_conditioning["speaker"],
                     "preset": source_conditioning["preset"],
                     "reference": source_conditioning["reference"],
@@ -168,8 +189,7 @@ def build_role_source_audit(repository_root: Path) -> dict[str, Any]:
 
     comparison_counts = {
         status: sum(
-            receipt["published_comparison"]["status"] == status
-            for receipt in receipts
+            receipt["published_comparison"]["status"] == status for receipt in receipts
         )
         for status in ("match", "mismatch", "unverifiable", "failure")
     }
@@ -185,24 +205,21 @@ def build_role_source_audit(repository_root: Path) -> dict[str, Any]:
         "model_count": len(MODEL_ADAPTER_FILES),
         "conditioning_receipt_count": len(receipts),
         "reading_receipt_count": len(receipts),
+        "runtime_transport_probe_count": len(runtime_transport_probes),
         "explicit_reading_line_count": sum(
             truth["reading"] is not None for truth in map(_line_truth, jobs)
         ),
         "explicit_reading_receipt_count": sum(
-            receipt["reading"]["declared_reading"] is not None
-            for receipt in receipts
+            receipt["reading"]["declared_reading"] is not None for receipt in receipts
         ),
         "explicit_reading_applied_receipt_count": sum(
-            receipt["reading"]["status"] == "applied"
-            for receipt in receipts
+            receipt["reading"]["status"] == "applied" for receipt in receipts
         ),
         "explicit_reading_unsupported_receipt_count": sum(
-            receipt["reading"]["status"] == "unsupported"
-            for receipt in receipts
+            receipt["reading"]["status"] == "unsupported" for receipt in receipts
         ),
         "surface_text_receipt_count": sum(
-            receipt["reading"]["status"] == "surface_text"
-            for receipt in receipts
+            receipt["reading"]["status"] == "surface_text" for receipt in receipts
         ),
         "model_required_auto_kana_receipt_count": sum(
             receipt["reading"]["status"] == "model_required_auto_kana"
@@ -222,9 +239,7 @@ def build_role_source_audit(repository_root: Path) -> dict[str, Any]:
         ),
         "published_conditioning_match_count": comparison_counts["match"],
         "published_conditioning_mismatch_count": comparison_counts["mismatch"],
-        "published_conditioning_unverifiable_count": comparison_counts[
-            "unverifiable"
-        ],
+        "published_conditioning_unverifiable_count": comparison_counts["unverifiable"],
         "published_conditioning_failure_count": comparison_counts["failure"],
         "problem_count": len(problems),
     }
@@ -250,14 +265,13 @@ def build_role_source_audit(repository_root: Path) -> dict[str, Any]:
             "candidate_set_sha256": manifest["candidate_set_sha256"],
             "generated_at": manifest["generated_at"],
         },
-        "adapter_sources": [
-            adapter_sources[model] for model in MODEL_ADAPTER_FILES
-        ],
+        "adapter_sources": [adapter_sources[model] for model in MODEL_ADAPTER_FILES],
         "summary": summary,
         "scenarios": scenarios,
         "characters": characters,
         "all_references": all_references,
         "assigned_references": assigned_references,
+        "runtime_transport_probes": runtime_transport_probes,
         "conditioning_receipts": receipts,
         "problems": problems,
     }
@@ -431,7 +445,7 @@ def _character_truth(
         raise RoleConditioningAuditError(
             f"{scenario_id} の role field が不足しています: {missing}",
         )
-    kind = character["kind"] if "kind" in character else "human"
+    kind = character.get("kind", "human")
     if not isinstance(kind, str) or not kind:
         raise RoleConditioningAuditError(
             f"{scenario_id}.character.kind が不正です。",
@@ -544,9 +558,7 @@ def _build_reference_receipts(
                 "character_age": age,
                 "reference_age": reference_age,
                 "age_status": age_status,
-                "role_exact": (
-                    gender_status == "exact" and age_status == "exact"
-                ),
+                "role_exact": (gender_status == "exact" and age_status == "exact"),
             },
         )
     return receipts, problems
@@ -562,8 +574,7 @@ def _reference_summary(
             item["gender_status"] == "exact" for item in references
         ),
         f"{prefix}_gender_unsupported_neutral_character_count": sum(
-            item["gender_status"] == "unsupported_neutral"
-            for item in references
+            item["gender_status"] == "unsupported_neutral" for item in references
         ),
         f"{prefix}_gender_mismatch_character_count": sum(
             item["gender_status"] == "mismatch" for item in references
@@ -596,7 +607,10 @@ def _adapter_source_receipts(root: Path) -> dict[str, dict[str, str]]:
     return receipts
 
 
-class _PrepareOnlyAuditRuntime:
+class _CaptureAuditRuntime:
+    def __init__(self) -> None:
+        self.generation_calls: list[dict[str, Any]] = []
+
     def prepare(self, *_args: Any, **_kwargs: Any) -> dict[str, float] | None:
         if _kwargs:
             return {
@@ -604,6 +618,73 @@ class _PrepareOnlyAuditRuntime:
                 "reserved_mib": 0.0,
             }
         return None
+
+    def synthesize(self, *_args: Any, **kwargs: Any) -> Any:
+        call = dict(kwargs)
+        if "tts_text" in kwargs:
+            call["transport"] = "cosyvoice3.runtime.synthesize"
+            self.generation_calls.append(call)
+            return [{"tts_speech": [[0.0, 0.25, -0.25, 0.0]]}]
+        if "exaggeration" in kwargs:
+            call["transport"] = "chatterbox.runtime.synthesize"
+            self.generation_calls.append(call)
+            return [[0.0, 0.25, -0.25, 0.0]]
+
+        output_wav = kwargs.get("output_wav")
+        if not isinstance(output_wav, Path):
+            raise RoleConditioningAuditError(
+                "capture audit runtime にoutput_wavがありません。",
+            )
+        if "reading" in kwargs:
+            call["transport"] = "aivisspeech.runtime.synthesize"
+            sample_rate = 48_000
+            realized: dict[str, Any] = {"sample_rate_hz": sample_rate}
+        elif "voice_style" in kwargs:
+            call["transport"] = "supertonic3.runtime.synthesize"
+            sample_rate = 44_100
+            realized = {"sample_rate_hz": sample_rate}
+        elif "reference_wav" in kwargs:
+            call["transport"] = "gpt_sovits.runtime.synthesize"
+            sample_rate = 32_000
+            realized = {
+                "sample_rate_hz": sample_rate,
+                "prompt_text_mode": "reference-free",
+                "phase_peak_vram_mib": {
+                    "generation": {
+                        "allocated_mib": 0.0,
+                        "reserved_mib": 0.0,
+                    },
+                },
+            }
+        else:
+            raise RoleConditioningAuditError(
+                "capture audit runtime のsynthesize transportを判定できません。",
+            )
+        self.generation_calls.append(call)
+        _write_pcm16(output_wav, (0.0, 0.25, -0.25, 0.0), sample_rate)
+        return realized
+
+    def concatenate_waveforms(self, waveforms: Sequence[Any]) -> list[list[float]]:
+        values: list[float] = []
+        for waveform in waveforms:
+            current = waveform[0] if len(waveform) == 1 else waveform
+            values.extend(float(value) for value in current)
+        return [values]
+
+    def write_pcm16(
+        self,
+        path: Path,
+        waveform: Sequence[Any],
+        sample_rate: int,
+    ) -> None:
+        values = waveform[0] if len(waveform) == 1 else waveform
+        _write_pcm16(path, values, sample_rate)
+
+    def reset_peak_memory_stats(self) -> None:
+        return
+
+    def peak_memory_mib(self) -> dict[str, float]:
+        return {"allocated_mib": 0.0, "reserved_mib": 0.0}
 
     def is_out_of_memory(self, _error: BaseException) -> bool:
         return False
@@ -613,6 +694,7 @@ class _QwenAuditRuntime:
     def __init__(self, root: Path) -> None:
         self._root = root
         self._repositories: dict[Path, str] = {}
+        self.generation_calls: list[dict[str, Any]] = []
 
     def snapshot_download(self, repo_id: str, revision: str) -> Path:
         path = self._root / "snapshots" / repo_id.replace("/", "--") / revision
@@ -636,6 +718,48 @@ class _QwenAuditRuntime:
             raise RoleConditioningAuditError(
                 "Qwen audit runtime に不正な VoiceDesign input が渡されました。",
             )
+        return ([[0.0, 0.25, -0.25, 0.0]], 24_000)
+
+    def create_voice_clone_prompt(
+        self,
+        _model: Any,
+        *,
+        ref_audio: str,
+        ref_text: str,
+    ) -> dict[str, str]:
+        if not ref_audio or not ref_text:
+            raise RoleConditioningAuditError(
+                "Qwen audit runtime に不正な clone reference が渡されました。",
+            )
+        return {"ref_audio": ref_audio, "ref_text": ref_text}
+
+    def generate_voice_clone(
+        self,
+        _model: Any,
+        *,
+        text: str,
+        language: str,
+        voice_clone_prompt: Any,
+        sampling: Mapping[str, Any],
+    ) -> tuple[list[list[float]], int]:
+        if (
+            not text
+            or language != "Japanese"
+            or not isinstance(voice_clone_prompt, Mapping)
+            or not sampling
+        ):
+            raise RoleConditioningAuditError(
+                "Qwen audit runtime に不正な clone input が渡されました。",
+            )
+        self.generation_calls.append(
+            {
+                "transport": "qwen3_tts.generate_voice_clone",
+                "text": text,
+                "language": language,
+                "voice_clone_prompt": dict(voice_clone_prompt),
+                "sampling": dict(sampling),
+            },
+        )
         return ([[0.0, 0.25, -0.25, 0.0]], 24_000)
 
     def write_pcm16(
@@ -663,6 +787,9 @@ class _QwenAuditRuntime:
 
 
 class _IrodoriAuditRuntime:
+    def __init__(self) -> None:
+        self.generation_calls: list[dict[str, Any]] = []
+
     def prepare(self) -> dict[str, float]:
         return {"allocated_mib": 0.0, "reserved_mib": 0.0}
 
@@ -675,11 +802,20 @@ class _IrodoriAuditRuntime:
         output_wav: Path,
         seed: int,
     ) -> dict[str, Any]:
-        del reference_wav
         if not text or not caption:
             raise RoleConditioningAuditError(
                 "Irodori audit runtime に空の input が渡されました。",
             )
+        self.generation_calls.append(
+            {
+                "transport": "irodori_tts.runtime.synthesize",
+                "text": text,
+                "caption": caption,
+                "reference_wav": reference_wav,
+                "output_wav": output_wav,
+                "seed": seed,
+            },
+        )
         _write_pcm16(output_wav, (0.0, 0.25, -0.25, 0.0), 48_000)
         return {
             "phase_peak_vram_mib": {
@@ -700,6 +836,7 @@ class _IrodoriAuditRuntime:
 class _VoxAuditRuntime:
     def __init__(self) -> None:
         self._phase = 0
+        self.generation_calls: list[dict[str, Any]] = []
 
     def load_model(self, _snapshot_path: Path) -> dict[str, str]:
         return {"model": "voxcpm2"}
@@ -722,11 +859,18 @@ class _VoxAuditRuntime:
         reference_wav_path: Path | None,
         seed: int,
     ) -> list[float]:
-        del reference_wav_path, seed
         if not text:
             raise RoleConditioningAuditError(
                 "VoxCPM2 audit runtime に空の input が渡されました。",
             )
+        self.generation_calls.append(
+            {
+                "transport": "voxcpm2.runtime.generate",
+                "text": text,
+                "reference_wav_path": reference_wav_path,
+                "seed": seed,
+            },
+        )
         return [0.0, 0.25, -0.25, 0.0]
 
     def write_pcm16(
@@ -837,57 +981,26 @@ def _build_audit_role_anchor_selection(
     root: Path,
     output_dir: Path,
 ) -> _AuditRoleAnchorSelection:
-    plan_path = (
-        root
-        / "docs"
-        / "research"
-        / "full-baseline-completion"
-        / "plan.json"
-    )
-    base_manifest_path = root / "data" / "manifest.json"
-    scenarios_dir = root / "scenarios"
-    voices_dir = root / "assets" / "voices"
-    for path, label in (
-        (plan_path, "frozen completion plan"),
-        (base_manifest_path, "base manifest"),
-        (scenarios_dir, "scenarios directory"),
-        (voices_dir, "voices directory"),
-    ):
+    plan_path = root / "docs" / "research" / "full-baseline-completion" / "plan.json"
+    for path, label in ((plan_path, "frozen Phase A source plan"),):
         if not path.exists():
             raise RoleConditioningAuditError(f"{label} がありません: {path}")
-    plan = load_completion_plan(
-        plan_path.resolve(),
-        base_manifest_path=base_manifest_path.resolve(),
-        scenarios_dir=scenarios_dir.resolve(),
-        voices_dir=voices_dir.resolve(),
+    plan = load_anchor_source_plan(
+        plan_path=plan_path.resolve(),
     )
-    candidate_set_sha256 = _canonical_sha256(
-        {
-            "protocol": "role-conditioning-audit-anchor-candidate-set-v1",
-            "plan_sha256": plan.plan_id,
-            "targets": [
-                {
-                    "model": target.model,
-                    "scenario": target.scenario,
-                    "character": target.character,
-                    "role_identity_sha256": target.role_identity_sha256,
-                    "role_epoch_sha256": target.role_epoch_sha256,
-                }
-                for target in plan.anchor_targets
-            ],
-        },
-    )
+    anchor_texts, anchor_targets = _audit_anchor_targets(plan)
+    candidate_set_sha256 = plan.anchor_candidate_set_sha256
     groups: list[dict[str, Any]] = []
     output_dir.mkdir(parents=True, exist_ok=False)
     audio_dir = output_dir / "audio"
     audio_dir.mkdir()
-    for target in plan.anchor_targets:
+    for target in anchor_targets:
         role = plan.role(target.scenario, target.character)
         model_revision = plan.models[target.model]
         anchor_id = _canonical_sha256(
             {
                 "protocol": "role-conditioning-audit-selected-anchor-v1",
-                "plan_sha256": plan.plan_id,
+                "plan_sha256": plan.anchor_source_plan_sha256,
                 "model": target.model,
                 "model_revision": model_revision,
                 "scenario": target.scenario,
@@ -903,11 +1016,7 @@ def _build_audit_role_anchor_selection(
         )
         audio_path = audio_dir / f"{anchor_id}.wav"
         level = 0.1 + int(anchor_id[:2], 16) / 1_024
-        sample_rate = (
-            24_000
-            if target.model == "qwen3-tts-12hz-1.7b"
-            else 48_000
-        )
+        sample_rate = 24_000 if target.model == "qwen3-tts-12hz-1.7b" else 48_000
         _write_pcm16(
             audio_path,
             (0.0, level, -level, 0.0),
@@ -925,7 +1034,7 @@ def _build_audit_role_anchor_selection(
             "scenario": target.scenario,
             "character": target.character,
             "line": None,
-            "role_epoch_sha256": target.role_epoch_sha256,
+            "role_epoch_sha256": target.review_role_epoch_sha256,
             "group_sha256": _canonical_sha256(
                 {
                     "protocol": "role-conditioning-audit-review-group-v1",
@@ -935,6 +1044,7 @@ def _build_audit_role_anchor_selection(
             ),
             "heard_candidate_ids": [anchor_id, alternate_id],
             "selected_candidate_id": anchor_id,
+            "no_usable_candidate": False,
             "rubric": {
                 "content": "pass",
                 "prompt_leakage": "pass",
@@ -959,13 +1069,13 @@ def _build_audit_role_anchor_selection(
                 "scenario": target.scenario,
                 "character": target.character,
                 "role_identity_sha256": target.role_identity_sha256,
-                "review_role_epoch_sha256": target.role_epoch_sha256,
+                "review_role_epoch_sha256": target.review_role_epoch_sha256,
                 "anchor_id": anchor_id,
                 "audio_sha256": audio_sha256,
                 "decision_sha256": decision_sha256,
             },
         )
-        anchor_text = plan.anchor_texts[target.model]
+        anchor_text = anchor_texts[target.model]
         groups.append(
             {
                 "model": target.model,
@@ -980,7 +1090,7 @@ def _build_audit_role_anchor_selection(
                     "scene_setting": role.scene_setting,
                 },
                 "role_identity_sha256": role.role_identity_sha256,
-                "review_role_epoch_sha256": target.role_epoch_sha256,
+                "review_role_epoch_sha256": target.review_role_epoch_sha256,
                 "role_epoch_sha256": role_epoch_sha256,
                 "anchor_id": anchor_id,
                 "attempt": 1,
@@ -999,7 +1109,7 @@ def _build_audit_role_anchor_selection(
         {
             "format_version": 1,
             "protocol": "role-anchor-selection-v1",
-            "plan_sha256": plan.plan_id,
+            "plan_sha256": plan.anchor_source_plan_sha256,
             "candidate_set_sha256": candidate_set_sha256,
             "groups": groups,
         },
@@ -1011,12 +1121,25 @@ def _build_audit_role_anchor_selection(
     selection_path.with_suffix(".sha256").write_bytes(
         f"{selection_sha256}\n".encode("ascii"),
     )
+    completion_plan_path, completion_plan = _build_audit_completion_plan(
+        root=root,
+        output_dir=output_dir,
+        anchor_selection_sha256=selection_sha256,
+    )
+    if (
+        completion_plan.anchor_source_plan_sha256 != plan.anchor_source_plan_sha256
+        or completion_plan.anchor_candidate_set_sha256 != candidate_set_sha256
+        or completion_plan.anchor_selection_sha256 != selection_sha256
+    ):
+        raise RoleConditioningAuditError(
+            "audit-only v2 plan のanchor authorityがPhase A fixtureと一致しません。",
+        )
     bindings: dict[tuple[str, str, str], Mapping[str, Any]] = {}
-    for target in plan.anchor_targets:
+    for target in anchor_targets:
         role = plan.role(target.scenario, target.character)
         selected = resolve_selected_anchor(
             selection_path=selection_path,
-            plan_sha256=plan.plan_id,
+            plan_sha256=plan.anchor_source_plan_sha256,
             model=target.model,
             model_revision=plan.models[target.model],
             role=role,
@@ -1028,12 +1151,100 @@ def _build_audit_role_anchor_selection(
         )
     return _AuditRoleAnchorSelection(
         selection_path=selection_path,
-        plan_file=plan_path.relative_to(root).as_posix(),
-        plan_sha256=plan.plan_id,
+        completion_plan_path=completion_plan_path,
+        anchor_source_plan_file=plan_path.relative_to(root).as_posix(),
+        completion_plan_sha256=completion_plan.plan_id,
+        anchor_source_plan_sha256=plan.anchor_source_plan_sha256,
         selection_sha256=selection_sha256,
         candidate_set_sha256=candidate_set_sha256,
         bindings=bindings,
     )
+
+
+def _build_audit_completion_plan(
+    *,
+    root: Path,
+    output_dir: Path,
+    anchor_selection_sha256: str,
+) -> tuple[Path, CompletionPlan]:
+    base_manifest_path = (root / "data" / "manifest.json").resolve()
+    scenarios_dir = (root / "scenarios").resolve()
+    voices_dir = (root / "assets" / "voices").resolve()
+    for path, label in (
+        (base_manifest_path, "base manifest"),
+        (scenarios_dir, "scenarios directory"),
+        (voices_dir, "voices directory"),
+    ):
+        if not path.exists():
+            raise RoleConditioningAuditError(f"{label} がありません: {path}")
+    document = build_frozen_plan_document(
+        scenarios_dir=scenarios_dir,
+        voices_dir=voices_dir,
+        anchor_selection_sha256=anchor_selection_sha256,
+    )
+    plan_path = (output_dir / "audit-completion-plan-v2.json").resolve()
+    plan_path.write_bytes(canonical_json(document).encode("utf-8"))
+    plan = load_completion_plan(
+        plan_path,
+        base_manifest_path=base_manifest_path,
+        scenarios_dir=scenarios_dir,
+        voices_dir=voices_dir,
+    )
+    return plan_path, plan
+
+
+def _audit_anchor_targets(
+    plan: AnchorReviewPlan,
+) -> tuple[dict[str, str], tuple[_AuditAnchorTarget, ...]]:
+    from gaya_pipeline.adapters.irodori_tts import ROLE_ANCHOR_TEXT
+    from gaya_pipeline.adapters.qwen3_tts import REFERENCE_TEXT
+
+    anchor_texts = {
+        IRODORI_MODEL: ROLE_ANCHOR_TEXT,
+        QWEN_MODEL: REFERENCE_TEXT,
+    }
+    targets: list[_AuditAnchorTarget] = []
+    for model, anchor_text in sorted(anchor_texts.items()):
+        model_revision = plan.models.get(model)
+        if model_revision is None:
+            raise RoleConditioningAuditError(
+                f"completion plan にanchor modelがありません: {model}",
+            )
+        anchor_text_sha256 = hashlib.sha256(
+            anchor_text.encode("utf-8"),
+        ).hexdigest()
+        for role in plan.roles:
+            if role.reference_voice is not None:
+                continue
+            review_role_epoch_sha256 = _canonical_sha256(
+                {
+                    "model": model,
+                    "model_revision": model_revision,
+                    "scenario": role.scenario,
+                    "character": role.character,
+                    "role_identity_sha256": role.role_identity_sha256,
+                    "anchor_text_sha256": anchor_text_sha256,
+                },
+            )
+            targets.append(
+                _AuditAnchorTarget(
+                    model=model,
+                    scenario=role.scenario,
+                    character=role.character,
+                    role_identity_sha256=role.role_identity_sha256,
+                    review_role_epoch_sha256=review_role_epoch_sha256,
+                ),
+            )
+    targets.sort(key=lambda target: target.identity)
+    counts = {
+        model: sum(target.model == model for target in targets)
+        for model in anchor_texts
+    }
+    if counts != {IRODORI_MODEL: 53, QWEN_MODEL: 53}:
+        raise RoleConditioningAuditError(
+            "audit role anchor target は2 models × 53 no-ref rolesが必要です。",
+        )
+    return anchor_texts, tuple(targets)
 
 
 def _prepare_production_generation_inputs(
@@ -1045,6 +1256,7 @@ def _prepare_production_generation_inputs(
     dict[str, str],
     _AuditRoleAnchorSelection,
     dict[str, bool],
+    list[dict[str, Any]],
 ]:
     from gaya_pipeline.adapters import (
         aivisspeech,
@@ -1059,6 +1271,7 @@ def _prepare_production_generation_inputs(
 
     result: dict[tuple[str, str, str], Mapping[str, Any]] = {}
     reading_capabilities: dict[str, bool] = {}
+    runtime_transport_probes: list[dict[str, Any]] = []
     with tempfile.TemporaryDirectory(prefix="gaya-role-audit-") as raw_temp:
         temporary_root = Path(raw_temp)
         voices_dir = temporary_root / "voices"
@@ -1074,44 +1287,60 @@ def _prepare_production_generation_inputs(
         supertonic_root.mkdir()
         vox_root = temporary_root / "voxcpm-model"
         vox_root.mkdir()
+        aivis_runtime = _CaptureAuditRuntime()
+        chatter_runtime = _CaptureAuditRuntime()
+        cosy_runtime = _CaptureAuditRuntime()
+        gpt_runtime = _CaptureAuditRuntime()
+        irodori_runtime = _IrodoriAuditRuntime()
+        qwen_runtime = _QwenAuditRuntime(temporary_root)
+        supertonic_runtime = _CaptureAuditRuntime()
+        vox_runtime = _VoxAuditRuntime()
+        runtimes: dict[str, Any] = {
+            "aivisspeech-kohaku": aivis_runtime,
+            "chatterbox-multilingual-v3": chatter_runtime,
+            "cosyvoice3-0.5b-2512": cosy_runtime,
+            "gpt-sovits-v2-pro-plus": gpt_runtime,
+            "irodori-tts-600m-v3-voicedesign": irodori_runtime,
+            "qwen3-tts-12hz-1.7b": qwen_runtime,
+            "supertonic-3": supertonic_runtime,
+            "voxcpm2": vox_runtime,
+        }
         adapters: dict[str, Any] = {
             "aivisspeech-kohaku": aivisspeech.AivisSpeechAdapter(
-                runtime=_PrepareOnlyAuditRuntime(),
+                runtime=aivis_runtime,
             ),
             "chatterbox-multilingual-v3": chatterbox.ChatterboxAdapter(
-                runtime=_PrepareOnlyAuditRuntime(),
+                runtime=chatter_runtime,
                 model_root=temporary_root,
             ),
             "cosyvoice3-0.5b-2512": cosyvoice3.CosyVoice3Adapter(
-                runtime=_PrepareOnlyAuditRuntime(),
+                runtime=cosy_runtime,
             ),
             "gpt-sovits-v2-pro-plus": gpt_sovits.GPTSoVITSAdapter(
-                runtime=_PrepareOnlyAuditRuntime(),
+                runtime=gpt_runtime,
                 upstream_root=temporary_root,
             ),
             "irodori-tts-600m-v3-voicedesign": (
                 irodori_tts.IrodoriTTSAdapter(
-                    runtime=_IrodoriAuditRuntime(),
-                    role_anchor_selection_path=(
-                        audit_anchor_selection.selection_path
-                    ),
+                    runtime=irodori_runtime,
+                    role_anchor_selection_path=(audit_anchor_selection.selection_path),
                     role_anchor_plan_sha256=(
-                        audit_anchor_selection.plan_sha256
+                        audit_anchor_selection.anchor_source_plan_sha256
                     ),
                 )
             ),
             "qwen3-tts-12hz-1.7b": qwen3_tts.Qwen3TTSAdapter(
-                runtime=_QwenAuditRuntime(temporary_root),
-                role_anchor_selection_path=(
-                    audit_anchor_selection.selection_path
+                runtime=qwen_runtime,
+                role_anchor_selection_path=(audit_anchor_selection.selection_path),
+                role_anchor_plan_sha256=(
+                    audit_anchor_selection.anchor_source_plan_sha256
                 ),
-                role_anchor_plan_sha256=audit_anchor_selection.plan_sha256,
             ),
             "supertonic-3": supertonic3.Supertonic3Adapter(
-                runtime=_PrepareOnlyAuditRuntime(),
+                runtime=supertonic_runtime,
             ),
             "voxcpm2": voxcpm2.VoxCPM2Adapter(
-                runtime=_VoxAuditRuntime(),
+                runtime=vox_runtime,
                 model_root=vox_root,
             ),
         }
@@ -1150,17 +1379,399 @@ def _prepare_production_generation_inputs(
                         f"{model}.generation_input() が object ではありません。",
                     )
                 result[(model, job.scenario_id, job.line_id)] = dict(value)
+            if model == "chatterbox-multilingual-v3":
+                adapter._model = {"audit": model}
+                adapter._runtime_load_peak = {
+                    "allocated_mib": 0.0,
+                    "reserved_mib": 0.0,
+                }
+            elif model == "cosyvoice3-0.5b-2512":
+                adapter._model = {"audit": model}
+                adapter._runtime_load_peak = {
+                    "allocated_mib": 0.0,
+                    "reserved_mib": 0.0,
+                }
+                adapter._model_identity = {
+                    "speech_tokenizer_providers": [],
+                    "campplus_providers": [],
+                }
+
+            runtime = runtimes[model]
+            for job in jobs:
+                calls_before = len(runtime.generation_calls)
+                output_wav = (
+                    temporary_root
+                    / "runtime-probes"
+                    / model
+                    / job.scenario_id
+                    / f"{job.line_id}.wav"
+                )
+                try:
+                    adapter.generate(job, context, output_wav)
+                except Exception as error:
+                    raise RoleConditioningAuditError(
+                        f"{model} runtime transport probe "
+                        f"({job.scenario_id}/{job.line_id}) に失敗しました: "
+                        f"{error}",
+                    ) from error
+                new_calls = runtime.generation_calls[calls_before:]
+                if len(new_calls) != 1:
+                    raise RoleConditioningAuditError(
+                        f"{model} runtime transport probe "
+                        f"({job.scenario_id}/{job.line_id}) は1回の生成呼び出しが"
+                        f"必要です: actual={len(new_calls)}",
+                    )
+                runtime_transport_probes.append(
+                    _runtime_transport_probe_receipt(
+                        model=model,
+                        job=job,
+                        generation_input=result[(model, job.scenario_id, job.line_id)],
+                        runtime_call=new_calls[0],
+                    ),
+                )
     expected_count = len(MODEL_ADAPTER_FILES) * len(jobs)
     if len(result) != expected_count:
         raise RoleConditioningAuditError(
             "production generation_input receipt coverage が不足しています。",
+        )
+    if len(runtime_transport_probes) != expected_count:
+        raise RoleConditioningAuditError(
+            "runtime transport probe は8 models × 161 linesすべてが必要です。",
         )
     return (
         result,
         audit_voice_sha256s,
         audit_anchor_selection,
         reading_capabilities,
+        runtime_transport_probes,
     )
+
+
+def _runtime_transport_probe_receipt(
+    *,
+    model: str,
+    job: LineJob,
+    generation_input: Mapping[str, Any],
+    runtime_call: Mapping[str, Any],
+) -> dict[str, Any]:
+    contracts = {
+        "aivisspeech-kohaku": (
+            "text",
+            "text",
+            "aivisspeech.runtime.synthesize",
+            {
+                "text",
+                "reading",
+                "speaker_id",
+                "intonation_scale",
+                "tempo_dynamics_scale",
+                "output_wav",
+                "transport",
+            },
+        ),
+        "chatterbox-multilingual-v3": (
+            "text",
+            "text",
+            "chatterbox.runtime.synthesize",
+            {
+                "text",
+                "reference_wav",
+                "exaggeration",
+                "seed",
+                "transport",
+            },
+        ),
+        "cosyvoice3-0.5b-2512": (
+            "tts_text",
+            "tts_text",
+            "cosyvoice3.runtime.synthesize",
+            {
+                "tts_text",
+                "instruction",
+                "reference_wav",
+                "seed",
+                "transport",
+            },
+        ),
+        "gpt-sovits-v2-pro-plus": (
+            "text",
+            "text",
+            "gpt_sovits.runtime.synthesize",
+            {
+                "text",
+                "reference_wav",
+                "output_wav",
+                "seed",
+                "transport",
+            },
+        ),
+        "irodori-tts-600m-v3-voicedesign": (
+            "text",
+            "text",
+            "irodori_tts.runtime.synthesize",
+            {
+                "text",
+                "caption",
+                "reference_wav",
+                "output_wav",
+                "seed",
+                "transport",
+            },
+        ),
+        "qwen3-tts-12hz-1.7b": (
+            "text",
+            "text",
+            "qwen3_tts.generate_voice_clone",
+            {
+                "text",
+                "language",
+                "voice_clone_prompt",
+                "sampling",
+                "transport",
+            },
+        ),
+        "supertonic-3": (
+            "tts_text",
+            "text",
+            "supertonic3.runtime.synthesize",
+            {
+                "text",
+                "voice_style",
+                "output_wav",
+                "seed",
+                "transport",
+            },
+        ),
+        "voxcpm2": (
+            "model_text",
+            "text",
+            "voxcpm2.runtime.generate",
+            {
+                "text",
+                "reference_wav_path",
+                "seed",
+                "transport",
+            },
+        ),
+    }
+    try:
+        generation_field, runtime_field, expected_transport, expected_keys = contracts[
+            model
+        ]
+    except KeyError as error:
+        raise RoleConditioningAuditError(
+            f"未対応のruntime transport probe modelです: {model}",
+        ) from error
+
+    surface_text = _required_string(job.line, "text", f"{model}.probe")
+    declared_value = job.line.get("reading")
+    if declared_value is None:
+        declared_reading: str | None = None
+    elif isinstance(declared_value, str) and declared_value.strip():
+        declared_reading = declared_value
+    else:
+        raise RoleConditioningAuditError(
+            f"{model}.probe.reading はnon-empty stringまたはnullが必要です。",
+        )
+    generation_text = _required_string(
+        generation_input,
+        generation_field,
+        f"{model}.generation_input",
+    )
+    runtime_text = _required_string(
+        runtime_call,
+        runtime_field,
+        f"{model}.runtime_call",
+    )
+    transport = _required_string(
+        runtime_call,
+        "transport",
+        f"{model}.runtime_call",
+    )
+    if set(runtime_call) != expected_keys:
+        raise RoleConditioningAuditError(
+            f"{model} runtime transport の引数がexact contractと一致しません: "
+            f"actual={sorted(runtime_call)}, expected={sorted(expected_keys)}",
+        )
+    if transport != expected_transport:
+        raise RoleConditioningAuditError(
+            f"{model} runtime transport が一致しません: "
+            f"actual={transport}, expected={expected_transport}",
+        )
+    if runtime_text != generation_text:
+        raise RoleConditioningAuditError(
+            f"{model} runtime transport がgeneration_inputと一致しません: "
+            f"actual={runtime_text!r}, expected={generation_text!r}",
+        )
+
+    runtime_context: dict[str, Any] = {}
+    runtime_reading = runtime_call.get("reading")
+    if model == "aivisspeech-kohaku":
+        reading_policy = (
+            "separate_reading"
+            if declared_reading is not None
+            else "engine_g2p_from_surface"
+        )
+        if generation_text != surface_text or runtime_reading != declared_reading:
+            raise RoleConditioningAuditError(
+                f"{model} runtime transport がsurface textとreadingを"
+                "分離していません。",
+            )
+        style = generation_input.get("speaker_style")
+        if not isinstance(style, Mapping):
+            raise RoleConditioningAuditError(
+                f"{model}.generation_input.speaker_styleが不正です。",
+            )
+        runtime_context = {
+            "speaker_id": runtime_call["speaker_id"],
+            "intonation_scale": runtime_call["intonation_scale"],
+            "tempo_dynamics_scale": runtime_call["tempo_dynamics_scale"],
+        }
+        expected_context = {
+            "speaker_id": style.get("id"),
+            "intonation_scale": generation_input.get("intonation_scale"),
+            "tempo_dynamics_scale": generation_input.get(
+                "tempo_dynamics_scale",
+            ),
+        }
+        if runtime_context != expected_context:
+            raise RoleConditioningAuditError(
+                f"{model} runtime controlがgeneration_inputと一致しません。",
+            )
+    elif model == "cosyvoice3-0.5b-2512":
+        reading_policy = (
+            "reading_as_tts_text"
+            if declared_reading is not None
+            else "auto_kana_as_tts_text"
+        )
+        if "reading" in runtime_call:
+            raise RoleConditioningAuditError(
+                f"{model} runtime transport に未知のreading fieldがあります。",
+            )
+        if declared_reading is not None and generation_text != declared_reading:
+            raise RoleConditioningAuditError(
+                f"{model} runtime transport が明示readingをtts_textへ渡していません。",
+            )
+        runtime_context = {
+            "instruction": _required_string(
+                runtime_call,
+                "instruction",
+                f"{model}.runtime_call",
+            ),
+        }
+        if runtime_context["instruction"] != _required_string(
+            generation_input,
+            "instruction",
+            f"{model}.generation_input",
+        ):
+            raise RoleConditioningAuditError(
+                f"{model} runtime instructionがgeneration_inputと一致しません。",
+            )
+    else:
+        if "reading" in runtime_call:
+            raise RoleConditioningAuditError(
+                f"{model} runtime transport に未対応reading fieldが混入しています。",
+            )
+        reading_policy = "surface_derived_no_external_reading"
+        if model == "chatterbox-multilingual-v3":
+            runtime_context = {"exaggeration": runtime_call["exaggeration"]}
+            if runtime_context["exaggeration"] != generation_input.get(
+                "exaggeration",
+            ):
+                raise RoleConditioningAuditError(
+                    f"{model} runtime exaggerationがgeneration_inputと一致しません。",
+                )
+        elif model == "irodori-tts-600m-v3-voicedesign":
+            runtime_context = {
+                "caption": _required_string(
+                    runtime_call,
+                    "caption",
+                    f"{model}.runtime_call",
+                ),
+            }
+            if runtime_context["caption"] != _required_string(
+                generation_input,
+                "caption",
+                f"{model}.generation_input",
+            ):
+                raise RoleConditioningAuditError(
+                    f"{model} runtime captionがgeneration_inputと一致しません。",
+                )
+        elif model == "qwen3-tts-12hz-1.7b":
+            prompt = runtime_call.get("voice_clone_prompt")
+            if not isinstance(prompt, Mapping) or set(prompt) != {
+                "ref_audio",
+                "ref_text",
+            }:
+                raise RoleConditioningAuditError(
+                    f"{model} runtime clone promptが不正です。",
+                )
+            runtime_context = {
+                "language": _required_string(
+                    runtime_call,
+                    "language",
+                    f"{model}.runtime_call",
+                ),
+                "reference_text": _required_string(
+                    prompt,
+                    "ref_text",
+                    f"{model}.runtime_call.voice_clone_prompt",
+                ),
+            }
+            expected_context = {
+                "language": _required_string(
+                    generation_input,
+                    "language",
+                    f"{model}.generation_input",
+                ),
+                "reference_text": _required_string(
+                    generation_input,
+                    "reference_text",
+                    f"{model}.generation_input",
+                ),
+            }
+            if runtime_context != expected_context:
+                raise RoleConditioningAuditError(
+                    f"{model} runtime clone promptがgeneration_inputと一致しません。",
+                )
+        elif model == "supertonic-3":
+            runtime_context = {
+                "voice_style": _required_string(
+                    runtime_call,
+                    "voice_style",
+                    f"{model}.runtime_call",
+                ),
+            }
+            if runtime_context["voice_style"] != _required_string(
+                generation_input,
+                "voice_style",
+                f"{model}.generation_input",
+            ):
+                raise RoleConditioningAuditError(
+                    f"{model} runtime voice styleがgeneration_inputと一致しません。",
+                )
+        if declared_reading is not None and runtime_text == declared_reading:
+            raise RoleConditioningAuditError(
+                f"{model} runtime transport が未対応readingでsurface textを"
+                "置換しています。",
+            )
+
+    return {
+        "model": model,
+        "scenario": job.scenario_id,
+        "line": job.line_id,
+        "transport": transport,
+        "generation_input_field": generation_field,
+        "runtime_field": runtime_field,
+        "reading_policy": reading_policy,
+        "source_text": surface_text,
+        "declared_reading": declared_reading,
+        "generation_input_text": generation_text,
+        "runtime_text": runtime_text,
+        "runtime_reading": runtime_reading,
+        "runtime_context": runtime_context,
+        "status": "match",
+    }
 
 
 def _source_conditioning_receipt(
@@ -1336,8 +1947,7 @@ def _source_conditioning_receipt(
                 )
             if "selected_anchor" in payload:
                 raise RoleConditioningAuditError(
-                    "Irodori explicit reference に selected_anchor が"
-                    "混入しています。",
+                    "Irodori explicit reference に selected_anchor が混入しています。",
                 )
         else:
             selected_anchor = _validated_selected_anchor(
@@ -1363,9 +1973,7 @@ def _source_conditioning_receipt(
             "prepare_state_sha256": reference_sha256,
             "audit_fixture_source_sha256": audit_fixture_sha256,
             "selected_anchor": (
-                None
-                if declared_reference is not None
-                else selected_anchor
+                None if declared_reference is not None else selected_anchor
             ),
         }
         prompt = _prompt_receipt(
@@ -1373,9 +1981,7 @@ def _source_conditioning_receipt(
             fields=CONDITIONING_FIELDS,
             kind="target_caption",
         )
-        field_transport = {
-            field: "target_caption" for field in CONDITIONING_FIELDS
-        }
+        field_transport = {field: "target_caption" for field in CONDITIONING_FIELDS}
     elif model == "qwen3-tts-12hz-1.7b":
         identity = payload.get("character_identity")
         _require_role_identity(model, identity, truth, include_scene=True)
@@ -1398,9 +2004,7 @@ def _source_conditioning_receipt(
             "control": control,
             "source": source_id,
             "voice": (
-                source_id
-                if truth["declared_reference_voice"] is not None
-                else None
+                source_id if truth["declared_reference_voice"] is not None else None
             ),
             "sha256": None,
             "source_sha256": None,
@@ -1637,8 +2241,7 @@ def _validated_selected_anchor(
     }
     if set(actual) != expected_keys:
         raise RoleConditioningAuditError(
-            f"{model} selected_anchor receipt fields が正式 resolver と"
-            "一致しません。",
+            f"{model} selected_anchor receipt fields が正式 resolver と一致しません。",
         )
     for key in expected_keys:
         if actual.get(key) != expected.get(key):
@@ -1648,8 +2251,7 @@ def _validated_selected_anchor(
             )
     if actual["anchor_audio_sha256"] != reference_sha256:
         raise RoleConditioningAuditError(
-            f"{model} selected_anchor audio SHA が reference SHA と"
-            "一致しません。",
+            f"{model} selected_anchor audio SHA が reference SHA と一致しません。",
         )
     return dict(actual)
 
@@ -1663,9 +2265,7 @@ def _reading_receipt(
 ) -> dict[str, Any]:
     surface = _required_string(truth, "text", f"{model}.role_truth")
     declared = truth.get("reading")
-    if declared is not None and (
-        not isinstance(declared, str) or not declared.strip()
-    ):
+    if declared is not None and (not isinstance(declared, str) or not declared.strip()):
         raise RoleConditioningAuditError(
             f"{model} の line.reading が不正です。",
         )
@@ -1767,9 +2367,7 @@ def _reading_receipt(
             surface_transport = model_text_field
         elif model == "irodori-tts-600m-v3-voicedesign":
             emoji = payload.get("emotion_emoji")
-            if emoji is not None and (
-                not isinstance(emoji, str) or not emoji
-            ):
+            if emoji is not None and (not isinstance(emoji, str) or not emoji):
                 raise RoleConditioningAuditError(
                     "Irodori emotion_emoji は string または null が必要です。",
                 )
@@ -2104,19 +2702,23 @@ def _compare_published_conditioning(
                 "reason": "published reference SHA differs from adapter source",
             }
     speaker = source["speaker"]
-    if isinstance(speaker, Mapping):
-        if evidence.get("speaker_uuid") != speaker["speaker_uuid"]:
-            return {
-                "status": "mismatch",
-                "reason": "published fixed speaker differs from adapter source",
-            }
+    if (
+        isinstance(speaker, Mapping)
+        and evidence.get("speaker_uuid") != speaker["speaker_uuid"]
+    ):
+        return {
+            "status": "mismatch",
+            "reason": "published fixed speaker differs from adapter source",
+        }
     preset = source["preset"]
-    if isinstance(preset, Mapping):
-        if evidence.get("voice_style") != preset["voice_style"]:
-            return {
-                "status": "mismatch",
-                "reason": "published preset differs from adapter source",
-            }
+    if (
+        isinstance(preset, Mapping)
+        and evidence.get("voice_style") != preset["voice_style"]
+    ):
+        return {
+            "status": "mismatch",
+            "reason": "published preset differs from adapter source",
+        }
     if model == "qwen3-tts-12hz-1.7b":
         expected = source["input_identity"]["payload"]["character_identity"]
         if evidence.get("character_identity") != expected:
@@ -2131,17 +2733,12 @@ def _compare_published_conditioning(
                 "status": "mismatch",
                 "reason": "published Irodori sidecar lacks current role identity",
             }
-    if (
-        model == "voxcpm2"
-        and source["prompt"] is not None
-    ):
+    if model == "voxcpm2" and source["prompt"] is not None:
         provenance = evidence.get("reference_provenance")
         if not isinstance(provenance, Mapping):
             return {
                 "status": "unverifiable",
-                "reason": (
-                    "published VoxCPM2 sidecar lacks voice-design identity"
-                ),
+                "reason": ("published VoxCPM2 sidecar lacks voice-design identity"),
             }
         identity = provenance.get("identity")
         expected_payload = source["input_identity"]["payload"]
@@ -2164,8 +2761,7 @@ def _compare_published_conditioning(
                 return {
                     "status": "mismatch",
                     "reason": (
-                        "published VoxCPM2 voice-design identity differs "
-                        f"for {field}"
+                        f"published VoxCPM2 voice-design identity differs for {field}"
                     ),
                 }
     return {"status": "match", "reason": "published conditioning evidence matches"}

@@ -19,6 +19,14 @@ from gaya_pipeline.adapters import (
     qwen3_tts,
     voxcpm2,
 )
+from gaya_pipeline.completion_anchor import load_anchor_source_plan
+from gaya_pipeline.completion_plan import (
+    ANCHOR_CANDIDATE_SET_SHA256,
+    ANCHOR_SOURCE_PLAN_SHA256,
+    PROTOCOL,
+    CompletionPlanError,
+    load_completion_plan,
+)
 from gaya_pipeline.role_conditioning_audit import (
     RoleConditioningAuditError,
     build_role_source_audit,
@@ -34,6 +42,188 @@ SNAPSHOT_PATH = (
     / "source-audit.json"
 )
 README_PATH = SNAPSHOT_PATH.with_name("README.md")
+SOURCE_PLAN_PATH = (
+    REPOSITORY_ROOT / "docs" / "research" / "full-baseline-completion" / "plan.json"
+)
+
+
+def test_pre_hearingの正式planはv1_source_authorityのまま固定する() -> None:
+    raw = SOURCE_PLAN_PATH.read_bytes()
+    document = json.loads(raw)
+    source_plan = load_anchor_source_plan(plan_path=SOURCE_PLAN_PATH.resolve())
+
+    assert document["format_version"] == 1
+    assert document["protocol"] == "role-baseline-plan-v1"
+    assert hashlib.sha256(raw).hexdigest() == ANCHOR_SOURCE_PLAN_SHA256
+    assert source_plan.plan_id == ANCHOR_SOURCE_PLAN_SHA256
+    assert source_plan.anchor_candidate_set_sha256 == (ANCHOR_CANDIDATE_SET_SHA256)
+    with pytest.raises(CompletionPlanError, match="exact contract"):
+        load_completion_plan(
+            SOURCE_PLAN_PATH.resolve(),
+            base_manifest_path=(REPOSITORY_ROOT / "data" / "manifest.json").resolve(),
+            scenarios_dir=(REPOSITORY_ROOT / "scenarios").resolve(),
+            voices_dir=(REPOSITORY_ROOT / "assets" / "voices").resolve(),
+        )
+
+
+def test_synthetic_selection確定後だけaudit_v2_planを作る(
+    tmp_path: Path,
+) -> None:
+    source_raw_before = SOURCE_PLAN_PATH.read_bytes()
+    authority = role_conditioning_audit._build_audit_role_anchor_selection(
+        root=REPOSITORY_ROOT,
+        output_dir=tmp_path / "audit-anchor",
+    )
+    selection_raw = authority.selection_path.read_bytes()
+    selection = json.loads(selection_raw)
+    completion_document = json.loads(authority.completion_plan_path.read_bytes())
+    plan = load_completion_plan(
+        authority.completion_plan_path,
+        base_manifest_path=REPOSITORY_ROOT / "data" / "manifest.json",
+        scenarios_dir=REPOSITORY_ROOT / "scenarios",
+        voices_dir=REPOSITORY_ROOT / "assets" / "voices",
+    )
+
+    assert SOURCE_PLAN_PATH.read_bytes() == source_raw_before
+    assert hashlib.sha256(selection_raw).hexdigest() == (authority.selection_sha256)
+    assert authority.completion_plan_sha256 == plan.plan_id
+    assert authority.anchor_source_plan_sha256 == plan.anchor_source_plan_sha256
+    assert selection["plan_sha256"] == plan.anchor_source_plan_sha256
+    assert selection["candidate_set_sha256"] == (plan.anchor_candidate_set_sha256)
+    assert plan.anchor_selection_sha256 == authority.selection_sha256
+    assert completion_document["protocol"] == PROTOCOL
+    assert plan.plan_id != plan.anchor_source_plan_sha256
+    assert len(authority.bindings) == 106
+
+
+def test_8x161の実generate呼び出しでreading_transportを検証する() -> None:
+    report = build_role_source_audit(REPOSITORY_ROOT)
+    probes = report["runtime_transport_probes"]
+
+    assert report["summary"]["runtime_transport_probe_count"] == 1288
+    assert Counter(probe["model"] for probe in probes) == {
+        model: 161 for model in role_conditioning_audit.MODEL_ADAPTER_FILES
+    }
+    assert all(probe["status"] == "match" for probe in probes)
+    assert (
+        len(
+            {(probe["model"], probe["scenario"], probe["line"]) for probe in probes},
+        )
+        == 1288
+    )
+    explicit_by_model = {
+        model: next(
+            probe
+            for probe in probes
+            if probe["model"] == model and probe["declared_reading"] is not None
+        )
+        for model in role_conditioning_audit.MODEL_ADAPTER_FILES
+    }
+    aivis = explicit_by_model["aivisspeech-kohaku"]
+    assert aivis["runtime_text"] == aivis["source_text"]
+    assert aivis["runtime_reading"] == aivis["declared_reading"]
+    cosy = explicit_by_model["cosyvoice3-0.5b-2512"]
+    assert cosy["runtime_text"] == cosy["declared_reading"]
+    assert cosy["runtime_reading"] is None
+    for model in set(explicit_by_model) - {
+        "aivisspeech-kohaku",
+        "cosyvoice3-0.5b-2512",
+    }:
+        probe = explicit_by_model[model]
+        assert probe["runtime_text"] != probe["declared_reading"]
+        assert probe["runtime_reading"] is None
+
+
+def test_irodoriの実generateでcaptionへ別値を渡すと失敗する(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    original = role_conditioning_audit._IrodoriAuditRuntime.synthesize
+
+    def substitute_caption(
+        self: Any,
+        **kwargs: Any,
+    ) -> Any:
+        return original(self, **{**kwargs, "caption": "グッ……ソコワサワルナ……"})
+
+    monkeypatch.setattr(
+        role_conditioning_audit._IrodoriAuditRuntime,
+        "synthesize",
+        substitute_caption,
+    )
+    with pytest.raises(RoleConditioningAuditError, match="runtime caption"):
+        build_role_source_audit(REPOSITORY_ROOT)
+
+
+def test_cosyvoiceの実generateでinstructionへ別値を渡すと失敗する(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    original = role_conditioning_audit._CaptureAuditRuntime.synthesize
+
+    def substitute_instruction(
+        self: Any,
+        *args: Any,
+        **kwargs: Any,
+    ) -> Any:
+        if "tts_text" in kwargs:
+            kwargs = {**kwargs, "instruction": "グッ……ソコワサワルナ……"}
+        return original(self, *args, **kwargs)
+
+    monkeypatch.setattr(
+        role_conditioning_audit._CaptureAuditRuntime,
+        "synthesize",
+        substitute_instruction,
+    )
+    with pytest.raises(RoleConditioningAuditError, match="runtime instruction"):
+        build_role_source_audit(REPOSITORY_ROOT)
+
+
+def test_qwenの実generateでclone_promptへ別値を渡すと失敗する(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    original = role_conditioning_audit._QwenAuditRuntime.create_voice_clone_prompt
+
+    def substitute_reference_text(
+        self: Any,
+        *args: Any,
+        **kwargs: Any,
+    ) -> Any:
+        return original(
+            self,
+            *args,
+            **{**kwargs, "ref_text": "グッ……ソコワサワルナ……"},
+        )
+
+    monkeypatch.setattr(
+        role_conditioning_audit._QwenAuditRuntime,
+        "create_voice_clone_prompt",
+        substitute_reference_text,
+    )
+    with pytest.raises(RoleConditioningAuditError, match="runtime clone prompt"):
+        build_role_source_audit(REPOSITORY_ROOT)
+
+
+def test_aivisの実generate呼び出しがreadingで表記を置換すると失敗する(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    original = role_conditioning_audit._CaptureAuditRuntime.synthesize
+
+    def substitute_at_runtime(
+        self: Any,
+        *args: Any,
+        **kwargs: Any,
+    ) -> Any:
+        reading = kwargs.get("reading")
+        if isinstance(reading, str):
+            kwargs = {**kwargs, "text": reading, "reading": None}
+        return original(self, *args, **kwargs)
+
+    monkeypatch.setattr(
+        role_conditioning_audit._CaptureAuditRuntime,
+        "synthesize",
+        substitute_at_runtime,
+    )
+    with pytest.raises(RoleConditioningAuditError, match="runtime transport"):
+        build_role_source_audit(REPOSITORY_ROOT)
 
 
 def test_current_role_truth_reference_split_and_8x161_receipts() -> None:
@@ -42,30 +232,29 @@ def test_current_role_truth_reference_split_and_8x161_receipts() -> None:
     assert report["audit_role_anchor_selection"] == {
         "kind": "deterministic_audit_fixture",
         "protocol": "role-anchor-selection-v1",
-        "completion_plan": {
+        "anchor_source_plan": {
             "file": "docs/research/full-baseline-completion/plan.json",
-            "sha256": report["audit_role_anchor_selection"][
-                "completion_plan"
-            ]["sha256"],
+            "sha256": ANCHOR_SOURCE_PLAN_SHA256,
         },
-        "selection_sha256": report["audit_role_anchor_selection"][
-            "selection_sha256"
-        ],
+        "completion_plan": {
+            "kind": "audit_only_v2",
+            "protocol": PROTOCOL,
+            "sha256": report["audit_role_anchor_selection"]["completion_plan"][
+                "sha256"
+            ],
+        },
+        "selection_sha256": report["audit_role_anchor_selection"]["selection_sha256"],
         "candidate_set_sha256": report["audit_role_anchor_selection"][
             "candidate_set_sha256"
         ],
         "group_count": 106,
     }
-    for key in (
-        "sha256",
-        "selection_sha256",
-        "candidate_set_sha256",
+    for value in (
+        report["audit_role_anchor_selection"]["completion_plan"]["sha256"],
+        report["audit_role_anchor_selection"]["anchor_source_plan"]["sha256"],
+        report["audit_role_anchor_selection"]["selection_sha256"],
+        report["audit_role_anchor_selection"]["candidate_set_sha256"],
     ):
-        value = (
-            report["audit_role_anchor_selection"]["completion_plan"][key]
-            if key == "sha256"
-            else report["audit_role_anchor_selection"][key]
-        )
         assert re.fullmatch(r"[0-9a-f]{64}", value)
 
     assert report["summary"] == {
@@ -75,6 +264,7 @@ def test_current_role_truth_reference_split_and_8x161_receipts() -> None:
         "model_count": 8,
         "conditioning_receipt_count": 1288,
         "reading_receipt_count": 1288,
+        "runtime_transport_probe_count": 1288,
         "explicit_reading_line_count": 25,
         "explicit_reading_receipt_count": 200,
         "explicit_reading_applied_receipt_count": 50,
@@ -125,12 +315,15 @@ def test_current_role_truth_reference_split_and_8x161_receipts() -> None:
         "supertonic-3": 161,
         "voxcpm2": 161,
     }
-    assert len(
-        {
-            (receipt["model"], receipt["scenario"], receipt["line"])
-            for receipt in receipts
-        },
-    ) == 1288
+    assert (
+        len(
+            {
+                (receipt["model"], receipt["scenario"], receipt["line"])
+                for receipt in receipts
+            },
+        )
+        == 1288
+    )
     for receipt in receipts:
         assert set(receipt["field_transport"]) == {
             "name",
@@ -202,12 +395,9 @@ def test_current_role_truth_reference_split_and_8x161_receipts() -> None:
     implicit = {
         receipt["model"]: receipt["reading"]
         for receipt in receipts
-        if receipt["scenario"] == "castle-gate"
-        and receipt["line"] == "guard-otoko-001"
+        if receipt["scenario"] == "castle-gate" and receipt["line"] == "guard-otoko-001"
     }
-    assert implicit["cosyvoice3-0.5b-2512"]["status"] == (
-        "model_required_auto_kana"
-    )
+    assert implicit["cosyvoice3-0.5b-2512"]["status"] == ("model_required_auto_kana")
     assert implicit["cosyvoice3-0.5b-2512"]["model_text"] == (
         "トマレ！ナニモノダ、ナヲナノレ！"
     )
@@ -224,12 +414,11 @@ def test_current_role_truth_reference_split_and_8x161_receipts() -> None:
         and receipt["character"] == "receptionist"
     }
     chatter_reference = receptionist["chatterbox-multilingual-v3"]["reference"]
-    chatter_payload = receptionist["chatterbox-multilingual-v3"][
-        "input_identity"
-    ]["payload"]
+    chatter_payload = receptionist["chatterbox-multilingual-v3"]["input_identity"][
+        "payload"
+    ]
     assert (
-        chatter_reference["prepare_state_sha256"]
-        == chatter_payload["reference_sha256"]
+        chatter_reference["prepare_state_sha256"] == chatter_payload["reference_sha256"]
     )
     assert (
         chatter_reference["audit_fixture_source_sha256"]
@@ -238,13 +427,8 @@ def test_current_role_truth_reference_split_and_8x161_receipts() -> None:
     assert chatter_reference["sha256"] != chatter_payload["reference_sha256"]
 
     gpt_reference = receptionist["gpt-sovits-v2-pro-plus"]["reference"]
-    gpt_payload = receptionist["gpt-sovits-v2-pro-plus"]["input_identity"][
-        "payload"
-    ]
-    assert (
-        gpt_reference["prepare_state_sha256"]
-        == gpt_payload["reference_clip_sha256"]
-    )
+    gpt_payload = receptionist["gpt-sovits-v2-pro-plus"]["input_identity"]["payload"]
+    assert gpt_reference["prepare_state_sha256"] == gpt_payload["reference_clip_sha256"]
     assert (
         gpt_reference["audit_fixture_source_sha256"]
         == gpt_payload["reference_source_sha256"]
@@ -255,10 +439,7 @@ def test_current_role_truth_reference_split_and_8x161_receipts() -> None:
         reference = receptionist[model]["reference"]
         payload = receptionist[model]["input_identity"]["payload"]
         assert reference["prepare_state_sha256"] == payload["reference_sha256"]
-        assert (
-            reference["audit_fixture_source_sha256"]
-            == payload["reference_sha256"]
-        )
+        assert reference["audit_fixture_source_sha256"] == payload["reference_sha256"]
         assert reference["sha256"] != payload["reference_sha256"]
 
     generated_qwen = next(
@@ -273,16 +454,17 @@ def test_current_role_truth_reference_split_and_8x161_receipts() -> None:
         == generated_qwen["input_identity"]["payload"]["reference_sha256"]
     )
     selected_anchor = generated_qwen["reference"]["selected_anchor"]
-    assert selected_anchor == generated_qwen["input_identity"]["payload"][
-        "selected_anchor"
-    ]
+    assert (
+        selected_anchor
+        == generated_qwen["input_identity"]["payload"]["selected_anchor"]
+    )
     assert (
         selected_anchor["anchor_audio_sha256"]
         == generated_qwen["reference"]["prepare_state_sha256"]
     )
     assert (
         selected_anchor["anchor_plan_sha256"]
-        == report["audit_role_anchor_selection"]["completion_plan"]["sha256"]
+        == report["audit_role_anchor_selection"]["anchor_source_plan"]["sha256"]
     )
     assert (
         selected_anchor["anchor_selection_sha256"]
@@ -355,7 +537,7 @@ def test_gpt_production_generation_input_substitutes_reading_fails_fast(
         "generation_input",
         substitute_reading,
     )
-    with pytest.raises(RoleConditioningAuditError, match="reading contract"):
+    with pytest.raises(RoleConditioningAuditError, match="runtime transport"):
         build_role_source_audit(REPOSITORY_ROOT)
 
 

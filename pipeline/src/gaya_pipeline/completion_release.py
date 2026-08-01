@@ -12,9 +12,6 @@ from gaya_pipeline.completion_listen import (
     CompletionListeningError,
     CompletionSourceResolution,
     PRIMARY_MODELS,
-    VOX_LEGACY_DIGESTS,
-    VOX_LEGACY_GROUPS,
-    VOX_LEGACY_RUN_ID,
     _load_target_lines,
     _local_audio_path,
     resolve_completion_sources,
@@ -41,7 +38,6 @@ from gaya_pipeline.curation import (
     canonical_candidate_set_bytes,
 )
 from gaya_pipeline.take_identity import canonical_json
-from gaya_pipeline.take_identity import make_take_id
 from gaya_pipeline.take_manifest_v4 import TakeManifestError, validate_manifest_v4
 
 
@@ -51,15 +47,14 @@ class CompletionReleaseError(RuntimeError):
 
 RELEASE_PROTOCOL = "role-baseline-release-v1"
 SOURCE_AUDIT_SHA256 = (
-    "1bcc2d56dc82201942fa36ea4186bee4536243ebf2f4f4ab364e27d6781a70bb"
+    "d7d48a053474251996ce5b63e509dce2a8b8df10189fb7fc49d0cdc859bad5cc"
 )
 FROZEN_PLAN_SHA256 = (
     "f21f7ffa598c38b24f345b8c05f4d18fe3073618deaa742bb55ff30e0a26a0e5"
 )
-EXPECTED_REPLACEMENT_COUNT = 363
-EXPECTED_INHERITED_COUNT = 925
-EXPECTED_MATCHED_COUNT = 780
-EXPECTED_UNVERIFIABLE_COUNT = 145
+EXPECTED_REPLACEMENT_COUNT = 597
+EXPECTED_INHERITED_COUNT = 691
+EXPECTED_MATCHED_COUNT = 691
 EXPECTED_SELECTED_COUNT = 1_288
 
 
@@ -92,7 +87,6 @@ def finalize_completion_release(
     decision_path: Path,
     primary_run_ids: Sequence[str],
     topup_run_ids: Sequence[str],
-    vox_run_id: str,
     anchor_selection_path: Path,
     artifacts_dir: Path,
     scenarios_dir: Path,
@@ -108,7 +102,6 @@ def finalize_completion_release(
             decision_path=decision_path,
             primary_run_ids=primary_run_ids,
             topup_run_ids=topup_run_ids,
-            vox_run_id=vox_run_id,
             anchor_selection_path=anchor_selection_path,
             artifacts_dir=artifacts_dir,
             scenarios_dir=scenarios_dir,
@@ -140,7 +133,6 @@ def _finalize_completion_release(
     decision_path: Path,
     primary_run_ids: Sequence[str],
     topup_run_ids: Sequence[str],
-    vox_run_id: str,
     anchor_selection_path: Path,
     artifacts_dir: Path,
     scenarios_dir: Path,
@@ -155,7 +147,6 @@ def _finalize_completion_release(
         plan=plan,
         primary_run_ids=primary_run_ids,
         topup_run_ids=topup_run_ids,
-        vox_run_id=vox_run_id,
         anchor_selection_path=anchor_selection_path,
         artifacts_dir=artifacts_dir,
         scenarios_dir=scenarios_dir,
@@ -178,7 +169,7 @@ def _finalize_completion_release(
 
     replacement = {target.identity for target in plan.targets}
     if len(replacement) != EXPECTED_REPLACEMENT_COUNT:
-        raise CompletionReleaseError("frozen plan replacementはexact 363 groupが必要です。")
+        raise CompletionReleaseError("frozen plan replacementはexact 597 groupが必要です。")
     base_groups = {_group_key(group): group for group in base_selection["groups"]}
     selected_base = {
         identity: group
@@ -192,7 +183,7 @@ def _finalize_completion_release(
     }
     if len(inherited) != EXPECTED_INHERITED_COUNT:
         raise CompletionReleaseError(
-            "inheritedはlegacy selected - replacement exactの925 groupが必要です。",
+            "inheritedはpublished selected - replacement exactの691 groupが必要です。",
         )
 
     audit = _load_source_audit(source_audit_path)
@@ -201,7 +192,7 @@ def _finalize_completion_release(
         replacement=replacement,
         inherited=inherited,
     )
-    replacement_candidates = _replacement_candidates(resolution)
+    replacement_candidates = _replacement_candidates(plan, resolution)
     replacement_candidate_set = _build_candidate_set(
         candidates=replacement_candidates,
         models=[
@@ -235,9 +226,10 @@ def _finalize_completion_release(
         )
     decision_groups = {_group_key(group): group for group in decision["groups"]}
     if set(decision_groups) != replacement:
-        raise CompletionReleaseError("completion decisionはexact 363 groupが必要です。")
+        raise CompletionReleaseError("completion decisionはexact 597 groupが必要です。")
     _validate_decision_against_sources(
         decision_groups=decision_groups,
+        plan=plan,
         resolution=resolution,
         candidate_set=replacement_candidate_set,
     )
@@ -412,7 +404,6 @@ def validate_completion_release(
             manifest_sha=manifest_sha,
             candidate_sha=candidate_sha,
             selection_sha=selection_sha,
-            source_audit=audit,
         )
         if (
             provenance["plan_sha256"] != normalized_selection["plan_sha256"]
@@ -468,6 +459,7 @@ def validate_completion_release(
 
 
 def _replacement_candidates(
+    plan: CompletionPlan,
     resolution: CompletionSourceResolution,
 ) -> list[dict[str, Any]]:
     result: list[dict[str, Any]] = []
@@ -477,9 +469,11 @@ def _replacement_candidates(
             for candidate in run.manifest["candidates"]
             if _group_key(candidate) == identity
         ]
-        if len(group_candidates) < 3:
+        minimum = plan.policy_for_model(identity[0]).minimum_eligible_candidates
+        if len(group_candidates) < minimum:
             raise CompletionReleaseError(
-                f"replacement groupはeligible candidate 3件以上が必要です: {identity}",
+                "replacement groupはeligible candidateがmodel policyの"
+                f"{minimum}件以上必要です: {identity}",
             )
         result.extend(group_candidates)
     return result
@@ -516,6 +510,7 @@ def _build_candidate_set(
 def _validate_decision_against_sources(
     *,
     decision_groups: Mapping[tuple[str, str, str, str], Mapping[str, Any]],
+    plan: CompletionPlan,
     resolution: CompletionSourceResolution,
     candidate_set: Mapping[str, Any],
 ) -> None:
@@ -524,6 +519,11 @@ def _validate_decision_against_sources(
         for line in candidate_set["lines"]
     }
     for identity, group in decision_groups.items():
+        minimum = plan.policy_for_model(identity[0]).minimum_eligible_candidates
+        if group["authority"]["minimum_eligible_candidates"] != minimum:
+            raise CompletionReleaseError(
+                f"decision minimumがmodel policyと不一致です: {identity}",
+            )
         if group["role_epoch_sha256"] != resolution.expected_role_epochs[identity]:
             raise CompletionReleaseError(
                 f"旧role epochのdecisionは再生できません: {identity}",
@@ -544,6 +544,7 @@ def _validate_decision_against_sources(
             line=line,
             role_epoch_sha256=resolution.expected_role_epochs[identity],
             source_run_id=source.run_id,
+            minimum_eligible_candidates=minimum,
             candidates=[
                 candidate
                 for candidate in candidate_set["candidates"]
@@ -578,6 +579,7 @@ def _decision_group_sha256(
     line: Mapping[str, Any],
     role_epoch_sha256: str,
     source_run_id: str,
+    minimum_eligible_candidates: int,
     candidates: Sequence[Mapping[str, Any]],
 ) -> str:
     document = {
@@ -590,6 +592,7 @@ def _decision_group_sha256(
         "delivery": line["delivery"],
         "role_epoch_sha256": role_epoch_sha256,
         "source_run_id": source_run_id,
+        "minimum_eligible_candidates": minimum_eligible_candidates,
         "candidates": [
             {
                 "take_id": candidate["take_id"],
@@ -622,9 +625,15 @@ def _validate_audit_partition(
     receipts = audit.get("conditioning_receipts")
     if not isinstance(receipts, list):
         raise CompletionReleaseError("source audit conditioning_receiptsが不正です。")
-    mismatch_or_failure: set[tuple[str, str, str, str]] = set()
+    expected_identities = replacement | set(inherited)
+    seen: set[tuple[str, str, str, str]] = set()
     matched: list[dict[str, Any]] = []
-    unverifiable: list[dict[str, Any]] = []
+    replacement_status_counts = {
+        "mismatch": 0,
+        "unverifiable": 0,
+        "match": 0,
+        "failure": 0,
+    }
     for receipt in receipts:
         identity = (
             str(receipt["model"]),
@@ -632,38 +641,49 @@ def _validate_audit_partition(
             str(receipt["line"]),
             "dry",
         )
+        if identity in seen:
+            raise CompletionReleaseError(
+                f"source audit identityが重複しています: {identity}",
+            )
+        seen.add(identity)
         status = receipt["published_comparison"]["status"]
-        if status in {"mismatch", "failure"}:
-            mismatch_or_failure.add(identity)
-        elif status in {"match", "unverifiable"}:
-            provenance = receipt["published_provenance"]
-            record = {
+        if identity in replacement:
+            if status not in replacement_status_counts:
+                raise CompletionReleaseError(
+                    f"source audit replacement statusが不正です: {identity}",
+                )
+            replacement_status_counts[status] += 1
+            continue
+        if identity not in inherited or status != "match":
+            raise CompletionReleaseError(
+                f"source audit inheritedはmatchが必要です: {identity}",
+            )
+        provenance = receipt["published_provenance"]
+        matched.append(
+            {
                 "model": identity[0],
                 "scenario": identity[1],
                 "line": identity[2],
                 "variant": identity[3],
                 "take_id": str(provenance["take_id"]),
                 "reason": str(receipt["published_comparison"]["reason"]),
-            }
-            (matched if status == "match" else unverifiable).append(record)
-    if mismatch_or_failure != replacement:
-        raise CompletionReleaseError(
-            "source audit mismatch/failure集合がfrozen replacement 363と不一致です。",
+            },
         )
-    inherited_keys = set(inherited)
-    audit_inherited = {
-        (item["model"], item["scenario"], item["line"], item["variant"])
-        for item in [*matched, *unverifiable]
-    }
-    if (
-        audit_inherited != inherited_keys
-        or len(matched) != EXPECTED_MATCHED_COUNT
-        or len(unverifiable) != EXPECTED_UNVERIFIABLE_COUNT
-    ):
+    if seen != expected_identities or len(seen) != EXPECTED_SELECTED_COUNT:
         raise CompletionReleaseError(
-            "source audit inheritedは780 matched + 145 unverifiableが必要です。",
+            "source audit identity集合が597 replacement + 691 inheritedと不一致です。",
         )
-    for item in [*matched, *unverifiable]:
+    if replacement_status_counts != {
+        "mismatch": 357,
+        "unverifiable": 145,
+        "match": 89,
+        "failure": 6,
+    } or len(matched) != EXPECTED_MATCHED_COUNT:
+        raise CompletionReleaseError(
+            "source audit status分布はreplacement 357/145/89/6、"
+            "inherited match 691が必要です。",
+        )
+    for item in matched:
         identity = (item["model"], item["scenario"], item["line"], item["variant"])
         if inherited[identity]["decision"]["take_id"] != item["take_id"]:
             raise CompletionReleaseError(
@@ -672,15 +692,7 @@ def _validate_audit_partition(
     return {
         "source_audit_sha256": SOURCE_AUDIT_SHA256,
         "matched_candidate_count": len(matched),
-        "inherited_identity_unverifiable": sorted(
-            unverifiable,
-            key=lambda item: (
-                item["model"],
-                item["scenario"],
-                item["line"],
-                item["variant"],
-            ),
-        ),
+        "inherited_identity_unverifiable": [],
     }
 
 
@@ -768,7 +780,6 @@ def _validate_provenance_document(
     manifest_sha: str,
     candidate_sha: str,
     selection_sha: str,
-    source_audit: Mapping[str, Any],
 ) -> None:
     if not isinstance(value, dict) or set(value) != {
         "format_version",
@@ -792,8 +803,8 @@ def _validate_provenance_document(
         or value["selection_sha256"] != selection_sha
         or value["counts"]
         != {
-            "replacement_groups": 363,
-            "inherited_groups": 925,
+            "replacement_groups": 597,
+            "inherited_groups": 691,
             "selected_groups": 1288,
             "failures": 0,
         }
@@ -811,7 +822,7 @@ def _validate_provenance_document(
     }:
         raise CompletionReleaseError("release provenance base exact contractが不正です。")
     unverifiable = base.get("inherited_identity_unverifiable")
-    expected_unverifiable = _audit_unverifiable_records(source_audit)
+    expected_unverifiable: list[dict[str, Any]] = []
     if (
         base.get("manifest_sha256") != BASE_MANIFEST_SHA256
         or base.get("git_blob") != BASE_MANIFEST_GIT_BLOB
@@ -823,7 +834,7 @@ def _validate_provenance_document(
         or unverifiable != expected_unverifiable
     ):
         raise CompletionReleaseError(
-            "release provenanceは780 matchedと145 exact unverifiable列挙が必要です。",
+            "release provenanceは691 matchedと0 unverifiableが必要です。",
         )
     runs = value["source_runs"]
     if not isinstance(runs, list):
@@ -832,7 +843,6 @@ def _validate_provenance_document(
     effective_groups: set[tuple[str, str, str, str]] = set()
     primary_models: set[str] = set()
     primary_count = 0
-    fixed_vox: Mapping[str, Any] | None = None
     runs_by_id: dict[str, Mapping[str, Any]] = {}
     for run in runs:
         if not isinstance(run, dict) or set(run) != {
@@ -862,10 +872,6 @@ def _validate_provenance_document(
         elif kind == "topup":
             if not isinstance(run["supersedes_run_id"], str):
                 raise CompletionReleaseError("topup source runにsupersedesが必要です。")
-        elif kind == "fixed_legacy_reuse":
-            if fixed_vox is not None:
-                raise CompletionReleaseError("固定Vox source runが重複しています。")
-            fixed_vox = run
         else:
             raise CompletionReleaseError("source run kindが不正です。")
         for field in (
@@ -913,10 +919,10 @@ def _validate_provenance_document(
     if (
         primary_models != PRIMARY_MODELS
         or primary_count != len(PRIMARY_MODELS)
-        or len(effective_groups) != 363
+        or len(effective_groups) != 597
     ):
         raise CompletionReleaseError(
-            "source provenanceは5 primaryとexact 363 effective groupが必要です。",
+            "source provenanceは8 primaryとexact 597 effective groupが必要です。",
         )
     for run in runs:
         if run["kind"] != "topup":
@@ -926,125 +932,6 @@ def _validate_provenance_document(
             raise CompletionReleaseError(
                 "topup provenanceのsupersedes runが同一model sourceにありません。",
             )
-    if fixed_vox is None or (
-        fixed_vox["run_id"] != VOX_LEGACY_RUN_ID
-        or fixed_vox["model"] != "voxcpm2"
-        or fixed_vox["supersedes_run_id"] is not None
-        or {
-            field: fixed_vox[field]
-            for field in VOX_LEGACY_DIGESTS
-        }
-        != VOX_LEGACY_DIGESTS
-        or {
-            _group_key(group) for group in fixed_vox["effective_groups"]
-        }
-        != VOX_LEGACY_GROUPS
-    ):
-        raise CompletionReleaseError(
-            "固定Vox run ID/4摘要/exact 2 group provenanceが不正です。",
-        )
-
-
-def _audit_unverifiable_records(
-    audit: Mapping[str, Any],
-) -> list[dict[str, Any]]:
-    receipts = audit.get("conditioning_receipts")
-    if not isinstance(receipts, list):
-        raise CompletionReleaseError("source audit conditioning_receiptsが不正です。")
-    records: list[dict[str, Any]] = []
-    identities: set[tuple[str, str, str, str]] = set()
-    for index, receipt in enumerate(receipts):
-        if not isinstance(receipt, Mapping):
-            raise CompletionReleaseError(
-                f"source audit receipt[{index}]が不正です。",
-            )
-        comparison = receipt.get("published_comparison")
-        if not isinstance(comparison, Mapping) or comparison.get("status") != (
-            "unverifiable"
-        ):
-            continue
-        identity = (
-            str(receipt.get("model")),
-            str(receipt.get("scenario")),
-            str(receipt.get("line")),
-            "dry",
-        )
-        if (
-            identity in identities
-            or identity[0] != "voxcpm2"
-            or any(not segment or segment == "None" for segment in identity)
-        ):
-            raise CompletionReleaseError(
-                "source audit unverifiable identityが不正または重複しています。",
-            )
-        identities.add(identity)
-        provenance = receipt.get("published_provenance")
-        if not isinstance(provenance, Mapping):
-            raise CompletionReleaseError(
-                "source audit unverifiable provenanceが不正です。",
-            )
-        take_id = _require_sha256(
-            provenance.get("take_id"),
-            "source audit take_id",
-        )
-        input_sha = _require_sha256(
-            provenance.get("generation_input_sha256"),
-            "source audit generation_input_sha256",
-        )
-        audio_sha = _require_sha256(
-            provenance.get("audio_sha256"),
-            "source audit audio_sha256",
-        )
-        for field in ("requested_params_sha256", "realized_params_sha256"):
-            _require_sha256(provenance.get(field), f"source audit {field}")
-        take_index = provenance.get("take_index")
-        expected_path = (
-            f"audio/takes/{identity[0]}/{identity[1]}/{identity[2]}/dry/"
-            f"take-{take_index:04d}-{audio_sha}.opus"
-            if isinstance(take_index, int)
-            and not isinstance(take_index, bool)
-            and take_index >= 1
-            else None
-        )
-        if (
-            provenance.get("status") != "candidate"
-            or take_id
-            != make_take_id(
-                generation_input_sha256=input_sha,
-                final_opus_sha256=audio_sha,
-            )
-            or provenance.get("audio_path") != expected_path
-            or not isinstance(comparison.get("reason"), str)
-            or not comparison["reason"]
-        ):
-            raise CompletionReleaseError(
-                "source audit unverifiable candidate provenanceが不正です。",
-            )
-        records.append(
-            {
-                "model": identity[0],
-                "scenario": identity[1],
-                "line": identity[2],
-                "variant": identity[3],
-                "take_id": take_id,
-                "reason": comparison["reason"],
-            },
-        )
-    records.sort(
-        key=lambda item: (
-            item["model"],
-            item["scenario"],
-            item["line"],
-            item["variant"],
-        ),
-    )
-    if len(records) != EXPECTED_UNVERIFIABLE_COUNT:
-        raise CompletionReleaseError(
-            "source auditはexact 145 Vox unverifiableが必要です。",
-        )
-    return records
-
-
 def _validate_candidate_set_manifest_join(
     *,
     candidate_set: Mapping[str, Any],
@@ -1104,7 +991,7 @@ def _validate_provenance_selection_join(
         for group in selection["groups"]
         if group["authority"]["type"] == "best_available"
     }
-    if set(effective) != replacement_groups or len(replacement_groups) != 363:
+    if set(effective) != replacement_groups or len(replacement_groups) != 597:
         raise CompletionReleaseError(
             "provenance effective sourceとselection replacementがexact一致しません。",
         )

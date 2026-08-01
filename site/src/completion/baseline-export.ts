@@ -75,7 +75,7 @@ export function buildBaselineDecisionJson(catalog: BaselineCatalog, draft: Basel
           type: "best_available",
           policy_version: "missing-slot-best-of-n-v1",
           reviewer: "owner",
-          minimum_eligible_candidates: 3,
+          minimum_eligible_candidates: group.minimumEligibleCandidates,
         },
         candidates: group.exportCandidates.map((candidate) => {
           const rubric = rubricByTake.get(candidate.takeId);
@@ -151,16 +151,19 @@ export function validateBaselineDecision(value: unknown): void {
     seenGroups.add(groupKey);
 
     const authority = exactObject(group.authority, AUTHORITY_KEYS, `${label}.authority`);
+    const minimumEligibleCandidates = positiveInteger(
+      authority.minimum_eligible_candidates,
+      `${label}.authority.minimum_eligible_candidates`,
+    );
     if (
       authority.type !== "best_available" ||
       authority.policy_version !== "missing-slot-best-of-n-v1" ||
-      authority.reviewer !== "owner" ||
-      authority.minimum_eligible_candidates !== 3
+      authority.reviewer !== "owner"
     ) {
       throw new Error(`${label}.authority がbest-available exact contractと一致しません。`);
     }
-    if (!Array.isArray(group.candidates) || group.candidates.length < 3) {
-      throw new Error(`${label}.candidates は3件以上必要です。`);
+    if (!Array.isArray(group.candidates) || group.candidates.length < minimumEligibleCandidates) {
+      throw new Error(`${label}.candidates はminimum_eligible_candidates以上必要です。`);
     }
     const localTakeIds = new Set<string>();
     const candidates = group.candidates.map((rawCandidate, candidateIndex) => {
@@ -277,6 +280,13 @@ function nonEmptyText(value: unknown, label: string): string {
 function sha(value: unknown, label: string): string {
   if (typeof value !== "string" || !/^[0-9a-f]{64}$/.test(value)) {
     throw new Error(`${label} は完全な小文字SHA-256が必要です。`);
+  }
+  return value;
+}
+
+function positiveInteger(value: unknown, label: string): number {
+  if (typeof value !== "number" || !Number.isInteger(value) || value < 1) {
+    throw new Error(`${label} は正の整数が必要です。`);
   }
   return value;
 }
