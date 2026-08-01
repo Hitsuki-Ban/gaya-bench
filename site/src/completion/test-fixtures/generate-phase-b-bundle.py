@@ -4,6 +4,7 @@ import hashlib
 import sys
 from pathlib import Path
 from types import SimpleNamespace
+from unittest.mock import patch
 
 import gaya_pipeline.completion_listen as completion_listen
 from gaya_pipeline.completion_listen import (
@@ -210,11 +211,23 @@ def main(root: Path) -> None:
         anchor_selection_sha256=anchor_sha,
         expected_role_epochs=role_epochs,
     )
-    original_resolve = completion_listen.resolve_completion_sources
-    original_lines = completion_listen._load_target_lines
-    completion_listen.resolve_completion_sources = lambda **_kwargs: resolution
-    completion_listen._load_target_lines = lambda **_kwargs: (sha(b"scenarios"), lines)
-    try:
+    with (
+        patch.object(
+            completion_listen,
+            "resolve_completion_sources",
+            return_value=resolution,
+        ),
+        patch.object(
+            completion_listen,
+            "_load_target_lines",
+            return_value=(sha(b"scenarios"), lines),
+        ),
+        patch.object(
+            completion_listen,
+            "require_production_completion_plan",
+            return_value=None,
+        ),
+    ):
         build_completion_listening_bundle(
             plan=plan,
             primary_run_ids=[run.run_id for run in runs],
@@ -225,9 +238,6 @@ def main(root: Path) -> None:
             voices_dir=root / "unused-voices",
             output_dir=output_dir,
         )
-    finally:
-        completion_listen.resolve_completion_sources = original_resolve
-        completion_listen._load_target_lines = original_lines
 
 
 if __name__ == "__main__":
