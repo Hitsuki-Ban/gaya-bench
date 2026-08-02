@@ -160,6 +160,7 @@ function selected(
     path: `audio/takes/${model}/${scenario}/${lineId}/${variant}/take.opus`,
     duration_sec: 1,
     rtf: 1,
+    reference_conditioning: { kind: "none" },
     gate: { content: "pass" },
     role_quality: null,
   };

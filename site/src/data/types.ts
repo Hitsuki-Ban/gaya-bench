@@ -168,10 +168,31 @@ export interface ReleaseMetadata {
   readonly models: readonly Model[];
 }
 
+export type ReferenceConditioning =
+  | {
+      readonly kind: "none";
+    }
+  | {
+      readonly kind: "human_reference";
+      readonly voice_id: string;
+      readonly asset_sha256: string;
+      readonly inference_reference_sha256: string;
+      readonly selection_source: string;
+    }
+  | {
+      readonly kind: "model_generated_reference";
+      readonly inference_reference_sha256: string;
+      readonly source_kind:
+        | "voice_design"
+        | "selected_voice_design_anchor"
+        | "selected-role-anchor";
+    };
+
 export interface PublishedCandidate extends ArtifactGroup {
   readonly path: string;
   readonly duration_sec: number;
   readonly rtf: number;
+  readonly reference_conditioning: ReferenceConditioning;
   readonly gate: {
     readonly content: "pass" | "review_required";
   };

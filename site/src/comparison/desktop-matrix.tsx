@@ -2,6 +2,8 @@ import { memo, useRef } from "react";
 import { Link } from "react-router";
 
 import { CharacterKindBadge } from "@/components/character-kind-badge";
+import { ModelMethodBadge } from "@/components/model-method-badge";
+import { ReferenceConditioningBadge } from "@/components/reference-conditioning-badge";
 import { Badge } from "@/components/ui/badge";
 import type { ComparisonProjection } from "@/filters";
 import { DIFFICULTY_LABELS, EMOTION_LABELS } from "@/ui-labels";
@@ -65,6 +67,9 @@ export function DesktopMatrix({ controller, model, projection, search }: Desktop
                 >
                   {item.name}
                 </Link>
+                <div className="mt-1.5 min-w-0">
+                  <ModelMethodBadge capabilities={item.capabilities} compact />
+                </div>
                 <div className="mt-1.5 flex flex-wrap gap-1">
                   <CapabilityBadge active={item.capabilities.emotion} label="E" title="感情" />
                   <CapabilityBadge
@@ -206,6 +211,7 @@ const MatrixRow = memo(function MatrixRow({
       </th>
       {visibleModels.map((item) => {
         const coordinate: Coordinate = { rowIndex, modelId: item.id };
+        const cell = model.getCell(coordinate);
         return (
           <td
             className={[
@@ -224,7 +230,7 @@ const MatrixRow = memo(function MatrixRow({
           >
             <MatrixCell
               accessibleLabel={`${row.scenario.title} / ${row.character.name}「${row.line.text}」`}
-              cell={model.getCell(coordinate)}
+              cell={cell}
               coordinate={coordinate}
               isCurrent={playingModelId === item.id}
               isCursor={cursorModelId === item.id}
@@ -236,6 +242,14 @@ const MatrixRow = memo(function MatrixRow({
               stop={stop}
               toggleFocused={toggleFocused}
             />
+            {cell?.kind === "selected" ? (
+              <div className="min-w-0 px-1 pt-1">
+                <ReferenceConditioningBadge
+                  conditioning={cell.candidate.reference_conditioning}
+                  tabIndex={cursorModelId === item.id ? 0 : -1}
+                />
+              </div>
+            ) : null}
           </td>
         );
       })}

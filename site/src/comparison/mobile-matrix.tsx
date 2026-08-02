@@ -2,6 +2,8 @@ import type { KeyboardEvent } from "react";
 import { Link } from "react-router";
 
 import { CharacterKindBadge } from "@/components/character-kind-badge";
+import { ModelMethodBadge } from "@/components/model-method-badge";
+import { ReferenceConditioningBadge } from "@/components/reference-conditioning-badge";
 import { Badge } from "@/components/ui/badge";
 import type { ComparisonProjection } from "@/filters";
 import { DIFFICULTY_LABELS, EMOTION_LABELS } from "@/ui-labels";
@@ -76,17 +78,23 @@ export function MobileMatrix({ controller, model, projection, search }: MobileMa
             tabIndex={selectedModel.id === item.id ? 0 : -1}
             type="button"
           >
-            {item.name}
+            <span className="block break-words">{item.name}</span>
+            <span className="mt-1.5 block">
+              <ModelMethodBadge capabilities={item.capabilities} compact />
+            </span>
           </button>
         ))}
       </div>
 
-      <Link
-        className="inline-flex text-xs text-primary underline-offset-4 hover:underline"
-        to={{ pathname: `/models/${selectedModel.id}`, search }}
-      >
-        {selectedModel.name} の詳細を見る
-      </Link>
+      <div className="flex min-w-0 flex-wrap items-center justify-between gap-2">
+        <Link
+          className="inline-flex text-xs text-primary underline-offset-4 hover:underline"
+          to={{ pathname: `/models/${selectedModel.id}`, search }}
+        >
+          {selectedModel.name} の詳細を見る
+        </Link>
+        <ModelMethodBadge capabilities={selectedModel.capabilities} />
+      </div>
 
       <div
         aria-labelledby={`mobile-model-tab-${selectedModel.id}`}
@@ -96,6 +104,7 @@ export function MobileMatrix({ controller, model, projection, search }: MobileMa
       >
         {projection.rows.map(({ row, rowIndex }, displayRowIndex) => {
           const coordinate: Coordinate = { rowIndex, modelId: selectedModel.id };
+          const cell = model.getCell(coordinate);
           const previous = projection.rows[displayRowIndex - 1]?.row;
           const isScenarioStart =
             previous === undefined || previous.scenario.id !== row.scenario.id;
@@ -138,7 +147,7 @@ export function MobileMatrix({ controller, model, projection, search }: MobileMa
               </div>
               <MatrixCell
                 accessibleLabel={`${row.scenario.title} / ${row.character.name}「${row.line.text}」`}
-                cell={model.getCell(coordinate)}
+                cell={cell}
                 coordinate={coordinate}
                 isCurrent={isCurrent}
                 isCursor={cursor.rowIndex === rowIndex}
@@ -150,6 +159,14 @@ export function MobileMatrix({ controller, model, projection, search }: MobileMa
                 stop={controller.stop}
                 toggleFocused={controller.toggleFocused}
               />
+              {cell?.kind === "selected" ? (
+                <div className="mt-2 min-w-0">
+                  <ReferenceConditioningBadge
+                    conditioning={cell.candidate.reference_conditioning}
+                    tabIndex={cursor.rowIndex === rowIndex ? 0 : -1}
+                  />
+                </div>
+              ) : null}
             </article>
           );
         })}
