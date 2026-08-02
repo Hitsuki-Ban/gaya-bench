@@ -40,7 +40,7 @@ jobs:
   scenario:
     name: シナリオ検証
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 15
     steps:
       - name: リポジトリを取得
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -97,6 +97,15 @@ jobs:
             echo "exists=false" >> "$GITHUB_OUTPUT"
             echo "::notice::site/ は未実装のため、サイト検証をスキップします"
           fi
+
+      - name: uv をセットアップ
+        if: steps.site_dir.outputs.exists == 'true'
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+        with:
+          version: "0.11.32"
+          python-version: "3.12"
+          enable-cache: true
+          cache-dependency-glob: pipeline/uv.lock
 
       - name: Vite+ をセットアップ
         if: steps.site_dir.outputs.exists == 'true'

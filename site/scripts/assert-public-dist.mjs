@@ -4,7 +4,13 @@ import path from "node:path";
 const distDirectory = path.resolve("dist");
 const publicEntry = path.join(distDirectory, "index.html");
 const internalEntry = path.join(distDirectory, "internal.html");
-const forbiddenText = ["gaya-bench-internal-ui-v1", "pilot-decision.json", "curation.json"];
+const forbiddenText = [
+  "gaya-bench-internal-ui-v1",
+  "baseline-completion-decision.json",
+  "completion-plan.sha256",
+  "pilot-decision.json",
+  "curation.json",
+];
 
 await requireFile(publicEntry, "公開 build の index.html がありません。");
 

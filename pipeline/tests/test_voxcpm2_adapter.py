@@ -258,7 +258,7 @@ def test_profile_registry_and_requested_parameters_are_canonical() -> None:
         "voice_prompt": True,
         "clone": True,
         "nonverbal": False,
-        "reading": True,
+        "reading": False,
     }
     recipe = adapter.take_recipe()
     assert recipe.version == "seed-only-v1"
@@ -383,7 +383,7 @@ def test_native_runtime_disables_retry_and_verifies_actual_seed() -> None:
         )
 
 
-def test_all_emotions_reading_and_explicit_reference_provenance(
+def test_all_emotions_use_surface_text_and_explicit_reference_provenance(
     tmp_path: Path,
 ) -> None:
     runtime = FakeRuntime()
@@ -411,14 +411,14 @@ def test_all_emotions_reading_and_explicit_reference_provenance(
             f"{EMOTION_INSTRUCTIONS[emotion]}. Delivery: 演技指示 {index}"
         )
         assert generation_input["source_text"] == "安いよ、見てって！"
-        assert generation_input["text"] == "ヤスイヨ、ミテッテ！"
-        assert generation_input["reading_source"] == "line.reading"
+        assert generation_input["text"] == "安いよ、見てって！"
+        assert generation_input["reading_source"] == "line.text"
         assert generation_input["emotion"] == emotion
         assert generation_input["intensity"] == intensity
         assert generation_input["delivery"] == f"演技指示 {index}"
         assert generation_input["control"] == expected_control
         assert generation_input["model_text"] == (
-            f"({expected_control})ヤスイヨ、ミテッテ！"
+            f"({expected_control})安いよ、見てって！"
         )
         assert generation_input["reference_kind"] == "asset"
         assert generation_input["reference_selection_source"] == (
@@ -446,7 +446,9 @@ def test_clone_is_lazy_uses_reference_and_writes_pcm16(
     assert len(runtime.generate_calls) == 1
     clone_call = runtime.generate_calls[0]
     assert clone_call["phase"] == "clone"
-    assert clone_call["text"].endswith("ヤスイヨ、ミテッテ！")
+    generation_input = adapter.generation_input(job, TAKE_CONTEXT)
+    assert clone_call["text"] == generation_input["model_text"]
+    assert clone_call["text"].endswith("安いよ、見てって！")
     assert clone_call["reference_wav_path"] == (
         voices_dir.resolve() / "amitaro-countdown" / "reference.wav"
     )
@@ -462,6 +464,7 @@ def test_clone_is_lazy_uses_reference_and_writes_pcm16(
     }
     assert realized["seed"] == 42
     assert realized["sample_rate_hz"] == 48_000
+    assert realized["reading_source"] == "line.text"
     with wave.open(str(output), "rb") as wav_file:
         assert wav_file.getnchannels() == 1
         assert wav_file.getsampwidth() == 2
@@ -732,20 +735,15 @@ def test_invalid_runtime_waveform_fails_before_output(
     assert not output.exists()
 
 
-def test_reading_converter_and_invalid_job_fail_fast(tmp_path: Path) -> None:
-    received: list[str] = []
-
-    def converter(text: str) -> str:
-        received.append(text)
-        return "ヤスイヨ、ミテッテ！"
-
-    adapter = VoxCPM2Adapter(runtime=FakeRuntime(), reading_converter=converter)
-    job = _job(reading=None)
+def test_explicit_reading_is_ignored_and_invalid_job_fails_fast(
+    tmp_path: Path,
+) -> None:
+    adapter = VoxCPM2Adapter(runtime=FakeRuntime())
+    job = _job(reading="ヤスイヨ、ミテッテ！")
     adapter.prepare([job], tmp_path / "artifacts", _voices_dir(tmp_path))
-    assert received == ["安いよ、見てって！"]
-    assert adapter.generation_input(job, TAKE_CONTEXT)["reading_source"] == (
-        "pyopenjtalk.g2p(kana=True)"
-    )
+    generation_input = adapter.generation_input(job, TAKE_CONTEXT)
+    assert generation_input["text"] == "安いよ、見てって！"
+    assert generation_input["reading_source"] == "line.text"
 
     with pytest.raises(VoxCPM2AdapterError, match="locale は ja"):
         adapter.prepare(

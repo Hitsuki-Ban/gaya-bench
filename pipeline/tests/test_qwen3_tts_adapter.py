@@ -1,37 +1,34 @@
 from __future__ import annotations
 
 import hashlib
-import json
+import math
 import struct
 import wave
+from collections.abc import Mapping
 from pathlib import Path
-from types import SimpleNamespace
 from typing import Any
 
 import pytest
-from gaya_pipeline.adapters import qwen3_tts
+import yaml
+
 from gaya_pipeline.adapters.base import LineJob, TakeContext
 from gaya_pipeline.adapters.qwen3_tts import (
-    ATTENTION_BACKEND,
     BASE_MODEL_ID,
     BASE_REVISION,
-    DELIVERY_INSTRUCTION,
-    DEVICE,
-    DTYPE,
-    EMOTION_INSTRUCTION,
-    INTENSITY_INSTRUCTION,
-    LANGUAGE,
     MODEL_ID,
     PROFILE_VERSION,
-    QWEN_TTS_VERSION,
-    REFERENCE_TEXT_BY_EMOTION,
-    SEED,
+    REFERENCE_TEXT,
     VOICE_DESIGN_MODEL_ID,
     VOICE_DESIGN_REVISION,
     Qwen3TTSAdapter,
     Qwen3TTSAdapterError,
-    _NativeRuntime,
 )
+from gaya_pipeline.completion_plan import build_role_snapshot
+from gaya_pipeline.take_identity import canonical_json
+
+
+REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
+PLAN_SHA256 = "2" * 64
 
 
 class FakeOutOfMemoryError(RuntimeError):
@@ -41,40 +38,27 @@ class FakeOutOfMemoryError(RuntimeError):
 class FakeRuntime:
     def __init__(self, root: Path) -> None:
         self.root = root
-        self.snapshots: list[tuple[str, str, Path]] = []
         self.snapshot_repos: dict[Path, str] = {}
-        self.loaded: list[tuple[str, Path]] = []
+        self.loaded: list[str] = []
         self.design_calls: list[dict[str, Any]] = []
         self.prompt_calls: list[dict[str, Any]] = []
         self.clone_calls: list[dict[str, Any]] = []
-        self.write_calls: list[tuple[Path, int]] = []
-        self.released: list[str] = []
-        self.resident_models: set[str] = set()
         self.seeds: list[int] = []
-        self.reset_count = 0
-        self.peak_count = 0
+        self.release_count = 0
         self.oom_on: str | None = None
 
     def snapshot_download(self, repo_id: str, revision: str) -> Path:
-        if self.oom_on == "snapshot":
-            raise RuntimeError("snapshot failed")
-        path = self.root / "snapshots" / repo_id.rsplit("/", 1)[1] / revision
+        path = self.root / "snapshots" / repo_id.rsplit("/", 1)[-1] / revision
         path.mkdir(parents=True, exist_ok=True)
-        self.snapshots.append((repo_id, revision, path))
         self.snapshot_repos[path] = repo_id
         return path
 
     def load_model(self, snapshot_path: Path) -> dict[str, str]:
-        repo_id = self.snapshot_repos[snapshot_path]
-        phase = "design_load" if repo_id == VOICE_DESIGN_MODEL_ID else "base_load"
-        if self.oom_on == phase:
-            raise FakeOutOfMemoryError(phase)
-        if repo_id == BASE_MODEL_ID and VOICE_DESIGN_MODEL_ID in self.resident_models:
-            raise AssertionError("VoiceDesign and Base are co-resident")
-        model = {"repo_id": repo_id}
-        self.loaded.append((repo_id, snapshot_path))
-        self.resident_models.add(repo_id)
-        return model
+        repo = self.snapshot_repos[snapshot_path]
+        if self.oom_on == "load":
+            raise FakeOutOfMemoryError("load")
+        self.loaded.append(repo)
+        return {"repo_id": repo}
 
     def generate_voice_design(
         self,
@@ -83,20 +67,20 @@ class FakeRuntime:
         text: str,
         language: str,
         instruct: str,
-        sampling: dict[str, int | float | bool],
+        sampling: Mapping[str, int | float | bool],
     ) -> tuple[list[list[float]], int]:
         if self.oom_on == "design":
             raise FakeOutOfMemoryError("design")
-        call = {
-            "model": model["repo_id"],
-            "text": text,
-            "language": language,
-            "instruct": instruct,
-            "sampling": dict(sampling),
-        }
-        self.design_calls.append(call)
-        marker = len(self.design_calls) / 10
-        return ([[0.0, marker, -marker, 0.0]], 24_000)
+        self.design_calls.append(
+            {
+                "model": model["repo_id"],
+                "text": text,
+                "language": language,
+                "instruct": instruct,
+                "sampling": dict(sampling),
+            },
+        )
+        return ([[0.0, 0.25, -0.25, 0.0]], 24_000)
 
     def create_voice_clone_prompt(
         self,
@@ -105,8 +89,6 @@ class FakeRuntime:
         ref_audio: str,
         ref_text: str,
     ) -> dict[str, int]:
-        if self.oom_on == "prompt":
-            raise FakeOutOfMemoryError("prompt")
         self.prompt_calls.append(
             {
                 "model": model["repo_id"],
@@ -122,11 +104,9 @@ class FakeRuntime:
         *,
         text: str,
         language: str,
-        voice_clone_prompt: dict[str, int],
-        sampling: dict[str, int | float | bool],
+        voice_clone_prompt: Any,
+        sampling: Mapping[str, int | float | bool],
     ) -> tuple[list[list[float]], int]:
-        if self.oom_on == "clone":
-            raise FakeOutOfMemoryError("clone")
         self.clone_calls.append(
             {
                 "model": model["repo_id"],
@@ -136,597 +116,384 @@ class FakeRuntime:
                 "sampling": dict(sampling),
             },
         )
-        return ([[0.0, 0.25, -0.25, 0.0]], 24_000)
+        return ([[0.0, 0.2, -0.2, 0.0]], 24_000)
 
     def write_pcm16(
         self,
         path: Path,
-        samples: list[float],
+        samples: Any,
         sample_rate: int,
     ) -> None:
         path.parent.mkdir(parents=True, exist_ok=True)
-        with wave.open(str(path), "wb") as wav_file:
-            wav_file.setnchannels(1)
-            wav_file.setsampwidth(2)
-            wav_file.setframerate(sample_rate)
-            wav_file.writeframes(
+        values = list(samples)
+        with wave.open(str(path), "wb") as wav:
+            wav.setnchannels(1)
+            wav.setsampwidth(2)
+            wav.setframerate(sample_rate)
+            wav.writeframes(
                 b"".join(
                     struct.pack(
                         "<h",
-                        round(max(-1.0, min(1.0, sample)) * 32767),
+                        round(max(-1.0, min(1.0, float(value))) * 32767),
                     )
-                    for sample in samples
+                    for value in values
                 ),
             )
-        self.write_calls.append((path, sample_rate))
 
     def seed(self, seed: int) -> None:
         self.seeds.append(seed)
 
     def reset_peak_memory_stats(self) -> None:
-        self.reset_count += 1
+        return
 
     def peak_memory_mib(self) -> dict[str, float]:
-        self.peak_count += 1
-        return {
-            "allocated_mib": float(self.peak_count),
-            "reserved_mib": float(self.peak_count) + 0.5,
-        }
+        return {"allocated_mib": 1024.0, "reserved_mib": 1280.0}
 
     def release_model(self) -> None:
-        self.released.extend(sorted(self.resident_models))
-        self.resident_models.clear()
+        self.release_count += 1
 
     def is_out_of_memory(self, error: BaseException) -> bool:
         return isinstance(error, FakeOutOfMemoryError)
-
-
-def _take_context(adapter: Qwen3TTSAdapter) -> TakeContext:
-    return adapter.take_recipe().single_take_context()
 
 
 def _job(
     *,
     line_id: str = "vendor-001",
     text: str = "いらっしゃい！",
-    character_id: str = "vendor",
-    voice: str = "明るく張りのある声。",
-    personality: str | None = "商売熱心。",
-    emotion: str = "cheerful",
-    intensity: object = 2,
-    delivery: str = "明るく弾むように呼びかける。",
+    reference_voice: str | None = None,
+    locale: str = "ja",
 ) -> LineJob:
-    character: dict[str, Any] = {
-        "id": character_id,
-        "voice": voice,
-    }
-    if personality is not None:
-        character["personality"] = personality
     return LineJob(
-        scene={
-            "id": "market-day",
-            "setting": "港町の朝市。人通りが多い。",
+        scene={"id": "market-day", "setting": "港町の朝市。人通りが多い。"},
+        character={
+            "id": "vendor",
+            "name": "受付嬢",
+            "kind": "human",
+            "gender": "female",
+            "age": "young_adult",
+            "archetype": "受付",
+            "voice": "明るく張りのある声。",
+            "personality": "親切で事務的。",
+            "reference_voice": reference_voice,
         },
-        character=character,
         line={
             "id": line_id,
             "text": text,
-            "emotion": emotion,
-            "intensity": intensity,
-            "delivery": delivery,
+            "emotion": "cheerful",
+            "intensity": 2,
+            "delivery": "明るく呼びかける。",
         },
-        locale="ja",
+        locale=locale,
     )
 
 
-def _reference_paths(
-    root: Path,
-    character: str = "vendor",
-    emotion: str = "cheerful",
-    intensity: int = 2,
-) -> tuple[Path, Path]:
-    reference_dir = (
-        root
-        / "voices"
-        / MODEL_ID
-        / "market-day"
-        / character
-        / emotion
-        / f"intensity-{intensity}"
+def _role(job: LineJob):
+    return build_role_snapshot(
+        scenario=job.scenario_id,
+        character=str(job.character["id"]),
+        character_document=job.character,
+        scene_setting=str(job.scene["setting"]),
     )
-    return reference_dir / "reference.wav", reference_dir / "reference.json"
 
 
-def _sha256(path: Path) -> str:
-    return hashlib.sha256(path.read_bytes()).hexdigest()
+def _write_wave(path: Path) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    sample_rate = 8_000
+    samples = [
+        int(3_000 * math.sin(2 * math.pi * 220 * index / sample_rate))
+        for index in range(sample_rate // 2)
+    ]
+    with wave.open(str(path), "wb") as wav:
+        wav.setnchannels(1)
+        wav.setsampwidth(2)
+        wav.setframerate(sample_rate)
+        wav.writeframes(struct.pack(f"<{len(samples)}h", *samples))
 
 
-def test_profile_and_requested_parameters_are_canonical(tmp_path: Path) -> None:
-    adapter = Qwen3TTSAdapter(runtime=FakeRuntime(tmp_path))
-
-    assert adapter.profile.id == "qwen3-tts-12hz-1.7b"
-    assert adapter.profile.version == PROFILE_VERSION
-    assert QWEN_TTS_VERSION in adapter.profile.version
-    assert BASE_REVISION in adapter.profile.version
-    assert VOICE_DESIGN_REVISION in adapter.profile.version
-    assert "感情参照 bank は blind A/B 不合格の実験経路" in (
-        adapter.profile.license_note
-    )
-    assert adapter.profile.capabilities.as_dict() == {
-        "emotion": False,
-        "voice_prompt": True,
-        "clone": True,
-        "nonverbal": False,
-        "reading": False,
+def _selection(tmp_path: Path, job: LineJob) -> Path:
+    role = _role(job)
+    root = tmp_path / "selection"
+    anchor_id = "1" * 64
+    audio = root / "audio" / f"{anchor_id}.wav"
+    _write_wave(audio)
+    audio_sha = hashlib.sha256(audio.read_bytes()).hexdigest()
+    plan_sha = PLAN_SHA256
+    candidate_sha = "3" * 64
+    review_epoch = "4" * 64
+    decision = {
+        "id": "5" * 64,
+        "model": MODEL_ID,
+        "scenario": role.scenario,
+        "character": role.character,
+        "line": None,
+        "role_epoch_sha256": review_epoch,
+        "group_sha256": "6" * 64,
+        "heard_candidate_ids": [anchor_id, "7" * 64],
+        "selected_candidate_id": anchor_id,
+        "no_usable_candidate": False,
+        "rubric": {
+            "content": "pass",
+            "prompt_leakage": "pass",
+            "reading": "not_applicable",
+            "pitch_accent": "not_applicable",
+            "gender": "pass",
+            "age": "pass",
+            "archetype": "pass",
+            "voice_identity": "pass",
+            "delivery": "not_applicable",
+            "naturalness_quality": 4,
+            "notes": "",
+        },
+        "confirmed": True,
     }
-    recipe = adapter.take_recipe()
-    assert recipe.version == "seed-only-v1"
-    assert recipe.seed_policy == "derived-sha256-v1"
-    assert recipe.single_take_seed == SEED
-    assert recipe.seed_range == (0, 2**32 - 1)
-    assert recipe.supports_multiple is True
-    params = adapter.generation_params()
-    assert params == {
-        "qwen_tts_version": QWEN_TTS_VERSION,
-        "base_model": BASE_MODEL_ID,
-        "base_revision": BASE_REVISION,
-        "voice_design_model": VOICE_DESIGN_MODEL_ID,
-        "voice_design_revision": VOICE_DESIGN_REVISION,
-        "device": DEVICE,
-        "dtype": DTYPE,
-        "attention_backend": ATTENTION_BACKEND,
-        "sampling": {
-            "do_sample": True,
-            "repetition_penalty": 1.05,
-            "temperature": 0.9,
-            "top_p": 1.0,
-            "top_k": 50,
-            "subtalker_dosample": True,
-            "subtalker_temperature": 0.9,
-            "subtalker_top_p": 1.0,
-            "subtalker_top_k": 50,
-            "max_new_tokens": 2048,
-        },
-        "reference_control": "voice_design_emotion_bank",
-        "reference_key": [
-            "scenario",
-            "character",
-            "emotion",
-            "intensity",
+    decision_sha = hashlib.sha256(
+        canonical_json(decision).encode("utf-8"),
+    ).hexdigest()
+    selected_epoch = hashlib.sha256(
+        canonical_json(
+            {
+                "protocol": "selected-role-epoch-v1",
+                "model": MODEL_ID,
+                "model_revision": PROFILE_VERSION,
+                "scenario": role.scenario,
+                "character": role.character,
+                "role_identity_sha256": role.role_identity_sha256,
+                "review_role_epoch_sha256": review_epoch,
+                "anchor_id": anchor_id,
+                "audio_sha256": audio_sha,
+                "decision_sha256": decision_sha,
+            },
+        ).encode("utf-8"),
+    ).hexdigest()
+    document = {
+        "format_version": 1,
+        "protocol": "role-anchor-selection-v1",
+        "plan_sha256": plan_sha,
+        "candidate_set_sha256": candidate_sha,
+        "groups": [
+            {
+                "model": MODEL_ID,
+                "model_revision": PROFILE_VERSION,
+                "scenario": role.scenario,
+                "character": role.character,
+                "role_identity": {
+                    "scenario": role.scenario,
+                    "character": role.character,
+                    "role": dict(role.role),
+                    "reference_voice": None,
+                    "scene_setting": role.scene_setting,
+                },
+                "role_identity_sha256": role.role_identity_sha256,
+                "review_role_epoch_sha256": review_epoch,
+                "role_epoch_sha256": selected_epoch,
+                "anchor_id": anchor_id,
+                "attempt": 2,
+                "seed": 123,
+                "audio_path": f"audio/{anchor_id}.wav",
+                "audio_sha256": audio_sha,
+                "anchor_text": REFERENCE_TEXT,
+                "anchor_text_sha256": hashlib.sha256(
+                    REFERENCE_TEXT.encode("utf-8"),
+                ).hexdigest(),
+                "decision": decision,
+                "decision_sha256": decision_sha,
+            },
         ],
-        "reference_text_by_emotion": REFERENCE_TEXT_BY_EMOTION,
-        "emotion_instruction": EMOTION_INSTRUCTION,
-        "delivery_instruction": DELIVERY_INSTRUCTION,
-        "intensity_instruction": {
-            str(intensity): instruction
-            for intensity, instruction in INTENSITY_INSTRUCTION.items()
-        },
     }
-    assert json.loads(json.dumps(params, ensure_ascii=False)) == params
-
-
-def test_prepare_caches_by_scenario_character_and_rebuilds_changed_input(
-    tmp_path: Path,
-) -> None:
-    runtime = FakeRuntime(tmp_path)
-    jobs = [
-        _job(),
-        _job(line_id="vendor-002", text="今日は安いよ！"),
-        _job(
-            line_id="child-001",
-            text="わあ！",
-            character_id="child",
-            voice="甲高く元気な子供の声。",
-            personality=None,
-        ),
-    ]
-    adapter = Qwen3TTSAdapter(runtime=runtime)
-    adapter.prepare(jobs, tmp_path / "artifacts", tmp_path / "voices")
-
-    assert [(repo, revision) for repo, revision, _ in runtime.snapshots] == [
-        (VOICE_DESIGN_MODEL_ID, VOICE_DESIGN_REVISION),
-    ]
-    assert [repo for repo, _ in runtime.loaded] == [VOICE_DESIGN_MODEL_ID]
-    assert len(runtime.design_calls) == 2
-    assert runtime.released == [VOICE_DESIGN_MODEL_ID]
-    vendor_call = next(
-        call
-        for call in runtime.design_calls
-        if "声質: 明るく張りのある声。" in call["instruct"]
+    path = (root / "role-anchor-selection-v1.json").resolve()
+    raw = canonical_json(document).encode("utf-8")
+    path.write_bytes(raw)
+    path.with_suffix(".sha256").write_bytes(
+        f"{hashlib.sha256(raw).hexdigest()}\n".encode("ascii"),
     )
-    assert "性格: 商売熱心。" in vendor_call["instruct"]
-    assert "場面: 港町の朝市。人通りが多い。" in vendor_call["instruct"]
-    assert f"感情: {EMOTION_INSTRUCTION['cheerful']}" in (
-        vendor_call["instruct"]
-    )
-    assert f"感情の強度: {INTENSITY_INSTRUCTION[2]}" in (
-        vendor_call["instruct"]
-    )
-    assert f"演技: {DELIVERY_INSTRUCTION['cheerful']}" in vendor_call["instruct"]
-    assert "同じキャラクターの声質、年齢感" in vendor_call["instruct"]
-    assert "実在の人物や声優を模倣せず" in vendor_call["instruct"]
-    assert vendor_call["text"] == REFERENCE_TEXT_BY_EMOTION["cheerful"]
-
-    wav_path, metadata_path = _reference_paths(tmp_path / "artifacts")
-    metadata_value = json.loads(metadata_path.read_text(encoding="utf-8"))
-    assert set(metadata_value) == {
-        "format_version",
-        "model",
-        "revision",
-        "scenario",
-        "character",
-        "emotion",
-        "intensity",
-        "delivery",
-        "language",
-        "text",
-        "instruct",
-        "seed",
-        "sampling",
-        "phase_peak_vram_mib",
-        "wav_sha256",
-    }
-    assert metadata_value["wav_sha256"] == _sha256(wav_path)
-    assert metadata_value["seed"] == SEED
-    assert not list(wav_path.parent.glob("*.pending.*"))
-
-    cached_runtime = FakeRuntime(tmp_path)
-    cached_adapter = Qwen3TTSAdapter(runtime=cached_runtime)
-    cached_adapter.prepare(jobs, tmp_path / "artifacts", tmp_path / "voices")
-    assert cached_runtime.snapshots == []
-    assert cached_runtime.loaded == []
-    assert cached_runtime.design_calls == []
-    assert cached_adapter.generation_input(
-        jobs[0],
-        _take_context(cached_adapter),
-    ) == {
-        "text": "いらっしゃい！",
-        "language": LANGUAGE,
-        "emotion": "cheerful",
-        "intensity": 2,
-        "reference_control": "voice_design_emotion_bank",
-        "reference_text": REFERENCE_TEXT_BY_EMOTION["cheerful"],
-        "reference_sha256": _sha256(wav_path),
-    }
-
-    original_metadata = metadata_path.read_text(encoding="utf-8")
-    changed_runtime = FakeRuntime(tmp_path)
-    changed_adapter = Qwen3TTSAdapter(runtime=changed_runtime)
-    changed_job = _job(voice="落ち着いた低い声。")
-    with pytest.raises(Qwen3TTSAdapterError, match="cache identity"):
-        changed_adapter.prepare(
-            [changed_job],
-            tmp_path / "artifacts",
-            tmp_path / "voices",
-        )
-    assert changed_runtime.snapshots == []
-    assert changed_runtime.design_calls == []
-    assert metadata_path.read_text(encoding="utf-8") == original_metadata
+    return path
 
 
-def test_prepare_builds_distinct_emotion_intensity_banks_and_reuses_prompts(
-    tmp_path: Path,
-) -> None:
-    runtime = FakeRuntime(tmp_path)
-    cheerful = _job()
-    cheerful_low = _job(
-        line_id="vendor-002",
-        text="今日は安いよ！",
-        intensity=1,
-        delivery="親しみを込めて軽やかに話す。",
-    )
-    angry = _job(
-        line_id="vendor-003",
-        text="ふざけるな！",
-        emotion="angry",
-        intensity=3,
-        delivery="腹の底から強く怒鳴る。",
-    )
-    adapter = Qwen3TTSAdapter(runtime=runtime)
-    artifacts = tmp_path / "artifacts"
-    adapter.prepare(
-        [cheerful, cheerful_low, angry],
-        artifacts,
-        tmp_path / "voices",
-    )
-
-    assert len(runtime.design_calls) == 3
-    for emotion, intensity in (("cheerful", 2), ("cheerful", 1), ("angry", 3)):
-        wav_path, metadata_path = _reference_paths(
-            artifacts,
-            emotion=emotion,
-            intensity=intensity,
-        )
-        assert wav_path.is_file()
-        metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
-        assert metadata["emotion"] == emotion
-        assert metadata["intensity"] == intensity
-        assert metadata["text"] == REFERENCE_TEXT_BY_EMOTION[emotion]
-
-    adapter.generate(
-        cheerful,
-        _take_context(adapter),
-        tmp_path / "audio" / "cheerful.wav",
-    )
-    adapter.generate(
-        angry,
-        _take_context(adapter),
-        tmp_path / "audio" / "angry.wav",
-    )
-    adapter.generate(
-        cheerful,
-        _take_context(adapter),
-        tmp_path / "audio" / "cheerful-again.wav",
-    )
-
-    assert len(runtime.prompt_calls) == 2
-    assert [call["ref_text"] for call in runtime.prompt_calls] == [
-        REFERENCE_TEXT_BY_EMOTION["cheerful"],
-        REFERENCE_TEXT_BY_EMOTION["angry"],
-    ]
-    assert runtime.clone_calls[0]["prompt"] is runtime.clone_calls[2]["prompt"]
-    assert runtime.clone_calls[0]["prompt"] is not runtime.clone_calls[1]["prompt"]
-
-
-def test_reference_delivery_recipe_is_line_order_independent(
-    tmp_path: Path,
-) -> None:
-    later = _job(
-        line_id="vendor-020",
-        delivery="大きく身振りを付けるように話す。",
-    )
-    earlier = _job(
-        line_id="vendor-010",
-        delivery="相手へ優しく微笑みかけるように話す。",
-    )
-    runtime = FakeRuntime(tmp_path)
-    artifacts = tmp_path / "artifacts"
-    Qwen3TTSAdapter(runtime=runtime).prepare(
-        [later, earlier],
-        artifacts,
-        tmp_path / "voices",
-    )
-
-    _, metadata_path = _reference_paths(artifacts)
-    metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
-    assert metadata["delivery"] == DELIVERY_INSTRUCTION["cheerful"]
-    assert f"演技: {DELIVERY_INSTRUCTION['cheerful']}" in metadata["instruct"]
-
-    cached_runtime = FakeRuntime(tmp_path)
-    Qwen3TTSAdapter(runtime=cached_runtime).prepare(
-        [earlier, later],
-        artifacts,
-        tmp_path / "voices",
-    )
-    assert cached_runtime.design_calls == []
-
-
-@pytest.mark.parametrize(
-    ("job", "message"),
-    [
-        (_job(emotion="unknown"), "未対応の line.emotion"),
-        (_job(intensity=None), "line.intensity"),
-        (_job(intensity=True), "line.intensity"),
-        (_job(intensity=4), "line.intensity"),
-    ],
-)
-def test_prepare_rejects_invalid_emotion_bank_inputs(
-    tmp_path: Path,
-    job: LineJob,
-    message: str,
-) -> None:
-    with pytest.raises(Qwen3TTSAdapterError, match=message):
-        Qwen3TTSAdapter(runtime=FakeRuntime(tmp_path)).prepare(
-            [job],
-            tmp_path / "artifacts",
-            tmp_path / "voices",
-        )
-
-
-def test_prepare_fails_fast_on_corrupt_cache(tmp_path: Path) -> None:
-    artifacts = tmp_path / "artifacts"
-    job = _job()
-    Qwen3TTSAdapter(runtime=FakeRuntime(tmp_path)).prepare(
-        [job],
-        artifacts,
-        tmp_path / "voices",
-    )
-    wav_path, metadata_path = _reference_paths(artifacts)
-
-    wav_path.write_bytes(wav_path.read_bytes() + b"tampered")
-    with pytest.raises(Qwen3TTSAdapterError, match="WAV SHA-256"):
-        Qwen3TTSAdapter(runtime=FakeRuntime(tmp_path)).prepare(
-            [job],
-            artifacts,
-            tmp_path / "voices",
-        )
-
-    metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
-    metadata["wav_sha256"] = _sha256(wav_path)
-    metadata["unexpected"] = True
-    metadata_path.write_text(
-        json.dumps(metadata, ensure_ascii=False),
-        encoding="utf-8",
-    )
-    with pytest.raises(Qwen3TTSAdapterError, match="項目が一致"):
-        Qwen3TTSAdapter(runtime=FakeRuntime(tmp_path)).prepare(
-            [job],
-            artifacts,
-            tmp_path / "voices",
-        )
-
-
-def test_base_is_lazy_prompt_is_reused_and_output_is_pcm16(
-    tmp_path: Path,
-) -> None:
-    runtime = FakeRuntime(tmp_path)
-    first = _job()
-    second = _job(line_id="vendor-002", text="今日は安いよ！")
-    adapter = Qwen3TTSAdapter(runtime=runtime)
-    artifacts = tmp_path / "artifacts"
-    adapter.prepare([first, second], artifacts, tmp_path / "voices")
-
-    assert [repo for repo, _ in runtime.loaded] == [VOICE_DESIGN_MODEL_ID]
-    output_one = tmp_path / "audio" / "one.wav"
-    output_two = tmp_path / "audio" / "two.wav"
+def _take(adapter: Qwen3TTSAdapter, seed: int = 7) -> TakeContext:
     recipe = adapter.take_recipe()
-    first_context = recipe.single_take_context()
-    second_context = TakeContext.create(
-        index=2,
-        seed=123_456,
+    return TakeContext.create(
+        index=1,
+        seed=seed,
         recipe_version=recipe.version,
         sampling=dict(recipe.sampling),
     )
-    realized_one = adapter.generate(first, first_context, output_one)
-    realized_two = adapter.generate(second, second_context, output_two)
 
-    assert [(repo, revision) for repo, revision, _ in runtime.snapshots] == [
-        (VOICE_DESIGN_MODEL_ID, VOICE_DESIGN_REVISION),
-        (BASE_MODEL_ID, BASE_REVISION),
-    ]
-    assert [repo for repo, _ in runtime.loaded] == [
-        VOICE_DESIGN_MODEL_ID,
-        BASE_MODEL_ID,
-    ]
-    assert runtime.released == [VOICE_DESIGN_MODEL_ID]
-    assert runtime.loaded[1][0] not in runtime.released
-    assert all(path.is_dir() for _, path in runtime.loaded)
-    assert len(runtime.prompt_calls) == 1
-    assert (
-        runtime.prompt_calls[0]["ref_text"]
-        == REFERENCE_TEXT_BY_EMOTION["cheerful"]
+
+def _mutate_pcm_byte(path: Path) -> None:
+    payload = bytearray(path.read_bytes())
+    payload[-1] ^= 0x01
+    path.write_bytes(payload)
+    with wave.open(str(path), "rb") as wav:
+        assert wav.getnframes() > 0
+
+
+def _voices_dir(tmp_path: Path) -> Path:
+    voices = tmp_path / "voices"
+    metadata = yaml.safe_load(
+        (REPOSITORY_ROOT / "assets" / "voices" / "metadata.yaml").read_text(
+            encoding="utf-8",
+        ),
     )
-    assert len(runtime.clone_calls) == 2
-    assert runtime.clone_calls[0]["language"] == LANGUAGE
-    assert runtime.clone_calls[0]["prompt"] is runtime.clone_calls[1]["prompt"]
-    assert runtime.seeds == [SEED, SEED, 123_456]
-
-    for output_path in (output_one, output_two):
-        with wave.open(str(output_path), "rb") as wav_file:
-            assert wav_file.getnchannels() == 1
-            assert wav_file.getsampwidth() == 2
-            assert wav_file.getframerate() == 24_000
-
-    assert realized_one["seed"] == SEED
-    assert realized_one["sampling"] == first_context.sampling_dict()
-    assert realized_two["seed"] == 123_456
-    assert realized_two["sampling"] == second_context.sampling_dict()
-    assert realized_one["sample_rate_hz"] == 24_000
-    assert set(realized_one["phase_peak_vram_mib"]) == {
-        "voice_design_load",
-        "voice_design_generate",
-        "base_load",
-        "voice_clone_generate",
-    }
-    for peak in realized_one["phase_peak_vram_mib"].values():
-        assert set(peak) == {"allocated_mib", "reserved_mib"}
-    assert (
-        realized_one["phase_peak_vram_mib"]["base_load"]
-        == realized_two["phase_peak_vram_mib"]["base_load"]
+    (voices / "metadata.schema.json").parent.mkdir(parents=True, exist_ok=True)
+    (voices / "metadata.schema.json").write_text(
+        (
+            REPOSITORY_ROOT / "assets" / "voices" / "metadata.schema.json"
+        ).read_text(encoding="utf-8"),
+        encoding="utf-8",
     )
+    entry = next(
+        item for item in metadata["voices"] if item["id"] == "lux-emotion-76"
+    )
+    wav = voices / entry["file"]
+    _write_wave(wav)
+    entry["sha256"] = hashlib.sha256(wav.read_bytes()).hexdigest()
+    entry["duration_sec"] = 10.0
+    (voices / "metadata.yaml").write_text(
+        yaml.safe_dump(metadata, allow_unicode=True, sort_keys=False),
+        encoding="utf-8",
+    )
+    return voices
 
 
-def test_prepare_and_generate_fail_fast_on_invalid_environment_and_oom(
+def test_profile_and_params_use_explicit_selection_contract(tmp_path: Path) -> None:
+    adapter = Qwen3TTSAdapter(runtime=FakeRuntime(tmp_path))
+    params = adapter.generation_params()
+
+    assert adapter.profile.version == PROFILE_VERSION
+    assert BASE_REVISION in PROFILE_VERSION
+    assert VOICE_DESIGN_REVISION in PROFILE_VERSION
+    assert params["role_anchor_selection_protocol"] == "role-anchor-selection-v1"
+    assert params["role_anchor_selection_required_for_null_reference"] is True
+    assert "voice_design_cache_directory" not in params
+
+
+def test_Phase_A_voice_design_input_is_role_complete_and_neutral(
     tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setattr(qwen3_tts.sys, "platform", "linux")
-    with pytest.raises(Qwen3TTSAdapterError, match="Windows native CUDA:0"):
-        Qwen3TTSAdapter()
-
-    monkeypatch.setattr(qwen3_tts.sys, "platform", "win32")
-
-    def package_missing(_: str) -> str:
-        raise qwen3_tts.metadata.PackageNotFoundError
-
-    monkeypatch.setattr(qwen3_tts.metadata, "version", package_missing)
-    with pytest.raises(Qwen3TTSAdapterError, match="qwen-tts==0.1.1"):
-        Qwen3TTSAdapter()
-
-    monkeypatch.setattr(
-        qwen3_tts.metadata,
-        "version",
-        lambda _: QWEN_TTS_VERSION,
-    )
-    fake_torch = SimpleNamespace(
-        cuda=SimpleNamespace(is_available=lambda: False),
-    )
-    fake_modules = {
-        "torch": fake_torch,
-        "soundfile": SimpleNamespace(),
-        "huggingface_hub": SimpleNamespace(snapshot_download=lambda **_: ""),
-        "qwen_tts": SimpleNamespace(Qwen3TTSModel=object()),
-    }
-    monkeypatch.setattr(
-        qwen3_tts.importlib,
-        "import_module",
-        lambda name: fake_modules[name],
-    )
-    with pytest.raises(Qwen3TTSAdapterError, match="CUDA:0"):
-        Qwen3TTSAdapter()
-
     runtime = FakeRuntime(tmp_path)
     adapter = Qwen3TTSAdapter(runtime=runtime)
-    job = _job()
-    adapter.prepare([job], tmp_path / "artifacts", tmp_path / "voices")
-    runtime.oom_on = "clone"
-    with pytest.raises(Qwen3TTSAdapterError, match="CUDA out of memory"):
-        adapter.generate(job, _take_context(adapter), tmp_path / "output.wav")
-    assert not (tmp_path / "output.wav").exists()
+    role = _role(_job())
+    input_document = adapter.role_anchor_generation_input(role)
+
+    assert input_document["text"] == REFERENCE_TEXT
+    instruct = str(input_document["instruct"])
+    for value in role.role.values():
+        assert value in instruct
+    assert "感情:" not in instruct
+    assert "intensity" not in canonical_json(input_document)
+
+    output = tmp_path / "anchor.wav"
+    realized = adapter.generate_role_anchor(role, seed=991, output_wav=output)
+    assert output.is_file()
+    assert runtime.loaded == [VOICE_DESIGN_MODEL_ID]
+    assert runtime.seeds == [991]
+    assert realized["seed"] == 991
+    adapter.close_role_anchor_generation()
+    assert runtime.release_count == 1
 
 
-def test_native_runtime_writes_soundfile_pcm16(tmp_path: Path) -> None:
-    received: dict[str, Any] = {}
-
-    class FakeSoundFile:
-        def write(
-            self,
-            path: str,
-            samples: list[float],
-            *,
-            samplerate: int,
-            format: str,
-            subtype: str,
-        ) -> None:
-            received.update(
-                {
-                    "path": path,
-                    "samples": samples,
-                    "samplerate": samplerate,
-                    "format": format,
-                    "subtype": subtype,
-                },
-            )
-
-    runtime = object.__new__(_NativeRuntime)
-    runtime.soundfile = FakeSoundFile()
-    output = tmp_path / "native.wav"
-    runtime.write_pcm16(output, [0.0, 0.5], 24_000)
-
-    assert received == {
-        "path": str(output),
-        "samples": [0.0, 0.5],
-        "samplerate": 24_000,
-        "format": "WAV",
-        "subtype": "PCM_16",
-    }
-
-
-def test_adapter_rejects_unprepared_and_non_japanese_jobs(tmp_path: Path) -> None:
+def test_null_reference_requires_selected_anchor(tmp_path: Path) -> None:
     adapter = Qwen3TTSAdapter(runtime=FakeRuntime(tmp_path))
-    job = _job()
-    with pytest.raises(Qwen3TTSAdapterError, match=r"prepare\(\)"):
-        adapter.generation_input(job, _take_context(adapter))
 
-    english_job = LineJob(
-        scene=job.scene,
-        character=job.character,
-        line=job.line,
-        locale="en",
+    with pytest.raises(Qwen3TTSAdapterError, match="selection"):
+        adapter.prepare([_job()], tmp_path / "artifacts", tmp_path / "voices")
+
+
+def test_Phase_B_uses_selected_WAV_and_receipt_for_all_character_lines(
+    tmp_path: Path,
+) -> None:
+    first = _job()
+    second = _job(line_id="vendor-002", text="こちらへどうぞ。")
+    selection = _selection(tmp_path, first)
+    runtime = FakeRuntime(tmp_path)
+    adapter = Qwen3TTSAdapter(
+        runtime=runtime,
+        role_anchor_selection_path=selection,
+        role_anchor_plan_sha256=PLAN_SHA256,
     )
-    with pytest.raises(Qwen3TTSAdapterError, match="Japanese 固定"):
+    adapter.prepare(
+        [first, second],
+        tmp_path / "unused-artifacts",
+        tmp_path / "unused-voices",
+    )
+
+    generation_input = adapter.generation_input(first, _take(adapter))
+    assert generation_input["selected_anchor"]["anchor_id"] == "1" * 64
+    assert generation_input["selected_anchor"]["role_epoch_sha256"]
+    assert generation_input["reference_control"] == "selected_voice_design_anchor"
+    assert runtime.design_calls == []
+
+    adapter.generate(first, _take(adapter, 11), tmp_path / "first.wav")
+    adapter.generate(second, _take(adapter, 12), tmp_path / "second.wav")
+    assert runtime.loaded == [BASE_MODEL_ID]
+    assert len(runtime.prompt_calls) == 1
+    assert runtime.prompt_calls[0]["ref_text"] == REFERENCE_TEXT
+    assert runtime.prompt_calls[0]["ref_audio"].endswith(".wav")
+    assert len(runtime.clone_calls) == 2
+
+
+def test_selected_anchor_WAVのprepare後変更を初回消費前に拒否(
+    tmp_path: Path,
+) -> None:
+    job = _job()
+    selection = _selection(tmp_path, job)
+    runtime = FakeRuntime(tmp_path)
+    adapter = Qwen3TTSAdapter(
+        runtime=runtime,
+        role_anchor_selection_path=selection,
+        role_anchor_plan_sha256=PLAN_SHA256,
+    )
+    adapter.prepare(
+        [job],
+        tmp_path / "unused-artifacts",
+        tmp_path / "unused-voices",
+    )
+    audio = next((selection.parent / "audio").glob("*.wav"))
+    _mutate_pcm_byte(audio)
+
+    with pytest.raises(Qwen3TTSAdapterError, match="prepare後"):
+        adapter.generate(job, _take(adapter), tmp_path / "target.wav")
+    assert runtime.prompt_calls == []
+    assert runtime.clone_calls == []
+    assert not (tmp_path / "target.wav").exists()
+
+
+def test_explicit_reference_needs_no_anchor_selection(tmp_path: Path) -> None:
+    voices = _voices_dir(tmp_path)
+    runtime = FakeRuntime(tmp_path)
+    adapter = Qwen3TTSAdapter(runtime=runtime)
+    job = _job(reference_voice="lux-emotion-76")
+    adapter.prepare([job], tmp_path / "artifacts", voices)
+
+    generation_input = adapter.generation_input(job, _take(adapter))
+    assert generation_input["reference_control"] == "voice_asset"
+    assert "selected_anchor" not in generation_input
+    assert runtime.design_calls == []
+
+
+def test_selection_path_must_be_absolute(tmp_path: Path) -> None:
+    with pytest.raises(Qwen3TTSAdapterError, match="絶対path"):
+        Qwen3TTSAdapter(
+            runtime=FakeRuntime(tmp_path),
+            role_anchor_selection_path=Path("relative.json"),
+            role_anchor_plan_sha256=PLAN_SHA256,
+        )
+
+
+def test_non_japanese_and_oom_fail_fast(tmp_path: Path) -> None:
+    adapter = Qwen3TTSAdapter(runtime=FakeRuntime(tmp_path))
+    role = _role(_job())
+    with pytest.raises(Qwen3TTSAdapterError, match="Japanese"):
         adapter.prepare(
-            [english_job],
+            [_job(locale="en")],
             tmp_path / "artifacts",
             tmp_path / "voices",
+        )
+    runtime = FakeRuntime(tmp_path)
+    runtime.oom_on = "design"
+    with pytest.raises(Qwen3TTSAdapterError, match="out of memory"):
+        Qwen3TTSAdapter(runtime=runtime).generate_role_anchor(
+            role,
+            seed=1,
+            output_wav=tmp_path / "oom.wav",
         )

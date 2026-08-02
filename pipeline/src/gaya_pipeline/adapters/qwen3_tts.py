@@ -3,7 +3,6 @@ from __future__ import annotations
 import gc
 import hashlib
 import importlib
-import json
 import re
 import sys
 from collections.abc import Callable, Mapping, Sequence
@@ -11,6 +10,8 @@ from dataclasses import dataclass
 from importlib import metadata
 from pathlib import Path
 from typing import Any, Protocol, TypeVar
+
+import yaml
 
 from gaya_pipeline.adapters.base import (
     Capabilities,
@@ -20,6 +21,16 @@ from gaya_pipeline.adapters.base import (
     TakeRecipe,
     require_take_context,
 )
+from gaya_pipeline.completion_anchor import (
+    CompletionAnchorError,
+    resolve_selected_anchor,
+)
+from gaya_pipeline.completion_plan import (
+    CompletionPlanError,
+    RoleSnapshot,
+    build_role_snapshot,
+)
+from gaya_pipeline.voice_assets import validate_voice_metadata
 
 MODEL_ID = "qwen3-tts-12hz-1.7b"
 QWEN_TTS_VERSION = "0.1.1"
@@ -36,56 +47,29 @@ DTYPE = "bfloat16"
 ATTENTION_BACKEND = "sdpa"
 LANGUAGE = "Japanese"
 SEED = 0
-REFERENCE_TEXT_BY_EMOTION = {
-    "neutral": "さて、今日も一日を始めましょう。",
-    "cheerful": "やった！こんなに嬉しいことがあるなんて！",
-    "angry": "いい加減にしろ！もう絶対に許さないぞ！",
-    "sad": "もう会えないなんて、本当に寂しいよ……。",
-    "fearful": "待って、何かいる……こっちに来ないで！",
-    "surprised": "えっ、本当に？そんなことがあるなんて！",
-    "tired": "はあ……今日はもう、すっかり疲れたよ。",
-    "drunk": "へへっ、今夜はまだまだ飲めるぞぉ。",
-    "whisper": "静かに……誰かに聞かれたら困るから。",
-    "shout": "みんな、急げ！今すぐここから逃げろ！",
-    "laughing": "はははっ、こんなに笑ったのは久しぶりだ！",
-    "pain": "うっ……痛い、でもまだ動ける……。",
+REFERENCE_TEXT = "さて、きょうもいちにちをはじめましょう。"
+_GENDER_LABELS = {
+    "female": "女性",
+    "male": "男性",
+    "neutral": "中性的",
 }
-EMOTION_INSTRUCTION = {
-    "neutral": "自然で落ち着いた中立の感情",
-    "cheerful": "明るく弾むような喜び",
-    "angry": "抑えきれない怒り",
-    "sad": "深い悲しみと寂しさ",
-    "fearful": "切迫した恐怖",
-    "surprised": "思わず声が跳ねる驚き",
-    "tired": "疲労で力の抜けた様子",
-    "drunk": "酔いが回って舌が少し緩んだ様子",
-    "whisper": "息を混ぜた小さな囁き",
-    "shout": "遠くへ届く切迫した叫び",
-    "laughing": "自然な笑いを含む楽しさ",
-    "pain": "痛みに耐えながら絞り出す声",
+_AGE_LABELS = {
+    "child": "子ども",
+    "teen": "10代",
+    "young_adult": "若い成人",
+    "adult": "成人",
+    "middle_aged": "中年",
+    "elderly": "高齢者",
 }
-DELIVERY_INSTRUCTION = {
-    "neutral": "自然な間を取り、平静な口調で話す。",
-    "cheerful": "声を弾ませ、明るいテンポで話す。",
-    "angry": "語気を強め、短く鋭く言い切る。",
-    "sad": "息を多めに含み、間を置きながら沈んだ調子で話す。",
-    "fearful": "息を詰め、声を震わせながら切迫して話す。",
-    "surprised": "冒頭で息をのみ、声を大きく跳ね上げる。",
-    "tired": "力を抜き、息を漏らしながらゆっくり話す。",
-    "drunk": "言葉を少しもつれさせ、揺れるテンポで話す。",
-    "whisper": "声量を抑え、耳元で囁くように話す。",
-    "shout": "腹から声を出し、遠くへ強く呼びかける。",
-    "laughing": "言葉の合間に自然な笑いを混ぜる。",
-    "pain": "息を詰まらせ、痛みに耐えながら絞り出す。",
-}
-INTENSITY_INSTRUCTION = {
-    1: "弱め。声質を崩さず控えめに表す",
-    2: "中程度。台詞の意図が明確に伝わる強さで表す",
-    3: "強め。声質を保ったまま感情をはっきり表す",
+_KIND_LABELS = {
+    "human": "人間",
+    "machine": "機械",
+    "creature": "生物",
+    "spirit": "精霊",
 }
 
-_CACHE_FORMAT_VERSION = 2
 _IDENTIFIER = re.compile(r"^[a-z0-9][a-z0-9-]*$")
+_SHA256 = re.compile(r"^[0-9a-f]{64}$")
 _MIB = 1024 * 1024
 _SAMPLING: dict[str, int | float | bool] = {
     "do_sample": True,
@@ -100,9 +84,9 @@ _SAMPLING: dict[str, int | float | bool] = {
     "max_new_tokens": 2048,
 }
 _PEAK_KEYS = {"allocated_mib", "reserved_mib"}
-_CACHE_PEAK_KEYS = {"voice_design_load", "voice_design_generate"}
-_REFERENCE_CONTROL = "voice_design_emotion_bank"
-_ReferenceKey = tuple[str, str, str, int]
+_SELECTED_ANCHOR_CONTROL = "selected_voice_design_anchor"
+_ASSET_REFERENCE_CONTROL = "voice_asset"
+_ReferenceKey = tuple[str, str]
 
 
 class Qwen3TTSAdapterError(RuntimeError):
@@ -313,7 +297,24 @@ class _NativeRuntime:
 class _VoiceReference:
     wav_path: Path
     sha256: str
+    text: str
+    control: str
+    source_id: str
+    character_identity: Mapping[str, Any]
     phase_peak_vram_mib: dict[str, dict[str, float]]
+    selected_anchor_receipt: Mapping[str, Any] | None
+
+    def receipt(self) -> dict[str, Any]:
+        receipt = {
+            "character_identity": dict(self.character_identity),
+            "reference_control": self.control,
+            "reference_source_id": self.source_id,
+            "reference_sha256": self.sha256,
+            "reference_text": self.text,
+        }
+        if self.selected_anchor_receipt is not None:
+            receipt["selected_anchor"] = dict(self.selected_anchor_receipt)
+        return receipt
 
 
 _T = TypeVar("_T")
@@ -326,7 +327,7 @@ class Qwen3TTSAdapter:
         version=PROFILE_VERSION,
         license_note=(
             "Apache-2.0（Qwen3-TTS code / Base / VoiceDesign）。"
-            "VoiceDesign 感情参照 bank は blind A/B 不合格の実験経路"
+            "明示参照音声またはキャラクター単位の VoiceDesign anchor を Base で clone する"
         ),
         capabilities=Capabilities(
             emotion=False,
@@ -347,12 +348,43 @@ class Qwen3TTSAdapter:
             supports_multiple=True,
         )
 
-    def __init__(self, runtime: _Runtime | None = None) -> None:
+    def __init__(
+        self,
+        runtime: _Runtime | None = None,
+        *,
+        role_anchor_selection_path: Path | None = None,
+        role_anchor_plan_sha256: str | None = None,
+    ) -> None:
+        if (role_anchor_selection_path is None) != (
+            role_anchor_plan_sha256 is None
+        ):
+            raise Qwen3TTSAdapterError(
+                "role anchor selection pathとfrozen plan SHAは同時に指定してください。",
+            )
+        if (
+            role_anchor_selection_path is not None
+            and not role_anchor_selection_path.is_absolute()
+        ):
+            raise Qwen3TTSAdapterError(
+                "role anchor selectionは絶対pathが必要です。",
+            )
+        if (
+            role_anchor_plan_sha256 is not None
+            and re.fullmatch(r"[0-9a-f]{64}", role_anchor_plan_sha256) is None
+        ):
+            raise Qwen3TTSAdapterError(
+                "role anchor frozen plan SHAは完全な小文字SHA-256が必要です。",
+            )
         self._runtime = _NativeRuntime() if runtime is None else runtime
+        self._role_anchor_selection_path = role_anchor_selection_path
+        self._role_anchor_plan_sha256 = role_anchor_plan_sha256
         self._references: dict[_ReferenceKey, _VoiceReference] = {}
         self._clone_prompts: dict[_ReferenceKey, Any] = {}
+        self._clone_prompt_peaks: dict[_ReferenceKey, dict[str, float]] = {}
         self._base_model: Any | None = None
         self._base_load_peak: dict[str, float] | None = None
+        self._anchor_model: Any | None = None
+        self._anchor_load_peak: dict[str, float] | None = None
         self._prepared = False
 
     def prepare(
@@ -361,10 +393,15 @@ class Qwen3TTSAdapter:
         artifacts_dir: Path,
         voices_dir: Path,
     ) -> None:
-        del voices_dir
+        self.close_role_anchor_generation()
+        if self._base_model is not None:
+            self._base_model = None
+            self._base_load_peak = None
+            self._runtime.release_model()
         self._prepared = False
         self._references.clear()
         self._clone_prompts.clear()
+        self._clone_prompt_peaks.clear()
 
         grouped_jobs: dict[_ReferenceKey, list[LineJob]] = {}
         for job in jobs:
@@ -372,93 +409,168 @@ class Qwen3TTSAdapter:
             grouped_jobs.setdefault(key, []).append(job)
 
         identities: dict[_ReferenceKey, dict[str, Any]] = {}
-        paths: dict[_ReferenceKey, tuple[Path, Path]] = {}
-        for key, bank_jobs in grouped_jobs.items():
-            identity = _cache_identity(bank_jobs[0])
-            if any(_cache_identity(job) != identity for job in bank_jobs[1:]):
+        reference_voices: dict[_ReferenceKey, str | None] = {}
+        roles: dict[_ReferenceKey, RoleSnapshot] = {}
+        for key, character_jobs in grouped_jobs.items():
+            identity = _character_identity(character_jobs[0])
+            if any(
+                _character_identity(job) != identity for job in character_jobs[1:]
+            ):
                 raise Qwen3TTSAdapterError(
-                    "同じ感情参照 bank key に異なる VoiceDesign 入力があります: "
+                    "同じ scenario/character に異なる character 入力があります: "
                     f"{_format_reference_key(key)}",
                 )
             identities[key] = identity
-            reference_dir = (
-                artifacts_dir
-                / "voices"
-                / MODEL_ID
-                / key[0]
-                / key[1]
-                / key[2]
-                / f"intensity-{key[3]}"
-            )
-            paths[key] = (
-                reference_dir / "reference.wav",
-                reference_dir / "reference.json",
-            )
+            roles[key] = _role_snapshot(character_jobs[0])
+            if any(
+                _role_snapshot(job) != roles[key]
+                for job in character_jobs[1:]
+            ):
+                raise Qwen3TTSAdapterError(
+                    "同じscenario/characterに異なるrole snapshotがあります: "
+                    f"{_format_reference_key(key)}",
+                )
+            reference_voice = _reference_voice_value(character_jobs[0])
+            if any(
+                _reference_voice_value(job) != reference_voice
+                for job in character_jobs[1:]
+            ):
+                raise Qwen3TTSAdapterError(
+                    "同じ scenario/character に異なる reference_voice があります: "
+                    f"{_format_reference_key(key)}",
+                )
+            reference_voices[key] = reference_voice
+        del artifacts_dir
 
-        missing: list[_ReferenceKey] = []
+        explicit_entries = (
+            _load_reference_entries(voices_dir)
+            if any(value is not None for value in reference_voices.values())
+            else {}
+        )
         for key in sorted(identities):
             identity = identities[key]
-            wav_path, metadata_path = paths[key]
-            cached = _read_cached_reference(
-                wav_path=wav_path,
-                metadata_path=metadata_path,
-                identity=identity,
+            reference_voice = reference_voices[key]
+            if reference_voice is not None:
+                self._references[key] = _explicit_reference(
+                    voice_id=reference_voice,
+                    voices_dir=voices_dir,
+                    entries=explicit_entries,
+                    character_identity=identity,
+                )
+                continue
+            try:
+                if (
+                    self._role_anchor_selection_path is None
+                    or self._role_anchor_plan_sha256 is None
+                ):
+                    raise Qwen3TTSAdapterError(
+                        "reference_voice=nullのPhase B準備には"
+                        "role anchor selectionの絶対pathとfrozen plan SHAが必要です。",
+                    )
+                selected = resolve_selected_anchor(
+                    selection_path=self._role_anchor_selection_path,
+                    plan_sha256=self._role_anchor_plan_sha256,
+                    model=MODEL_ID,
+                    model_revision=PROFILE_VERSION,
+                    role=roles[key],
+                )
+            except CompletionAnchorError as error:
+                raise Qwen3TTSAdapterError(
+                    f"selected role anchorが不正です: {error}",
+                ) from error
+            if selected.anchor_text != REFERENCE_TEXT:
+                raise Qwen3TTSAdapterError(
+                    "selected role anchor textがQwen固定値と一致しません。",
+                )
+            self._references[key] = _VoiceReference(
+                wav_path=selected.audio_path,
+                sha256=selected.audio_sha256,
+                text=selected.anchor_text,
+                control=_SELECTED_ANCHOR_CONTROL,
+                source_id=selected.anchor_id,
+                character_identity=identity,
+                phase_peak_vram_mib={},
+                selected_anchor_receipt=selected.receipt(),
             )
-            if cached is None:
-                missing.append(key)
-            else:
-                self._references[key] = cached
 
-        if missing:
+        self._prepared = True
+
+    def role_anchor_generation_input(
+        self,
+        role: RoleSnapshot,
+    ) -> Mapping[str, Any]:
+        _validate_anchor_role(role)
+        return {
+            "model": VOICE_DESIGN_MODEL_ID,
+            "revision": VOICE_DESIGN_REVISION,
+            "language": LANGUAGE,
+            "text": REFERENCE_TEXT,
+            "instruct": _voice_design_instruct(_identity_from_role(role)),
+            "sampling": _sampling(),
+        }
+
+    def generate_role_anchor(
+        self,
+        role: RoleSnapshot,
+        *,
+        seed: int,
+        output_wav: Path,
+    ) -> Mapping[str, Any]:
+        generation_input = self.role_anchor_generation_input(role)
+        if self._anchor_model is None:
+            if self._base_model is not None:
+                raise Qwen3TTSAdapterError(
+                    "Base generation中にVoiceDesign anchorは生成できません。",
+                )
             snapshot = self._download_snapshot(
                 VOICE_DESIGN_MODEL_ID,
                 VOICE_DESIGN_REVISION,
             )
             self._runtime.reset_peak_memory_stats()
-            voice_model = self._run_phase(
+            self._anchor_model = self._run_phase(
                 "VoiceDesign model load",
                 lambda: self._runtime.load_model(snapshot),
             )
-            load_peak = self._runtime.peak_memory_mib()
-            try:
-                for key in missing:
-                    identity = identities[key]
-                    wav_path, metadata_path = paths[key]
-                    self._runtime.seed(SEED)
-                    self._runtime.reset_peak_memory_stats()
-                    generated = self._run_phase(
-                        f"VoiceDesign generation ({_format_reference_key(key)})",
-                        lambda identity=identity: self._runtime.generate_voice_design(
-                            voice_model,
-                            text=str(identity["text"]),
-                            language=LANGUAGE,
-                            instruct=str(identity["instruct"]),
-                            sampling=_sampling(),
-                        ),
-                    )
-                    samples, sample_rate = _single_audio(
-                        generated,
-                        "VoiceDesign generation",
-                    )
-                    generation_peak = self._runtime.peak_memory_mib()
-                    phase_peaks = {
-                        "voice_design_load": _copy_peak(load_peak),
-                        "voice_design_generate": _copy_peak(generation_peak),
-                    }
-                    reference = self._write_reference(
-                        wav_path=wav_path,
-                        metadata_path=metadata_path,
-                        identity=identity,
-                        samples=samples,
-                        sample_rate=sample_rate,
-                        phase_peaks=phase_peaks,
-                    )
-                    self._references[key] = reference
-            finally:
-                voice_model = None
-                self._runtime.release_model()
+            self._anchor_load_peak = self._runtime.peak_memory_mib()
+        self._runtime.seed(seed)
+        self._runtime.reset_peak_memory_stats()
+        generated = self._run_phase(
+            f"VoiceDesign anchor generation ({role.scenario}/{role.character})",
+            lambda: self._runtime.generate_voice_design(
+                self._anchor_model,
+                text=REFERENCE_TEXT,
+                language=LANGUAGE,
+                instruct=str(generation_input["instruct"]),
+                sampling=_sampling(),
+            ),
+        )
+        samples, sample_rate = _single_audio(generated, "VoiceDesign generation")
+        generation_peak = self._runtime.peak_memory_mib()
+        output_wav.parent.mkdir(parents=True, exist_ok=True)
+        self._runtime.write_pcm16(output_wav, samples, sample_rate)
+        if not output_wav.is_file():
+            raise Qwen3TTSAdapterError(
+                f"VoiceDesign anchor WAVが書き込まれませんでした: {output_wav}",
+            )
+        if self._anchor_load_peak is None:
+            raise Qwen3TTSAdapterError("VoiceDesign load profileがありません。")
+        return {
+            "seed": seed,
+            "sample_rate_hz": sample_rate,
+            "phase_peak_vram_mib": {
+                "voice_design_load": _copy_peak(self._anchor_load_peak),
+                "voice_design_generate": _copy_peak(generation_peak),
+            },
+            "role_identity_sha256": role.role_identity_sha256,
+        }
 
-        self._prepared = True
+    def close_role_anchor_generation(self) -> None:
+        if self._anchor_model is None:
+            self._anchor_load_peak = None
+            return
+        self._anchor_model = None
+        self._anchor_load_peak = None
+        self._runtime.release_model()
 
     def generation_params(self) -> Mapping[str, Any]:
         return {
@@ -471,20 +583,29 @@ class Qwen3TTSAdapter:
             "dtype": DTYPE,
             "attention_backend": ATTENTION_BACKEND,
             "sampling": _sampling(),
-            "reference_control": _REFERENCE_CONTROL,
-            "reference_key": [
+            "reference_key": ["scenario", "character"],
+            "reference_controls": {
+                "explicit_reference": _ASSET_REFERENCE_CONTROL,
+                "selected_anchor": _SELECTED_ANCHOR_CONTROL,
+            },
+            "voice_design_anchor_text": REFERENCE_TEXT,
+            "role_anchor_selection_protocol": "role-anchor-selection-v1",
+            "role_anchor_selection_required_for_null_reference": True,
+            "character_identity_fields": [
                 "scenario",
                 "character",
-                "emotion",
-                "intensity",
+                "name",
+                "kind",
+                "gender",
+                "age",
+                "archetype",
+                "voice",
+                "personality",
+                "scene_setting",
             ],
-            "reference_text_by_emotion": dict(REFERENCE_TEXT_BY_EMOTION),
-            "emotion_instruction": dict(EMOTION_INSTRUCTION),
-            "delivery_instruction": dict(DELIVERY_INSTRUCTION),
-            "intensity_instruction": {
-                str(intensity): instruction
-                for intensity, instruction in INTENSITY_INSTRUCTION.items()
-            },
+            "gender_labels": dict(_GENDER_LABELS),
+            "age_labels": dict(_AGE_LABELS),
+            "kind_labels": dict(_KIND_LABELS),
         }
 
     def generation_input(
@@ -495,16 +616,10 @@ class Qwen3TTSAdapter:
         require_take_context(take_context, self.take_recipe())
         reference = self._reference_for(job)
         text = _required_string(job.line, "text", "line")
-        key = _job_key(job)
-        reference_text = _reference_text(key[2])
         return {
             "text": text,
             "language": LANGUAGE,
-            "emotion": key[2],
-            "intensity": key[3],
-            "reference_control": _REFERENCE_CONTROL,
-            "reference_text": reference_text,
-            "reference_sha256": reference.sha256,
+            **reference.receipt(),
         }
 
     def generate(
@@ -521,16 +636,27 @@ class Qwen3TTSAdapter:
         model = self._ensure_base_model()
         prompt = self._clone_prompts.get(key)
         if prompt is None:
-            reference_text = _reference_text(key[2])
+            _verify_reference_unchanged(reference)
+            self._runtime.reset_peak_memory_stats()
             prompt = self._run_phase(
                 f"Base clone prompt ({_format_reference_key(key)})",
                 lambda: self._runtime.create_voice_clone_prompt(
                     model,
                     ref_audio=str(reference.wav_path),
-                    ref_text=reference_text,
+                    ref_text=reference.text,
                 ),
             )
+            prompt_peak = self._runtime.peak_memory_mib()
             self._clone_prompts[key] = prompt
+            self._clone_prompt_peaks[key] = _copy_peak(prompt_peak)
+        else:
+            try:
+                prompt_peak = self._clone_prompt_peaks[key]
+            except KeyError as error:
+                raise Qwen3TTSAdapterError(
+                    "Base clone prompt の VRAM profile がありません: "
+                    f"{_format_reference_key(key)}",
+                ) from error
 
         text = _required_string(job.line, "text", "line")
         self._runtime.seed(seed)
@@ -564,11 +690,13 @@ class Qwen3TTSAdapter:
                     for phase, peak in reference.phase_peak_vram_mib.items()
                 },
                 "base_load": _copy_peak(self._base_load_peak),
+                "voice_clone_prompt_create": _copy_peak(prompt_peak),
                 "voice_clone_generate": _copy_peak(generation_peak),
             },
             "seed": seed,
             "sampling": take_context.sampling_dict(),
             "sample_rate_hz": sample_rate,
+            **reference.receipt(),
         }
 
     def _reference_for(self, job: LineJob) -> _VoiceReference:
@@ -576,11 +704,17 @@ class Qwen3TTSAdapter:
             raise Qwen3TTSAdapterError("prepare() が完了していません。")
         key = _job_key(job)
         try:
-            return self._references[key]
+            reference = self._references[key]
         except KeyError as error:
             raise Qwen3TTSAdapterError(
-                f"VoiceDesign reference がありません: {_format_reference_key(key)}",
+                f"character reference がありません: {_format_reference_key(key)}",
             ) from error
+        if reference.character_identity != _character_identity(job):
+            raise Qwen3TTSAdapterError(
+                "prepare 済み character identity が一致しません: "
+                f"{_format_reference_key(key)}",
+            )
+        return reference
 
     def _ensure_base_model(self) -> Any:
         if self._base_model is not None:
@@ -613,52 +747,6 @@ class Qwen3TTSAdapter:
                 ) from error
             raise Qwen3TTSAdapterError(f"{phase} に失敗しました: {error}") from error
 
-    def _write_reference(
-        self,
-        *,
-        wav_path: Path,
-        metadata_path: Path,
-        identity: Mapping[str, Any],
-        samples: Any,
-        sample_rate: int,
-        phase_peaks: dict[str, dict[str, float]],
-    ) -> _VoiceReference:
-        wav_path.parent.mkdir(parents=True, exist_ok=True)
-        pending_wav = wav_path.with_name(".reference.pending.wav")
-        pending_metadata = metadata_path.with_name(".reference.pending.json")
-        pending_wav.unlink(missing_ok=True)
-        pending_metadata.unlink(missing_ok=True)
-        try:
-            self._runtime.write_pcm16(pending_wav, samples, sample_rate)
-            if not pending_wav.is_file():
-                raise Qwen3TTSAdapterError(
-                    f"VoiceDesign PCM WAV が書き込まれませんでした: {pending_wav}",
-                )
-            wav_sha256 = _sha256_file(pending_wav)
-            cache_metadata = {
-                **identity,
-                "phase_peak_vram_mib": phase_peaks,
-                "wav_sha256": wav_sha256,
-            }
-            pending_metadata.write_text(
-                json.dumps(cache_metadata, ensure_ascii=False, indent=2) + "\n",
-                encoding="utf-8",
-            )
-            pending_wav.replace(wav_path)
-            pending_metadata.replace(metadata_path)
-        finally:
-            pending_wav.unlink(missing_ok=True)
-            pending_metadata.unlink(missing_ok=True)
-
-        return _VoiceReference(
-            wav_path=wav_path,
-            sha256=wav_sha256,
-            phase_peak_vram_mib={
-                phase: _copy_peak(peak) for phase, peak in phase_peaks.items()
-            },
-        )
-
-
 def _sampling() -> dict[str, int | float | bool]:
     return dict(_SAMPLING)
 
@@ -670,138 +758,232 @@ def _job_key(job: LineJob) -> _ReferenceKey:
         )
     scenario_id = _required_identifier(job.scene, "id", "scene")
     character_id = _required_identifier(job.character, "id", "character")
-    emotion = _required_string(job.line, "emotion", "line")
-    if emotion not in REFERENCE_TEXT_BY_EMOTION:
-        raise Qwen3TTSAdapterError(f"未対応の line.emotion です: {emotion}")
-    intensity = _required_intensity(job.line)
-    return scenario_id, character_id, emotion, intensity
+    return scenario_id, character_id
 
 
-def _cache_identity(job: LineJob) -> dict[str, Any]:
-    scenario_id, character_id, emotion, intensity = _job_key(job)
-    voice = _required_string(job.character, "voice", "character")
-    setting = _required_string(job.scene, "setting", "scene")
-    instruction_parts = [f"声質: {voice}"]
-    if "personality" in job.character:
-        personality = job.character["personality"]
-        if not isinstance(personality, str):
-            raise Qwen3TTSAdapterError("character.personality は string が必要です。")
-        instruction_parts.append(f"性格: {personality}")
-    instruction_parts.extend(
-        (
-            f"場面: {setting}",
-            f"感情: {EMOTION_INSTRUCTION[emotion]}",
-            f"感情の強度: {INTENSITY_INSTRUCTION[intensity]}",
-            f"演技: {DELIVERY_INSTRUCTION[emotion]}",
-            "感情が変わっても、同じキャラクターの声質、年齢感、"
-            "話者としての同一性を保つ。",
-            "実在の人物や声優を模倣せず、この架空キャラクターの声として自然に発声する。",
-        ),
+def _character_identity(job: LineJob) -> dict[str, Any]:
+    scenario_id, character_id = _job_key(job)
+    name = _required_string(job.character, "name", "character")
+    kind = _character_kind(job.character)
+    gender = _enum_label(
+        job.character,
+        "gender",
+        "character",
+        _GENDER_LABELS,
     )
+    age = _enum_label(job.character, "age", "character", _AGE_LABELS)
+    archetype = _required_string(job.character, "archetype", "character")
+    voice = _required_string(job.character, "voice", "character")
+    personality = _required_string(job.character, "personality", "character")
+    setting = _required_string(job.scene, "setting", "scene")
     return {
-        "format_version": _CACHE_FORMAT_VERSION,
-        "model": VOICE_DESIGN_MODEL_ID,
-        "revision": VOICE_DESIGN_REVISION,
         "scenario": scenario_id,
         "character": character_id,
-        "emotion": emotion,
-        "intensity": intensity,
-        "delivery": DELIVERY_INSTRUCTION[emotion],
-        "language": LANGUAGE,
-        "text": _reference_text(emotion),
-        "instruct": "\n".join(instruction_parts),
-        "seed": SEED,
-        "sampling": _sampling(),
+        "name": name,
+        "kind": kind,
+        "gender": gender,
+        "age": age,
+        "archetype": archetype,
+        "voice": voice,
+        "personality": personality,
+        "scene_setting": setting,
     }
 
 
-def _reference_text(emotion: str) -> str:
+def _role_snapshot(job: LineJob) -> RoleSnapshot:
+    scenario_id, character_id = _job_key(job)
     try:
-        return REFERENCE_TEXT_BY_EMOTION[emotion]
-    except KeyError as error:
-        raise Qwen3TTSAdapterError(f"未対応の line.emotion です: {emotion}") from error
+        return build_role_snapshot(
+            scenario=scenario_id,
+            character=character_id,
+            character_document=job.character,
+            scene_setting=_required_string(job.scene, "setting", "scene"),
+        )
+    except CompletionPlanError as error:
+        raise Qwen3TTSAdapterError(f"role snapshotが不正です: {error}") from error
 
 
-def _required_intensity(line: Mapping[str, Any]) -> int:
-    intensity = line.get("intensity")
-    if (
-        not isinstance(intensity, int)
-        or isinstance(intensity, bool)
-        or intensity not in INTENSITY_INSTRUCTION
+def _identity_from_role(role: RoleSnapshot) -> dict[str, Any]:
+    return {
+        "scenario": role.scenario,
+        "character": role.character,
+        **dict(role.role),
+        "scene_setting": role.scene_setting,
+    }
+
+
+def _validate_anchor_role(role: RoleSnapshot) -> None:
+    if role.reference_voice is not None:
+        raise Qwen3TTSAdapterError(
+            "明示reference roleはVoiceDesign anchor対象にできません。",
+        )
+    identity = _identity_from_role(role)
+    for key, labels in (
+        ("kind", _KIND_LABELS),
+        ("gender", _GENDER_LABELS),
+        ("age", _AGE_LABELS),
     ):
-        raise Qwen3TTSAdapterError("line.intensity は 1 / 2 / 3 が必要です。")
-    return intensity
+        if identity[key] not in labels:
+            raise Qwen3TTSAdapterError(
+                f"anchor roleの{key}が未対応です: {identity[key]}",
+            )
 
 
-def _format_reference_key(key: _ReferenceKey) -> str:
-    return f"{key[0]}/{key[1]}/{key[2]}/intensity-{key[3]}"
-
-
-def _read_cached_reference(
-    *,
-    wav_path: Path,
-    metadata_path: Path,
-    identity: Mapping[str, Any],
-) -> _VoiceReference | None:
-    wav_exists = wav_path.exists()
-    metadata_exists = metadata_path.exists()
-    if not wav_exists and not metadata_exists:
-        return None
-    if wav_exists != metadata_exists:
-        raise Qwen3TTSAdapterError(
-            f"VoiceDesign cache の WAV/metadata pair が壊れています: {wav_path.parent}",
-        )
-    if not wav_path.is_file() or not metadata_path.is_file():
-        raise Qwen3TTSAdapterError(
-            f"VoiceDesign cache が file ではありません: {wav_path.parent}",
-        )
-    try:
-        cached = json.loads(metadata_path.read_text(encoding="utf-8"))
-    except json.JSONDecodeError as error:
-        raise Qwen3TTSAdapterError(
-            f"VoiceDesign cache metadata が不正な JSON です: {metadata_path}",
-        ) from error
-    if not isinstance(cached, dict):
-        raise Qwen3TTSAdapterError(
-            f"VoiceDesign cache metadata は object が必要です: {metadata_path}",
-        )
-    expected_keys = set(identity) | {"phase_peak_vram_mib", "wav_sha256"}
-    if set(cached) != expected_keys:
-        raise Qwen3TTSAdapterError(
-            f"VoiceDesign cache metadata の項目が一致しません: {metadata_path}",
-        )
-    if any(cached[key] != value for key, value in identity.items()):
-        raise Qwen3TTSAdapterError(
-            f"VoiceDesign cache identity が一致しません: {metadata_path}",
-        )
-    peaks = cached["phase_peak_vram_mib"]
-    if not _valid_cache_peaks(peaks):
-        raise Qwen3TTSAdapterError(
-            f"VoiceDesign cache の CUDA peak profile が不正です: {metadata_path}",
-        )
-    wav_sha256 = cached["wav_sha256"]
-    if not isinstance(wav_sha256, str) or not re.fullmatch(
-        r"[0-9a-f]{64}",
-        wav_sha256,
-    ):
-        raise Qwen3TTSAdapterError(
-            f"VoiceDesign cache の wav_sha256 が不正です: {metadata_path}",
-        )
-    if _sha256_file(wav_path) != wav_sha256:
-        raise Qwen3TTSAdapterError(
-            f"VoiceDesign cache の WAV SHA-256 が一致しません: {wav_path}",
-        )
-    return _VoiceReference(
-        wav_path=wav_path,
-        sha256=wav_sha256,
-        phase_peak_vram_mib={phase: _copy_peak(peak) for phase, peak in peaks.items()},
+def _voice_design_instruct(character_identity: Mapping[str, Any]) -> str:
+    gender = str(character_identity["gender"])
+    age = str(character_identity["age"])
+    kind = str(character_identity["kind"])
+    return "\n".join(
+        (
+            "以下の架空キャラクター専用の、一貫した話者 anchor を作成する。",
+            "[キャラクター情報]",
+            f"名前: {character_identity['name']}",
+            f"種別: {_KIND_LABELS[kind]} ({kind})",
+            f"性別: {_GENDER_LABELS[gender]} ({gender})",
+            f"年齢: {_AGE_LABELS[age]} ({age})",
+            f"役柄: {character_identity['archetype']}",
+            f"声質: {character_identity['voice']}",
+            f"性格: {character_identity['personality']}",
+            f"場面: {character_identity['scene_setting']}",
+            "[発声条件]",
+            "感情や演技を強調せず、自然で落ち着いた中立の発声にする。",
+            "指定した性別と年齢から絶対に逸脱しない。"
+            "声質、年齢感、話者としての同一性を一貫させる。",
+            "実在の人物や声優を模倣しない。",
+        ),
     )
 
 
-def _valid_cache_peaks(value: Any) -> bool:
-    if not isinstance(value, dict) or set(value) != _CACHE_PEAK_KEYS:
-        return False
-    return all(_valid_peak(peak) for peak in value.values())
+def _character_kind(character: Mapping[str, Any]) -> str:
+    if "kind" not in character:
+        return "human"
+    return _enum_label(character, "kind", "character", _KIND_LABELS)
+
+
+def _enum_label(
+    value: Mapping[str, Any],
+    key: str,
+    owner: str,
+    labels: Mapping[str, str],
+) -> str:
+    item = _required_string(value, key, owner)
+    try:
+        labels[item]
+    except KeyError as error:
+        raise Qwen3TTSAdapterError(
+            f"未対応の {owner}.{key} です: {item}",
+        ) from error
+    return item
+
+
+def _reference_voice_value(job: LineJob) -> str | None:
+    if "reference_voice" not in job.character:
+        raise Qwen3TTSAdapterError(
+            "character.reference_voice は string または null が必要です。",
+        )
+    value = job.character["reference_voice"]
+    if value is None:
+        return None
+    if not isinstance(value, str) or _IDENTIFIER.fullmatch(value) is None:
+        raise Qwen3TTSAdapterError(
+            "character.reference_voice は identifier または null が必要です。",
+        )
+    return value
+
+
+def _format_reference_key(key: _ReferenceKey) -> str:
+    return f"{key[0]}/{key[1]}"
+
+
+def _load_reference_entries(voices_dir: Path) -> dict[str, Mapping[str, Any]]:
+    voices_dir = voices_dir.resolve()
+    validation = validate_voice_metadata(voices_dir)
+    if validation.problems:
+        details = "; ".join(str(problem) for problem in validation.problems)
+        raise Qwen3TTSAdapterError(
+            f"参照音声 metadata の検証に失敗しました: {details}",
+        )
+    metadata_path = voices_dir / "metadata.yaml"
+    try:
+        document = yaml.safe_load(metadata_path.read_text(encoding="utf-8"))
+    except (OSError, yaml.YAMLError) as error:
+        raise Qwen3TTSAdapterError(
+            f"参照音声 metadata を読み込めません: {metadata_path}: {error}",
+        ) from error
+    if not isinstance(document, Mapping):
+        raise Qwen3TTSAdapterError(
+            f"参照音声 metadata は object が必要です: {metadata_path}",
+        )
+    voices = document["voices"]
+    if not isinstance(voices, list):
+        raise Qwen3TTSAdapterError(
+            f"参照音声 metadata.voices は array が必要です: {metadata_path}",
+        )
+    return {str(entry["id"]): entry for entry in voices}
+
+
+def _explicit_reference(
+    *,
+    voice_id: str,
+    voices_dir: Path,
+    entries: Mapping[str, Mapping[str, Any]],
+    character_identity: Mapping[str, Any],
+) -> _VoiceReference:
+    try:
+        entry = entries[voice_id]
+    except KeyError as error:
+        raise Qwen3TTSAdapterError(
+            f"reference_voice が metadata にありません: {voice_id}",
+        ) from error
+    expected_file = f"{voice_id}/reference.wav"
+    if entry["file"] != expected_file:
+        raise Qwen3TTSAdapterError(
+            f"参照音声 file が一致しません: expected={expected_file}",
+        )
+    if entry["language"] != "ja":
+        raise Qwen3TTSAdapterError(
+            f"参照音声 language は ja が必要です: {voice_id}",
+        )
+    transcript = entry["transcript"]
+    if not isinstance(transcript, str) or not transcript:
+        raise Qwen3TTSAdapterError(
+            f"参照音声 transcript は non-empty string が必要です: {voice_id}",
+        )
+    expected_sha256 = entry["sha256"]
+    if not isinstance(expected_sha256, str) or _SHA256.fullmatch(
+        expected_sha256,
+    ) is None:
+        raise Qwen3TTSAdapterError(
+            f"参照音声 sha256 が不正です: {voice_id}",
+        )
+
+    voices_root = voices_dir.resolve()
+    wav_path = voices_root / expected_file
+    resolved_wav = wav_path.resolve()
+    if (
+        wav_path.is_symlink()
+        or not resolved_wav.is_relative_to(voices_root)
+        or not wav_path.is_file()
+    ):
+        raise Qwen3TTSAdapterError(
+            f"参照音声 WAV は voices 内の通常ファイルが必要です: {wav_path}",
+        )
+    actual_sha256 = _sha256_file(wav_path)
+    if actual_sha256 != expected_sha256:
+        raise Qwen3TTSAdapterError(
+            "参照音声 WAV SHA-256 が一致しません: "
+            f"{voice_id}: expected={expected_sha256}, actual={actual_sha256}",
+        )
+    return _VoiceReference(
+        wav_path=wav_path,
+        sha256=actual_sha256,
+        text=transcript,
+        control=_ASSET_REFERENCE_CONTROL,
+        source_id=voice_id,
+        character_identity=dict(character_identity),
+        phase_peak_vram_mib={},
+        selected_anchor_receipt=None,
+    )
 
 
 def _valid_peak(value: Any) -> bool:
@@ -872,3 +1054,22 @@ def _sha256_file(path: Path) -> str:
         for chunk in iter(lambda: input_file.read(1024 * 1024), b""):
             digest.update(chunk)
     return digest.hexdigest()
+
+
+def _verify_reference_unchanged(reference: _VoiceReference) -> None:
+    path = reference.wav_path
+    if path.is_symlink() or not path.is_file():
+        raise Qwen3TTSAdapterError(
+            f"参照音声 WAV が通常ファイルではありません: {path}",
+        )
+    try:
+        actual_sha256 = _sha256_file(path)
+    except OSError as error:
+        raise Qwen3TTSAdapterError(
+            f"参照音声 WAV を再検証できません: {path}: {error}",
+        ) from error
+    if actual_sha256 != reference.sha256:
+        raise Qwen3TTSAdapterError(
+            "参照音声 WAV がprepare後に変更されました: "
+            f"expected={reference.sha256}, actual={actual_sha256}",
+        )

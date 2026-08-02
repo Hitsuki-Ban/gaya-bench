@@ -37,6 +37,25 @@ const MANIFEST_KEYS = [
   "curations",
   "failures",
 ] as const;
+const QUALITY_SIGNALS_KEYS = [
+  "format_version",
+  "protocol",
+  "plan_sha256",
+  "decision_sha256",
+  "groups",
+] as const;
+const QUALITY_SIGNAL_GROUP_KEYS = [
+  "model",
+  "scenario",
+  "line",
+  "variant",
+  "protocol",
+  "expected_gender",
+  "median_f0_hz",
+  "status",
+  "signal",
+  "qc_report_sha256",
+] as const;
 const MODEL_KEYS = ["id", "name", "version", "license_note", "capabilities"] as const;
 const CAPABILITY_KEYS = ["emotion", "voice_prompt", "clone", "nonverbal", "reading"] as const;
 const CANDIDATE_KEYS = [
@@ -217,6 +236,12 @@ const FINAL_INTONATIONS = new Set(["fall", "rise", "free"]);
 const LOUDNESS_SOURCES = new Set(["encoded_opus"]);
 const FAILURE_REASONS = new Set(["no_eligible_take", "test_only_adapter"]);
 const CONTENT_GATE_RESULTS = new Set(["pass", "review_required"]);
+const QUALITY_SIGNAL_STATUSES = new Set(["pass", "review_required", "not_applicable"]);
+const QUALITY_SIGNAL_VALUES = new Set([
+  "gender_f0_unavailable",
+  "gender_f0_below_expected",
+  "gender_f0_above_expected",
+]);
 const VARIANTS = new Set(["dry"]);
 const RECIPE_VERSIONS = new Set(["seed-only-v1", "fixed-single-v1"]);
 const REDISTRIBUTION_STATUSES = new Set(["prohibited", "allowed_with_conditions"]);
@@ -227,6 +252,30 @@ const ISO_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
 type WatchFile = (file: string) => void;
 type UnknownRecord = Record<string, unknown>;
+type QualitySignalGroup = {
+  readonly model: string;
+  readonly scenario: string;
+  readonly line: string;
+  readonly variant: string;
+  readonly protocol: "role-gender-f0-soft-v1";
+  readonly expected_gender: "female" | "male" | "neutral";
+  readonly median_f0_hz: number | null;
+  readonly status: "pass" | "review_required" | "not_applicable";
+  readonly signal:
+    | "gender_f0_unavailable"
+    | "gender_f0_below_expected"
+    | "gender_f0_above_expected"
+    | null;
+  readonly qc_report_sha256: string;
+};
+
+type QualitySignals = {
+  readonly format_version: 1;
+  readonly protocol: "role-quality-signals-v1";
+  readonly plan_sha256: string;
+  readonly decision_sha256: string;
+  readonly groups: readonly QualitySignalGroup[];
+};
 
 export class GayaDataError extends Error {
   override readonly name = "GayaDataError";
@@ -271,12 +320,15 @@ export function gayaDataPlugin({ repositoryRoot }: GayaDataPluginOptions): Plugi
 
 export function loadBenchmarkData(repositoryRoot: string, watchFile?: WatchFile): BenchmarkData {
   const manifestPath = path.join(repositoryRoot, "data", "manifest.json");
+  const qualitySignalsPath = path.join(repositoryRoot, "data", "quality-signals.json");
   const scenariosDirectory = path.join(repositoryRoot, "scenarios");
   const voiceMetadataPath = path.join(repositoryRoot, "assets", "voices", "metadata.yaml");
   watchFile?.(manifestPath);
+  watchFile?.(qualitySignalsPath);
   watchFile?.(voiceMetadataPath);
 
   const manifest = loadManifest(manifestPath);
+  const qualitySignals = loadQualitySignals(qualitySignalsPath);
   const scenarios = loadScenarios(scenariosDirectory, watchFile);
   const referenceVoices = loadReferenceVoices(voiceMetadataPath);
   validateReferences(manifest, scenarios, referenceVoices);
@@ -284,7 +336,7 @@ export function loadBenchmarkData(repositoryRoot: string, watchFile?: WatchFile)
   return {
     release: projectReleaseMetadata(manifest),
     scenarios,
-    outcomes: projectOutcomes(manifest),
+    outcomes: projectOutcomes(manifest, qualitySignals),
     generation_profiles: projectGenerationProfiles(manifest),
     credits: {
       model_sources: projectModelCredits(manifest),
@@ -302,7 +354,10 @@ function projectReleaseMetadata(manifest: Manifest): ReleaseMetadata {
   };
 }
 
-function projectPublishedCandidate(candidate: Candidate): PublishedCandidate {
+function projectPublishedCandidate(
+  candidate: Candidate,
+  roleQuality: PublishedCandidate["role_quality"],
+): PublishedCandidate {
   return {
     model: candidate.model,
     scenario: candidate.scenario,
@@ -312,6 +367,7 @@ function projectPublishedCandidate(candidate: Candidate): PublishedCandidate {
     duration_sec: candidate.duration_sec,
     rtf: candidate.rtf,
     gate: { content: candidate.gate.content },
+    role_quality: roleQuality,
   };
 }
 
@@ -413,6 +469,84 @@ function loadManifest(manifestPath: string): Manifest {
     candidates,
     curations,
     failures,
+  };
+}
+
+function loadQualitySignals(qualitySignalsPath: string): QualitySignals {
+  const source = readTextFile(qualitySignalsPath, "quality signals");
+  let value: unknown;
+  try {
+    value = JSON.parse(source);
+  } catch (error) {
+    throw new GayaDataError(`quality signals JSON を解析できません: ${qualitySignalsPath}`, {
+      cause: error,
+    });
+  }
+  assertRecord(value, "quality signals");
+  assertExactKeys(value, QUALITY_SIGNALS_KEYS, [], "quality signals");
+  if (value.format_version !== 1 || value.protocol !== "role-quality-signals-v1") {
+    throw new GayaDataError("quality signals protocol が不正です。");
+  }
+  assertSha256(value.plan_sha256, "quality signals plan_sha256");
+  assertSha256(value.decision_sha256, "quality signals decision_sha256");
+  assertArray(value.groups, "quality signals groups");
+  const groups = value.groups.map((raw, index): QualitySignalGroup => {
+    const label = `quality signals groups[${index}]`;
+    assertRecord(raw, label);
+    assertExactKeys(raw, QUALITY_SIGNAL_GROUP_KEYS, [], label);
+    for (const field of GROUP_KEYS) {
+      assertNonEmptyString(raw[field], `${label}.${field}`);
+    }
+    if (raw.protocol !== "role-gender-f0-soft-v1") {
+      throw new GayaDataError(`${label}.protocol が不正です。`);
+    }
+    if (typeof raw.expected_gender !== "string" || !GENDERS.has(raw.expected_gender)) {
+      throw new GayaDataError(`${label}.expected_gender が不正です。`);
+    }
+    if (typeof raw.status !== "string" || !QUALITY_SIGNAL_STATUSES.has(raw.status)) {
+      throw new GayaDataError(`${label}.status が不正です。`);
+    }
+    if (raw.median_f0_hz !== null) {
+      assertFiniteNumber(raw.median_f0_hz, `${label}.median_f0_hz`);
+      if ((raw.median_f0_hz as number) <= 0) {
+        throw new GayaDataError(`${label}.median_f0_hz が不正です。`);
+      }
+    }
+    if (
+      raw.signal !== null &&
+      (typeof raw.signal !== "string" || !QUALITY_SIGNAL_VALUES.has(raw.signal))
+    ) {
+      throw new GayaDataError(`${label}.signal が不正です。`);
+    }
+    const median = raw.median_f0_hz as number | null;
+    const expectedGender = raw.expected_gender as QualitySignalGroup["expected_gender"];
+    let expectedStatus: QualitySignalGroup["status"] = "pass";
+    let expectedSignal: QualitySignalGroup["signal"] = null;
+    if (expectedGender === "neutral") {
+      expectedStatus = "not_applicable";
+    } else if (median === null) {
+      expectedStatus = "review_required";
+      expectedSignal = "gender_f0_unavailable";
+    } else if (expectedGender === "female" && median < 165) {
+      expectedStatus = "review_required";
+      expectedSignal = "gender_f0_below_expected";
+    } else if (expectedGender === "male" && median > 180) {
+      expectedStatus = "review_required";
+      expectedSignal = "gender_f0_above_expected";
+    }
+    if (raw.status !== expectedStatus || raw.signal !== expectedSignal) {
+      throw new GayaDataError(`${label} がF0 policyと一致しません。`);
+    }
+    assertSha256(raw.qc_report_sha256, `${label}.qc_report_sha256`);
+    return raw as QualitySignalGroup;
+  });
+  assertUnique(groups.map(artifactKeyTuple), "quality signal group");
+  return {
+    format_version: 1,
+    protocol: "role-quality-signals-v1",
+    plan_sha256: value.plan_sha256,
+    decision_sha256: value.decision_sha256,
+    groups,
   };
 }
 
@@ -1295,7 +1429,10 @@ function assertManifestGroups(
   }
 }
 
-function projectOutcomes(manifest: Manifest): readonly ArtifactOutcome[] {
+function projectOutcomes(
+  manifest: Manifest,
+  qualitySignals: QualitySignals,
+): readonly ArtifactOutcome[] {
   const candidatesByGroup = new Map<
     string,
     {
@@ -1328,6 +1465,10 @@ function projectOutcomes(manifest: Manifest): readonly ArtifactOutcome[] {
   const curationsByGroup = new Map(
     manifest.curations.map((curation) => [artifactKeyTuple(curation), curation]),
   );
+  const qualitySignalsByGroup = new Map(
+    qualitySignals.groups.map((signal) => [artifactKeyTuple(signal), signal]),
+  );
+  const consumedQualitySignals = new Set<string>();
   const outcomes: ArtifactOutcome[] = [];
   for (const [key, { group, candidates }] of candidatesByGroup) {
     const curation = curationsByGroup.get(key);
@@ -1343,7 +1484,25 @@ function projectOutcomes(manifest: Manifest): readonly ArtifactOutcome[] {
     if (!candidate) {
       throw new GayaDataError(`selected curation の take_id が candidate に存在しません: ${key}`);
     }
-    outcomes.push({ kind: "selected", group, candidate: projectPublishedCandidate(candidate) });
+    const signal = qualitySignalsByGroup.get(key);
+    if (signal) {
+      consumedQualitySignals.add(key);
+    }
+    outcomes.push({
+      kind: "selected",
+      group,
+      candidate: projectPublishedCandidate(
+        candidate,
+        signal
+          ? {
+              expected_gender: signal.expected_gender,
+              median_f0_hz: signal.median_f0_hz,
+              status: signal.status,
+              signal: signal.signal,
+            }
+          : null,
+      ),
+    });
   }
   for (const failure of manifest.failures) {
     outcomes.push({
@@ -1356,6 +1515,12 @@ function projectOutcomes(manifest: Manifest): readonly ArtifactOutcome[] {
       },
       failure,
     });
+  }
+  if (consumedQualitySignals.size !== qualitySignalsByGroup.size) {
+    const extras = [...qualitySignalsByGroup.keys()].filter(
+      (key) => !consumedQualitySignals.has(key),
+    );
+    throw new GayaDataError(`quality signal がselected groupに存在しません: ${extras.join(", ")}`);
   }
   return outcomes;
 }

@@ -1,9 +1,12 @@
 from __future__ import annotations
 
+import hashlib
 import math
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Mapping
+
+from gaya_pipeline.take_identity import canonical_json
 
 
 class QCReportError(ValueError):
@@ -121,17 +124,23 @@ def _validate_qc_report(
         )
     if report["run_id"] != ledger["run_id"]:
         raise QCReportError("QC report run_id が ledger と一致しません。")
-    source = _exact(
-        report["source"],
-        {"ledger", "scenario_sha256", "model", "recipe_version"},
-        "QC report source",
-    )
+    expected_source_keys = {
+        "ledger",
+        "scenario_sha256",
+        "model",
+        "recipe_version",
+    }
+    if "phase_b" in ledger["source"]:
+        expected_source_keys.add("phase_b")
+    source = _exact(report["source"], expected_source_keys, "QC report source")
     expected_source = {
         "ledger": ledger_path.as_posix(),
         "scenario_sha256": ledger["source"]["scenario_sha256"],
         "model": ledger["source"]["model"],
         "recipe_version": ledger["source"]["recipe_version"],
     }
+    if "phase_b" in ledger["source"]:
+        expected_source["phase_b"] = ledger["source"]["phase_b"]
     if source != expected_source:
         raise QCReportError("QC report source が ledger と一致しません。")
     if not isinstance(report["runtime"], dict):
@@ -220,6 +229,13 @@ def _validate_qc_report(
                 ledger_attempt=ledger_attempt,
                 field=field,
             )
+        if "phase_b" in source:
+            _validate_phase_b_attempt_provenance(
+                report_attempt,
+                ledger_attempt=ledger_attempt,
+                phase_b=source["phase_b"],
+                field=field,
+            )
         report_by_slot[slot] = report_attempt
     if set(report_by_slot) != set(ledger_by_slot):
         raise QCReportError(
@@ -229,6 +245,120 @@ def _validate_qc_report(
         gate_policy_version=reported_gate_policy_version,
         attempts_by_slot=report_by_slot,
     )
+
+
+def _validate_phase_b_attempt_provenance(
+    report_attempt: Mapping[str, Any],
+    *,
+    ledger_attempt: Mapping[str, Any],
+    phase_b: Mapping[str, Any],
+    field: str,
+) -> None:
+    identity = tuple(
+        report_attempt[key]
+        for key in ("model", "scenario", "line", "variant")
+    )
+    matches = [
+        target
+        for target in phase_b["target_groups"]
+        if tuple(
+            target[key]
+            for key in ("model", "scenario", "line", "variant")
+        )
+        == identity
+    ]
+    if len(matches) != 1:
+        raise QCReportError(
+            f"{field} のPhase B target provenanceが一意ではありません。",
+        )
+    provenance = {
+        "protocol": phase_b["protocol"],
+        "plan_sha256": phase_b["plan_sha256"],
+        "run_kind": phase_b["run_kind"],
+        "supersedes_run_id": phase_b["supersedes_run_id"],
+        "anchor_selection_sha256": phase_b["anchor_selection_sha256"],
+        "anchor_plan_sha256": phase_b["anchor_plan_sha256"],
+        "target_group": matches[0],
+    }
+    expected_sha256 = hashlib.sha256(
+        canonical_json(provenance).encode("utf-8"),
+    ).hexdigest()
+    if ledger_attempt.get("phase_b_provenance_sha256") != expected_sha256:
+        raise QCReportError(
+            f"{field} のPhase B provenance SHAがsourceからの再計算値と"
+            "一致しません。",
+        )
+
+    mechanical = report_attempt["mechanical"]
+    if not isinstance(mechanical, Mapping) or "generation_params" not in mechanical:
+        return
+    generation_params = mechanical["generation_params"]
+    if not isinstance(generation_params, Mapping):
+        raise QCReportError(
+            f"{field}.mechanical.generation_paramsが不正です。",
+        )
+    for kind in ("requested", "realized"):
+        params = generation_params[kind]
+        if (
+            not isinstance(params, Mapping)
+            or params.get("phase_b_provenance") != provenance
+        ):
+            raise QCReportError(
+                f"{field}.mechanical.generation_params.{kind}の"
+                "Phase B provenanceがsourceと一致しません。",
+            )
+    _validate_realized_anchor_receipt(
+        generation_params["realized"],
+        provenance=provenance,
+        field=f"{field}.mechanical.generation_params.realized",
+    )
+
+
+def _validate_realized_anchor_receipt(
+    realized: Mapping[str, Any],
+    *,
+    provenance: Mapping[str, Any],
+    field: str,
+) -> None:
+    model = provenance["target_group"]["model"]
+    if model == "qwen3-tts-12hz-1.7b":
+        reference_control = realized.get("reference_control")
+        if reference_control not in {
+            "voice_asset",
+            "selected_voice_design_anchor",
+        }:
+            raise QCReportError(f"{field}.reference_controlが不正です。")
+        selected_required = (
+            reference_control == "selected_voice_design_anchor"
+        )
+    elif model == "irodori-tts-600m-v3-voicedesign":
+        reference_source = realized.get("reference_source")
+        if reference_source not in {"voice-asset", "selected-role-anchor"}:
+            raise QCReportError(f"{field}.reference_sourceが不正です。")
+        selected_required = reference_source == "selected-role-anchor"
+    else:
+        return
+
+    selected = realized.get("selected_anchor")
+    if selected_required != isinstance(selected, Mapping):
+        raise QCReportError(
+            f"{field}.selected_anchorの有無がreference種別と一致しません。",
+        )
+    if not selected_required:
+        return
+    expected = {
+        "anchor_selection_sha256": provenance["anchor_selection_sha256"],
+        "anchor_plan_sha256": provenance["anchor_plan_sha256"],
+        "role_epoch_sha256": provenance["target_group"][
+            "role_epoch_sha256"
+        ],
+    }
+    actual = {key: selected.get(key) for key in expected}
+    if actual != expected:
+        raise QCReportError(
+            f"{field}.selected_anchor receiptがPhase B provenanceと"
+            "一致しません。",
+        )
 
 
 def _validate_attempt_payload_v2(

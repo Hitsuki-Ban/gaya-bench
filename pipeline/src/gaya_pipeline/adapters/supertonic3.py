@@ -380,7 +380,7 @@ class Supertonic3Adapter:
             voice_prompt=False,
             clone=False,
             nonverbal=False,
-            reading=True,
+            reading=False,
         ),
     )
 
@@ -527,17 +527,8 @@ def _prepare_input(job: LineJob) -> _PreparedInput:
             f"Supertonic 3 adapter は Japanese 固定です: locale={job.locale}",
         )
     source_text = _required_string(job.line, "text", "line")
-    reading = job.line.get("reading")
-    if reading is None:
-        tts_text = source_text
-        reading_source = "line.text"
-    elif isinstance(reading, str) and reading.strip():
-        tts_text = reading
-        reading_source = "line.reading"
-    else:
-        raise Supertonic3AdapterError(
-            "line.reading は non-empty string または null が必要です。",
-        )
+    tts_text = source_text
+    reading_source = "line.text"
     if "<" in tts_text or ">" in tts_text:
         raise Supertonic3AdapterError(
             "Supertonic expression/language tag は使用できません。",

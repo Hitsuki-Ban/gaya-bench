@@ -27,6 +27,11 @@ TARGET_SAMPLE_RATE = 16_000
 MIN_SAMPLES = 1_040
 MAX_SAMPLES = TARGET_SAMPLE_RATE * 10
 TAKE_ID_LENGTH = 64
+BATCH_FORMAT_VERSION = 1
+BATCH_KIND = "phase-b-auto-selection-input-v1"
+BATCH_OUTPUT_KIND = "phase-b-auto-selection-ranking-v1"
+BATCH_POLICY = "qc-content-then-pasqa-then-duration-v1"
+CONTENT_PRIORITY = {"pass": 0, "review_required": 1}
 
 MODEL_FILE_SHA256 = {
     PASQA_CHECKPOINT_NAME: (
@@ -181,42 +186,11 @@ def run_ranking(
             "tokenizer fallback の可能性があるため停止します。"
         )
 
-    scored: list[dict[str, Any]] = []
-    for index, audio in enumerate(audio_inputs):
-        result = predictor.predict(mora=mora_tokens, wav_path=audio.audio_path)
-        current_audio_sha256 = _sha256_file(audio.audio_path)
-        if current_audio_sha256 != audio.audio_sha256:
-            raise RankingError(
-                f"{audio.take_id}: 音声が検査後に変更されました。"
-                "provenance を確定できないため停止します。"
-            )
-        score = result.get("mos")
-        frame_length = result.get("frame_lengths")
-        if isinstance(score, bool) or not isinstance(score, (int, float)):
-            raise RankingError(f"{audio.take_id}: PASQA mos が数値ではありません。")
-        score = float(score)
-        if not math.isfinite(score):
-            raise RankingError(f"{audio.take_id}: PASQA mos が有限値ではありません。")
-        if isinstance(frame_length, bool) or not isinstance(frame_length, int):
-            raise RankingError(
-                f"{audio.take_id}: PASQA frame_lengths が整数ではありません。"
-            )
-        if frame_length < 1:
-            raise RankingError(
-                f"{audio.take_id}: PASQA frame_lengths は1以上が必要です。"
-            )
-        scored.append(
-            {
-                "input_index": index,
-                "take_id": audio.take_id,
-                "audio_path": audio.audio_path_text,
-                "audio_sha256": audio.audio_sha256,
-                "frames": audio.frames,
-                "duration_seconds": audio.duration_seconds,
-                "score": score,
-                "pasqa_frame_length": frame_length,
-            }
-        )
+    scored = _score_audio_inputs(
+        predictor=predictor,
+        mora_tokens=mora_tokens,
+        audio_inputs=audio_inputs,
+    )
 
     scored.sort(key=lambda item: (-item["score"], item["take_id"]))
     rankings = [{"rank": rank, **item} for rank, item in enumerate(scored, start=1)]
@@ -253,6 +227,174 @@ def run_ranking(
         (json.dumps(output, ensure_ascii=False, indent=2) + "\n").encode("utf-8"),
     )
     return output
+
+
+def run_batch_ranking(
+    *,
+    model_dir: Path,
+    input_path: Path,
+    output_path: Path,
+    predictor_factory: PredictorFactory | None = None,
+) -> dict[str, Any]:
+    """Rank every Phase B group while loading PASQA exactly once."""
+
+    _require_python_310()
+    _require_runtime_versions()
+    model_files = validate_model_dir(model_dir)
+    input_path = input_path.resolve()
+    output_path = output_path.resolve()
+    if not input_path.is_file():
+        raise RankingError(f"batch ranking input がありません: {input_path}")
+    if output_path.exists():
+        raise RankingError(f"batch ranking output は既に存在します: {output_path}")
+
+    raw_input = input_path.read_bytes()
+    try:
+        document = json.loads(raw_input)
+    except (UnicodeDecodeError, json.JSONDecodeError) as error:
+        raise RankingError(f"batch ranking input JSON が不正です: {error}") from error
+    groups = _validate_batch_input_document(document, input_dir=input_path.parent)
+
+    expected_vocab = _load_vocab(model_files.vocab)
+    unknown_tokens = sorted(
+        {
+            token
+            for group in groups
+            for token in group["mora_tokens"]
+            if token not in expected_vocab
+        }
+    )
+    if unknown_tokens:
+        rendered = ", ".join(repr(token) for token in unknown_tokens)
+        raise RankingError(f"固定 PASQA vocab にない mora token です: {rendered}")
+
+    factory = predictor_factory or _create_predictor
+    predictor = factory(model_files.checkpoint, model_files.config)
+    if dict(predictor.mora_vocab) != expected_vocab:
+        raise RankingError(
+            "PASQA が使用した mora vocab が明示 vocab と一致しません。"
+            "tokenizer fallback の可能性があるため停止します。"
+        )
+
+    ranked_groups: list[dict[str, Any]] = []
+    for group in groups:
+        scored_by_take = {
+            item["take_id"]: item
+            for item in _score_audio_inputs(
+                predictor=predictor,
+                mora_tokens=group["mora_tokens"],
+                audio_inputs=group["pasqa_audio_inputs"],
+            )
+        }
+        ranked: list[dict[str, Any]] = []
+        for candidate in group["candidates"]:
+            scored = scored_by_take.get(candidate["take_id"])
+            ranked.append(
+                {
+                    "take_id": candidate["take_id"],
+                    "source_audio_sha256": candidate["source_audio_sha256"],
+                    "gate_content": candidate["gate_content"],
+                    "duration_seconds": candidate["duration_seconds"],
+                    "pasqa": (
+                        {
+                            "score": scored["score"],
+                            "audio_sha256": scored["audio_sha256"],
+                            "frame_length": scored["pasqa_frame_length"],
+                        }
+                        if scored is not None
+                        else None
+                    ),
+                }
+            )
+        ranked.sort(key=_batch_ranking_key)
+        ranked_groups.append(
+            {
+                "group": group["group"],
+                "mora_tokens": group["mora_tokens"],
+                "ranking_policy": BATCH_POLICY,
+                "rankings": [
+                    {"rank": rank, **item}
+                    for rank, item in enumerate(ranked, start=1)
+                ],
+            }
+        )
+
+    output = {
+        "format_version": BATCH_FORMAT_VERSION,
+        "kind": BATCH_OUTPUT_KIND,
+        "usage": "same-group-ranking-only_no_release_rejection",
+        "ranking_policy": BATCH_POLICY,
+        "groups": ranked_groups,
+        "provenance": {
+            "input_sha256": hashlib.sha256(raw_input).hexdigest(),
+            "pasqa": {
+                "code_commit": PASQA_CODE_COMMIT,
+                "package_version": PASQA_PACKAGE_VERSION,
+                "weights_repo": PASQA_HF_REPO,
+                "weights_revision": PASQA_WEIGHTS_REVISION,
+                "checkpoint_sha256": MODEL_FILE_SHA256[PASQA_CHECKPOINT_NAME],
+                "config_sha256": MODEL_FILE_SHA256[PASQA_CONFIG_NAME],
+                "vocab_sha256": MODEL_FILE_SHA256[PASQA_VOCAB_NAME],
+            },
+            "runtime": {
+                "python": _python_version(),
+                "torch": importlib.metadata.version("torch"),
+                "torchaudio": importlib.metadata.version("torchaudio"),
+                "device": "cpu",
+            },
+        },
+    }
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    _write_new_bytes(
+        output_path,
+        (json.dumps(output, ensure_ascii=False, indent=2) + "\n").encode("utf-8"),
+    )
+    return output
+
+
+def _score_audio_inputs(
+    *,
+    predictor: Predictor,
+    mora_tokens: list[str],
+    audio_inputs: list[AudioInput],
+) -> list[dict[str, Any]]:
+    scored: list[dict[str, Any]] = []
+    for index, audio in enumerate(audio_inputs):
+        result = predictor.predict(mora=mora_tokens, wav_path=audio.audio_path)
+        current_audio_sha256 = _sha256_file(audio.audio_path)
+        if current_audio_sha256 != audio.audio_sha256:
+            raise RankingError(
+                f"{audio.take_id}: 音声が検査後に変更されました。"
+                "provenance を確定できないため停止します。"
+            )
+        score = result.get("mos")
+        frame_length = result.get("frame_lengths")
+        if isinstance(score, bool) or not isinstance(score, (int, float)):
+            raise RankingError(f"{audio.take_id}: PASQA mos が数値ではありません。")
+        score = float(score)
+        if not math.isfinite(score):
+            raise RankingError(f"{audio.take_id}: PASQA mos が有限値ではありません。")
+        if isinstance(frame_length, bool) or not isinstance(frame_length, int):
+            raise RankingError(
+                f"{audio.take_id}: PASQA frame_lengths が整数ではありません。"
+            )
+        if frame_length < 1:
+            raise RankingError(
+                f"{audio.take_id}: PASQA frame_lengths は1以上が必要です。"
+            )
+        scored.append(
+            {
+                "input_index": index,
+                "take_id": audio.take_id,
+                "audio_path": audio.audio_path_text,
+                "audio_sha256": audio.audio_sha256,
+                "frames": audio.frames,
+                "duration_seconds": audio.duration_seconds,
+                "score": score,
+                "pasqa_frame_length": frame_length,
+            }
+        )
+    return scored
 
 
 def _validate_input_document(
@@ -329,6 +471,165 @@ def _validate_input_document(
             )
         )
     return normalized_group, list(mora_tokens), audio_inputs
+
+
+def _validate_batch_input_document(
+    document: Any,
+    *,
+    input_dir: Path,
+) -> list[dict[str, Any]]:
+    if not isinstance(document, dict):
+        raise RankingError("batch ranking input は JSON object が必要です。")
+    if set(document) != {"format_version", "kind", "groups"}:
+        raise RankingError("batch ranking input の項目が v1 契約と一致しません。")
+    if document["format_version"] != BATCH_FORMAT_VERSION:
+        raise RankingError("batch ranking input format_version は 1 が必要です。")
+    if document["kind"] != BATCH_KIND:
+        raise RankingError(f"batch ranking input kind は {BATCH_KIND} が必要です。")
+    raw_groups = document["groups"]
+    if not isinstance(raw_groups, list) or not raw_groups:
+        raise RankingError("batch ranking input groups は1件以上必要です。")
+
+    result: list[dict[str, Any]] = []
+    seen_groups: set[tuple[str, str, str, str]] = set()
+    seen_takes: set[str] = set()
+    for group_index, value in enumerate(raw_groups):
+        field = f"groups[{group_index}]"
+        if not isinstance(value, dict) or set(value) != {
+            "group",
+            "mora_tokens",
+            "candidates",
+        }:
+            raise RankingError(f"{field} の項目が v1 契約と一致しません。")
+        group = value["group"]
+        expected_group_keys = {
+            "scenario_id",
+            "line_id",
+            "model_id",
+            "variant",
+        }
+        if not isinstance(group, dict) or set(group) != expected_group_keys:
+            raise RankingError(f"{field}.group の項目が v1 契約と一致しません。")
+        normalized_group: dict[str, str] = {}
+        for key in sorted(expected_group_keys):
+            item = group[key]
+            if not isinstance(item, str) or not item.strip():
+                raise RankingError(f"{field}.group.{key} は空でない文字列が必要です。")
+            normalized_group[key] = item
+        identity = (
+            normalized_group["model_id"],
+            normalized_group["scenario_id"],
+            normalized_group["line_id"],
+            normalized_group["variant"],
+        )
+        if identity in seen_groups:
+            raise RankingError(f"batch ranking group が重複しています: {identity}")
+        seen_groups.add(identity)
+
+        mora_tokens = value["mora_tokens"]
+        if (
+            not isinstance(mora_tokens, list)
+            or not mora_tokens
+            or len(mora_tokens) > 128
+            or any(not isinstance(token, str) or not token for token in mora_tokens)
+        ):
+            raise RankingError(f"{field}.mora_tokens が不正です。")
+
+        candidates = value["candidates"]
+        if not isinstance(candidates, list) or not candidates:
+            raise RankingError(f"{field}.candidates は1件以上必要です。")
+        normalized_candidates: list[dict[str, Any]] = []
+        pasqa_audio_inputs: list[AudioInput] = []
+        for candidate_index, candidate in enumerate(candidates):
+            candidate_field = f"{field}.candidates[{candidate_index}]"
+            if not isinstance(candidate, dict) or set(candidate) != {
+                "take_id",
+                "source_audio_sha256",
+                "gate_content",
+                "duration_seconds",
+                "pasqa_audio_path",
+            }:
+                raise RankingError(
+                    f"{candidate_field} の項目が v1 契約と一致しません。"
+                )
+            take_id = candidate["take_id"]
+            if (
+                not isinstance(take_id, str)
+                or len(take_id) != TAKE_ID_LENGTH
+                or any(character not in "0123456789abcdef" for character in take_id)
+            ):
+                raise RankingError(f"{candidate_field}.take_id が不正です。")
+            if take_id in seen_takes:
+                raise RankingError(f"batch ranking take_id が重複しています: {take_id}")
+            seen_takes.add(take_id)
+            source_audio_sha256 = candidate["source_audio_sha256"]
+            if (
+                not isinstance(source_audio_sha256, str)
+                or len(source_audio_sha256) != 64
+                or any(
+                    character not in "0123456789abcdef"
+                    for character in source_audio_sha256
+                )
+            ):
+                raise RankingError(
+                    f"{candidate_field}.source_audio_sha256 が不正です。"
+                )
+            gate_content = candidate["gate_content"]
+            if gate_content not in CONTENT_PRIORITY:
+                raise RankingError(f"{candidate_field}.gate_content が不正です。")
+            duration = candidate["duration_seconds"]
+            if (
+                isinstance(duration, bool)
+                or not isinstance(duration, (int, float))
+                or not math.isfinite(float(duration))
+                or float(duration) <= 0
+            ):
+                raise RankingError(f"{candidate_field}.duration_seconds が不正です。")
+            audio_path_text = candidate["pasqa_audio_path"]
+            if audio_path_text is not None:
+                if not isinstance(audio_path_text, str) or not audio_path_text.strip():
+                    raise RankingError(
+                        f"{candidate_field}.pasqa_audio_path が不正です。"
+                    )
+                raw_path = Path(audio_path_text)
+                audio_path = (
+                    raw_path if raw_path.is_absolute() else input_dir / raw_path
+                ).resolve()
+                pasqa_audio_inputs.append(
+                    _inspect_audio(
+                        take_id=take_id,
+                        audio_path_text=audio_path_text,
+                        audio_path=audio_path,
+                    )
+                )
+            normalized_candidates.append(
+                {
+                    "take_id": take_id,
+                    "source_audio_sha256": source_audio_sha256,
+                    "gate_content": gate_content,
+                    "duration_seconds": float(duration),
+                }
+            )
+        result.append(
+            {
+                "group": normalized_group,
+                "mora_tokens": list(mora_tokens),
+                "candidates": normalized_candidates,
+                "pasqa_audio_inputs": pasqa_audio_inputs,
+            }
+        )
+    return result
+
+
+def _batch_ranking_key(item: Mapping[str, Any]) -> tuple[Any, ...]:
+    pasqa = item["pasqa"]
+    return (
+        CONTENT_PRIORITY[str(item["gate_content"])],
+        0 if pasqa is not None else 1,
+        -float(pasqa["score"]) if pasqa is not None else 0.0,
+        float(item["duration_seconds"]),
+        str(item["take_id"]),
+    )
 
 
 def _inspect_audio(

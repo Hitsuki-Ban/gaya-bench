@@ -163,7 +163,14 @@ export async function loadCurateCatalog(
     }),
   );
 
-  return createCatalog(candidateSet, candidateSetSha256, audioFiles, objectUrls);
+  return createCatalog(
+    candidateSet,
+    candidateSetSha256,
+    manifest.curations.length,
+    manifest.failures.length,
+    audioFiles,
+    objectUrls,
+  );
 }
 
 function indexDirectoryFiles(
@@ -587,6 +594,8 @@ function localAudioPath(candidate: V4Candidate): string {
 async function createCatalog(
   candidateSet: CandidateSet,
   candidateSetSha256: string,
+  manifestCurationCount: number,
+  manifestFailureCount: number,
   audioFiles: ReadonlyMap<V4Candidate, DirectoryFile>,
   objectUrls: ObjectUrlFactory,
 ): Promise<CurateCatalog> {
@@ -666,12 +675,15 @@ async function createCatalog(
               takeId: candidate.take_id,
               path: candidate.path,
               audioSha256: candidate.sha256,
+              gate: candidate.gate,
             })),
         );
       }
       let disposed = false;
       return {
         candidateSetSha256,
+        manifestCurationCount,
+        manifestFailureCount,
         groups,
         exportCandidatesByGroup,
         dispose() {

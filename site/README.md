@@ -34,6 +34,17 @@ vp run dev:internal
 vp run check:public-bundle
 ```
 
+公開後の役柄 soft signal 復核は、pipeline が作成した immutable bundle と空の結果
+directoryを絶対pathで指定して起動する。作業画面は中国語、公開サイトは日本語のまま保つ。
+
+```powershell
+vp run listening:start --workflow role-quality-review-v1 --bundle <absolute-bundle-directory> --output <absolute-result-directory> --port 4173
+vp run listening:status
+vp run listening:stop
+```
+
+旧 `role-baseline-v1` 全量聴取 workflow は起動できない。
+
 本番は R2 custom domain を指定する。
 
 ```dotenv

@@ -63,7 +63,7 @@ function fixtureOutcomes(): ArtifactOutcome[] {
     {
       kind: "selected",
       group,
-      candidate: item,
+      candidate: { ...item, role_quality: null },
     },
     {
       kind: "skipped",

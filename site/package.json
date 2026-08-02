@@ -5,7 +5,10 @@
   "type": "module",
   "scripts": {
     "check:public-bundle": "node scripts/assert-public-dist.mjs",
-    "dev:internal": "vp dev --open /internal.html#/curate"
+    "dev:internal": "vp dev --open /internal.html#/curate",
+    "listening:start": "node scripts/listening-app.ts start",
+    "listening:status": "node scripts/listening-app.ts status",
+    "listening:stop": "node scripts/listening-app.ts stop"
   },
   "dependencies": {
     "@base-ui/react": "^1.6.0",

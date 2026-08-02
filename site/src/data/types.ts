@@ -175,6 +175,16 @@ export interface PublishedCandidate extends ArtifactGroup {
   readonly gate: {
     readonly content: "pass" | "review_required";
   };
+  readonly role_quality: {
+    readonly expected_gender: Gender;
+    readonly median_f0_hz: number | null;
+    readonly status: "pass" | "review_required" | "not_applicable";
+    readonly signal:
+      | "gender_f0_unavailable"
+      | "gender_f0_below_expected"
+      | "gender_f0_above_expected"
+      | null;
+  } | null;
 }
 
 export type ArtifactOutcome =

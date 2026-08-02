@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 from gaya_pipeline.adapters.base import Adapter, ModelProfile
 from gaya_pipeline.adapters.dummy import DummyAdapter
 
@@ -46,8 +48,30 @@ def _adapter_class(model_id: str) -> type[Adapter]:
     raise UnknownAdapterError(f"未知の model id です: {model_id}")
 
 
-def create_adapter(model_id: str) -> Adapter:
-    return _adapter_class(model_id)()
+def create_adapter(
+    model_id: str,
+    *,
+    role_anchor_selection_path: Path | None = None,
+    role_anchor_plan_sha256: str | None = None,
+) -> Adapter:
+    adapter_class = _adapter_class(model_id)
+    if model_id in {
+        "qwen3-tts-12hz-1.7b",
+        "irodori-tts-600m-v3-voicedesign",
+    }:
+        return adapter_class(
+            role_anchor_selection_path=role_anchor_selection_path,
+            role_anchor_plan_sha256=role_anchor_plan_sha256,
+        )
+    if (
+        role_anchor_selection_path is not None
+        or role_anchor_plan_sha256 is not None
+    ):
+        raise UnknownAdapterError(
+            "role anchor selection/plan SHAはQwen3-TTS/Irodori-TTSだけに指定できます: "
+            f"{model_id}",
+        )
+    return adapter_class()
 
 
 def get_model_profile(model_id: str) -> ModelProfile:

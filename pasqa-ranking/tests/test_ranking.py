@@ -276,3 +276,108 @@ def test_vocab_fallbackを検出して停止する(
                 {},
             ),
         )
+
+
+def test_batchはmodelを1回だけloadしてQCとPASQAの順に全groupを順位付けする(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _patch_runtime(monkeypatch)
+    model_dir, vocab = _write_contract(tmp_path, monkeypatch)
+    for name in ("a.wav", "b.wav", "c.wav"):
+        _write_wav(tmp_path / "audio" / name)
+    source_hashes = {
+        name: hashlib.sha256(f"source:{name}".encode()).hexdigest()
+        for name in ("a.wav", "b.wav", "c.wav", "long.wav")
+    }
+    batch_input = tmp_path / "batch.json"
+    batch_input.write_text(
+        json.dumps(
+            {
+                "format_version": 1,
+                "kind": "phase-b-auto-selection-input-v1",
+                "groups": [
+                    {
+                        "group": {
+                            "scenario_id": "scene",
+                            "line_id": "line-1",
+                            "model_id": "model",
+                            "variant": "dry",
+                        },
+                        "mora_tokens": ["ト", "マ", "レ"],
+                        "candidates": [
+                            {
+                                "take_id": "a" * 64,
+                                "source_audio_sha256": source_hashes["a.wav"],
+                                "gate_content": "review_required",
+                                "duration_seconds": 1.0,
+                                "pasqa_audio_path": "audio/a.wav",
+                            },
+                            {
+                                "take_id": "b" * 64,
+                                "source_audio_sha256": source_hashes["b.wav"],
+                                "gate_content": "pass",
+                                "duration_seconds": 1.1,
+                                "pasqa_audio_path": "audio/b.wav",
+                            },
+                            {
+                                "take_id": "d" * 64,
+                                "source_audio_sha256": source_hashes["long.wav"],
+                                "gate_content": "pass",
+                                "duration_seconds": 12.0,
+                                "pasqa_audio_path": None,
+                            },
+                        ],
+                    },
+                    {
+                        "group": {
+                            "scenario_id": "scene",
+                            "line_id": "line-2",
+                            "model_id": "model",
+                            "variant": "dry",
+                        },
+                        "mora_tokens": ["ト", "マ", "レ"],
+                        "candidates": [
+                            {
+                                "take_id": "c" * 64,
+                                "source_audio_sha256": source_hashes["c.wav"],
+                                "gate_content": "pass",
+                                "duration_seconds": 1.2,
+                                "pasqa_audio_path": "audio/c.wav",
+                            }
+                        ],
+                    },
+                ],
+            },
+            ensure_ascii=False,
+        ),
+        encoding="utf-8",
+    )
+    factory_calls = 0
+
+    def factory(_checkpoint: Path, _config: Path) -> FakePredictor:
+        nonlocal factory_calls
+        factory_calls += 1
+        return FakePredictor(
+            vocab,
+            {"a.wav": 4.9, "b.wav": 2.0, "c.wav": 3.0},
+        )
+
+    result = ranking.run_batch_ranking(
+        model_dir=model_dir,
+        input_path=batch_input,
+        output_path=tmp_path / "batch-report.json",
+        predictor_factory=factory,
+    )
+
+    assert factory_calls == 1
+    first = result["groups"][0]["rankings"]
+    assert [item["take_id"] for item in first] == [
+        "b" * 64,
+        "d" * 64,
+        "a" * 64,
+    ]
+    assert first[0]["pasqa"]["score"] == 2.0
+    assert first[1]["pasqa"] is None
+    assert result["groups"][1]["rankings"][0]["take_id"] == "c" * 64
+    assert result["ranking_policy"] == ranking.BATCH_POLICY

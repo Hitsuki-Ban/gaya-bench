@@ -201,6 +201,226 @@ scenario SHA、保持元releaseの全digest、model単位curation group digest�
 から解決する。`--projection-plan`を指定しない通常経路はprovenance format v1の
 ままであり、暗黙に保持元releaseを探索しない。
 
+## 全モデル完全基準線と role anchor
+
+`completion` は format 2 の固定 plan により、公開版から入力一致を証明できる691 slotを
+継承し、役柄 conditioning / 日本語 reading / 既存failureのunionである597 slotを
+再生成して 8 × 161 = 1,288 slotを作る。8 modelはすべて新しいprimary runを持ち、
+VoxCPM2を含めて旧runや旧candidateを再利用しない。
+
+plan、base manifest、scenario root、voice metadata、artifacts rootを全て絶対pathで
+渡す。現在のworktree、環境変数、latest run、model cacheから代替入力を探索しない。
+`--voices`には`metadata.yaml`だけでなく、そこで宣言した権利確認済み5 WAVが
+実在する共有runtime assetsを指定する。gitignored WAVを持たない追加worktree内の
+`assets/voices`は使わず、生成前に同じ絶対pathを
+`gaya voices validate-local --voices <absolute-voices>`で検証する。
+
+参照音声を持たない53 roleのQwen3-TTS / Irodori anchorは、旧source planの下で
+生成・人評した106 groupの外部権威である。通常のPhase Bは確定した
+`role-anchor-selection-v1`と隣接SHA markerだけを消費する。v2 planの
+`anchor_authority`は旧source plan SHA、candidate-set SHA、owner selection SHAをexactに
+固定し、selection rootのplan SHAをv2 plan SHAへ書き換えない。
+
+final decisionで`no_usable_candidate=true`、またはselected済みでも`gender!=pass`の
+groupがある場合だけ、format v2の明示topup経路を使う。planは対象をdecisionからexact
+導出し、各targetのsource N4がattempt 1..4なら5..8、5..8なら9..12を固定する。
+source 9..12以降は2回のtopup上限として拒否し、13..16を生成しない。生成はmodelごとの
+独立runなのでQwenとIrodoriを同時にVRAMへ載せない。mergeは非対象groupのJSON objectを
+そのまま保持し、対象groupをplan自身のN4で整組置換する（旧候補との拼接はしない）。
+全pathは絶対pathが必要である。
+生成runは同階層のpending directoryでledgerまで完成させてからatomic publishし、例外時は
+pendingだけを除去する。mergeは指定artifacts root配下のsource・topup・merged全WAVを
+SHA-256照合し、全件成功するまでcandidate set outputを書かない。
+`anchor-topup-plan`だけがcurrent candidate authorityをgateし、生成した
+`role-anchor-topup-v2`へsource candidate SHAとdecision SHAを固定する。その後のgenerate /
+merge / draftはsource planを読み、必ずtopup planを先に検証してから、その2 SHAとdecision
+markerに一致する入力だけを重放する。current candidate authorityが次のmerged setへ進んでも
+既存planの重放契約は変わらない。format v1のtopup plan / runは明示的に拒否し、fallbackや
+自動変換は行わない。
+
+```console
+uv run --project <pipeline> --locked gaya completion anchor-topup-plan \
+  --plan <absolute-source-plan.json> --candidate-set <absolute-current-candidate-set.json> \
+  --decision <absolute-final-decision.json> --output <absolute-topup-plan.json>
+
+uv run --project <pipeline> --locked --extra <model-extra> gaya completion anchor-topup-generate \
+  --plan <absolute-source-plan.json> --candidate-set <absolute-plan-bound-source-candidate-set.json> \
+  --decision <absolute-final-decision.json> --topup-plan <absolute-topup-plan.json> \
+  --model <qwen-or-irodori> --run-id <explicit-model-run-id> \
+  --artifacts <absolute-artifacts>
+
+uv run --project <pipeline> --locked gaya completion anchor-topup-merge \
+  --plan <absolute-source-plan.json> --candidate-set <absolute-plan-bound-source-candidate-set.json> \
+  --decision <absolute-final-decision.json> --topup-plan <absolute-topup-plan.json> \
+  --run-id <one-exact-run-id-per-target-model> \
+  --artifacts <absolute-artifacts> --output <absolute-merged-candidate-set.json>
+```
+
+`--run-id`はtopup planにtargetを持つmodelごとにexactly 1件だけ渡す。Irodoriだけを
+対象にするplanへQwen runを追加するなど、欠落・余分・重複するmodel runは拒否する。
+
+targeted再聴取では、merged bundleを作成後に旧判断の明示継承draftを生成する。非対象
+groupは旧decisionを保持し、targetだけ未聴取・未選択・rubric未入力・未確認へ戻る。
+
+```console
+uv run --project <pipeline> --locked gaya completion anchor-topup-draft \
+  --plan <absolute-source-plan.json> \
+  --source-candidate-set <absolute-plan-bound-source-candidate-set.json> \
+  --decision <absolute-final-decision.json> --topup-plan <absolute-topup-plan.json> \
+  --merged-candidate-set <absolute-merged-candidate-set.json> \
+  --merged-bundle <absolute-merged-bundle> --output <absolute-draft.json>
+```
+
+Phase Bでは8 modelを各1つのprimary runとして生成する。`--anchor-selection`は全modelで
+role epochを決める権威入力として必須だが、adapterへ渡すのはQwen3-TTS / Irodoriだけで
+ある。参照音声なしroleのgeneration inputはselected anchor ID、WAV SHA、decision SHAに
+由来するrole epochを記録する。
+
+以下の `--base-manifest` は現在の公開activationではなく、固定SHAを持つ
+`docs/research/full-baseline-completion/base-manifest-v4.json` を絶対pathで指定する。
+
+AivisSpeechはdeterministic engineのためplan固定のN=1、minimum=1、seed nullであり、
+`--seed-base`を渡さない。
+
+```console
+uv run --project <pipeline> --locked gaya completion generate \
+  --plan <absolute-plan.json> --base-manifest <absolute-manifest.json> \
+  --model aivisspeech-kohaku --artifacts <absolute-artifacts> \
+  --scenarios <absolute-scenarios> --voices <absolute-voices> \
+  --anchor-selection <absolute-role-anchor-selection.json> \
+  --run-kind primary
+```
+
+他7 modelはplan固定のN=4、minimum=3、seed policy `derived-sha256-v1`、primary seed
+base 104である。
+
+```console
+uv run --project <pipeline> --locked --extra <model-extra> gaya completion generate \
+  --plan <absolute-plan.json> --base-manifest <absolute-manifest.json> \
+  --model <one-of-seven-seeded-models> --artifacts <absolute-artifacts> \
+  --scenarios <absolute-scenarios> --voices <absolute-voices> \
+  --anchor-selection <absolute-role-anchor-selection.json> \
+  --run-kind primary --seed-base 104
+```
+
+Phase B生成が中断した場合だけ、同じplan、model、target、anchor authority、takes、seed
+base、run kindを再指定し、対象runを`--resume-run-id`で明示する。runの自動探索や別runへの
+fallbackは行わない。resumeはQC前の`planned` / `generated` / `generation_failed`だけを
+受理し、既存`generated`を全件再検証して保持、`generation_failed`を再試行せず保持し、
+`planned`だけを元のseedで生成する。`--force`との併用、source/slot/input/provenanceの
+不一致、QC済みrunは生成前に拒否する。generationとQCは同じrun lockを使用する。
+
+```console
+uv run --project <pipeline> --locked --extra voxcpm2 gaya completion generate \
+  --plan <absolute-plan.json> --base-manifest <absolute-manifest.json> \
+  --model voxcpm2 --artifacts <absolute-artifacts> \
+  --scenarios <absolute-scenarios> --voices <absolute-voices> \
+  --anchor-selection <absolute-role-anchor-selection.json> \
+  --run-kind primary --seed-base 104 --resume-run-id <exact-interrupted-run-id>
+```
+
+各primary runと後述する各topup runは、生成直後に固定QC modelで権威QCを完了させる。
+`completion listen`はplan / anchor plan、ledger、manifest、candidate set、QC reportの
+provenanceがexactに一致しないrunを受け付けない。
+
+```console
+uv run --project <pipeline> --locked --extra qc gaya completion qc \
+  --run-id <exact-generated-run-id> --artifacts <absolute-artifacts> \
+  --scenarios <absolute-scenarios> --voices <absolute-voices> \
+  --qc-model-root <absolute-kana-whisper-model-root>
+```
+
+eligibleが3件未満のgroupだけを、異なるseed baseの明示topup runで再生成する。
+topupは`--supersedes-run-id`のexact subsetを整組取代し、primaryとcandidateを
+拼接しない。AivisSpeechはtopup対象外である。
+
+```console
+uv run --project <pipeline> --locked --extra <model-extra> gaya completion generate \
+  --plan <absolute-plan.json> --base-manifest <absolute-manifest.json> \
+  --model <model> --artifacts <absolute-artifacts> \
+  --scenarios <absolute-scenarios> --voices <absolute-voices> \
+  --anchor-selection <absolute-role-anchor-selection.json> \
+  --run-kind topup --supersedes-run-id <explicit-run-id> --seed-base 105 \
+  --target <scenario/line> --target <scenario/line>
+```
+
+Phase B 597 groupは全量owner聴取を行わず、8 primaryと明示topupからQC優先＋PASQA
+相対順位のwrite-once decisionを作る。同時に選択候補のgender F0 soft signalを作り、
+対象復聴は公開後にsoft signalの付いたgroupだけへ限定する。
+
+```console
+uv run --project <pipeline> --locked gaya completion auto-decide \
+  --plan <absolute-plan.json> --base-manifest <absolute-manifest.json> \
+  --scenarios <absolute-scenarios> --voices <absolute-voices> \
+  --artifacts <absolute-artifacts> \
+  --anchor-selection <absolute-role-anchor-selection.json> \
+  --primary-run-id <aivis> --primary-run-id <chatterbox> \
+  --primary-run-id <cosyvoice> --primary-run-id <gpt-sovits> \
+  --primary-run-id <irodori> --primary-run-id <qwen> \
+  --primary-run-id <supertonic> --primary-run-id <voxcpm2> \
+  --topup-run-id <explicit-topup-if-any> \
+  --pasqa-project <absolute-pasqa-ranking-project> \
+  --pasqa-model-dir <absolute-prepared-pasqa-model> \
+  --output <absolute-new-decision-directory>
+```
+
+出力は `role-baseline-decision-v1.json`、`role-quality-signals-v1.json`、ranking input / report
+と各SHA markerを持つ。decision authorityは全件 `auto-selected` であり、owner確認済みを
+装うfieldは持たない。10秒超の音声を切らず、PASQA対象外としてduration順で後置する。
+
+公開後の復核bundleは最終releaseから `review_required` の145件だけを取り出し、公開済み
+selected Opus 1件と役柄情報をwrite-onceで固定する。復核結果はselection authorityではない。
+
+```console
+uv run --project <pipeline> --locked gaya completion review-bundle \
+  --plan <absolute-plan.json> --base-manifest <absolute-manifest.json> \
+  --release <absolute-release> --source-audit <absolute-source-audit.json> \
+  --artifacts <absolute-artifacts> --scenarios <absolute-scenarios> \
+  --voices <absolute-voices> --output <absolute-new-review-bundle>
+```
+
+finalizeはsource auditをreplacement 597
+（mismatch 357 + unverifiable 145 + match 89 + failure 6）とinherited match 691へ
+exact partitionし、重複・欠落なしで1,288 selectedへoverlayする。
+
+```console
+uv run --project <pipeline> --locked gaya completion finalize \
+  --plan <absolute-plan.json> --base-manifest <absolute-manifest.json> \
+  --qwen-curation <absolute-base-qwen-curation.json> \
+  --source-audit <absolute-source-audit.json> \
+  --decision <absolute-role-baseline-decision.json> \
+  --quality-signals <absolute-role-quality-signals.json> \
+  --scenarios <absolute-scenarios> --voices <absolute-voices> \
+  --artifacts <absolute-artifacts> \
+  --anchor-selection <absolute-role-anchor-selection.json> \
+  --primary-run-id <aivis> --primary-run-id <chatterbox> \
+  --primary-run-id <cosyvoice> --primary-run-id <gpt-sovits> \
+  --primary-run-id <irodori> --primary-run-id <qwen> \
+  --primary-run-id <supertonic> --primary-run-id <voxcpm2> \
+  --topup-run-id <explicit-topup-if-any> \
+  --output <absolute-new-release-directory>
+```
+
+publishはimmutable音声を条件付きPUTした後、manifest全candidateを最終HEADする。
+この全量照合が成功した後だけquality signalsを先に置き、manifestをactivationとして
+最後に置換して永続receiptを書く。
+R2の複数objectをtransactionとして扱わない。
+
+```console
+uv run --project <pipeline> --locked gaya completion publish \
+  --release <absolute-release> --artifacts <absolute-artifacts> \
+  --source-audit <absolute-source-audit.json> \
+  --env-file <absolute-r2-credentials> \
+  --manifest-activation <absolute-data-manifest.json> \
+  --quality-signals-activation <absolute-data-quality-signals.json> \
+  --publish-receipt <absolute-new-publish-receipt.json>
+```
+
+role snapshot、reading transport、Phase Bの固定数、listening/decision contract、
+selected role epoch、release overlayの詳細は
+[全モデル完全基準線・役柄／reading固定プロトコル](../docs/research/full-baseline-completion/protocol.md)
+を参照する。
+
 ## N3 pilot calibration
 
 固定 3 model × `battlefield-camp` / `dungeon-entrance` × N3 の terminal run
@@ -346,6 +566,29 @@ cmake --version
 uv sync --project pipeline --locked --extra irodori
 uv run --project pipeline --locked --extra irodori gaya voices validate-local
 ```
+
+TorchCodec 0.10.0はpackageの存在だけでなく、対応するFFmpeg 4〜8のshared libraryを
+必要とする。Windowsではstatic buildを使わず、固定したfull-shared buildを導入し、
+現在のshellでもその`bin`をPATHの先頭に置いてからimport gateを通す。
+[TorchCodec公式README](https://github.com/meta-pytorch/torchcodec) と
+[FFmpeg公式download案内](https://ffmpeg.org/download.html)を根拠とする。
+
+```powershell
+winget install --id Gyan.FFmpeg.Shared --exact --version 8.1.2
+$FfmpegSharedBin = @(
+  Get-ChildItem -Directory -Path `
+    "$env:LOCALAPPDATA\Microsoft\WinGet\Packages\Gyan.FFmpeg.Shared_*\ffmpeg-8.1.2-full_build-shared\bin"
+)
+if ($FfmpegSharedBin.Count -ne 1) {
+  throw "FFmpeg 8.1.2 full-shared binをexactに1件解決できません。"
+}
+$env:PATH = "$($FfmpegSharedBin[0].FullName);$env:PATH"
+ffmpeg -buildconf 2>&1 | Select-String -Pattern '\-\-enable-shared'
+uv run --project pipeline --locked --extra irodori python -c "import torchcodec"
+```
+
+`torchcodec`をimportできなければmodel load前に失敗する。static FFmpegや別runtimeへ
+切り替えない。
 
 固定する上流は以下のとおり。
 

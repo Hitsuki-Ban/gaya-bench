@@ -161,6 +161,7 @@ function selected(
     duration_sec: 1,
     rtf: 1,
     gate: { content: "pass" },
+    role_quality: null,
   };
   return { kind: "selected", group: artifactGroup, candidate };
 }

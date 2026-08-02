@@ -24,6 +24,8 @@
   --input: #5a6873;
   --ring: #f5a623;
   --radius: 0.375rem;
+  --gaya-header-height: 3.5rem;
+  --gaya-sticky-header-offset: calc(var(--gaya-header-height) + 1px);
 }
 
 @theme inline {

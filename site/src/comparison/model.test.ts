@@ -124,7 +124,7 @@ function selected(
   return {
     kind: "selected",
     group: outcomeGroup,
-    candidate: item,
+    candidate: { ...item, role_quality: null },
   };
 }
 

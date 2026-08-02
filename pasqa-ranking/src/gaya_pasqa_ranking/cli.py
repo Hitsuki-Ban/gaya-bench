@@ -8,6 +8,7 @@ from pathlib import Path
 from gaya_pasqa_ranking.ranking import (
     RankingError,
     prepare_model_dir,
+    run_batch_ranking,
     run_ranking,
 )
 
@@ -49,6 +50,14 @@ def build_parser() -> argparse.ArgumentParser:
         type=Path,
         help="新規作成する ranking report JSON",
     )
+
+    batch_parser = subparsers.add_parser(
+        "rank-batch",
+        help="Phase B の全 group を1回のmodel loadで順位付けする",
+    )
+    batch_parser.add_argument("--model-dir", required=True, type=Path)
+    batch_parser.add_argument("--input", required=True, type=Path)
+    batch_parser.add_argument("--output", required=True, type=Path)
     return parser
 
 
@@ -74,6 +83,15 @@ def main(argv: Sequence[str] | None = None) -> int:
                 f"完了: group {result['group']['scenario_id']}/"
                 f"{result['group']['line_id']} / take {len(result['rankings'])}"
             )
+            return 0
+        if args.command == "rank-batch":
+            result = run_batch_ranking(
+                model_dir=args.model_dir,
+                input_path=args.input,
+                output_path=args.output,
+            )
+            print(f"Batch ranking report: {args.output.resolve().as_posix()}")
+            print(f"完了: group {len(result['groups'])}")
             return 0
         raise AssertionError(f"unknown command: {args.command}")
     except RankingError as error:

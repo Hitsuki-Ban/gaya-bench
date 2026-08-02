@@ -172,6 +172,7 @@ def run_qc(
     run_id: str,
     scenarios_dir: Path,
     artifacts_dir: Path,
+    voices_dir: Path | None = None,
     runtime: QCRuntime,
 ) -> QCSummary:
     _require_path_segment(run_id, "run_id")
@@ -185,6 +186,7 @@ def run_qc(
             return _run_qc_transaction(
                 run_id=run_id,
                 scenarios_dir=scenarios_dir,
+                voices_dir=voices_dir,
                 runtime=runtime,
                 run_root=run_root,
             )
@@ -196,6 +198,7 @@ def _run_qc_transaction(
     *,
     run_id: str,
     scenarios_dir: Path,
+    voices_dir: Path | None,
     runtime: QCRuntime,
     run_root: Path,
 ) -> QCSummary:
@@ -275,6 +278,7 @@ def _run_qc_transaction(
         scenarios = _load_scenarios(
             scenarios_dir,
             ledger_source=ledger["source"],
+            voices_dir=voices_dir,
         )
         tools = (
             find_audio_tools()
@@ -581,10 +585,15 @@ def _load_scenarios(
     scenarios_dir: Path,
     *,
     ledger_source: Mapping[str, Any],
+    voices_dir: Path | None,
 ) -> dict[tuple[str, str], _ScenarioInput]:
     scenarios_dir = scenarios_dir.resolve()
     scenario_ids = _source_scenario_ids(ledger_source)
-    validation = validate_scenario_ids(scenarios_dir, scenario_ids)
+    validation = validate_scenario_ids(
+        scenarios_dir,
+        scenario_ids,
+        voices_dir=voices_dir,
+    )
     if validation.problems:
         details = "\n".join(str(problem) for problem in validation.problems)
         raise _ProvenanceError(f"scenario 検証に失敗しました:\n{details}")
@@ -1229,6 +1238,10 @@ def _finish(
         },
         "attempts": reports,
     }
+    if "phase_b" in ledger["source"]:
+        report_document["source"]["phase_b"] = dict(
+            ledger["source"]["phase_b"],
+        )
     try:
         validate_qc_report(
             report_document,

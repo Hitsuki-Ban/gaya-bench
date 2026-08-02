@@ -2,12 +2,13 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { HashRouter } from "react-router";
 
-import { assertAudioBaseConfigured } from "@/lib/audio-url";
-
 import "./index.css";
-import InternalApp from "./internal/InternalApp.tsx";
 
-assertAudioBaseConfigured();
+if (import.meta.env.VITE_GAYA_LISTENING_APP === "true") {
+  document.documentElement.lang = "zh-CN";
+  document.title = "Gaya Bench — 角色声音听测";
+}
+import InternalApp from "./internal/InternalApp.tsx";
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>

@@ -423,7 +423,7 @@ class GPTSoVITSAdapter:
             voice_prompt=False,
             clone=True,
             nonverbal=False,
-            reading=True,
+            reading=False,
         ),
     )
 
@@ -658,14 +658,7 @@ def _select_reference_voice(job: LineJob) -> tuple[str, str]:
 
 def _target_text(job: LineJob) -> tuple[str, str]:
     text = _required_string(job.line, "text", "line")
-    reading = job.line.get("reading")
-    if reading is None:
-        return text, "line.text"
-    if not isinstance(reading, str) or not reading.strip():
-        raise GPTSoVITSAdapterError(
-            "line.reading は null または空でない文字列が必要です。",
-        )
-    return reading, "line.reading"
+    return text, "line.text"
 
 
 def _derive_reference_clip(
