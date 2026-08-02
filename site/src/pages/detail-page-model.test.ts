@@ -90,6 +90,7 @@ function candidate(): PublishedCandidate {
     path: `audio/takes/alpha/sample/speaker-001/dry/take-0001-${"b".repeat(64)}.opus`,
     duration_sec: 1,
     reference_conditioning: { kind: "none" },
+    role_quality: null,
     rtf: 0.5,
     gate: {
       content: "review_required",

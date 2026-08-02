@@ -350,6 +350,7 @@ function candidate(model: string, scenario: string, lineId: string): PublishedCa
     path: `audio/takes/${model}/${scenario}/${lineId}/dry/take-0001-${"b".repeat(64)}.opus`,
     duration_sec: 1,
     reference_conditioning: { kind: "none" },
+    role_quality: null,
     rtf: 0.1,
     gate: {
       content: "review_required",

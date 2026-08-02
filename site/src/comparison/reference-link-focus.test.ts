@@ -124,6 +124,7 @@ function createFixture(): {
           inference_reference_sha256: "a".repeat(64),
           selection_source: "fixture",
         },
+        role_quality: null,
         gate: { content: "pass" },
       },
     };
