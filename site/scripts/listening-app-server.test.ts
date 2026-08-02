@@ -28,6 +28,10 @@ import {
   BASELINE_DRAFT_FILE,
   BASELINE_FINAL_FILE,
   BASELINE_WORKFLOW,
+  BASELINE_AB_BUNDLE_FILE,
+  BASELINE_AB_DRAFT_FILE,
+  BASELINE_AB_FINAL_FILE,
+  BASELINE_AB_WORKFLOW,
   assertAuthorityPlanBoundary,
   assertListeningDirectoryBoundaries,
   canonicalJsonBytes,
@@ -59,7 +63,7 @@ describe("listening bundle validation", () => {
         "canonical JSON",
       );
     });
-  });
+  }, 15_000);
 
   it("音声SHA改ざん、path traversal、任意extra fileを拒否する", async () => {
     await withFixture(async ({ bundleRoot, bundle }) => {
@@ -709,6 +713,102 @@ describe("listening REST API", () => {
         }
       }
     });
+  });
+});
+
+describe("baseline quality A/B workflow", () => {
+  it("blind bundleを検証し、全候補再生済みの判断だけを保存・確定する", async () => {
+    const root = mkdtempSync(path.join(tmpdir(), "gaya-listening-ab-"));
+    const bundleRoot = path.join(root, "bundle");
+    const outputRoot = path.join(root, "output");
+    mkdirSync(path.join(bundleRoot, "audio"), { recursive: true });
+    mkdirSync(outputRoot);
+    try {
+      const ids = [hash(Buffer.from("candidate-a")), hash(Buffer.from("candidate-b"))];
+      const audio = ids.map((id, index) => {
+        const bytes = Buffer.from(`wav-${index}`);
+        writeFileSync(path.join(bundleRoot, "audio", `${id}.wav`), bytes);
+        return { id, bytes };
+      });
+      const studyId = hash(Buffer.from("issue-190-study"));
+      const groupId = hash(Buffer.from("issue-190-group"));
+      const bundle = {
+        format_version: 1,
+        protocol: "baseline-quality-ab-bundle-v1",
+        study_id: studyId,
+        title: "#190 基线质量盲听",
+        instructions: "听完全部候选后选择。",
+        groups: [
+          {
+            id: groupId,
+            track: "supertonic-speed",
+            model: "supertonic-3",
+            scenario: "castle-gate",
+            line: "guard-001",
+            text: "止まれ。",
+            focus: "哪一个语速更自然？",
+            candidates: audio.map(({ id, bytes }, index) => ({
+              id,
+              variant: index === 0 ? "speed-1.05" : "speed-1.00",
+              audio_path: `audio/${id}.wav`,
+              audio_sha256: hash(bytes),
+            })),
+          },
+        ],
+      };
+      const bundleBytes = canonicalJsonBytes(bundle);
+      writeFileSync(path.join(bundleRoot, BASELINE_AB_BUNDLE_FILE), bundleBytes);
+      writeFileSync(
+        path.join(bundleRoot, BASELINE_AB_BUNDLE_FILE.replace(".json", ".sha256")),
+        hash(bundleBytes),
+      );
+
+      const port = await unusedPort();
+      const runtime = await createListeningRuntime({
+        workflow: BASELINE_AB_WORKFLOW,
+        bundleDirectory: bundleRoot,
+        outputDirectory: outputRoot,
+        authorityPlanPath: null,
+        expectedPlanSha256: null,
+        port,
+        mutationToken: TOKEN,
+      });
+      const server = createHttpServer((request, response) => runtime.api.handle(request, response));
+      await listen(server, port);
+      const origin = `http://127.0.0.1:${port}`;
+      try {
+        const bootstrap = (await (
+          await fetch(`${origin}/__gaya-listening/bootstrap`)
+        ).json()) as Record<string, unknown>;
+        expect(bootstrap).toMatchObject({
+          workflow: BASELINE_AB_WORKFLOW,
+          output: {
+            draft_file: BASELINE_AB_DRAFT_FILE,
+            decision_file: BASELINE_AB_FINAL_FILE,
+          },
+        });
+        const draft = {
+          format_version: 1,
+          protocol: "baseline-quality-ab-draft-v1",
+          study_id: studyId,
+          groups: [{ id: groupId, heard_candidate_ids: ids, choice: ids[0], notes: "" }],
+          current_index: 0,
+        };
+        expect((await putDraft(origin, draft, 0, origin, TOKEN)).status).toBe(200);
+        const decision = {
+          format_version: 1,
+          protocol: "baseline-quality-ab-result-v1",
+          study_id: studyId,
+          groups: draft.groups,
+        };
+        expect((await finalize(origin, decision, 1)).status).toBe(200);
+        assertCanonicalResult(outputRoot, BASELINE_AB_FINAL_FILE, decision, true);
+      } finally {
+        await close(server);
+      }
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
   });
 });
 

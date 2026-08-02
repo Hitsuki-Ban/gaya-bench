@@ -22,6 +22,7 @@ import { Button } from "@/components/ui/button";
 import { CompletionRubricFields } from "./completion-rubric-fields";
 import { BaselineCompletionPage } from "./baseline-page";
 import { QualityReviewPage } from "./quality-review-page";
+import { BaselineAbPage } from "./baseline-ab-page";
 import { createRoleReviewCatalog } from "./contract";
 import { buildRoleReviewDecision } from "./export";
 import { candidateShortcutIndex, candidateShortcutLabel } from "./listening-shortcuts";
@@ -88,6 +89,9 @@ export function CompletionPage() {
   }
   if (session.workflow === "role-quality-review-v1") {
     return <QualityReviewPage bootstrap={session} />;
+  }
+  if (session.workflow === "baseline-quality-ab-v1") {
+    return <BaselineAbPage bootstrap={session} />;
   }
   return <BaselineCompletionPage bootstrap={session} />;
 }

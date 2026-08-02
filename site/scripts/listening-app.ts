@@ -16,6 +16,9 @@ import {
   ANCHOR_FINAL_FILE,
   BASELINE_DRAFT_FILE,
   BASELINE_FINAL_FILE,
+  BASELINE_AB_DRAFT_FILE,
+  BASELINE_AB_FINAL_FILE,
+  BASELINE_AB_WORKFLOW,
   LISTENING_PROTOCOL,
   LISTENING_STATE_DIR,
   ANCHOR_WORKFLOW,
@@ -68,7 +71,9 @@ async function start(options: {
     throw new Error(`${BASELINE_WORKFLOW} は--authority-planが必要です。`);
   }
   if (
-    (options.workflow === ANCHOR_WORKFLOW || options.workflow === QUALITY_REVIEW_WORKFLOW) &&
+    (options.workflow === ANCHOR_WORKFLOW ||
+      options.workflow === QUALITY_REVIEW_WORKFLOW ||
+      options.workflow === BASELINE_AB_WORKFLOW) &&
     options.authorityPlan !== null
   ) {
     throw new Error(`${options.workflow} は--authority-planを受け付けません。`);
@@ -357,7 +362,7 @@ function parseStartArguments(argv: readonly string[]): {
       value === undefined
     ) {
       throw new Error(
-        "usage: vp run listening:start --workflow <role-review-anchor-v2|role-quality-review-v1> --bundle <absolute-dir> --output <absolute-dir> [--port 4173]",
+        "usage: vp run listening:start --workflow <role-review-anchor-v2|role-quality-review-v1|baseline-quality-ab-v1> --bundle <absolute-dir> --output <absolute-dir> [--port 4173]",
       );
     }
     if (options.has(key)) {
@@ -377,7 +382,9 @@ function parseStartArguments(argv: readonly string[]): {
     throw new Error(`${BASELINE_WORKFLOW} は--authority-planが必要です。`);
   }
   if (
-    (workflow === ANCHOR_WORKFLOW || workflow === QUALITY_REVIEW_WORKFLOW) &&
+    (workflow === ANCHOR_WORKFLOW ||
+      workflow === QUALITY_REVIEW_WORKFLOW ||
+      workflow === BASELINE_AB_WORKFLOW) &&
     authorityPlan !== null
   ) {
     throw new Error(`${workflow} は--authority-planを受け付けません。`);
@@ -397,7 +404,8 @@ function readSession(): ListeningSessionState | null {
       value.protocol !== LISTENING_PROTOCOL ||
       (value.workflow !== ANCHOR_WORKFLOW &&
         value.workflow !== BASELINE_WORKFLOW &&
-        value.workflow !== QUALITY_REVIEW_WORKFLOW) ||
+        value.workflow !== QUALITY_REVIEW_WORKFLOW &&
+        value.workflow !== BASELINE_AB_WORKFLOW) ||
       (value.state !== "starting" && value.state !== "ready") ||
       typeof value.id !== "string" ||
       typeof value.pid !== "number" ||
@@ -452,7 +460,11 @@ async function fetchHealth(
 }
 
 function validSessionAuthority(value: Record<string, unknown>): boolean {
-  if (value.workflow === ANCHOR_WORKFLOW || value.workflow === QUALITY_REVIEW_WORKFLOW) {
+  if (
+    value.workflow === ANCHOR_WORKFLOW ||
+    value.workflow === QUALITY_REVIEW_WORKFLOW ||
+    value.workflow === BASELINE_AB_WORKFLOW
+  ) {
     return value.authority_plan === null && value.expected_plan_sha256 === null;
   }
   return (
@@ -469,6 +481,9 @@ function resultFiles(workflow: ListeningWorkflow): {
 } {
   if (workflow === ANCHOR_WORKFLOW) {
     return { draft: ANCHOR_DRAFT_FILE, final: ANCHOR_FINAL_FILE };
+  }
+  if (workflow === BASELINE_AB_WORKFLOW) {
+    return { draft: BASELINE_AB_DRAFT_FILE, final: BASELINE_AB_FINAL_FILE };
   }
   return workflow === QUALITY_REVIEW_WORKFLOW
     ? { draft: QUALITY_REVIEW_DRAFT_FILE, final: QUALITY_REVIEW_FINAL_FILE }

@@ -27,10 +27,12 @@ export const LISTENING_PROTOCOL = "gaya-listening-session-v1";
 export const ANCHOR_WORKFLOW = "role-review-anchor-v2";
 export const BASELINE_WORKFLOW = "role-baseline-v1";
 export const QUALITY_REVIEW_WORKFLOW = "role-quality-review-v1";
+export const BASELINE_AB_WORKFLOW = "baseline-quality-ab-v1";
 export type ListeningWorkflow =
   | typeof ANCHOR_WORKFLOW
   | typeof BASELINE_WORKFLOW
-  | typeof QUALITY_REVIEW_WORKFLOW;
+  | typeof QUALITY_REVIEW_WORKFLOW
+  | typeof BASELINE_AB_WORKFLOW;
 export const ANCHOR_BUNDLE_FILE = "role-review-v2.json";
 export const ANCHOR_DRAFT_FILE = "role-review-anchor-draft-v2.json";
 export const ANCHOR_FINAL_FILE = "role-review-anchor-decision-v2.json";
@@ -39,6 +41,9 @@ export const BASELINE_FINAL_FILE = "role-baseline-decision-v1.json";
 export const QUALITY_REVIEW_BUNDLE_FILE = "role-quality-review-bundle-v1.json";
 export const QUALITY_REVIEW_DRAFT_FILE = "role-quality-review-draft-v1.json";
 export const QUALITY_REVIEW_FINAL_FILE = "role-quality-review-result-v1.json";
+export const BASELINE_AB_BUNDLE_FILE = "baseline-quality-ab-bundle-v1.json";
+export const BASELINE_AB_DRAFT_FILE = "baseline-quality-ab-draft-v1.json";
+export const BASELINE_AB_FINAL_FILE = "baseline-quality-ab-result-v1.json";
 export const MUTATION_TOKEN_HEADER = "x-gaya-listening-token";
 export const BODY_LIMIT_BYTES = 4 * 1024 * 1024;
 
@@ -219,6 +224,12 @@ export async function validateListeningBundle(
   bundleDirectory: string,
   expectedPlanSha256: string | null,
 ): Promise<ValidatedBundle> {
+  if (workflow === BASELINE_AB_WORKFLOW) {
+    if (expectedPlanSha256 !== null) {
+      throw new Error(`${BASELINE_AB_WORKFLOW} は外部authority planを受け付けません。`);
+    }
+    return validateBaselineAbBundle(bundleDirectory);
+  }
   if (workflow === QUALITY_REVIEW_WORKFLOW) {
     if (expectedPlanSha256 !== null) {
       throw new Error(`${QUALITY_REVIEW_WORKFLOW} は外部authority planを受け付けません。`);
@@ -436,7 +447,11 @@ async function verifyListeningPlanAuthority(options: {
   readonly bundleRoot: string;
   readonly outputRoot: string;
 }): Promise<{ readonly path: string; readonly sha256: string } | null> {
-  if (options.workflow === ANCHOR_WORKFLOW || options.workflow === QUALITY_REVIEW_WORKFLOW) {
+  if (
+    options.workflow === ANCHOR_WORKFLOW ||
+    options.workflow === QUALITY_REVIEW_WORKFLOW ||
+    options.workflow === BASELINE_AB_WORKFLOW
+  ) {
     if (options.authorityPlanPath !== null || options.expectedPlanSha256 !== null) {
       throw new Error(`${options.workflow} は--authority-planを受け付けません。`);
     }
@@ -820,6 +835,9 @@ function workflowFiles(workflow: ListeningWorkflow): WorkflowFiles {
   if (workflow === QUALITY_REVIEW_WORKFLOW) {
     return { draft: QUALITY_REVIEW_DRAFT_FILE, final: QUALITY_REVIEW_FINAL_FILE };
   }
+  if (workflow === BASELINE_AB_WORKFLOW) {
+    return { draft: BASELINE_AB_DRAFT_FILE, final: BASELINE_AB_FINAL_FILE };
+  }
   return { draft: BASELINE_DRAFT_FILE, final: BASELINE_FINAL_FILE };
 }
 
@@ -986,6 +1004,144 @@ async function validateQualityReviewBundle(bundleDirectory: string): Promise<Val
   }
   return {
     workflow: QUALITY_REVIEW_WORKFLOW,
+    document,
+    root,
+    bundleSha256,
+    candidates,
+    groupBindings,
+  };
+}
+
+const BASELINE_AB_ROOT_KEYS = [
+  "format_version",
+  "protocol",
+  "study_id",
+  "title",
+  "instructions",
+  "groups",
+] as const;
+const BASELINE_AB_GROUP_KEYS = [
+  "id",
+  "track",
+  "model",
+  "scenario",
+  "line",
+  "text",
+  "focus",
+  "candidates",
+] as const;
+const BASELINE_AB_CANDIDATE_KEYS = ["id", "variant", "audio_path", "audio_sha256"] as const;
+
+async function validateBaselineAbBundle(bundleDirectory: string): Promise<ValidatedBundle> {
+  requireAbsoluteDirectory(bundleDirectory, "bundle");
+  const root = path.resolve(bundleDirectory);
+  const bundlePath = path.join(root, BASELINE_AB_BUNDLE_FILE);
+  const markerName = BASELINE_AB_BUNDLE_FILE.replace(".json", ".sha256");
+  const raw = await readFile(bundlePath).catch((reason: unknown) => {
+    throw new Error(`${BASELINE_AB_BUNDLE_FILE} を読めません: ${errorMessage(reason)}`);
+  });
+  assertCanonicalArtifactBytes(raw, BASELINE_AB_BUNDLE_FILE);
+  const bundleSha256 = sha256(raw);
+  if (readShaMarker(root, markerName) !== bundleSha256) {
+    throw new Error(`${markerName} がbundle SHA-256と一致しません。`);
+  }
+  let decoded: unknown;
+  try {
+    decoded = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(raw));
+  } catch (reason: unknown) {
+    throw new Error(
+      `${BASELINE_AB_BUNDLE_FILE} は正しいUTF-8 JSONが必要です: ${errorMessage(reason)}`,
+    );
+  }
+  const document = exactObject(decoded, BASELINE_AB_ROOT_KEYS, "baseline quality A/B bundle");
+  if (document.format_version !== 1 || document.protocol !== "baseline-quality-ab-bundle-v1") {
+    throw new Error("baseline quality A/B bundle protocolが不正です。");
+  }
+  const studyId = sha(document.study_id, "baseline quality A/B bundle.study_id");
+  nonEmptyText(document.title, "baseline quality A/B bundle.title");
+  nonEmptyText(document.instructions, "baseline quality A/B bundle.instructions");
+  if (
+    !Array.isArray(document.groups) ||
+    document.groups.length < 1 ||
+    document.groups.length > 100
+  ) {
+    throw new Error("baseline quality A/B bundle groupsは1..100件が必要です。");
+  }
+
+  const candidates = new Map<string, ValidatedCandidate>();
+  const groupBindings: GroupBinding[] = [];
+  const referencedPaths = new Set<string>([BASELINE_AB_BUNDLE_FILE, markerName]);
+  const groupIds = new Set<string>();
+  for (const [groupIndex, rawGroup] of document.groups.entries()) {
+    const label = `baseline quality A/B bundle.groups[${groupIndex}]`;
+    const group = exactObject(rawGroup, BASELINE_AB_GROUP_KEYS, label);
+    const groupId = sha(group.id, `${label}.id`);
+    if (groupIds.has(groupId)) throw new Error(`${label}.idが重複しています。`);
+    groupIds.add(groupId);
+    const track = safeSegment(group.track, `${label}.track`);
+    const model = nonEmptyText(group.model, `${label}.model`);
+    const scenario = safeSegment(group.scenario, `${label}.scenario`);
+    safeSegment(group.line, `${label}.line`);
+    nonEmptyText(group.text, `${label}.text`);
+    nonEmptyText(group.focus, `${label}.focus`);
+    if (
+      !Array.isArray(group.candidates) ||
+      group.candidates.length < 2 ||
+      group.candidates.length > 3
+    ) {
+      throw new Error(`${label}.candidatesは2..3件が必要です。`);
+    }
+    const candidateIds: string[] = [];
+    for (const [candidateIndex, rawCandidate] of group.candidates.entries()) {
+      const candidateLabel = `${label}.candidates[${candidateIndex}]`;
+      const candidate = exactObject(rawCandidate, BASELINE_AB_CANDIDATE_KEYS, candidateLabel);
+      const id = sha(candidate.id, `${candidateLabel}.id`);
+      if (candidates.has(id)) throw new Error(`${candidateLabel}.idが重複しています。`);
+      nonEmptyText(candidate.variant, `${candidateLabel}.variant`);
+      const audioSha256 = sha(candidate.audio_sha256, `${candidateLabel}.audio_sha256`);
+      const relativePath = nonEmptyText(candidate.audio_path, `${candidateLabel}.audio_path`);
+      if (relativePath !== `audio/${id}.wav`) {
+        throw new Error(`${candidateLabel}.audio_pathがcandidate idと一致しません。`);
+      }
+      const absolutePath = safeBundleChild(root, relativePath, `${candidateLabel}.audio_path`);
+      const info = await stat(absolutePath).catch((reason: unknown) => {
+        throw new Error(`baseline quality A/B audioがありません: ${errorMessage(reason)}`);
+      });
+      if (!info.isFile()) throw new Error(`${candidateLabel}.audio_pathは通常fileが必要です。`);
+      const audio = await readFile(absolutePath);
+      if (sha256(audio) !== audioSha256) {
+        throw new Error(`${candidateLabel}.audio_sha256が実fileと一致しません。`);
+      }
+      referencedPaths.add(relativePath);
+      candidates.set(id, {
+        id,
+        path: relativePath,
+        absolutePath,
+        size: info.size,
+        contentType: audioContentType(relativePath),
+      });
+      candidateIds.push(id);
+    }
+    groupBindings.push({
+      id: groupId,
+      model,
+      scenario,
+      character: track,
+      roleEpochSha256: studyId,
+      groupSha256: sha256(canonicalJsonBytes(group, label)),
+      candidateIds,
+    });
+  }
+  const actualPaths = listBundleFiles(root);
+  const expectedPaths = [...referencedPaths].sort(compareText);
+  if (
+    actualPaths.length !== expectedPaths.length ||
+    actualPaths.some((value, index) => value !== expectedPaths[index])
+  ) {
+    throw new Error("baseline quality A/B bundle file setがexact contractと一致しません。");
+  }
+  return {
+    workflow: BASELINE_AB_WORKFLOW,
     document,
     root,
     bundleSha256,
@@ -2076,10 +2232,24 @@ const QUALITY_REVIEW_RESULT_GROUP_KEYS = [
   "result",
   "notes",
 ] as const;
+const BASELINE_AB_DRAFT_ROOT_KEYS = [
+  "format_version",
+  "protocol",
+  "study_id",
+  "groups",
+  "current_index",
+] as const;
+const BASELINE_AB_RESULT_ROOT_KEYS = BASELINE_AB_DRAFT_ROOT_KEYS.filter(
+  (key) => key !== "current_index",
+);
+const BASELINE_AB_RESULT_GROUP_KEYS = ["id", "heard_candidate_ids", "choice", "notes"] as const;
 
 function validateWorkflowDraft(value: unknown, bundle: ValidatedBundle): Record<string, unknown> {
   if (bundle.workflow === ANCHOR_WORKFLOW) {
     return validateDraftDocument(value, bundle);
+  }
+  if (bundle.workflow === BASELINE_AB_WORKFLOW) {
+    return validateBaselineAbDraft(value, bundle);
   }
   return bundle.workflow === QUALITY_REVIEW_WORKFLOW
     ? validateQualityReviewDraft(value, bundle)
@@ -2093,6 +2263,9 @@ function validateWorkflowDecision(
   if (bundle.workflow === ANCHOR_WORKFLOW) {
     return validateDecisionDocument(value, bundle);
   }
+  if (bundle.workflow === BASELINE_AB_WORKFLOW) {
+    return validateBaselineAbResult(value, bundle);
+  }
   return bundle.workflow === QUALITY_REVIEW_WORKFLOW
     ? validateQualityReviewResult(value, bundle)
     : validateBaselineDecisionDocument(value, bundle);
@@ -2104,6 +2277,9 @@ function decisionFromWorkflowDraft(
 ): Record<string, unknown> {
   if (bundle.workflow === ANCHOR_WORKFLOW) {
     return decisionFromDraft(draft);
+  }
+  if (bundle.workflow === BASELINE_AB_WORKFLOW) {
+    return baselineAbResultFromDraft(draft, bundle);
   }
   return bundle.workflow === QUALITY_REVIEW_WORKFLOW
     ? qualityReviewResultFromDraft(draft, bundle)
@@ -2205,6 +2381,101 @@ function qualityReviewResultFromDraft(
     manifest_sha256: draft.manifest_sha256,
     quality_signals_sha256: draft.quality_signals_sha256,
     groups: groups.map((group) => ({ ...group })),
+  };
+}
+
+function validateBaselineAbDraft(value: unknown, bundle: ValidatedBundle): Record<string, unknown> {
+  if (bundle.workflow !== BASELINE_AB_WORKFLOW) {
+    throw new Error("baseline quality A/B draftには対応するbundleが必要です。");
+  }
+  const root = exactObject(value, BASELINE_AB_DRAFT_ROOT_KEYS, "baseline quality A/B draft");
+  assertBaselineAbRoot(root, "baseline-quality-ab-draft-v1", bundle);
+  const groups = validateBaselineAbResultGroups(root.groups, bundle, false);
+  const currentIndex = nonNegativeInteger(root.current_index, "baseline quality A/B.current_index");
+  if (currentIndex >= groups.length) {
+    throw new Error("baseline quality A/B.current_indexがgroup範囲外です。");
+  }
+  return root;
+}
+
+function validateBaselineAbResult(
+  value: unknown,
+  bundle: ValidatedBundle,
+): Record<string, unknown> {
+  if (bundle.workflow !== BASELINE_AB_WORKFLOW) {
+    throw new Error("baseline quality A/B resultには対応するbundleが必要です。");
+  }
+  const root = exactObject(value, BASELINE_AB_RESULT_ROOT_KEYS, "baseline quality A/B result");
+  assertBaselineAbRoot(root, "baseline-quality-ab-result-v1", bundle);
+  validateBaselineAbResultGroups(root.groups, bundle, true);
+  return root;
+}
+
+function validateBaselineAbResultGroups(
+  value: unknown,
+  bundle: ValidatedBundle,
+  complete: boolean,
+): readonly Record<string, unknown>[] {
+  const bundleGroups = bundle.document.groups as Record<string, unknown>[];
+  if (!Array.isArray(value) || value.length !== bundleGroups.length) {
+    throw new Error(`baseline quality A/B groupsはexact ${bundleGroups.length}件が必要です。`);
+  }
+  return value.map((raw, index) => {
+    const label = `baseline quality A/B.groups[${index}]`;
+    const group = exactObject(raw, BASELINE_AB_RESULT_GROUP_KEYS, label);
+    const binding = bundleGroups[index]!;
+    if (group.id !== binding.id) throw new Error(`${label}.idがbundle bindingと一致しません。`);
+    const candidateIds = (binding.candidates as Record<string, unknown>[]).map(
+      (candidate) => candidate.id as string,
+    );
+    const heard = shaArray(group.heard_candidate_ids, `${label}.heard_candidate_ids`, true);
+    if (heard.some((id) => !candidateIds.includes(id))) {
+      throw new Error(`${label}.heard_candidate_idsにbundle外candidateがあります。`);
+    }
+    const choice = group.choice;
+    if (
+      choice !== null &&
+      choice !== "no_preference" &&
+      choice !== "none_acceptable" &&
+      (typeof choice !== "string" || !candidateIds.includes(choice))
+    ) {
+      throw new Error(`${label}.choiceが不正です。`);
+    }
+    if (typeof group.notes !== "string" || group.notes.length > 500) {
+      throw new Error(`${label}.notesは500文字以内の文字列が必要です。`);
+    }
+    if (choice !== null && heard.length !== candidateIds.length) {
+      throw new Error(`${label}は全候補を完全再生してから判断する必要があります。`);
+    }
+    if (complete && choice === null) throw new Error(`${label}は明示判断が必要です。`);
+    return group;
+  });
+}
+
+function assertBaselineAbRoot(
+  root: Record<string, unknown>,
+  protocol: string,
+  bundle: ValidatedBundle,
+): void {
+  if (
+    root.format_version !== 1 ||
+    root.protocol !== protocol ||
+    root.study_id !== bundle.document.study_id
+  ) {
+    throw new Error("baseline quality A/B rootがbundleと一致しません。");
+  }
+}
+
+function baselineAbResultFromDraft(
+  draft: Record<string, unknown>,
+  bundle: ValidatedBundle,
+): Record<string, unknown> {
+  validateBaselineAbDraft(draft, bundle);
+  return {
+    format_version: 1,
+    protocol: "baseline-quality-ab-result-v1",
+    study_id: draft.study_id,
+    groups: (draft.groups as Record<string, unknown>[]).map((group) => ({ ...group })),
   };
 }
 
@@ -3398,7 +3669,9 @@ function parseServerArguments(argv: readonly string[]): {
     throw new Error(`${BASELINE_WORKFLOW} は--authority-planが必要です。`);
   }
   if (
-    (workflow === ANCHOR_WORKFLOW || workflow === QUALITY_REVIEW_WORKFLOW) &&
+    (workflow === ANCHOR_WORKFLOW ||
+      workflow === QUALITY_REVIEW_WORKFLOW ||
+      workflow === BASELINE_AB_WORKFLOW) &&
     (authorityPlanPath !== null || expectedPlanSha256 !== null)
   ) {
     throw new Error(`${workflow} は--authority-planを受け付けません。`);
@@ -3421,9 +3694,13 @@ export function parseWorkflow(value: string): ListeningWorkflow {
   if (value === BASELINE_WORKFLOW) {
     throw new Error(`${BASELINE_WORKFLOW} は廃止済みの全量聴取workflowであり、起動できません。`);
   }
-  if (value !== ANCHOR_WORKFLOW && value !== QUALITY_REVIEW_WORKFLOW) {
+  if (
+    value !== ANCHOR_WORKFLOW &&
+    value !== QUALITY_REVIEW_WORKFLOW &&
+    value !== BASELINE_AB_WORKFLOW
+  ) {
     throw new Error(
-      `--workflow は${ANCHOR_WORKFLOW} / ${QUALITY_REVIEW_WORKFLOW}のいずれかを明示してください: ${value}`,
+      `--workflow は${ANCHOR_WORKFLOW} / ${QUALITY_REVIEW_WORKFLOW} / ${BASELINE_AB_WORKFLOW}のいずれかを明示してください: ${value}`,
     );
   }
   return value;

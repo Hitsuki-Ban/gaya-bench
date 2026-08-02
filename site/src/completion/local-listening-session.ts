@@ -151,10 +151,63 @@ export interface QualityReviewDraft {
   readonly current_index: number;
 }
 
+export interface BaselineAbCandidate {
+  readonly id: string;
+  readonly variant: string;
+  readonly audio_path: string;
+  readonly audio_sha256: string;
+}
+
+export interface BaselineAbBundleGroup {
+  readonly id: string;
+  readonly track: string;
+  readonly model: string;
+  readonly scenario: string;
+  readonly line: string;
+  readonly text: string;
+  readonly focus: string;
+  readonly candidates: readonly BaselineAbCandidate[];
+}
+
+export interface BaselineAbBundle {
+  readonly format_version: 1;
+  readonly protocol: "baseline-quality-ab-bundle-v1";
+  readonly study_id: string;
+  readonly title: string;
+  readonly instructions: string;
+  readonly groups: readonly BaselineAbBundleGroup[];
+}
+
+export interface BaselineAbListeningBootstrap extends LocalListeningBootstrapBase {
+  readonly workflow: "baseline-quality-ab-v1";
+  readonly bundle: BaselineAbBundle;
+  readonly output: {
+    readonly directory_name: string;
+    readonly draft_file: "baseline-quality-ab-draft-v1.json";
+    readonly decision_file: "baseline-quality-ab-result-v1.json";
+  };
+}
+
+export interface BaselineAbGroupResult {
+  readonly id: string;
+  readonly heard_candidate_ids: readonly string[];
+  readonly choice: string | null;
+  readonly notes: string;
+}
+
+export interface BaselineAbDraft {
+  readonly format_version: 1;
+  readonly protocol: "baseline-quality-ab-draft-v1";
+  readonly study_id: string;
+  readonly groups: readonly BaselineAbGroupResult[];
+  readonly current_index: number;
+}
+
 export type LocalListeningBootstrap =
   | AnchorListeningBootstrap
   | BaselineListeningBootstrap
-  | QualityReviewListeningBootstrap;
+  | QualityReviewListeningBootstrap
+  | BaselineAbListeningBootstrap;
 
 export interface LocalListeningSaved {
   readonly revision: number;
@@ -221,6 +274,19 @@ export async function loadLocalListeningBootstrap(): Promise<LocalListeningBoots
     }
     return bootstrap as unknown as QualityReviewListeningBootstrap;
   }
+  if (bootstrap.workflow === "baseline-quality-ab-v1") {
+    const bundle = bootstrap.bundle as Record<string, unknown>;
+    if (
+      output.draft_file !== "baseline-quality-ab-draft-v1.json" ||
+      output.decision_file !== "baseline-quality-ab-result-v1.json" ||
+      bundle.format_version !== 1 ||
+      bundle.protocol !== "baseline-quality-ab-bundle-v1" ||
+      !Array.isArray(bundle.groups)
+    ) {
+      throw new Error("基线质量盲听的启动契约无效。");
+    }
+    return bootstrap as unknown as BaselineAbListeningBootstrap;
+  }
   throw new Error("本地听测服务返回了未支持的 workflow。");
 }
 
@@ -281,7 +347,7 @@ export function localCandidateAudioUrl(candidateId: string): string {
 }
 
 export async function loadLocalListeningDraft<
-  Draft extends RoleReviewDraft | BaselineDraft | QualityReviewDraft,
+  Draft extends RoleReviewDraft | BaselineDraft | QualityReviewDraft | BaselineAbDraft,
 >(
   bootstrap: LocalListeningBootstrap,
 ): Promise<{ readonly revision: number; readonly draft: Draft } | null> {
@@ -310,7 +376,7 @@ export async function loadLocalListeningDraft<
 export async function saveLocalListeningDraft(
   bootstrap: LocalListeningBootstrap,
   revision: number,
-  draft: RoleReviewDraft | BaselineDraft | QualityReviewDraft,
+  draft: RoleReviewDraft | BaselineDraft | QualityReviewDraft | BaselineAbDraft,
 ): Promise<LocalListeningSaved> {
   return mutation(`${API_ROOT}/draft`, "PUT", bootstrap, { revision, draft });
 }
