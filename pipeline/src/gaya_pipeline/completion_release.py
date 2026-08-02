@@ -8,6 +8,11 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Mapping, Sequence
 
+from gaya_pipeline.completion_auto import (
+    CompletionAutoDecisionError,
+    canonical_completion_quality_signals_bytes,
+    validate_completion_quality_signals,
+)
 from gaya_pipeline.completion_listen import (
     CompletionListeningError,
     CompletionScenarioAuthority,
@@ -49,7 +54,7 @@ class CompletionReleaseError(RuntimeError):
     pass
 
 
-RELEASE_PROTOCOL = "role-baseline-release-v1"
+RELEASE_PROTOCOL = "role-baseline-release-v2"
 SOURCE_AUDIT_SHA256 = (
     "0456aca9a1d8c9a57049ce07f9106c16452067e8fa3ebdc88111beae70f2544c"
 )
@@ -65,6 +70,7 @@ class CompletionReleaseSummary:
     manifest_sha256: str
     candidate_set_sha256: str
     selection_sha256: str
+    quality_signals_sha256: str
     candidate_count: int
     selected_count: int
     replacement_candidate_count: int
@@ -76,6 +82,7 @@ class CompletionReleaseBundle:
     manifest: dict[str, Any]
     candidate_set: dict[str, Any]
     selection: dict[str, Any]
+    quality_signals: dict[str, Any]
     provenance: dict[str, Any]
 
 
@@ -86,6 +93,7 @@ def finalize_completion_release(
     qwen_curation_path: Path,
     source_audit_path: Path,
     decision_path: Path,
+    quality_signals_path: Path,
     primary_run_ids: Sequence[str],
     topup_run_ids: Sequence[str],
     anchor_selection_path: Path,
@@ -102,6 +110,7 @@ def finalize_completion_release(
             qwen_curation_path=qwen_curation_path,
             source_audit_path=source_audit_path,
             decision_path=decision_path,
+            quality_signals_path=quality_signals_path,
             primary_run_ids=primary_run_ids,
             topup_run_ids=topup_run_ids,
             anchor_selection_path=anchor_selection_path,
@@ -114,6 +123,7 @@ def finalize_completion_release(
         raise
     except (
         CompletionListeningError,
+        CompletionAutoDecisionError,
         CurationError,
         TakeManifestError,
         OSError,
@@ -133,6 +143,7 @@ def _finalize_completion_release(
     qwen_curation_path: Path,
     source_audit_path: Path,
     decision_path: Path,
+    quality_signals_path: Path,
     primary_run_ids: Sequence[str],
     topup_run_ids: Sequence[str],
     anchor_selection_path: Path,
@@ -215,6 +226,7 @@ def _finalize_completion_release(
         replacement_candidate_bytes,
     ).hexdigest()
     decision_raw = _read_bytes(decision_path, "completion decision")
+    decision_sha256 = hashlib.sha256(decision_raw).hexdigest()
     decision = validate_completion_decision(
         _decode_json(decision_raw, decision_path),
     )
@@ -239,6 +251,20 @@ def _finalize_completion_release(
         candidate_set=replacement_candidate_set,
         scenario_authority=scenario_authority,
     )
+    quality_signals_raw = _read_bytes(quality_signals_path, "quality signals")
+    quality_signals = validate_completion_quality_signals(
+        _decode_json(quality_signals_raw, quality_signals_path),
+    )
+    if quality_signals_raw != canonical_completion_quality_signals_bytes(
+        quality_signals,
+    ):
+        raise CompletionReleaseError("quality signalsはcanonical bytesが必要です。")
+    _validate_quality_signals_against_decision(
+        quality_signals=quality_signals,
+        decision=decision,
+        decision_sha256=decision_sha256,
+    )
+    quality_signals_sha256 = hashlib.sha256(quality_signals_raw).hexdigest()
 
     base_candidates_by_take = {
         candidate["take_id"]: candidate for candidate in base_manifest["candidates"]
@@ -265,7 +291,7 @@ def _finalize_completion_release(
             {
                 key: value
                 for key, value in decision_groups[identity].items()
-                if key != "group_sha256"
+                if key not in {"group_sha256", "screening"}
             },
         )
 
@@ -287,6 +313,7 @@ def _finalize_completion_release(
             "plan_sha256": plan.plan_id,
             "anchor_selection_sha256": resolution.anchor_selection_sha256,
             "candidate_set_sha256": candidate_set_sha256,
+            "ranking_report_sha256": decision["ranking_report_sha256"],
             "groups": selection_groups,
         },
     )
@@ -329,6 +356,8 @@ def _finalize_completion_release(
         manifest_sha256=manifest_sha256,
         candidate_set_sha256=candidate_set_sha256,
         selection_sha256=selection_sha256,
+        decision_sha256=decision_sha256,
+        quality_signals_sha256=quality_signals_sha256,
     )
     provenance_bytes = canonical_json(provenance).encode("utf-8")
     _write_release(
@@ -336,6 +365,7 @@ def _finalize_completion_release(
         manifest_bytes=manifest_bytes,
         candidate_set_bytes=candidate_set_bytes,
         selection_bytes=selection_bytes,
+        quality_signals_bytes=quality_signals_raw,
         provenance_bytes=provenance_bytes,
     )
     validate_completion_release(
@@ -348,6 +378,7 @@ def _finalize_completion_release(
         manifest_sha256=manifest_sha256,
         candidate_set_sha256=candidate_set_sha256,
         selection_sha256=selection_sha256,
+        quality_signals_sha256=quality_signals_sha256,
         candidate_count=len(final_candidates),
         selected_count=len(selection["groups"]),
         replacement_candidate_count=len(replacement_candidates),
@@ -383,6 +414,11 @@ def validate_completion_release(
             root / "selection.sha256",
             "selection",
         )
+        quality_signals_doc, quality_signals_sha = _read_marker_bound(
+            root / "quality-signals.json",
+            root / "quality-signals.sha256",
+            "quality signals",
+        )
         provenance, _provenance_sha = _read_marker_bound(
             root / "release-provenance.json",
             root / "release-provenance.sha256",
@@ -390,6 +426,9 @@ def validate_completion_release(
         )
         normalized_manifest = validate_manifest_v4(manifest)
         normalized_selection = validate_completion_selection(selection_doc)
+        normalized_quality_signals = validate_completion_quality_signals(
+            quality_signals_doc,
+        )
         audit = _load_source_audit(source_audit_path)
         if canonical_json(normalized_manifest).encode("utf-8") != (
             root / "manifest-v4.json"
@@ -403,19 +442,28 @@ def validate_completion_release(
             root / "selection.json"
         ).read_bytes():
             raise CompletionReleaseError("selectionはcanonical bytesが必要です。")
+        if canonical_completion_quality_signals_bytes(
+            normalized_quality_signals,
+        ) != (root / "quality-signals.json").read_bytes():
+            raise CompletionReleaseError("quality signalsはcanonical bytesが必要です。")
         _validate_provenance_document(
             provenance,
             manifest_sha=manifest_sha,
             candidate_sha=candidate_sha,
             selection_sha=selection_sha,
+            quality_signals_sha=quality_signals_sha,
         )
         if (
             provenance["plan_sha256"] != normalized_selection["plan_sha256"]
             or provenance["anchor_selection_sha256"]
             != normalized_selection["anchor_selection_sha256"]
+            or normalized_quality_signals["plan_sha256"]
+            != normalized_selection["plan_sha256"]
+            or normalized_quality_signals["decision_sha256"]
+            != provenance["decision_sha256"]
         ):
             raise CompletionReleaseError(
-                "release provenanceとselectionのplan/anchor bindingが不一致です。",
+                "release provenance/selection/quality signals bindingが不一致です。",
             )
         if (
             normalized_manifest["candidate_set_sha256"] != candidate_sha
@@ -429,6 +477,10 @@ def validate_completion_release(
             manifest=normalized_manifest,
         )
         _validate_selection_manifest_join(normalized_selection, normalized_manifest)
+        _validate_quality_signals_selection_join(
+            quality_signals=normalized_quality_signals,
+            selection=normalized_selection,
+        )
         _validate_provenance_selection_join(
             provenance=provenance,
             selection=normalized_selection,
@@ -445,11 +497,13 @@ def validate_completion_release(
             manifest=normalized_manifest,
             candidate_set=candidate_set,
             selection=normalized_selection,
+            quality_signals=normalized_quality_signals,
             provenance=provenance,
         )
     except CompletionReleaseError:
         raise
     except (
+        CompletionAutoDecisionError,
         CurationError,
         TakeManifestError,
         OSError,
@@ -658,6 +712,36 @@ def _validate_audit_partition(
     }
 
 
+def _validate_quality_signals_against_decision(
+    *,
+    quality_signals: Mapping[str, Any],
+    decision: Mapping[str, Any],
+    decision_sha256: str,
+) -> None:
+    if (
+        quality_signals["plan_sha256"] != decision["plan_sha256"]
+        or quality_signals["decision_sha256"] != decision_sha256
+    ):
+        raise CompletionReleaseError(
+            "quality signalsのplan/decision bindingが不一致です。",
+        )
+    expected = {
+        _group_key(group): {
+            "model": group["model"],
+            "scenario": group["scenario"],
+            "line": group["line"],
+            "variant": group["variant"],
+            **dict(group["screening"]),
+        }
+        for group in decision["groups"]
+    }
+    actual = {_group_key(group): group for group in quality_signals["groups"]}
+    if actual != expected or len(actual) != EXPECTED_REPLACEMENT_COUNT:
+        raise CompletionReleaseError(
+            "quality signalsはdecision screeningのexact 597 groupが必要です。",
+        )
+
+
 def _build_provenance(
     *,
     plan: CompletionPlan,
@@ -666,6 +750,8 @@ def _build_provenance(
     manifest_sha256: str,
     candidate_set_sha256: str,
     selection_sha256: str,
+    decision_sha256: str,
+    quality_signals_sha256: str,
 ) -> dict[str, Any]:
     source_runs: list[dict[str, Any]] = []
     for run in resolution.runs:
@@ -719,6 +805,8 @@ def _build_provenance(
         "manifest_sha256": manifest_sha256,
         "candidate_set_sha256": candidate_set_sha256,
         "selection_sha256": selection_sha256,
+        "decision_sha256": decision_sha256,
+        "quality_signals_sha256": quality_signals_sha256,
         "counts": {
             "replacement_groups": EXPECTED_REPLACEMENT_COUNT,
             "inherited_groups": EXPECTED_INHERITED_COUNT,
@@ -742,6 +830,7 @@ def _validate_provenance_document(
     manifest_sha: str,
     candidate_sha: str,
     selection_sha: str,
+    quality_signals_sha: str,
 ) -> None:
     if not isinstance(value, dict) or set(value) != {
         "format_version",
@@ -751,6 +840,8 @@ def _validate_provenance_document(
         "manifest_sha256",
         "candidate_set_sha256",
         "selection_sha256",
+        "decision_sha256",
+        "quality_signals_sha256",
         "counts",
         "base",
         "source_runs",
@@ -763,6 +854,7 @@ def _validate_provenance_document(
         or value["manifest_sha256"] != manifest_sha
         or value["candidate_set_sha256"] != candidate_sha
         or value["selection_sha256"] != selection_sha
+        or value["quality_signals_sha256"] != quality_signals_sha
         or value["counts"]
         != {
             "replacement_groups": 597,
@@ -772,6 +864,7 @@ def _validate_provenance_document(
         }
     ):
         raise CompletionReleaseError("release provenance digest/countが不正です。")
+    _require_sha256(value["decision_sha256"], "release provenance.decision_sha256")
     base = value["base"]
     if not isinstance(base, dict) or set(base) != {
         "manifest_sha256",
@@ -934,6 +1027,23 @@ def _validate_selection_manifest_join(
                 )
 
 
+def _validate_quality_signals_selection_join(
+    *,
+    quality_signals: Mapping[str, Any],
+    selection: Mapping[str, Any],
+) -> None:
+    replacements = {
+        _group_key(group)
+        for group in selection["groups"]
+        if group["authority"]["type"] == "auto-selected"
+    }
+    signals = {_group_key(group) for group in quality_signals["groups"]}
+    if signals != replacements or len(signals) != EXPECTED_REPLACEMENT_COUNT:
+        raise CompletionReleaseError(
+            "quality signalsとauto-selected 597 groupがexact一致しません。",
+        )
+
+
 def _validate_provenance_selection_join(
     *,
     provenance: Mapping[str, Any],
@@ -951,7 +1061,7 @@ def _validate_provenance_selection_join(
     replacement_groups = {
         _group_key(group)
         for group in selection["groups"]
-        if group["authority"]["type"] == "best_available"
+        if group["authority"]["type"] == "auto-selected"
     }
     if set(effective) != replacement_groups or len(replacement_groups) != 597:
         raise CompletionReleaseError(
@@ -1027,6 +1137,7 @@ def _write_release(
     manifest_bytes: bytes,
     candidate_set_bytes: bytes,
     selection_bytes: bytes,
+    quality_signals_bytes: bytes,
     provenance_bytes: bytes,
 ) -> None:
     temporary = Path(
@@ -1040,6 +1151,7 @@ def _write_release(
             "manifest-v4.json": manifest_bytes,
             "candidate-set.json": candidate_set_bytes,
             "selection.json": selection_bytes,
+            "quality-signals.json": quality_signals_bytes,
             "release-provenance.json": provenance_bytes,
         }
         for name, payload in payloads.items():

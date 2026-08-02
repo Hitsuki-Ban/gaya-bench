@@ -426,7 +426,7 @@ describe("listening REST API", () => {
         { encoding: "utf8", timeout: 10_000 },
       );
       expect(missingAuthority.status).toBe(1);
-      expect(missingAuthority.stderr).toContain("--authority-plan");
+      expect(missingAuthority.stderr).toContain("廃止済みの全量聴取workflow");
       await expect(
         validateListeningBundle(BASELINE_WORKFLOW, bundleRoot, "0".repeat(64)),
       ).rejects.toThrow("completion-plan.json");
@@ -672,61 +672,6 @@ describe("listening REST API", () => {
         expect(stopped.status, processOutput(stopped)).toBe(0);
       }
     });
-  }, 60_000);
-
-  it("Phase B start/status/health/sessionを外部authority plan pathとSHAへ固定する", async () => {
-    await withBaselineFixture(
-      async ({ bundleRoot, outputRoot, authorityPlanPath, expectedPlanSha256 }) => {
-        const port = await unusedPort();
-        try {
-          const started = spawnSync(
-            process.execPath,
-            [
-              CLI_SCRIPT,
-              "start",
-              "--workflow",
-              BASELINE_WORKFLOW,
-              "--bundle",
-              bundleRoot,
-              "--output",
-              outputRoot,
-              "--authority-plan",
-              authorityPlanPath,
-              "--port",
-              String(port),
-            ],
-            { encoding: "utf8", timeout: 30_000 },
-          );
-          expect(started.status, processOutput(started)).toBe(0);
-
-          const session = JSON.parse(readFileSync(SESSION_FILE, "utf8")) as Record<string, unknown>;
-          expect(session).toMatchObject({
-            workflow: BASELINE_WORKFLOW,
-            authority_plan: authorityPlanPath,
-            expected_plan_sha256: expectedPlanSha256,
-          });
-          const health = await fetch(`http://127.0.0.1:${port}/__gaya-listening/health`);
-          expect(await health.json()).toMatchObject({
-            authority_plan: authorityPlanPath,
-            expected_plan_sha256: expectedPlanSha256,
-          });
-
-          const status = spawnSync(process.execPath, [CLI_SCRIPT, "status"], {
-            encoding: "utf8",
-            timeout: 10_000,
-          });
-          expect(status.status, processOutput(status)).toBe(0);
-          expect(status.stdout).toContain(`authority plan: ${authorityPlanPath}`);
-          expect(status.stdout).toContain(`expected plan SHA-256: ${expectedPlanSha256}`);
-        } finally {
-          const stopped = spawnSync(process.execPath, [CLI_SCRIPT, "stop"], {
-            encoding: "utf8",
-            timeout: 20_000,
-          });
-          expect(stopped.status, processOutput(stopped)).toBe(0);
-        }
-      },
-    );
   }, 60_000);
 
   it("session identityを検証できない生存PIDはkillせず停止失敗にする", async () => {

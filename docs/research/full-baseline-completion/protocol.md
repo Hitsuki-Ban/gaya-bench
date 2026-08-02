@@ -16,6 +16,7 @@ exact 1,288 slot とする。
   `35439ab2cea389dd16cc945132014aba61fd5c03e6bdeb9fed3d49da54e6919b`
 - base manifest SHA-256:
   `f9dfda542fd1120fe0f74daae3036eab5211d7394d155f7b9953978e59bbe89d`
+- base manifest archive: [`base-manifest-v4.json`](base-manifest-v4.json)
 - base manifest Git blob: `44061fafe330a9bebfed7a97a0b69ebe234c8724`
 - base candidate set SHA-256:
   `91913e08f97497f1f7604f109a6d0f7308742237277f6bbc5483678ac9858cc2`
@@ -117,7 +118,7 @@ content-addressed input として固定する。Qwen の generation cache、Irod
 `context_kv_cache` と `torch.Generator` は request 内に閉じる。adapter test は前の
 request の本文、reading、role、seed が次の runtime call へ残らないことを検証する。
 
-## listening と decision
+## automatic decision と公開後の対象聴取
 
 中断したPhase B生成は、対象run IDを明示したresumeだけを許可する。自動探索やfallbackは
 行わず、現在のplan / scenario / role authorityから再構成したsource、slot、generation
@@ -126,30 +127,25 @@ input SHA、Phase B provenance SHAがledgerとexact一致する場合に限る�
 先に検証した後、plannedの既知残留だけを削除して元seedで続行する。generation failureは
 保持して再試行しない。generationとQCは同じrun lockで排他する。
 
-listening bundle は 8 primary run と明示 topup だけから作る。source map は 597 group
-すべてに model policy 由来の `minimum_eligible_candidates` と、frozen plan / scenario
-由来の character、role identity、reference voice、7項目の role snapshot、scene setting、
-reading、situation、emotion、intensity を持つ。line ID から役柄や文脈を推測しない。
-bundle は入力 `plan.json` の canonical bytes を `completion-plan.json`、入力 anchor
-selection の canonical bytes を `role-anchor-selection-v1.json` としてそのまま保存し、
-両者の SHA marker も保存する。build 時に入力 bytes SHA と loaded authority が一致しない
-場合は bundle を作らない。Aivis の単一候補も自動採用せず、owner が明示確認する。
-listening daemonはbundle外のcanonical planを必須authorityとして受け取り、そのraw bytes
-SHAをsessionへ固定する。bundle JSONのparse前に埋込みplan bytesとexact照合し、authority
-planがbundle / output / site / session boundary内にある場合やsymlinkの場合は拒否する。
-
-ページでは全候補について次を常時表示し、全候補を最後まで再生してから確定する。
-
-- 内容の欠落／追加／反復と prompt leakage
-- 漢字の文脈上の読み
-- 厳密な日本語 pitch accent
-- gender / age / archetype / voice identity
-- delivery
-- naturalness / audio quality
+Phase B の 597 group は全量 owner 聴取を行わない。Phase A で owner が確認した 106 role
+anchor を人手による identity gate とし、Phase B は eligible candidate に対する既存 QC と
+相対音質 ranking から一意に自動選定する。content gate を第一優先、10秒以内の候補では
+PASQA scoreを第二優先、10秒を超える音声は切らずにduration順で後置する。この順序を
+`qc-content-then-pasqa-then-duration-v1` として固定し、候補不足時の別経路や暗黙選定は
+設けない。
 
 decision は `role-baseline-decision-v1` の canonical bytes とし、plan SHA、anchor
-selection SHA、candidate-set SHA、597 group SHA、各 rubric、owner selection を exact
-に拘束する。全候補を最後まで再生した後、owner が明示的に finalize する。
+selection SHA、candidate-set SHA、ranking report SHA、597 group SHA と候補順位を exact
+に拘束する。authority は全件 `auto-selected` とし、owner が確認していない結果を
+`confirmed` 等として記録しない。decision と隣接 SHA marker は write-once で保存する。
+
+選ばれた597件にはQCで計測済みのmedian F0を用いた役柄性別のsoft screeningを行う。
+female で165Hz未満、maleで180Hz超、F0未取得を `review_required` とし、neutralは
+`not_applicable` とする。この信号は候補を除外せず、`role-quality-signals-v1` の
+canonical sidecarとSHAに保存して公開UIの品質注記へ結合する。
+
+公開後はsoft signalが付いたslotだけを対象聴取bundleにする。聴取で問題が確認された
+場合は既存decisionを上書きせず、Issueをreopenして新しいrole epochとdecisionを作る。
 
 ## final release と publish
 
@@ -160,8 +156,9 @@ source audit は旧公開版を次の exact partition に分ける。
 - final: inherited 691 + replacement 597 = selected 1,288、failure 0
 
 旧版で match だった 89 件も、新しい全モデル入力基準線へ揃えるため replacement に
-含める。release は 691 inherited receipt を逐条再検証し、597 decision と重複／欠落
-なく overlay する。
+含める。release は 691 inherited receipt を逐条再検証し、597 auto-selected decision と
+重複／欠落なく overlay する。quality signals sidecarはdecision SHAへ拘束し、release
+bundleとpublic dataへmanifestと同じactivationで反映する。
 
 R2 publish は全 object を preflight HEAD し、新しい immutable audio だけを
 `If-None-Match: *` で upload する。最終 manifest の全 candidate を再度 HEAD してから
@@ -172,7 +169,7 @@ R2 publish は全 object を preflight HEAD し、新しい immutable audio だ�
 1. v2 plan、scenario、voice、8 model revision、58 role snapshot が再計算で一致する
 2. owner の anchor selection 106 group と全 WAV SHA が旧 authority 下で再検証できる
 3. 8 primary の計 597 target が terminal で、reading / role / plan receipt が一致する
-4. owner の line decision が 597 group の exact contract を通る
+4. auto-selected decisionとquality signalsが597 groupのexact contractを通る
 5. final release が 691 + 597 = 1,288 selected、failure 0 となる
 6. pipeline / site の全 test、format、lint、typecheck、build が成功する
 7. R2 / Pages 公開後の GET と audio decode が成功する

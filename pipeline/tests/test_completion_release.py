@@ -31,7 +31,13 @@ from gaya_pipeline.take_identity import canonical_json
 
 
 ROOT = Path(__file__).resolve().parents[2]
-BASE_MANIFEST_PATH = ROOT / "data" / "manifest.json"
+BASE_MANIFEST_PATH = (
+    ROOT
+    / "docs"
+    / "research"
+    / "full-baseline-completion"
+    / "base-manifest-v4.json"
+)
 SCENARIOS = ROOT / "scenarios"
 VOICES = ROOT / "assets" / "voices"
 AUDIT_PATH = (
@@ -88,6 +94,7 @@ def test_finalizeは非正式planを処理前に拒否する(tmp_path: Path) -> 
             qwen_curation_path=tmp_path / "curation.json",
             source_audit_path=tmp_path / "audit.json",
             decision_path=tmp_path / "decision.json",
+            quality_signals_path=tmp_path / "quality-signals.json",
             primary_run_ids=(),
             topup_run_ids=(),
             anchor_selection_path=tmp_path / "anchor.json",
@@ -171,7 +178,7 @@ def test_source_auditはreplacement分布と691_inherited_matchを逐条固定�
 def test_provenanceはinherited_unverifiable列挙を拒否する() -> None:
     value = {
         "format_version": 1,
-        "protocol": "role-baseline-release-v1",
+        "protocol": "role-baseline-release-v2",
         "plan_sha256": (
             "35439ab2cea389dd16cc945132014aba61fd5c03e6bdeb9fed3d49da54e6919b"
         ),
@@ -179,6 +186,8 @@ def test_provenanceはinherited_unverifiable列挙を拒否する() -> None:
         "manifest_sha256": "c" * 64,
         "candidate_set_sha256": "d" * 64,
         "selection_sha256": "e" * 64,
+        "decision_sha256": "1" * 64,
+        "quality_signals_sha256": "2" * 64,
         "counts": {
             "replacement_groups": 597,
             "inherited_groups": 691,
@@ -212,6 +221,7 @@ def test_provenanceはinherited_unverifiable列挙を拒否する() -> None:
             manifest_sha="c" * 64,
             candidate_sha="d" * 64,
             selection_sha="e" * 64,
+            quality_signals_sha="2" * 64,
         )
 
 

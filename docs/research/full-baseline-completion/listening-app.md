@@ -4,7 +4,7 @@ Issue #174 の人手聴取は、公開サイトとは分離した単一のロー
 
 ## 1. 実行・データ境界
 
-- エージェントが絶対パスで入力 bundle、結果 directory、Phase B の独立 authority plan を指定する。ブラウザの directory picker、`localStorage`、download は使わない。
+- エージェントが絶対パスで入力 bundle と結果 directory を指定する。ブラウザの directory picker、`localStorage`、download は使わない。
 - `vp run listening:start` / `listening:status` / `listening:stop` を唯一の lifecycle とする。
 - Windows の `start` は `vp run` の process job から独立した `Win32_Process.Create` で daemon を生成する。Node の `detached` だけに依存せず、`status` / `stop` は session ID と health を照合する。
 - daemon は `127.0.0.1` の固定 port にだけ bind し、入力 bundle を read-only、結果 directory を write-only として扱う。
@@ -17,15 +17,14 @@ Issue #174 の人手聴取は、公開サイトとは分離した単一のロー
 起動契約は次の 3 command に固定する。
 
 ```powershell
-vp run listening:start --workflow role-baseline-v1 --bundle <absolute-bundle-directory> --output <absolute-result-directory> --authority-plan <absolute-canonical-plan.json> --port 4173
+vp run listening:start --workflow role-quality-review-v1 --bundle <absolute-bundle-directory> --output <absolute-result-directory> --port 4173
 vp run listening:status
 vp run listening:stop
 ```
 
-Phase B の`--authority-plan`はabsolute UTF-8 canonical JSON bytesをCLIとdaemonの双方で
-読み、そのpathとSHAをsession / health / statusへ束縛する。daemonはbundle JSONをparse
-する前に、埋込み`completion-plan.json`のraw bytes SHAをこの外部authorityとexact照合
-する。anchor workflowは`--authority-plan`を受理しない。
+Phase B 597 group の全量 owner 聴取 workflow は Director 契約変更により起動不可とする。
+公開後は `role-quality-review-v1` で soft signal 付き 145 slot だけを復核し、外部 authority
+plan は受け付けない。bundle 自身が plan / decision / manifest / quality-signals SHA を固定する。
 
 API は同一 origin の `/__gaya-listening` 配下に限定する。
 
@@ -35,11 +34,11 @@ API は同一 origin の `/__gaya-listening` 配下に限定する。
 | `GET` | `/audio/:candidateId` | 検証済み候補だけを Range 対応で再生する |
 | `GET` | `/draft` | 結果 directory の現行 draft を復元する |
 | `PUT` | `/draft` | `revision` 付き全量 snapshot を直列・atomic 保存する |
-| `POST` | `/finalize` | 全 597 group の確認済み decision を write-once で保存する |
+| `POST` | `/finalize` | 全対象の明示判断を write-once の復核結果として保存する |
 | `GET` | `/health` | CLI が PID だけでなく実 daemon を確認する |
 | `POST` | `/shutdown` | token と Origin を確認して保存 queue の後に停止する |
 
-`draft` と `decision` は bundle の plan/candidate-set SHA、group SHA、candidate ID に完全に束縛する。任意 file path、directory 一覧、汎用 JSON 保存 endpoint は設けない。
+`draft` と結果は bundle の plan / decision / manifest / quality-signals SHA と各 take ID に完全に束縛する。任意 file path、directory 一覧、汎用 JSON 保存 endpoint は設けない。
 
 ## 2. 聴取者に必要な情報
 
@@ -50,11 +49,10 @@ API は同一 origin の `/__gaya-listening` 配下に限定する。
 
 ## 3. 情報と操作の配置
 
-- 主タスクは「表示された候補から最も良い 1 件を選ぶ。全件不適格なら明示的に使用不可とする」の一つだけとする。AivisSpeech は1候補、他モデルは最低3候補である。問題タグは選択済み候補、または使用不可 group の理由記録であり、別の多次元採点表にしない。
+- 公開後復核の主タスクは「この1件が指定された性別と全体的な声線に合うか」の一つだけとする。台詞内容、発音、音質はこの round で判断しない。
 - 役の evidence → 候補 → 問題 → 確認を上から一方向に並べ、候補間の切替は一動作、選択は一動作、確認は一動作にする。
-- 候補は同じ大きさの blind candidate とし、再生中・最後まで聴取済み・選択済み・確認済みを文字と形で区別する。
-- 正式な「候補中の最良」を記録するため、確認前に表示中の全候補を最後まで聴く。所定数未達の理由は確認操作の隣に短く表示する。
-- `no_usable_candidate=true` は `selected_candidate_id=null` と理由記録を必須にする。decision には保存できるが、selection 生成は fail-fast し、誤った候補を baseline へコピーしない。
+- 各項目は公開済みの selected 音声1件だけを表示し、最後まで再生した後に `符合角色` / `不符合` を選ぶ。
+- 復核結果は公開 selection を書き換えない。問題が確認された slot は新しい Issue / role epoch の後続置換対象にする。
 - 確認後は次の未確認 group へ自動で進む。手動 workflow 切替、folder 選択、rubric の pass/fail 切替、export は置かない。
 
 ## 4. 文言と interaction
@@ -64,7 +62,7 @@ API は同一 origin の `/__gaya-listening` 配下に限定する。
 - 問題入口は常時見える `发现问题` とし、内容、提示語漏洩、読み、pitch、性別、年齢、役柄、自然度・音質の短い tag をその場で展開する。
 - 長い説明は書かない。補助説明は `title`、disclosure、短い inline status に畳み、primary surface を押し下げない。
 - 保存は `正在保存` / `已保存` / `保存失败` を focus を奪わない status として示す。保存失敗時は finalization を停止する。
-- 最後の未確認 group も `确认本组` で draft へ保存するだけとし、group 確認と最終確定を結合しない。全 597 group の確認後に独立した `完成听测并锁定结果` を表示し、変更不可になることを短く明示した上で、使用者の明示操作だけで finalize する。
+- 全対象の判断後に独立した `完成复核` を表示し、使用者の明示操作だけで finalize する。
 - keyboard でも全操作を完了できる。候補の直接再生 shortcut は現在表示中の候補数に合わせ、選択・問題・本組確認・最終確定まで自然な focus 順にする。
 
 ## 5. 検証基準

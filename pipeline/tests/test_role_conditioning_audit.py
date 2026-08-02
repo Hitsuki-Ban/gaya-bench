@@ -51,6 +51,7 @@ SOURCE_PLAN_PATH = (
     / "anchor-source-plan-v1.json"
 )
 CURRENT_PLAN_PATH = SOURCE_PLAN_PATH.with_name("plan.json")
+FROZEN_BASE_MANIFEST_PATH = SOURCE_PLAN_PATH.with_name("base-manifest-v4.json")
 CURRENT_PLAN_SHA256 = (
     "35439ab2cea389dd16cc945132014aba61fd5c03e6bdeb9fed3d49da54e6919b"
 )
@@ -76,7 +77,7 @@ def test_current_planはv2_production_authorityと597_targetsを固定する() -
     document = json.loads(raw)
     plan = load_completion_plan(
         CURRENT_PLAN_PATH.resolve(),
-        base_manifest_path=(REPOSITORY_ROOT / "data" / "manifest.json").resolve(),
+        base_manifest_path=FROZEN_BASE_MANIFEST_PATH.resolve(),
         scenarios_dir=(REPOSITORY_ROOT / "scenarios").resolve(),
         voices_dir=(REPOSITORY_ROOT / "assets" / "voices").resolve(),
     )
@@ -105,7 +106,7 @@ def test_synthetic_selection確定後だけaudit_v2_planを作る(
     completion_document = json.loads(authority.completion_plan_path.read_bytes())
     plan = load_completion_plan(
         authority.completion_plan_path,
-        base_manifest_path=REPOSITORY_ROOT / "data" / "manifest.json",
+        base_manifest_path=FROZEN_BASE_MANIFEST_PATH,
         scenarios_dir=REPOSITORY_ROOT / "scenarios",
         voices_dir=REPOSITORY_ROOT / "assets" / "voices",
     )

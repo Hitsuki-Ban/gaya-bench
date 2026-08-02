@@ -269,7 +269,7 @@ function fixture(): BenchmarkData {
       line: item.line,
       variant: item.variant,
     },
-    candidate: item,
+    candidate: { ...item, role_quality: null },
   }));
   return {
     release: {

@@ -25,7 +25,13 @@ from gaya_pipeline.take_identity import canonical_json
 
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
-MANIFEST_PATH = REPOSITORY_ROOT / "data" / "manifest.json"
+MANIFEST_PATH = (
+    REPOSITORY_ROOT
+    / "docs"
+    / "research"
+    / "full-baseline-completion"
+    / "base-manifest-v4.json"
+)
 SCENARIOS_DIR = REPOSITORY_ROOT / "scenarios"
 VOICES_DIR = REPOSITORY_ROOT / "assets" / "voices"
 ANCHOR_SELECTION_SHA256 = "a" * 64

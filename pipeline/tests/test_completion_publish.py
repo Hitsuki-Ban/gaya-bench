@@ -102,8 +102,11 @@ def _fixture(
     release_root.mkdir()
     manifest = {"candidates": [inherited, supplement]}
     manifest_bytes = canonical_json(manifest).encode("utf-8")
+    quality_signals = {"groups": [{"model": "model"}]}
+    quality_signals_bytes = canonical_json(quality_signals).encode("utf-8")
     provenance = {
         "manifest_sha256": hashlib.sha256(manifest_bytes).hexdigest(),
+        "quality_signals_sha256": hashlib.sha256(quality_signals_bytes).hexdigest(),
         "source_runs": [
             {
                 "run_id": "run-new",
@@ -120,12 +123,14 @@ def _fixture(
         ],
     }
     (release_root / "manifest-v4.json").write_bytes(manifest_bytes)
+    (release_root / "quality-signals.json").write_bytes(quality_signals_bytes)
     (release_root / "release-provenance.json").write_bytes(
         canonical_json(provenance).encode("utf-8"),
     )
     release = SimpleNamespace(
         root=release_root,
         manifest=manifest,
+        quality_signals=quality_signals,
         provenance=provenance,
     )
     monkeypatch.setattr(
@@ -145,6 +150,9 @@ def _publish(tmp_path: Path, client: FakeS3) -> Any:
         source_audit_path=(tmp_path / "source-audit.json").resolve(),
         client=client,
         manifest_activation_path=(tmp_path / "active-manifest.json").resolve(),
+        quality_signals_activation_path=(
+            tmp_path / "active-quality-signals.json"
+        ).resolve(),
         publish_receipt_path=(tmp_path / "publish-receipt.json").resolve(),
     )
 
@@ -161,6 +169,9 @@ def test_inheritedはremote_onlyで一度もPUTしない(
     assert summary.uploaded_count == 1
     assert (tmp_path / "active-manifest.json").read_bytes() == (
         tmp_path / "release" / "manifest-v4.json"
+    ).read_bytes()
+    assert (tmp_path / "active-quality-signals.json").read_bytes() == (
+        tmp_path / "release" / "quality-signals.json"
     ).read_bytes()
     assert (tmp_path / "publish-receipt.json").is_file()
     assert [call["Key"] for call in client.put_calls] == [supplement["path"]]

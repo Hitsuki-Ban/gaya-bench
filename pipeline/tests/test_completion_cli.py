@@ -397,6 +397,7 @@ def test_completion_publishはactivationとreceiptを明示する(
         lambda _summary: None,
     )
     activation = (tmp_path / "data" / "manifest.json").resolve()
+    quality_activation = (tmp_path / "data" / "quality-signals.json").resolve()
     receipt = (tmp_path / "publish-receipt.json").resolve()
     source_audit = (tmp_path / "source-audit.json").resolve()
     result = cli.main(
@@ -413,11 +414,14 @@ def test_completion_publishはactivationとreceiptを明示する(
             str((tmp_path / ".env").resolve()),
             "--manifest-activation",
             str(activation),
+            "--quality-signals-activation",
+            str(quality_activation),
             "--publish-receipt",
             str(receipt),
         ],
     )
     assert result == 0
     assert captured["manifest_activation_path"] == activation
+    assert captured["quality_signals_activation_path"] == quality_activation
     assert captured["publish_receipt_path"] == receipt
     assert captured["source_audit_path"] == source_audit

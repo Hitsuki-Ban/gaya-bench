@@ -10,12 +10,10 @@ import { canonicalJson } from "@/lib/canonical-json";
 import { sha256Text } from "@/lib/sha256";
 
 import { loadBaselineCatalog } from "./baseline-contract";
-import { buildBaselineDecisionJson } from "./baseline-export";
-import { createBaselineDraft } from "./baseline-storage";
 import { BASELINE_WORKFLOW, validateListeningBundle } from "../../scripts/listening-app-server";
 
 describe("Phase B Python / site cross contract", () => {
-  it("Python producerの597-group実fixtureとgroup別minimumを検証し、site decisionをPython validatorへ戻す", async () => {
+  it("Python producerの597-group監査fixtureとgroup別minimumを検証する", async () => {
     const temporary = mkdtempSync(join(tmpdir(), "gaya-phase-b-cross-"));
     try {
       const fixtureRoot = join(temporary, "fixture");
@@ -86,50 +84,6 @@ describe("Phase B Python / site cross contract", () => {
       );
       reboundCatalog.dispose();
 
-      const empty = createBaselineDraft(catalog);
-      const rubric = {
-        content_correct: true,
-        prompt_leakage: false,
-        reading_correct: true,
-        accent_naturalness: 4,
-        role_match: 4,
-        delivery_match: 4,
-        audio_quality: 4,
-        adoptable: true,
-        notes: "",
-      } as const;
-      const complete = {
-        ...empty,
-        groups: empty.groups.map((group) => ({
-          ...group,
-          heard_candidate_ids: group.candidates.map((candidate) => candidate.take_id),
-          candidates: group.candidates.map((candidate) => ({
-            ...candidate,
-            rubric,
-          })),
-          decision: {
-            type: "selected" as const,
-            take_id: group.candidates[0]!.take_id,
-          },
-        })),
-      };
-      const decision = buildBaselineDecisionJson(catalog, complete);
-      const validation = spawnSync(
-        "uv",
-        [
-          "run",
-          "--project",
-          pipelineRoot,
-          "--locked",
-          "python",
-          generator,
-          "validate-decision",
-          bundleRoot,
-        ],
-        { encoding: "utf8", input: decision, maxBuffer: 16 * 1024 * 1024 },
-      );
-      expect(validation.status, processFailure(validation)).toBe(0);
-      expect(validation.stdout).toBe(decision);
       catalog.dispose();
     } finally {
       rmSync(temporary, { force: true, recursive: true });

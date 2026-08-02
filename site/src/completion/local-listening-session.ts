@@ -81,7 +81,80 @@ export interface BaselineListeningBootstrap extends LocalListeningBootstrapBase 
   };
 }
 
-export type LocalListeningBootstrap = AnchorListeningBootstrap | BaselineListeningBootstrap;
+export interface QualityReviewBundleGroup {
+  readonly model: string;
+  readonly scenario: string;
+  readonly line: string;
+  readonly variant: string;
+  readonly scenario_title: string;
+  readonly text: string;
+  readonly delivery: string;
+  readonly role: {
+    readonly name: string;
+    readonly kind: string;
+    readonly gender: string;
+    readonly age: string;
+    readonly archetype: string;
+    readonly voice: string;
+    readonly personality: string;
+  };
+  readonly take_id: string;
+  readonly audio_path: string;
+  readonly audio_sha256: string;
+  readonly expected_gender: "female" | "male";
+  readonly median_f0_hz: number | null;
+  readonly signal:
+    | "gender_f0_unavailable"
+    | "gender_f0_below_expected"
+    | "gender_f0_above_expected";
+}
+
+export interface QualityReviewBundle {
+  readonly format_version: 1;
+  readonly protocol: "role-quality-review-bundle-v1";
+  readonly plan_sha256: string;
+  readonly decision_sha256: string;
+  readonly manifest_sha256: string;
+  readonly quality_signals_sha256: string;
+  readonly groups: readonly QualityReviewBundleGroup[];
+}
+
+export interface QualityReviewListeningBootstrap extends LocalListeningBootstrapBase {
+  readonly workflow: "role-quality-review-v1";
+  readonly bundle: QualityReviewBundle;
+  readonly output: {
+    readonly directory_name: string;
+    readonly draft_file: "role-quality-review-draft-v1.json";
+    readonly decision_file: "role-quality-review-result-v1.json";
+  };
+}
+
+export interface QualityReviewGroupResult {
+  readonly model: string;
+  readonly scenario: string;
+  readonly line: string;
+  readonly variant: string;
+  readonly take_id: string;
+  readonly heard: boolean;
+  readonly result: "match" | "mismatch" | null;
+  readonly notes: string;
+}
+
+export interface QualityReviewDraft {
+  readonly format_version: 1;
+  readonly protocol: "role-quality-review-draft-v1";
+  readonly plan_sha256: string;
+  readonly decision_sha256: string;
+  readonly manifest_sha256: string;
+  readonly quality_signals_sha256: string;
+  readonly groups: readonly QualityReviewGroupResult[];
+  readonly current_index: number;
+}
+
+export type LocalListeningBootstrap =
+  | AnchorListeningBootstrap
+  | BaselineListeningBootstrap
+  | QualityReviewListeningBootstrap;
 
 export interface LocalListeningSaved {
   readonly revision: number;
@@ -134,6 +207,19 @@ export async function loadLocalListeningBootstrap(): Promise<LocalListeningBoots
       throw new Error("全量基线听测的启动契约无效。");
     }
     return bootstrap as unknown as BaselineListeningBootstrap;
+  }
+  if (bootstrap.workflow === "role-quality-review-v1") {
+    const bundle = bootstrap.bundle as Record<string, unknown>;
+    if (
+      output.draft_file !== "role-quality-review-draft-v1.json" ||
+      output.decision_file !== "role-quality-review-result-v1.json" ||
+      bundle.format_version !== 1 ||
+      bundle.protocol !== "role-quality-review-bundle-v1" ||
+      !Array.isArray(bundle.groups)
+    ) {
+      throw new Error("角色一致性定向复核的启动契约无效。");
+    }
+    return bootstrap as unknown as QualityReviewListeningBootstrap;
   }
   throw new Error("本地听测服务返回了未支持的 workflow。");
 }
@@ -194,7 +280,9 @@ export function localCandidateAudioUrl(candidateId: string): string {
   return `${API_ROOT}/audio/${encodeURIComponent(candidateId)}`;
 }
 
-export async function loadLocalListeningDraft<Draft extends RoleReviewDraft | BaselineDraft>(
+export async function loadLocalListeningDraft<
+  Draft extends RoleReviewDraft | BaselineDraft | QualityReviewDraft,
+>(
   bootstrap: LocalListeningBootstrap,
 ): Promise<{ readonly revision: number; readonly draft: Draft } | null> {
   const response = await fetch(`${API_ROOT}/draft`, { headers: sessionHeaders(bootstrap) });
@@ -222,7 +310,7 @@ export async function loadLocalListeningDraft<Draft extends RoleReviewDraft | Ba
 export async function saveLocalListeningDraft(
   bootstrap: LocalListeningBootstrap,
   revision: number,
-  draft: RoleReviewDraft | BaselineDraft,
+  draft: RoleReviewDraft | BaselineDraft | QualityReviewDraft,
 ): Promise<LocalListeningSaved> {
   return mutation(`${API_ROOT}/draft`, "PUT", bootstrap, { revision, draft });
 }

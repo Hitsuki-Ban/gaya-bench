@@ -116,7 +116,7 @@ function fixture(modelIds: readonly string[]): MutableBenchmarkData {
     outcomes: candidates.map((item) => ({
       kind: "selected",
       group: group(item.model, "dry"),
-      candidate: item,
+      candidate: { ...item, role_quality: null },
     })),
     generation_profiles: [],
     credits: { model_sources: [], reference_voices: [] },

@@ -31,15 +31,15 @@ afterEach(() => {
 describe("virtual:gaya-data integration", () => {
   it("固定 release を strict v4 / selected-only index として公開する", () => {
     expect(benchmarkData.release.format_version).toBe(4);
-    expect(selectedCandidates).toHaveLength(1243);
-    expect(benchmarkData.outcomes.filter(({ kind }) => kind === "skipped")).toHaveLength(39);
-    expect(benchmarkData.outcomes.filter(({ kind }) => kind === "failure")).toHaveLength(6);
+    expect(selectedCandidates).toHaveLength(1288);
+    expect(benchmarkData.outcomes.filter(({ kind }) => kind === "skipped")).toHaveLength(0);
+    expect(benchmarkData.outcomes.filter(({ kind }) => kind === "failure")).toHaveLength(0);
     expect(
       benchmarkData.generation_profiles.reduce(
         (count, profile) => count + profile.candidate_count,
         0,
       ),
-    ).toBe(1243);
+    ).toBe(1288);
     expect("manifest" in benchmarkData).toBe(false);
     expect(Object.keys(selectedCandidates[0]!).sort()).toEqual([
       "duration_sec",
@@ -47,6 +47,7 @@ describe("virtual:gaya-data integration", () => {
       "line",
       "model",
       "path",
+      "role_quality",
       "rtf",
       "scenario",
       "variant",
@@ -79,6 +80,10 @@ describe("loadBenchmarkData v4", () => {
     ]);
     const selected = data.outcomes.find(({ kind }) => kind === "selected");
     expect(selected?.kind === "selected" ? selected.candidate.path : null).toContain("take-0002");
+    expect(selected?.kind === "selected" ? selected.candidate.role_quality : null).toMatchObject({
+      expected_gender: "female",
+      status: "pass",
+    });
     expect(data.scenarios[0]?.characters[0]?.kind).toBe("human");
     expect(data.scenarios[0]?.lines[0]).toMatchObject({
       intensity: 2,
@@ -356,15 +361,44 @@ function createFixture(
   manifest = validManifest(),
   scenario = validScenario(),
   voiceMetadata = validVoiceMetadata(),
+  qualitySignals = validQualitySignals(manifest.models[0]!.id),
 ): string {
   const root = createEmptyRoot();
   mkdirSync(path.join(root, "data"), { recursive: true });
   mkdirSync(path.join(root, "scenarios"), { recursive: true });
   mkdirSync(path.join(root, "assets", "voices"), { recursive: true });
   writeFileSync(path.join(root, "data", "manifest.json"), JSON.stringify(manifest), "utf8");
+  writeFileSync(
+    path.join(root, "data", "quality-signals.json"),
+    JSON.stringify(qualitySignals),
+    "utf8",
+  );
   writeFileSync(path.join(root, "scenarios", "sample.yaml"), scenario, "utf8");
   writeFileSync(path.join(root, "assets", "voices", "metadata.yaml"), voiceMetadata, "utf8");
   return root;
+}
+
+function validQualitySignals(model = "model") {
+  return {
+    format_version: 1,
+    protocol: "role-quality-signals-v1",
+    plan_sha256: "a".repeat(64),
+    decision_sha256: "b".repeat(64),
+    groups: [
+      {
+        model,
+        scenario: "sample",
+        line: "speaker-001",
+        variant: "dry",
+        protocol: "role-gender-f0-soft-v1",
+        expected_gender: "female",
+        median_f0_hz: 200,
+        status: "pass",
+        signal: null,
+        qc_report_sha256: "c".repeat(64),
+      },
+    ],
+  };
 }
 
 function validManifest(): MutableManifest {

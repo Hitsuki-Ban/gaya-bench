@@ -21,6 +21,7 @@ import { Button } from "@/components/ui/button";
 
 import { CompletionRubricFields } from "./completion-rubric-fields";
 import { BaselineCompletionPage } from "./baseline-page";
+import { QualityReviewPage } from "./quality-review-page";
 import { createRoleReviewCatalog } from "./contract";
 import { buildRoleReviewDecision } from "./export";
 import { candidateShortcutIndex, candidateShortcutLabel } from "./listening-shortcuts";
@@ -82,11 +83,13 @@ export function CompletionPage() {
   }, []);
   if (error) return <ListeningFailure message={error} />;
   if (!session) return <ListeningLoading />;
-  return session.workflow === "role-review-anchor-v2" ? (
-    <RoleReviewCompletionPage bootstrap={session} />
-  ) : (
-    <BaselineCompletionPage bootstrap={session} />
-  );
+  if (session.workflow === "role-review-anchor-v2") {
+    return <RoleReviewCompletionPage bootstrap={session} />;
+  }
+  if (session.workflow === "role-quality-review-v1") {
+    return <QualityReviewPage bootstrap={session} />;
+  }
+  return <BaselineCompletionPage bootstrap={session} />;
 }
 
 export function RoleReviewCompletionPage({

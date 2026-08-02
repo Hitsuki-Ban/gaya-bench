@@ -6,6 +6,11 @@ from collections.abc import Sequence
 from datetime import date
 from pathlib import Path
 
+from gaya_pipeline.completion_auto import (
+    CompletionAutoDecisionError,
+    CompletionAutoDecisionSummary,
+    create_completion_auto_decision,
+)
 from gaya_pipeline.completion_anchor import (
     AnchorTopupDraftSummary,
     AnchorTopupGenerationSummary,
@@ -42,6 +47,11 @@ from gaya_pipeline.completion_release import (
     CompletionReleaseError,
     CompletionReleaseSummary,
     finalize_completion_release,
+)
+from gaya_pipeline.completion_review import (
+    CompletionReviewError,
+    CompletionReviewSummary,
+    build_completion_review_bundle,
 )
 from gaya_pipeline.curation import (
     CurationError,
@@ -447,6 +457,48 @@ def build_parser() -> argparse.ArgumentParser:
         type=Path,
     )
 
+    completion_auto_parser = completion_subparsers.add_parser(
+        "auto-decide",
+        help="Phase B 597 groupを機械順位付けしF0 soft signal付きで確定する",
+    )
+    completion_auto_parser.add_argument("--plan", required=True, type=Path)
+    completion_auto_parser.add_argument(
+        "--base-manifest",
+        required=True,
+        type=Path,
+    )
+    completion_auto_parser.add_argument(
+        "--primary-run-id",
+        action="append",
+        dest="primary_run_ids",
+        required=True,
+    )
+    completion_auto_parser.add_argument(
+        "--topup-run-id",
+        action="append",
+        dest="topup_run_ids",
+        default=[],
+    )
+    completion_auto_parser.add_argument(
+        "--anchor-selection",
+        required=True,
+        type=Path,
+    )
+    completion_auto_parser.add_argument("--artifacts", required=True, type=Path)
+    completion_auto_parser.add_argument("--scenarios", required=True, type=Path)
+    completion_auto_parser.add_argument("--voices", required=True, type=Path)
+    completion_auto_parser.add_argument(
+        "--pasqa-project",
+        required=True,
+        type=Path,
+    )
+    completion_auto_parser.add_argument(
+        "--pasqa-model-dir",
+        required=True,
+        type=Path,
+    )
+    completion_auto_parser.add_argument("--output", required=True, type=Path)
+
     completion_finalize_parser = completion_subparsers.add_parser(
         "finalize",
         help="公開済みbaseと597 replacement decisionからreleaseを確定する",
@@ -464,6 +516,11 @@ def build_parser() -> argparse.ArgumentParser:
     completion_finalize_parser.add_argument("--plan", required=True, type=Path)
     completion_finalize_parser.add_argument(
         "--decision",
+        required=True,
+        type=Path,
+    )
+    completion_finalize_parser.add_argument(
+        "--quality-signals",
         required=True,
         type=Path,
     )
@@ -540,10 +597,35 @@ def build_parser() -> argparse.ArgumentParser:
         type=Path,
     )
     completion_publish_parser.add_argument(
+        "--quality-signals-activation",
+        required=True,
+        type=Path,
+    )
+    completion_publish_parser.add_argument(
         "--publish-receipt",
         required=True,
         type=Path,
     )
+
+    completion_review_parser = completion_subparsers.add_parser(
+        "review-bundle",
+        help="公開後のF0 soft signal対象だけを聴取bundleにする",
+    )
+    for name in (
+        "plan",
+        "base-manifest",
+        "release",
+        "source-audit",
+        "artifacts",
+        "scenarios",
+        "voices",
+        "output",
+    ):
+        completion_review_parser.add_argument(
+            f"--{name}",
+            required=True,
+            type=Path,
+        )
 
     intonation_parser = subparsers.add_parser(
         "intonation",
@@ -922,12 +1004,24 @@ def main(argv: Sequence[str] | None = None) -> int:
                 "voices",
                 "output",
             ),
+            "auto-decide": (
+                "plan",
+                "base_manifest",
+                "anchor_selection",
+                "artifacts",
+                "scenarios",
+                "voices",
+                "pasqa_project",
+                "pasqa_model_dir",
+                "output",
+            ),
             "finalize": (
                 "base_manifest",
                 "qwen_curation",
                 "source_audit",
                 "plan",
                 "decision",
+                "quality_signals",
                 "anchor_selection",
                 "artifacts",
                 "scenarios",
@@ -940,7 +1034,18 @@ def main(argv: Sequence[str] | None = None) -> int:
                 "source_audit",
                 "env_file",
                 "manifest_activation",
+                "quality_signals_activation",
                 "publish_receipt",
+            ),
+            "review-bundle": (
+                "plan",
+                "base_manifest",
+                "release",
+                "source_audit",
+                "artifacts",
+                "scenarios",
+                "voices",
+                "output",
             ),
         }[args.completion_command]
         relative_paths = [
@@ -1201,6 +1306,32 @@ def main(argv: Sequence[str] | None = None) -> int:
             _print_completion_listening_summary(summary)
             return 0
 
+        if args.completion_command == "auto-decide":
+            try:
+                plan = load_completion_plan(
+                    args.plan,
+                    base_manifest_path=args.base_manifest,
+                    scenarios_dir=args.scenarios,
+                    voices_dir=args.voices,
+                )
+                summary = create_completion_auto_decision(
+                    plan=plan,
+                    primary_run_ids=args.primary_run_ids,
+                    topup_run_ids=args.topup_run_ids,
+                    anchor_selection_path=args.anchor_selection,
+                    artifacts_dir=args.artifacts,
+                    scenarios_dir=args.scenarios,
+                    voices_dir=args.voices,
+                    pasqa_project_dir=args.pasqa_project,
+                    pasqa_model_dir=args.pasqa_model_dir,
+                    output_dir=args.output,
+                )
+            except (CompletionPlanError, CompletionAutoDecisionError) as error:
+                print(f"ERROR: {error}", file=sys.stderr)
+                return 1
+            _print_completion_auto_decision_summary(summary)
+            return 0
+
         if args.completion_command == "finalize":
             try:
                 plan = load_completion_plan(
@@ -1215,6 +1346,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                     qwen_curation_path=args.qwen_curation,
                     source_audit_path=args.source_audit,
                     decision_path=args.decision,
+                    quality_signals_path=args.quality_signals,
                     primary_run_ids=args.primary_run_ids,
                     topup_run_ids=args.topup_run_ids,
                     anchor_selection_path=args.anchor_selection,
@@ -1237,12 +1369,36 @@ def main(argv: Sequence[str] | None = None) -> int:
                     source_audit_path=args.source_audit,
                     client=create_r2_client(args.env_file),
                     manifest_activation_path=args.manifest_activation,
+                    quality_signals_activation_path=args.quality_signals_activation,
                     publish_receipt_path=args.publish_receipt,
                 )
             except (CompletionPublishError, PublishError) as error:
                 print(f"ERROR: {error}", file=sys.stderr)
                 return 1
             _print_completion_publish_summary(summary)
+            return 0
+
+        if args.completion_command == "review-bundle":
+            try:
+                plan = load_completion_plan(
+                    args.plan,
+                    base_manifest_path=args.base_manifest,
+                    scenarios_dir=args.scenarios,
+                    voices_dir=args.voices,
+                )
+                summary = build_completion_review_bundle(
+                    plan=plan,
+                    release_dir=args.release,
+                    source_audit_path=args.source_audit,
+                    artifacts_dir=args.artifacts,
+                    scenarios_dir=args.scenarios,
+                    voices_dir=args.voices,
+                    output_dir=args.output,
+                )
+            except (CompletionPlanError, CompletionReviewError) as error:
+                print(f"ERROR: {error}", file=sys.stderr)
+                return 1
+            _print_completion_review_summary(summary)
             return 0
 
         raise AssertionError(
@@ -1481,10 +1637,24 @@ def _print_completion_release_summary(
     print(f"Manifest SHA-256: {summary.manifest_sha256}")
     print(f"Candidate set SHA-256: {summary.candidate_set_sha256}")
     print(f"Selection SHA-256: {summary.selection_sha256}")
+    print(f"Quality signals SHA-256: {summary.quality_signals_sha256}")
     print(
         f"完了: candidate {summary.candidate_count} / "
         f"selected {summary.selected_count} / "
         f"replacement candidate {summary.replacement_candidate_count}",
+    )
+
+
+def _print_completion_auto_decision_summary(
+    summary: CompletionAutoDecisionSummary,
+) -> None:
+    print(f"Auto decision: {summary.output_dir.as_posix()}")
+    print(f"Decision SHA-256: {summary.decision_sha256}")
+    print(f"Ranking report SHA-256: {summary.ranking_report_sha256}")
+    print(f"Quality signals SHA-256: {summary.quality_signals_sha256}")
+    print(
+        f"完了: group {summary.group_count} / candidate {summary.candidate_count} / "
+        f"targeted review {summary.review_required_count}",
     )
 
 
@@ -1497,7 +1667,14 @@ def _print_completion_publish_summary(
         f"既存replacement {summary.skipped_count}",
     )
     print(f"Manifest activation: {summary.manifest_activation_path}")
+    print(f"Quality signals activation: {summary.quality_signals_activation_path}")
     print(f"Publish receipt: {summary.publish_receipt_path}")
+
+
+def _print_completion_review_summary(summary: CompletionReviewSummary) -> None:
+    print(f"Quality review bundle: {summary.output_dir.as_posix()}")
+    print(f"Bundle SHA-256: {summary.bundle_sha256}")
+    print(f"完了: targeted review {summary.group_count}")
 
 
 def _print_publish_summary(summary: PublishSummary) -> None:

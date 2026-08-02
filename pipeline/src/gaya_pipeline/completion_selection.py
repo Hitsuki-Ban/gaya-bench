@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import math
 from typing import Any, Mapping
 
 from gaya_pipeline.curation import (
@@ -29,8 +30,10 @@ FORMAT_VERSION = 4
 PROTOCOL = "role-baseline-selection-v1"
 DECISION_FORMAT_VERSION = 1
 DECISION_PROTOCOL = "role-baseline-decision-v1"
-BEST_AVAILABLE_POLICY = "missing-slot-best-of-n-v1"
-BEST_AVAILABLE_REVIEWER = "owner"
+AUTO_SELECTION_POLICY = "phase-b-auto-selection-v1"
+GENDER_SCREENING_PROTOCOL = "role-gender-f0-soft-v1"
+FEMALE_F0_LOWER_BOUND_HZ = 165.0
+MALE_F0_UPPER_BOUND_HZ = 180.0
 BASE_CANDIDATE_SET_SHA256 = (
     "91913e08f97497f1f7604f109a6d0f7308742237277f6bbc5483678ac9858cc2"
 )
@@ -45,6 +48,7 @@ ROOT_FIELDS = {
     "plan_sha256",
     "anchor_selection_sha256",
     "candidate_set_sha256",
+    "ranking_report_sha256",
     "groups",
 }
 SELECTION_GROUP_FIELDS = {
@@ -54,40 +58,43 @@ SELECTION_GROUP_FIELDS = {
     "candidates",
     "decision",
 }
-DECISION_GROUP_FIELDS = {*SELECTION_GROUP_FIELDS, "group_sha256"}
+DECISION_GROUP_FIELDS = {
+    *SELECTION_GROUP_FIELDS,
+    "group_sha256",
+    "screening",
+}
 HUMAN_AUTHORITY_FIELDS = {"type", "rubric_version"}
 AUTOMATIC_AUTHORITY_FIELDS = {
     "type",
     "selection_policy_version",
     "gate_policy_version",
 }
-BEST_AUTHORITY_FIELDS = {
+AUTO_SELECTED_AUTHORITY_FIELDS = {
     "type",
     "policy_version",
-    "reviewer",
     "minimum_eligible_candidates",
+    "gate_policy_version",
 }
 LEGACY_HUMAN_CANDIDATE_FIELDS = {"take_id", "path", "audio_sha256", "rubric"}
 AUTOMATIC_CANDIDATE_FIELDS = {"take_id", "path", "audio_sha256", "gate"}
-BEST_CANDIDATE_FIELDS = {
+AUTO_SELECTED_CANDIDATE_FIELDS = {
     "take_id",
     "path",
     "audio_sha256",
     "gate",
-    "rubric",
+    "rank",
+    "pasqa_score",
+    "duration_sec",
 }
 GATE_FIELDS = {"mechanical", "content", "policy_version"}
 CONTENT_VALUES = {"pass", "review_required"}
-BEST_RUBRIC_FIELDS = {
-    "content_correct",
-    "prompt_leakage",
-    "reading_correct",
-    "accent_naturalness",
-    "role_match",
-    "delivery_match",
-    "audio_quality",
-    "adoptable",
-    "notes",
+SCREENING_FIELDS = {
+    "protocol",
+    "expected_gender",
+    "median_f0_hz",
+    "status",
+    "signal",
+    "qc_report_sha256",
 }
 
 
@@ -98,7 +105,7 @@ def validate_completion_selection(document: Any) -> dict[str, Any]:
         document,
         format_version=FORMAT_VERSION,
         protocol=PROTOCOL,
-        best_available_only=False,
+        auto_selected_only=False,
         label="completion selection",
         bind_group_sha256=False,
     )
@@ -109,13 +116,13 @@ def canonical_completion_selection_bytes(document: Any) -> bytes:
 
 
 def validate_completion_decision(document: Any) -> dict[str, Any]:
-    """Validate the Owner's exact supplement listening decision."""
+    """Validate the exact machine-selected Phase B decision."""
 
     return _validate_document(
         document,
         format_version=DECISION_FORMAT_VERSION,
         protocol=DECISION_PROTOCOL,
-        best_available_only=True,
+        auto_selected_only=True,
         label="completion decision",
         bind_group_sha256=True,
     )
@@ -249,7 +256,7 @@ def _validate_document(
     *,
     format_version: int,
     protocol: str,
-    best_available_only: bool,
+    auto_selected_only: bool,
     label: str,
     bind_group_sha256: bool,
 ) -> dict[str, Any]:
@@ -261,6 +268,10 @@ def _validate_document(
     candidate_set_sha256 = _sha(
         root["candidate_set_sha256"],
         f"{label}.candidate_set_sha256",
+    )
+    ranking_report_sha256 = _sha(
+        root["ranking_report_sha256"],
+        f"{label}.ranking_report_sha256",
     )
     plan_sha256 = _sha(root["plan_sha256"], f"{label}.plan_sha256")
     anchor_selection_sha256 = _sha(
@@ -299,8 +310,8 @@ def _validate_document(
             raise CurationError(f"{label} group が重複しています。")
         seen_groups.add(identity)
         authority = _validate_authority(group["authority"], f"{field}.authority")
-        if best_available_only and authority["type"] != "best_available":
-            raise CurationError(f"{label} は best_available authority のみ許可します。")
+        if auto_selected_only and authority["type"] != "auto-selected":
+            raise CurationError(f"{label} は auto-selected authority のみ許可します。")
         candidates = _validate_candidates(
             group["candidates"],
             authority=authority,
@@ -332,15 +343,21 @@ def _validate_document(
                 "take_id": candidates[0]["take_id"],
             }:
                 raise CurationError("自動選定 group は唯一のcandidateを選ぶ必要があります。")
-        if authority["type"] == "best_available":
+        if authority["type"] == "auto-selected":
             minimum = authority["minimum_eligible_candidates"]
             if len(candidates) < minimum:
                 raise CurationError(
-                    f"best_available group は mechanical-pass candidate が"
+                    f"auto-selected group は mechanical-pass candidate が"
                     f" {minimum}件以上必要です。",
                 )
             if decision["type"] != "selected":
-                raise CurationError("best_available group は1件の selected が必要です。")
+                raise CurationError("auto-selected group は1件の selected が必要です。")
+            expected_ranks = list(range(1, len(candidates) + 1))
+            if sorted(candidate["rank"] for candidate in candidates) != expected_ranks:
+                raise CurationError("auto-selected candidate rank は1..Nが必要です。")
+            selected = candidates_by_take[decision["take_id"]]
+            if selected["rank"] != 1:
+                raise CurationError("auto-selected group はrank 1を選ぶ必要があります。")
 
         normalized_group = {
             **dict(zip(GROUP_KEYS, identity, strict=True)),
@@ -351,6 +368,10 @@ def _validate_document(
         }
         if group_sha256 is not None:
             normalized_group["group_sha256"] = group_sha256
+            normalized_group["screening"] = _validate_screening(
+                group["screening"],
+                f"{field}.screening",
+            )
         normalized_groups.append(normalized_group)
 
     normalized_groups.sort(key=lambda item: _group_key(item))
@@ -360,6 +381,7 @@ def _validate_document(
         "plan_sha256": plan_sha256,
         "anchor_selection_sha256": anchor_selection_sha256,
         "candidate_set_sha256": candidate_set_sha256,
+        "ranking_report_sha256": ranking_report_sha256,
         "groups": normalized_groups,
     }
 
@@ -382,12 +404,12 @@ def _validate_authority(value: Any, field: str) -> dict[str, Any]:
         }:
             raise CurationError(f"{field} の automatic_gate 契約が不正です。")
         return dict(authority)
-    if authority_type == "best_available":
-        authority = _exact(value, BEST_AUTHORITY_FIELDS, field)
+    if authority_type == "auto-selected":
+        authority = _exact(value, AUTO_SELECTED_AUTHORITY_FIELDS, field)
         expected = {
-            "type": "best_available",
-            "policy_version": BEST_AVAILABLE_POLICY,
-            "reviewer": BEST_AVAILABLE_REVIEWER,
+            "type": "auto-selected",
+            "policy_version": AUTO_SELECTION_POLICY,
+            "gate_policy_version": AUTOMATIC_GATE_POLICY,
         }
         minimum = authority["minimum_eligible_candidates"]
         if (
@@ -396,7 +418,7 @@ def _validate_authority(value: Any, field: str) -> dict[str, Any]:
             or isinstance(minimum, bool)
             or minimum < 1
         ):
-            raise CurationError(f"{field} の best_available 契約が不正です。")
+            raise CurationError(f"{field} の auto-selected 契約が不正です。")
         return {**expected, "minimum_eligible_candidates": minimum}
     raise CurationError(f"{field}.type が不正です。")
 
@@ -415,7 +437,7 @@ def _validate_candidates(
     expected_fields = {
         "human": LEGACY_HUMAN_CANDIDATE_FIELDS,
         "automatic_gate": AUTOMATIC_CANDIDATE_FIELDS,
-        "best_available": BEST_CANDIDATE_FIELDS,
+        "auto-selected": AUTO_SELECTED_CANDIDATE_FIELDS,
     }[str(authority["type"])]
     for index, value_candidate in enumerate(value):
         candidate_field = f"{field}[{index}]"
@@ -447,10 +469,35 @@ def _validate_candidates(
                 candidate["gate"],
                 f"{candidate_field}.gate",
             )
-        if authority["type"] == "best_available":
-            normalized["rubric"] = _validate_best_rubric(
-                candidate["rubric"],
-                f"{candidate_field}.rubric",
+        if authority["type"] == "auto-selected":
+            rank = candidate["rank"]
+            if isinstance(rank, bool) or not isinstance(rank, int) or rank < 1:
+                raise CurationError(f"{candidate_field}.rank は正の整数が必要です。")
+            score = candidate["pasqa_score"]
+            if score is not None and (
+                isinstance(score, bool)
+                or not isinstance(score, (int, float))
+                or not math.isfinite(float(score))
+            ):
+                raise CurationError(
+                    f"{candidate_field}.pasqa_score は有限数またはnullが必要です。"
+                )
+            duration = candidate["duration_sec"]
+            if (
+                isinstance(duration, bool)
+                or not isinstance(duration, (int, float))
+                or not math.isfinite(float(duration))
+                or float(duration) <= 0
+            ):
+                raise CurationError(
+                    f"{candidate_field}.duration_sec は正の有限数が必要です。"
+                )
+            normalized.update(
+                {
+                    "rank": rank,
+                    "pasqa_score": float(score) if score is not None else None,
+                    "duration_sec": float(duration),
+                }
             )
         result.append(normalized)
     return result
@@ -473,41 +520,52 @@ def _validate_gate(value: Any, field: str) -> dict[str, str]:
     }
 
 
-def _validate_best_rubric(value: Any, field: str) -> dict[str, Any]:
-    rubric = _exact(value, BEST_RUBRIC_FIELDS, field)
-    for key in (
-        "content_correct",
-        "prompt_leakage",
-        "reading_correct",
-        "adoptable",
+def _validate_screening(value: Any, field: str) -> dict[str, Any]:
+    screening = _exact(value, SCREENING_FIELDS, field)
+    if screening["protocol"] != GENDER_SCREENING_PROTOCOL:
+        raise CurationError(f"{field}.protocol が不正です。")
+    gender = screening["expected_gender"]
+    if gender not in {"female", "male", "neutral"}:
+        raise CurationError(f"{field}.expected_gender が不正です。")
+    median = screening["median_f0_hz"]
+    if median is not None and (
+        isinstance(median, bool)
+        or not isinstance(median, (int, float))
+        or not math.isfinite(float(median))
+        or float(median) <= 0
     ):
-        if not isinstance(rubric[key], bool):
-            raise CurationError(f"{field}.{key} は boolean が必要です。")
-    for key in (
-        "accent_naturalness",
-        "role_match",
-        "delivery_match",
-        "audio_quality",
-    ):
-        if (
-            isinstance(rubric[key], bool)
-            or not isinstance(rubric[key], int)
-            or not 1 <= rubric[key] <= 5
-        ):
-            raise CurationError(f"{field}.{key} は1..5の整数が必要です。")
-    notes = rubric["notes"]
-    if not isinstance(notes, str):
-        raise CurationError(f"{field}.notes は文字列が必要です。")
+        raise CurationError(f"{field}.median_f0_hz が不正です。")
+    status = screening["status"]
+    signal = screening["signal"]
+    expected_status: str
+    expected_signal: str | None
+    if gender == "neutral":
+        expected_status = "not_applicable"
+        expected_signal = None
+    elif median is None:
+        expected_status = "review_required"
+        expected_signal = "gender_f0_unavailable"
+    elif gender == "female" and float(median) < FEMALE_F0_LOWER_BOUND_HZ:
+        expected_status = "review_required"
+        expected_signal = "gender_f0_below_expected"
+    elif gender == "male" and float(median) > MALE_F0_UPPER_BOUND_HZ:
+        expected_status = "review_required"
+        expected_signal = "gender_f0_above_expected"
+    else:
+        expected_status = "pass"
+        expected_signal = None
+    if status != expected_status or signal != expected_signal:
+        raise CurationError(f"{field} のF0判定結果がpolicyと一致しません。")
     return {
-        "content_correct": rubric["content_correct"],
-        "prompt_leakage": rubric["prompt_leakage"],
-        "reading_correct": rubric["reading_correct"],
-        "accent_naturalness": rubric["accent_naturalness"],
-        "role_match": rubric["role_match"],
-        "delivery_match": rubric["delivery_match"],
-        "audio_quality": rubric["audio_quality"],
-        "adoptable": rubric["adoptable"],
-        "notes": notes,
+        "protocol": GENDER_SCREENING_PROTOCOL,
+        "expected_gender": gender,
+        "median_f0_hz": float(median) if median is not None else None,
+        "status": expected_status,
+        "signal": expected_signal,
+        "qc_report_sha256": _sha(
+            screening["qc_report_sha256"],
+            f"{field}.qc_report_sha256",
+        ),
     }
 
 

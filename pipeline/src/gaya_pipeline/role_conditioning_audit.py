@@ -116,7 +116,13 @@ def build_role_source_audit(repository_root: Path) -> dict[str, Any]:
     root = repository_root.resolve()
     scenarios_dir = root / "scenarios"
     voices_dir = root / "assets" / "voices"
-    manifest_path = root / "data" / "manifest.json"
+    manifest_path = (
+        root
+        / "docs"
+        / "research"
+        / "full-baseline-completion"
+        / "base-manifest-v4.json"
+    )
 
     _validate_sources(scenarios_dir, voices_dir)
     voices, voice_metadata_receipt = _load_voices(root, voices_dir)
@@ -259,7 +265,7 @@ def build_role_source_audit(repository_root: Path) -> dict[str, Any]:
         "voice_metadata": voice_metadata_receipt,
         "audit_role_anchor_selection": audit_anchor_selection.receipt(),
         "published_manifest": {
-            "file": manifest_path.relative_to(root).as_posix(),
+            "file": "data/manifest.json",
             "sha256": _sha256_file(manifest_path),
             "format_version": manifest["format_version"],
             "candidate_set_sha256": manifest["candidate_set_sha256"],
@@ -1173,7 +1179,13 @@ def _build_audit_completion_plan(
     output_dir: Path,
     anchor_selection_sha256: str,
 ) -> tuple[Path, CompletionPlan]:
-    base_manifest_path = (root / "data" / "manifest.json").resolve()
+    base_manifest_path = (
+        root
+        / "docs"
+        / "research"
+        / "full-baseline-completion"
+        / "base-manifest-v4.json"
+    ).resolve()
     scenarios_dir = (root / "scenarios").resolve()
     voices_dir = (root / "assets" / "voices").resolve()
     for path, label in (

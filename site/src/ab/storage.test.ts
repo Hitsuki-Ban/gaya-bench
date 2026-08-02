@@ -128,8 +128,8 @@ const CATALOG: BlindCatalog = {
         final_intonation: "fall",
       },
       variant: "dry",
-      first: { modelId: "alpha", candidate: candidate("alpha") },
-      second: { modelId: "beta", candidate: candidate("beta") },
+      first: { modelId: "alpha", candidate: { ...candidate("alpha"), role_quality: null } },
+      second: { modelId: "beta", candidate: { ...candidate("beta"), role_quality: null } },
     },
   ],
 };

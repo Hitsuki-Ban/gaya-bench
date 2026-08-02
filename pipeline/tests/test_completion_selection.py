@@ -20,22 +20,6 @@ from gaya_pipeline.selection import canonical_selection_bytes
 ROOT = Path(__file__).resolve().parents[2]
 
 
-def _rubric(**overrides: Any) -> dict[str, Any]:
-    result = {
-        "content_correct": False,
-        "prompt_leakage": True,
-        "reading_correct": False,
-        "accent_naturalness": 1,
-        "role_match": 2,
-        "delivery_match": 1,
-        "audio_quality": 2,
-        "adoptable": False,
-        "notes": "全候補に問題があるため、その中で最良のものを選択",
-    }
-    result.update(overrides)
-    return result
-
-
 def _decision(
     candidate_count: int = 3,
     *,
@@ -52,7 +36,9 @@ def _decision(
                 "content": "review_required",
                 "policy_version": "take-gates-v2",
             },
-            "rubric": _rubric(),
+            "rank": index,
+            "pasqa_score": 5.0 - index,
+            "duration_sec": 1.0 + index / 10,
         }
         for index in range(1, candidate_count + 1)
     ]
@@ -62,6 +48,7 @@ def _decision(
         "plan_sha256": "b" * 64,
         "anchor_selection_sha256": "c" * 64,
         "candidate_set_sha256": "a" * 64,
+        "ranking_report_sha256": "f" * 64,
         "groups": [
             {
                 "model": "model",
@@ -71,15 +58,23 @@ def _decision(
                 "role_epoch_sha256": "d" * 64,
                 "group_sha256": "e" * 64,
                 "authority": {
-                    "type": "best_available",
-                    "policy_version": "missing-slot-best-of-n-v1",
-                    "reviewer": "owner",
+                    "type": "auto-selected",
+                    "policy_version": "phase-b-auto-selection-v1",
                     "minimum_eligible_candidates": minimum_eligible_candidates,
+                    "gate_policy_version": "take-gates-v2",
                 },
                 "candidates": candidates,
                 "decision": {
                     "type": "selected",
                     "take_id": candidates[0]["take_id"],
+                },
+                "screening": {
+                    "protocol": "role-gender-f0-soft-v1",
+                    "expected_gender": "female",
+                    "median_f0_hz": 210.0,
+                    "status": "pass",
+                    "signal": None,
+                    "qc_report_sha256": "9" * 64,
                 },
             },
         ],
@@ -87,7 +82,15 @@ def _decision(
 
 
 def test_published_base_selectionを固定SHAへexact再構築する() -> None:
-    manifest = json.loads((ROOT / "data" / "manifest.json").read_bytes())
+    manifest = json.loads(
+        (
+            ROOT
+            / "docs"
+            / "research"
+            / "full-baseline-completion"
+            / "base-manifest-v4.json"
+        ).read_bytes(),
+    )
     qwen_path = next(
         (ROOT / "docs" / "research" / "baseline-v4" / "release" / "curation").glob(
             "*.json",
@@ -107,24 +110,28 @@ def test_published_base_selectionを固定SHAへexact再構築する() -> None:
     )
 
 
-def test_best_availableは低品質の真実なrubricでも選択できる() -> None:
+def test_auto_selectedはrankingとF0soft_signalを正直に保持する() -> None:
     decision = _decision()
 
     normalized = validate_completion_decision(decision)
 
-    selected = normalized["groups"][0]["candidates"][0]
-    assert selected["rubric"]["adoptable"] is False
-    assert selected["rubric"]["content_correct"] is False
-    assert selected["rubric"]["prompt_leakage"] is True
+    selected = next(
+        candidate
+        for candidate in normalized["groups"][0]["candidates"]
+        if candidate["rank"] == 1
+    )
+    assert selected["rank"] == 1
+    assert selected["pasqa_score"] == 4.0
+    assert normalized["groups"][0]["screening"]["status"] == "pass"
     assert canonical_completion_decision_bytes(decision)
 
 
-def test_best_availableはmechanical_passが3件未満なら拒否する() -> None:
+def test_auto_selectedはmechanical_passが3件未満なら拒否する() -> None:
     with pytest.raises(CurationError, match="3件以上"):
         validate_completion_decision(_decision(candidate_count=2))
 
 
-def test_best_availableはgroupが明示した最低1件を受理する() -> None:
+def test_auto_selectedはgroupが明示した最低1件を受理する() -> None:
     normalized = validate_completion_decision(
         _decision(candidate_count=1, minimum_eligible_candidates=1),
     )
@@ -134,26 +141,50 @@ def test_best_availableはgroupが明示した最低1件を受理する() -> Non
 
 
 @pytest.mark.parametrize("minimum", [0, -1, True])
-def test_best_availableは正でない最低候補数を拒否する(minimum: Any) -> None:
-    with pytest.raises(CurationError, match="best_available 契約"):
+def test_auto_selectedは正でない最低候補数を拒否する(minimum: Any) -> None:
+    with pytest.raises(CurationError, match="auto-selected 契約"):
         validate_completion_decision(
             _decision(minimum_eligible_candidates=minimum),
         )
 
 
-def test_best_availableはrubricを省略できない() -> None:
+def test_auto_selectedはrankを省略できない() -> None:
     decision = _decision()
-    del decision["groups"][0]["candidates"][0]["rubric"]["reading_correct"]
+    del decision["groups"][0]["candidates"][0]["rank"]
 
     with pytest.raises(CurationError, match="exact contract"):
         validate_completion_decision(decision)
 
 
-def test_best_availableはmechanical_rejectを候補にできない() -> None:
+def test_auto_selectedはmechanical_rejectを候補にできない() -> None:
     decision = _decision()
     decision["groups"][0]["candidates"][1]["gate"]["mechanical"] = "reject"
 
     with pytest.raises(CurationError, match="mechanical は pass"):
+        validate_completion_decision(decision)
+
+
+def test_auto_selectedはrank1以外を選べない() -> None:
+    decision = _decision()
+    decision["groups"][0]["decision"]["take_id"] = decision["groups"][0][
+        "candidates"
+    ][1]["take_id"]
+
+    with pytest.raises(CurationError, match="rank 1"):
+        validate_completion_decision(decision)
+
+
+def test_F0screeningはpolicyと矛盾する結果を拒否する() -> None:
+    decision = _decision()
+    decision["groups"][0]["screening"].update(
+        {
+            "expected_gender": "female",
+            "median_f0_hz": 120.0,
+            "status": "pass",
+        }
+    )
+
+    with pytest.raises(CurationError, match="F0判定結果"):
         validate_completion_decision(decision)
 
 

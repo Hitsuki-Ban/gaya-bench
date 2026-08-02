@@ -11,6 +11,8 @@ import {
 } from "./contract";
 import { EMPTY_ROLE_REVIEW_RUBRIC } from "./storage";
 import { loadLocalListeningBootstrap } from "./local-listening-session";
+import { createQualityReviewDraft, qualityReviewResultFromDraft } from "./quality-review-model";
+import type { QualityReviewListeningBootstrap } from "./local-listening-session";
 import type { RoleReviewBundle } from "./types";
 
 describe("role-review-v2 contract", () => {
@@ -167,7 +169,8 @@ describe("中文紧凑问题入口", () => {
 describe("native listening workflow route", () => {
   afterEach(() => vi.unstubAllGlobals());
 
-  it("只接受显式role-baseline-v1及其固定结果文件名", async () => {
+  it("只接受显式角色定向复核workflow及其固定结果文件名", async () => {
+    const bundle = makeQualityReviewBundle();
     vi.stubGlobal(
       "fetch",
       vi.fn(
@@ -175,24 +178,19 @@ describe("native listening workflow route", () => {
           new Response(
             JSON.stringify({
               bundle: {
-                anchor_selection_sha256: "b".repeat(64),
-                candidate_set_sha256: "c".repeat(64),
-                format_version: 1,
-                groups: [],
-                plan_sha256: "a".repeat(64),
-                protocol: "role-baseline-listening-v1",
+                ...bundle,
               },
               finalized: false,
               format_version: 1,
               mutation_token: "d".repeat(64),
               output: {
-                decision_file: "role-baseline-decision-v1.json",
+                decision_file: "role-quality-review-result-v1.json",
                 directory_name: "results",
-                draft_file: "role-baseline-draft-v1.json",
+                draft_file: "role-quality-review-draft-v1.json",
               },
               protocol: "gaya-listening-session-v1",
               revision: 0,
-              workflow: "role-baseline-v1",
+              workflow: "role-quality-review-v1",
             }),
             { headers: { "Content-Type": "application/json" } },
           ),
@@ -200,9 +198,36 @@ describe("native listening workflow route", () => {
     );
 
     await expect(loadLocalListeningBootstrap()).resolves.toMatchObject({
-      workflow: "role-baseline-v1",
-      output: { decision_file: "role-baseline-decision-v1.json" },
+      workflow: "role-quality-review-v1",
+      output: { decision_file: "role-quality-review-result-v1.json" },
     });
+  });
+
+  it("定向复核草稿只绑定角色判断，不生成发布选择", () => {
+    const bootstrap: QualityReviewListeningBootstrap = {
+      bundle: makeQualityReviewBundle(),
+      finalized: false,
+      format_version: 1,
+      mutation_token: "d".repeat(64),
+      output: {
+        decision_file: "role-quality-review-result-v1.json",
+        directory_name: "results",
+        draft_file: "role-quality-review-draft-v1.json",
+      },
+      protocol: "gaya-listening-session-v1",
+      revision: 0,
+      workflow: "role-quality-review-v1",
+    };
+    const draft = createQualityReviewDraft(bootstrap);
+    const result = qualityReviewResultFromDraft({
+      ...draft,
+      groups: draft.groups.map((group) => ({ ...group, heard: true, result: "match" as const })),
+    });
+
+    expect(draft.groups).toHaveLength(1);
+    expect(result).toMatchObject({ protocol: "role-quality-review-result-v1" });
+    expect(result).not.toHaveProperty("current_index");
+    expect(result).not.toHaveProperty("selected_candidate_id");
   });
 
   it("workflow省略や結果文件别名を拒绝する", async () => {
@@ -231,6 +256,43 @@ describe("native listening workflow route", () => {
     await expect(loadLocalListeningBootstrap()).rejects.toThrow("workflow");
   });
 });
+
+function makeQualityReviewBundle(): QualityReviewListeningBootstrap["bundle"] {
+  return {
+    format_version: 1,
+    protocol: "role-quality-review-bundle-v1",
+    plan_sha256: "a".repeat(64),
+    decision_sha256: "b".repeat(64),
+    manifest_sha256: "c".repeat(64),
+    quality_signals_sha256: "e".repeat(64),
+    groups: [
+      {
+        model: "model.1",
+        scenario: "scene",
+        line: "line",
+        variant: "dry",
+        scenario_title: "场景",
+        text: "台词",
+        delivery: "自然",
+        role: {
+          name: "受付嬢",
+          kind: "human",
+          gender: "female",
+          age: "young_adult",
+          archetype: "受付",
+          voice: "明亮的女声",
+          personality: "亲切",
+        },
+        take_id: "f".repeat(64),
+        audio_path: `audio/${"f".repeat(64)}.opus`,
+        audio_sha256: "0".repeat(64),
+        expected_gender: "female",
+        median_f0_hz: 140,
+        signal: "gender_f0_below_expected",
+      },
+    ],
+  };
+}
 
 export function makeRoleReviewBundle(): RoleReviewBundle {
   let candidateSequence = 1;

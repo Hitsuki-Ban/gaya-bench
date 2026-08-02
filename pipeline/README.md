@@ -276,6 +276,9 @@ role epochを決める権威入力として必須だが、adapterへ渡すのは
 ある。参照音声なしroleのgeneration inputはselected anchor ID、WAV SHA、decision SHAに
 由来するrole epochを記録する。
 
+以下の `--base-manifest` は現在の公開activationではなく、固定SHAを持つ
+`docs/research/full-baseline-completion/base-manifest-v4.json` を絶対pathで指定する。
+
 AivisSpeechはdeterministic engineのためplan固定のN=1、minimum=1、seed nullであり、
 `--seed-base`を渡さない。
 
@@ -341,10 +344,12 @@ uv run --project <pipeline> --locked --extra <model-extra> gaya completion gener
   --target <scenario/line> --target <scenario/line>
 ```
 
-listeningは8 primaryと必要なtopupだけを分離して指定する。
+Phase B 597 groupは全量owner聴取を行わず、8 primaryと明示topupからQC優先＋PASQA
+相対順位のwrite-once decisionを作る。同時に選択候補のgender F0 soft signalを作り、
+対象復聴は公開後にsoft signalの付いたgroupだけへ限定する。
 
 ```console
-uv run --project <pipeline> --locked gaya completion listen \
+uv run --project <pipeline> --locked gaya completion auto-decide \
   --plan <absolute-plan.json> --base-manifest <absolute-manifest.json> \
   --scenarios <absolute-scenarios> --voices <absolute-voices> \
   --artifacts <absolute-artifacts> \
@@ -354,27 +359,25 @@ uv run --project <pipeline> --locked gaya completion listen \
   --primary-run-id <irodori> --primary-run-id <qwen> \
   --primary-run-id <supertonic> --primary-run-id <voxcpm2> \
   --topup-run-id <explicit-topup-if-any> \
-  --output <absolute-new-listening-directory>
+  --pasqa-project <absolute-pasqa-ranking-project> \
+  --pasqa-model-dir <absolute-prepared-pasqa-model> \
+  --output <absolute-new-decision-directory>
 ```
 
-bundle は入力 plan の原 canonical bytes を `completion-plan.json`、入力 role anchor
-selection の原 canonical bytesを `role-anchor-selection-v1.json` として保存し、各 SHA
-markerも同梱する。`phase-b-source-map-v1.json` の597 groupは、frozen plan / scenario
-由来の役柄、場面、reading、situation、emotion、intensityを持つ。入力bytes SHAとloaded
-authorityが一致しない場合や非canonical入力の場合は生成しない。ローカル聴取は全候補を
-最後まで再生し、明示的にfinalizeする。
+出力は `role-baseline-decision-v1.json`、`role-quality-signals-v1.json`、ranking input / report
+と各SHA markerを持つ。decision authorityは全件 `auto-selected` であり、owner確認済みを
+装うfieldは持たない。10秒超の音声を切らず、PASQA対象外としてduration順で後置する。
+
+公開後の復核bundleは最終releaseから `review_required` の145件だけを取り出し、公開済み
+selected Opus 1件と役柄情報をwrite-onceで固定する。復核結果はselection authorityではない。
 
 ```console
-vp run listening:start --workflow role-baseline-v1 \
-  --bundle <absolute-new-listening-directory> \
-  --output <absolute-new-result-directory> \
-  --authority-plan <absolute-canonical-plan.json> --port 4173
+uv run --project <pipeline> --locked gaya completion review-bundle \
+  --plan <absolute-plan.json> --base-manifest <absolute-manifest.json> \
+  --release <absolute-release> --source-audit <absolute-source-audit.json> \
+  --artifacts <absolute-artifacts> --scenarios <absolute-scenarios> \
+  --voices <absolute-voices> --output <absolute-new-review-bundle>
 ```
-
-`--authority-plan`はbundle外の既存canonical planを独立authorityとして指定する。CLIと
-daemonはそのraw bytes SHAを再計算し、bundle内`completion-plan.json`とJSON parse前に
-exact照合する。authority planはbundle / output / site / session directory内に置かず、
-symlinkではない通常fileを絶対pathで指定する。anchor workflowではこの引数を拒否する。
 
 finalizeはsource auditをreplacement 597
 （mismatch 357 + unverifiable 145 + match 89 + failure 6）とinherited match 691へ
@@ -386,6 +389,7 @@ uv run --project <pipeline> --locked gaya completion finalize \
   --qwen-curation <absolute-base-qwen-curation.json> \
   --source-audit <absolute-source-audit.json> \
   --decision <absolute-role-baseline-decision.json> \
+  --quality-signals <absolute-role-quality-signals.json> \
   --scenarios <absolute-scenarios> --voices <absolute-voices> \
   --artifacts <absolute-artifacts> \
   --anchor-selection <absolute-role-anchor-selection.json> \
@@ -398,7 +402,8 @@ uv run --project <pipeline> --locked gaya completion finalize \
 ```
 
 publishはimmutable音声を条件付きPUTした後、manifest全candidateを最終HEADする。
-この全量照合が成功した後だけ`--manifest-activation`を置換し、永続receiptを書く。
+この全量照合が成功した後だけquality signalsを先に置き、manifestをactivationとして
+最後に置換して永続receiptを書く。
 R2の複数objectをtransactionとして扱わない。
 
 ```console
@@ -407,6 +412,7 @@ uv run --project <pipeline> --locked gaya completion publish \
   --source-audit <absolute-source-audit.json> \
   --env-file <absolute-r2-credentials> \
   --manifest-activation <absolute-data-manifest.json> \
+  --quality-signals-activation <absolute-data-quality-signals.json> \
   --publish-receipt <absolute-new-publish-receipt.json>
 ```
 

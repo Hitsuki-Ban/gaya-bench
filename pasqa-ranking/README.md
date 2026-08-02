@@ -77,6 +77,21 @@ uv run --project pasqa-ranking --locked gaya-pasqa rank \
 出力は同一 group 内の score 降順ランキングと、入力音声・モデル・runtime の
 provenance を含む。出力先が既に存在する場合は上書きしない。
 
+Phase B の機械選抜では `gaya completion auto-decide` が明示的な16 kHz WAVと
+`phase-b-auto-selection-input-v1` を一時領域へ作り、次の batch commandを呼ぶ。
+PASQA modelは全groupで1回だけloadする。
+
+```console
+uv run --project pasqa-ranking --locked --no-sync gaya-pasqa rank-batch \
+  --model-dir artifacts/models/pasqa \
+  --input artifacts/issue-174/auto-selection-input.json \
+  --output artifacts/issue-174/auto-selection-ranking.json
+```
+
+batch policyは機械QCの `content=pass` を先にし、同一bucket内のPASQA score降順、
+PASQAの10秒上限を超える候補は切り詰めずduration昇順とする。全順位と使用理由を
+reportへ残し、releaseから候補をrejectする用途には使わない。
+
 ## 用途制限
 
 [日本語ネイティブ性調査](../docs/research/expressiveness/ja-nativeness.md)に記録した

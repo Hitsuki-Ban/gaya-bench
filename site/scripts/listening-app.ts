@@ -20,6 +20,9 @@ import {
   LISTENING_STATE_DIR,
   ANCHOR_WORKFLOW,
   BASELINE_WORKFLOW,
+  QUALITY_REVIEW_DRAFT_FILE,
+  QUALITY_REVIEW_FINAL_FILE,
+  QUALITY_REVIEW_WORKFLOW,
   LOG_FILE,
   MUTATION_TOKEN_HEADER,
   SESSION_FILE,
@@ -64,8 +67,11 @@ async function start(options: {
   if (options.workflow === BASELINE_WORKFLOW && options.authorityPlan === null) {
     throw new Error(`${BASELINE_WORKFLOW} は--authority-planが必要です。`);
   }
-  if (options.workflow === ANCHOR_WORKFLOW && options.authorityPlan !== null) {
-    throw new Error(`${ANCHOR_WORKFLOW} は--authority-planを受け付けません。`);
+  if (
+    (options.workflow === ANCHOR_WORKFLOW || options.workflow === QUALITY_REVIEW_WORKFLOW) &&
+    options.authorityPlan !== null
+  ) {
+    throw new Error(`${options.workflow} は--authority-planを受け付けません。`);
   }
   const authority =
     options.authorityPlan === null
@@ -351,7 +357,7 @@ function parseStartArguments(argv: readonly string[]): {
       value === undefined
     ) {
       throw new Error(
-        "usage: vp run listening:start --workflow <role-review-anchor-v2|role-baseline-v1> --bundle <absolute-dir> --output <absolute-dir> [--authority-plan <absolute-canonical-plan.json>] [--port 4173]",
+        "usage: vp run listening:start --workflow <role-review-anchor-v2|role-quality-review-v1> --bundle <absolute-dir> --output <absolute-dir> [--port 4173]",
       );
     }
     if (options.has(key)) {
@@ -370,8 +376,11 @@ function parseStartArguments(argv: readonly string[]): {
   if (workflow === BASELINE_WORKFLOW && authorityPlan === null) {
     throw new Error(`${BASELINE_WORKFLOW} は--authority-planが必要です。`);
   }
-  if (workflow === ANCHOR_WORKFLOW && authorityPlan !== null) {
-    throw new Error(`${ANCHOR_WORKFLOW} は--authority-planを受け付けません。`);
+  if (
+    (workflow === ANCHOR_WORKFLOW || workflow === QUALITY_REVIEW_WORKFLOW) &&
+    authorityPlan !== null
+  ) {
+    throw new Error(`${workflow} は--authority-planを受け付けません。`);
   }
   const portText = options.get("--port");
   const port = portText === undefined ? DEFAULT_PORT : Number(portText);
@@ -386,7 +395,9 @@ function readSession(): ListeningSessionState | null {
     const value = JSON.parse(readFileSync(SESSION_FILE, "utf8")) as Record<string, unknown>;
     if (
       value.protocol !== LISTENING_PROTOCOL ||
-      (value.workflow !== ANCHOR_WORKFLOW && value.workflow !== BASELINE_WORKFLOW) ||
+      (value.workflow !== ANCHOR_WORKFLOW &&
+        value.workflow !== BASELINE_WORKFLOW &&
+        value.workflow !== QUALITY_REVIEW_WORKFLOW) ||
       (value.state !== "starting" && value.state !== "ready") ||
       typeof value.id !== "string" ||
       typeof value.pid !== "number" ||
@@ -441,7 +452,7 @@ async function fetchHealth(
 }
 
 function validSessionAuthority(value: Record<string, unknown>): boolean {
-  if (value.workflow === ANCHOR_WORKFLOW) {
+  if (value.workflow === ANCHOR_WORKFLOW || value.workflow === QUALITY_REVIEW_WORKFLOW) {
     return value.authority_plan === null && value.expected_plan_sha256 === null;
   }
   return (
@@ -456,8 +467,11 @@ function resultFiles(workflow: ListeningWorkflow): {
   readonly draft: string;
   readonly final: string;
 } {
-  return workflow === ANCHOR_WORKFLOW
-    ? { draft: ANCHOR_DRAFT_FILE, final: ANCHOR_FINAL_FILE }
+  if (workflow === ANCHOR_WORKFLOW) {
+    return { draft: ANCHOR_DRAFT_FILE, final: ANCHOR_FINAL_FILE };
+  }
+  return workflow === QUALITY_REVIEW_WORKFLOW
+    ? { draft: QUALITY_REVIEW_DRAFT_FILE, final: QUALITY_REVIEW_FINAL_FILE }
     : { draft: BASELINE_DRAFT_FILE, final: BASELINE_FINAL_FILE };
 }
 

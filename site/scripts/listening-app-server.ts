@@ -26,12 +26,19 @@ export const LISTENING_HOST = "127.0.0.1";
 export const LISTENING_PROTOCOL = "gaya-listening-session-v1";
 export const ANCHOR_WORKFLOW = "role-review-anchor-v2";
 export const BASELINE_WORKFLOW = "role-baseline-v1";
-export type ListeningWorkflow = typeof ANCHOR_WORKFLOW | typeof BASELINE_WORKFLOW;
+export const QUALITY_REVIEW_WORKFLOW = "role-quality-review-v1";
+export type ListeningWorkflow =
+  | typeof ANCHOR_WORKFLOW
+  | typeof BASELINE_WORKFLOW
+  | typeof QUALITY_REVIEW_WORKFLOW;
 export const ANCHOR_BUNDLE_FILE = "role-review-v2.json";
 export const ANCHOR_DRAFT_FILE = "role-review-anchor-draft-v2.json";
 export const ANCHOR_FINAL_FILE = "role-review-anchor-decision-v2.json";
 export const BASELINE_DRAFT_FILE = "role-baseline-draft-v1.json";
 export const BASELINE_FINAL_FILE = "role-baseline-decision-v1.json";
+export const QUALITY_REVIEW_BUNDLE_FILE = "role-quality-review-bundle-v1.json";
+export const QUALITY_REVIEW_DRAFT_FILE = "role-quality-review-draft-v1.json";
+export const QUALITY_REVIEW_FINAL_FILE = "role-quality-review-result-v1.json";
 export const MUTATION_TOKEN_HEADER = "x-gaya-listening-token";
 export const BODY_LIMIT_BYTES = 4 * 1024 * 1024;
 
@@ -212,6 +219,12 @@ export async function validateListeningBundle(
   bundleDirectory: string,
   expectedPlanSha256: string | null,
 ): Promise<ValidatedBundle> {
+  if (workflow === QUALITY_REVIEW_WORKFLOW) {
+    if (expectedPlanSha256 !== null) {
+      throw new Error(`${QUALITY_REVIEW_WORKFLOW} は外部authority planを受け付けません。`);
+    }
+    return validateQualityReviewBundle(bundleDirectory);
+  }
   if (workflow === BASELINE_WORKFLOW) {
     if (expectedPlanSha256 === null) {
       throw new Error(`${BASELINE_WORKFLOW} は外部authority plan SHA-256が必要です。`);
@@ -423,9 +436,9 @@ async function verifyListeningPlanAuthority(options: {
   readonly bundleRoot: string;
   readonly outputRoot: string;
 }): Promise<{ readonly path: string; readonly sha256: string } | null> {
-  if (options.workflow === ANCHOR_WORKFLOW) {
+  if (options.workflow === ANCHOR_WORKFLOW || options.workflow === QUALITY_REVIEW_WORKFLOW) {
     if (options.authorityPlanPath !== null || options.expectedPlanSha256 !== null) {
-      throw new Error(`${ANCHOR_WORKFLOW} は--authority-planを受け付けません。`);
+      throw new Error(`${options.workflow} は--authority-planを受け付けません。`);
     }
     return null;
   }
@@ -804,7 +817,181 @@ function workflowFiles(workflow: ListeningWorkflow): WorkflowFiles {
   if (workflow === ANCHOR_WORKFLOW) {
     return { draft: ANCHOR_DRAFT_FILE, final: ANCHOR_FINAL_FILE };
   }
+  if (workflow === QUALITY_REVIEW_WORKFLOW) {
+    return { draft: QUALITY_REVIEW_DRAFT_FILE, final: QUALITY_REVIEW_FINAL_FILE };
+  }
   return { draft: BASELINE_DRAFT_FILE, final: BASELINE_FINAL_FILE };
+}
+
+const QUALITY_REVIEW_ROOT_KEYS = [
+  "format_version",
+  "protocol",
+  "plan_sha256",
+  "decision_sha256",
+  "manifest_sha256",
+  "quality_signals_sha256",
+  "groups",
+] as const;
+const QUALITY_REVIEW_GROUP_KEYS = [
+  "model",
+  "scenario",
+  "line",
+  "variant",
+  "scenario_title",
+  "text",
+  "delivery",
+  "role",
+  "take_id",
+  "audio_path",
+  "audio_sha256",
+  "expected_gender",
+  "median_f0_hz",
+  "signal",
+] as const;
+const QUALITY_REVIEW_ROLE_KEYS = [
+  "name",
+  "kind",
+  "gender",
+  "age",
+  "archetype",
+  "voice",
+  "personality",
+] as const;
+const QUALITY_REVIEW_GROUP_COUNT = 145;
+
+async function validateQualityReviewBundle(bundleDirectory: string): Promise<ValidatedBundle> {
+  requireAbsoluteDirectory(bundleDirectory, "bundle");
+  const root = path.resolve(bundleDirectory);
+  const bundlePath = path.join(root, QUALITY_REVIEW_BUNDLE_FILE);
+  const markerName = QUALITY_REVIEW_BUNDLE_FILE.replace(".json", ".sha256");
+  const raw = await readFile(bundlePath).catch((reason: unknown) => {
+    throw new Error(`${QUALITY_REVIEW_BUNDLE_FILE} を読めません: ${errorMessage(reason)}`);
+  });
+  assertCanonicalArtifactBytes(raw, QUALITY_REVIEW_BUNDLE_FILE);
+  const bundleSha256 = sha256(raw);
+  if (readShaMarker(root, markerName) !== bundleSha256) {
+    throw new Error(`${markerName} がbundle SHA-256と一致しません。`);
+  }
+  let decoded: unknown;
+  try {
+    decoded = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(raw));
+  } catch (reason: unknown) {
+    throw new Error(
+      `${QUALITY_REVIEW_BUNDLE_FILE} は正しいUTF-8 JSONが必要です: ${errorMessage(reason)}`,
+    );
+  }
+  const document = exactObject(decoded, QUALITY_REVIEW_ROOT_KEYS, "quality review bundle");
+  if (document.format_version !== 1 || document.protocol !== "role-quality-review-bundle-v1") {
+    throw new Error("quality review bundle protocolが不正です。");
+  }
+  for (const field of [
+    "plan_sha256",
+    "decision_sha256",
+    "manifest_sha256",
+    "quality_signals_sha256",
+  ] as const) {
+    sha(document[field], `quality review bundle.${field}`);
+  }
+  if (!Array.isArray(document.groups) || document.groups.length !== QUALITY_REVIEW_GROUP_COUNT) {
+    throw new Error(`quality review bundle groupsはexact ${QUALITY_REVIEW_GROUP_COUNT}件です。`);
+  }
+  const candidates = new Map<string, ValidatedCandidate>();
+  const groupBindings: GroupBinding[] = [];
+  const referencedPaths = new Set<string>([QUALITY_REVIEW_BUNDLE_FILE, markerName]);
+  const coordinates = new Set<string>();
+  for (const [index, value] of document.groups.entries()) {
+    const label = `quality review bundle.groups[${index}]`;
+    const group = exactObject(value, QUALITY_REVIEW_GROUP_KEYS, label);
+    const model = nonEmptyText(group.model, `${label}.model`);
+    const scenario = nonEmptyText(group.scenario, `${label}.scenario`);
+    const line = nonEmptyText(group.line, `${label}.line`);
+    const variant = nonEmptyText(group.variant, `${label}.variant`);
+    for (const field of ["scenario_title", "text", "delivery"] as const) {
+      nonEmptyText(group[field], `${label}.${field}`);
+    }
+    const role = exactObject(group.role, QUALITY_REVIEW_ROLE_KEYS, `${label}.role`);
+    for (const field of QUALITY_REVIEW_ROLE_KEYS) {
+      nonEmptyText(role[field], `${label}.role.${field}`);
+    }
+    const takeId = sha(group.take_id, `${label}.take_id`);
+    const audioSha256 = sha(group.audio_sha256, `${label}.audio_sha256`);
+    const relativePath = nonEmptyText(group.audio_path, `${label}.audio_path`);
+    if (relativePath !== `audio/${takeId}.opus`) {
+      throw new Error(`${label}.audio_pathがtake_idと一致しません。`);
+    }
+    const expectedGender = enumValue(
+      group.expected_gender,
+      ["female", "male"],
+      `${label}.expected_gender`,
+    );
+    const median = group.median_f0_hz;
+    if (
+      median !== null &&
+      (typeof median !== "number" || !Number.isFinite(median) || median <= 0)
+    ) {
+      throw new Error(`${label}.median_f0_hzが不正です。`);
+    }
+    const expectedSignal =
+      median === null
+        ? "gender_f0_unavailable"
+        : expectedGender === "female" && median < 165
+          ? "gender_f0_below_expected"
+          : expectedGender === "male" && median > 180
+            ? "gender_f0_above_expected"
+            : null;
+    if (expectedSignal === null || group.signal !== expectedSignal) {
+      throw new Error(`${label}.signalがsoft F0 policyと一致しません。`);
+    }
+    const coordinate = JSON.stringify([model, scenario, line, variant]);
+    if (coordinates.has(coordinate) || candidates.has(takeId)) {
+      throw new Error(`${label}が重複しています。`);
+    }
+    coordinates.add(coordinate);
+    const absolutePath = safeBundleChild(root, relativePath, `${label}.audio_path`);
+    const info = await stat(absolutePath).catch((reason: unknown) => {
+      throw new Error(`quality review audioがありません: ${errorMessage(reason)}`);
+    });
+    if (!info.isFile()) {
+      throw new Error(`${label}.audio_pathは通常fileが必要です。`);
+    }
+    const audio = await readFile(absolutePath);
+    if (sha256(audio) !== audioSha256) {
+      throw new Error(`${label}.audio_sha256が実fileと一致しません。`);
+    }
+    referencedPaths.add(relativePath);
+    candidates.set(takeId, {
+      id: takeId,
+      path: relativePath,
+      absolutePath,
+      size: info.size,
+      contentType: audioContentType(relativePath),
+    });
+    groupBindings.push({
+      id: coordinate,
+      model,
+      scenario,
+      character: nonEmptyText(role.name, `${label}.role.name`),
+      roleEpochSha256: document.plan_sha256 as string,
+      groupSha256: sha256(canonicalJsonBytes(group, label)),
+      candidateIds: [takeId],
+    });
+  }
+  const actualPaths = listBundleFiles(root);
+  const expectedPaths = [...referencedPaths].sort(compareText);
+  if (
+    actualPaths.length !== expectedPaths.length ||
+    actualPaths.some((value, index) => value !== expectedPaths[index])
+  ) {
+    throw new Error("quality review bundle file setがexact contractと一致しません。 ");
+  }
+  return {
+    workflow: QUALITY_REVIEW_WORKFLOW,
+    document,
+    root,
+    bundleSha256,
+    candidates,
+    groupBindings,
+  };
 }
 
 const BASELINE_METADATA_FILES = [
@@ -1866,10 +2053,36 @@ const BASELINE_DECISION_CANDIDATE_KEYS = [
   "gate",
   "rubric",
 ] as const;
+const QUALITY_REVIEW_DRAFT_ROOT_KEYS = [
+  "format_version",
+  "protocol",
+  "plan_sha256",
+  "decision_sha256",
+  "manifest_sha256",
+  "quality_signals_sha256",
+  "groups",
+  "current_index",
+] as const;
+const QUALITY_REVIEW_RESULT_ROOT_KEYS = QUALITY_REVIEW_DRAFT_ROOT_KEYS.filter(
+  (key) => key !== "current_index",
+);
+const QUALITY_REVIEW_RESULT_GROUP_KEYS = [
+  "model",
+  "scenario",
+  "line",
+  "variant",
+  "take_id",
+  "heard",
+  "result",
+  "notes",
+] as const;
 
 function validateWorkflowDraft(value: unknown, bundle: ValidatedBundle): Record<string, unknown> {
-  return bundle.workflow === ANCHOR_WORKFLOW
-    ? validateDraftDocument(value, bundle)
+  if (bundle.workflow === ANCHOR_WORKFLOW) {
+    return validateDraftDocument(value, bundle);
+  }
+  return bundle.workflow === QUALITY_REVIEW_WORKFLOW
+    ? validateQualityReviewDraft(value, bundle)
     : validateBaselineDraftDocument(value, bundle);
 }
 
@@ -1877,8 +2090,11 @@ function validateWorkflowDecision(
   value: unknown,
   bundle: ValidatedBundle,
 ): Record<string, unknown> {
-  return bundle.workflow === ANCHOR_WORKFLOW
-    ? validateDecisionDocument(value, bundle)
+  if (bundle.workflow === ANCHOR_WORKFLOW) {
+    return validateDecisionDocument(value, bundle);
+  }
+  return bundle.workflow === QUALITY_REVIEW_WORKFLOW
+    ? validateQualityReviewResult(value, bundle)
     : validateBaselineDecisionDocument(value, bundle);
 }
 
@@ -1886,9 +2102,110 @@ function decisionFromWorkflowDraft(
   draft: Record<string, unknown>,
   bundle: ValidatedBundle,
 ): Record<string, unknown> {
-  return bundle.workflow === ANCHOR_WORKFLOW
-    ? decisionFromDraft(draft)
+  if (bundle.workflow === ANCHOR_WORKFLOW) {
+    return decisionFromDraft(draft);
+  }
+  return bundle.workflow === QUALITY_REVIEW_WORKFLOW
+    ? qualityReviewResultFromDraft(draft, bundle)
     : baselineDecisionFromDraft(draft, bundle);
+}
+
+function validateQualityReviewDraft(
+  value: unknown,
+  bundle: ValidatedBundle,
+): Record<string, unknown> {
+  if (bundle.workflow !== QUALITY_REVIEW_WORKFLOW) {
+    throw new Error("quality review draftにはrole-quality-review-v1 bundleが必要です。");
+  }
+  const root = exactObject(value, QUALITY_REVIEW_DRAFT_ROOT_KEYS, "quality review draft");
+  assertQualityReviewRoot(root, "role-quality-review-draft-v1", bundle);
+  const groups = validateQualityReviewResultGroups(root.groups, bundle, false);
+  const currentIndex = nonNegativeInteger(root.current_index, "quality review.current_index");
+  if (currentIndex >= groups.length) {
+    throw new Error("quality review.current_indexがgroup範囲外です。");
+  }
+  return root;
+}
+
+function validateQualityReviewResult(
+  value: unknown,
+  bundle: ValidatedBundle,
+): Record<string, unknown> {
+  if (bundle.workflow !== QUALITY_REVIEW_WORKFLOW) {
+    throw new Error("quality review resultにはrole-quality-review-v1 bundleが必要です。");
+  }
+  const root = exactObject(value, QUALITY_REVIEW_RESULT_ROOT_KEYS, "quality review result");
+  assertQualityReviewRoot(root, "role-quality-review-result-v1", bundle);
+  validateQualityReviewResultGroups(root.groups, bundle, true);
+  return root;
+}
+
+function validateQualityReviewResultGroups(
+  value: unknown,
+  bundle: ValidatedBundle,
+  complete: boolean,
+): readonly Record<string, unknown>[] {
+  const bundleGroups = bundle.document.groups as Record<string, unknown>[];
+  if (!Array.isArray(value) || value.length !== bundleGroups.length) {
+    throw new Error(`quality review groupsはexact ${bundleGroups.length}件が必要です。`);
+  }
+  return value.map((raw, index) => {
+    const label = `quality review.groups[${index}]`;
+    const group = exactObject(raw, QUALITY_REVIEW_RESULT_GROUP_KEYS, label);
+    const binding = bundleGroups[index]!;
+    for (const key of ["model", "scenario", "line", "variant", "take_id"] as const) {
+      if (group[key] !== binding[key]) {
+        throw new Error(`${label}がbundle bindingと一致しません。`);
+      }
+    }
+    if (typeof group.heard !== "boolean") {
+      throw new Error(`${label}.heardはbooleanが必要です。`);
+    }
+    if (group.result !== null && group.result !== "match" && group.result !== "mismatch") {
+      throw new Error(`${label}.resultが不正です。`);
+    }
+    if (typeof group.notes !== "string" || group.notes.length > 500) {
+      throw new Error(`${label}.notesは500文字以内の文字列が必要です。`);
+    }
+    if ((group.result !== null && group.heard !== true) || (complete && group.result === null)) {
+      throw new Error(`${label}は完全再生後の明示判断が必要です。`);
+    }
+    return group;
+  });
+}
+
+function assertQualityReviewRoot(
+  root: Record<string, unknown>,
+  protocol: string,
+  bundle: ValidatedBundle,
+): void {
+  if (
+    root.format_version !== 1 ||
+    root.protocol !== protocol ||
+    root.plan_sha256 !== bundle.document.plan_sha256 ||
+    root.decision_sha256 !== bundle.document.decision_sha256 ||
+    root.manifest_sha256 !== bundle.document.manifest_sha256 ||
+    root.quality_signals_sha256 !== bundle.document.quality_signals_sha256
+  ) {
+    throw new Error("quality review rootがbundleと一致しません。 ");
+  }
+}
+
+function qualityReviewResultFromDraft(
+  draft: Record<string, unknown>,
+  bundle: ValidatedBundle,
+): Record<string, unknown> {
+  validateQualityReviewDraft(draft, bundle);
+  const groups = draft.groups as Record<string, unknown>[];
+  return {
+    format_version: 1,
+    protocol: "role-quality-review-result-v1",
+    plan_sha256: draft.plan_sha256,
+    decision_sha256: draft.decision_sha256,
+    manifest_sha256: draft.manifest_sha256,
+    quality_signals_sha256: draft.quality_signals_sha256,
+    groups: groups.map((group) => ({ ...group })),
+  };
 }
 
 export function validateBaselineDraftDocument(
@@ -3080,8 +3397,11 @@ function parseServerArguments(argv: readonly string[]): {
   ) {
     throw new Error(`${BASELINE_WORKFLOW} は--authority-planが必要です。`);
   }
-  if (workflow === ANCHOR_WORKFLOW && (authorityPlanPath !== null || expectedPlanSha256 !== null)) {
-    throw new Error(`${ANCHOR_WORKFLOW} は--authority-planを受け付けません。`);
+  if (
+    (workflow === ANCHOR_WORKFLOW || workflow === QUALITY_REVIEW_WORKFLOW) &&
+    (authorityPlanPath !== null || expectedPlanSha256 !== null)
+  ) {
+    throw new Error(`${workflow} は--authority-planを受け付けません。`);
   }
   const port = Number(portValue);
   if (!Number.isInteger(port)) {
@@ -3098,9 +3418,12 @@ function parseServerArguments(argv: readonly string[]): {
 }
 
 export function parseWorkflow(value: string): ListeningWorkflow {
-  if (value !== ANCHOR_WORKFLOW && value !== BASELINE_WORKFLOW) {
+  if (value === BASELINE_WORKFLOW) {
+    throw new Error(`${BASELINE_WORKFLOW} は廃止済みの全量聴取workflowであり、起動できません。`);
+  }
+  if (value !== ANCHOR_WORKFLOW && value !== QUALITY_REVIEW_WORKFLOW) {
     throw new Error(
-      `--workflow は${ANCHOR_WORKFLOW}または${BASELINE_WORKFLOW}を明示してください: ${value}`,
+      `--workflow は${ANCHOR_WORKFLOW} / ${QUALITY_REVIEW_WORKFLOW}のいずれかを明示してください: ${value}`,
     );
   }
   return value;

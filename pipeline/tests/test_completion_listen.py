@@ -40,6 +40,7 @@ PRODUCTION_PLAN_PATH = (
     / "full-baseline-completion"
     / "plan.json"
 )
+FROZEN_BASE_MANIFEST_PATH = PRODUCTION_PLAN_PATH.with_name("base-manifest-v4.json")
 
 
 def test_production_generationとlisteningは非正式planを処理前に拒否する(
@@ -166,7 +167,7 @@ def test_authority_bytesはcanonical_SHA_markerをexact検証する(
 def test_source_map_contextは597group全件をfrozen_planとscenarioから構成する() -> None:
     plan = load_completion_plan(
         PRODUCTION_PLAN_PATH,
-        base_manifest_path=REPOSITORY_ROOT / "data" / "manifest.json",
+        base_manifest_path=FROZEN_BASE_MANIFEST_PATH,
         scenarios_dir=REPOSITORY_ROOT / "scenarios",
         voices_dir=REPOSITORY_ROOT / "assets" / "voices",
     )
@@ -440,7 +441,7 @@ def test_plan_load後のscenario改変はauthority構築前に拒否する(
     )
     plan = load_completion_plan(
         PRODUCTION_PLAN_PATH,
-        base_manifest_path=REPOSITORY_ROOT / "data" / "manifest.json",
+        base_manifest_path=FROZEN_BASE_MANIFEST_PATH,
         scenarios_dir=scenarios.resolve(),
         voices_dir=voices.resolve(),
     )

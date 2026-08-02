@@ -40,8 +40,10 @@ class CompletionPublishRecord:
 class CompletionPublishSummary:
     records: tuple[CompletionPublishRecord, ...]
     manifest_activation_path: Path
+    quality_signals_activation_path: Path
     publish_receipt_path: Path
     manifest_sha256: str
+    quality_signals_sha256: str
 
     @property
     def uploaded_count(self) -> int:
@@ -72,6 +74,7 @@ def run_completion_publish(
     source_audit_path: Path,
     client: S3Client,
     manifest_activation_path: Path,
+    quality_signals_activation_path: Path,
     publish_receipt_path: Path,
 ) -> CompletionPublishSummary:
     """Upload immutable audio, verify every object, then activate the manifest."""
@@ -81,6 +84,7 @@ def run_completion_publish(
         (artifacts_dir, "artifacts"),
         (source_audit_path, "source audit"),
         (manifest_activation_path, "manifest activation"),
+        (quality_signals_activation_path, "quality signals activation"),
         (publish_receipt_path, "publish receipt"),
     ):
         if not path.is_absolute():
@@ -91,6 +95,10 @@ def run_completion_publish(
         )
     if not manifest_activation_path.parent.is_dir():
         raise CompletionPublishError("manifest activationの親directoryが存在しません。")
+    if not quality_signals_activation_path.parent.is_dir():
+        raise CompletionPublishError(
+            "quality signals activationの親directoryが存在しません。",
+        )
     if not publish_receipt_path.parent.is_dir():
         raise CompletionPublishError("publish receiptの親directoryが存在しません。")
 
@@ -104,6 +112,7 @@ def run_completion_publish(
         raise CompletionPublishError(f"completion release が不正です: {error}") from error
     try:
         manifest_bytes = release.root.joinpath("manifest-v4.json").read_bytes()
+        quality_signals_bytes = release.root.joinpath("quality-signals.json").read_bytes()
         provenance_bytes = release.root.joinpath(
             "release-provenance.json",
         ).read_bytes()
@@ -112,9 +121,14 @@ def run_completion_publish(
             "preflightでcanonical release bytesを固定できません。",
         ) from error
     manifest_sha256 = hashlib.sha256(manifest_bytes).hexdigest()
+    quality_signals_sha256 = hashlib.sha256(quality_signals_bytes).hexdigest()
     if (
         manifest_bytes != canonical_json(release.manifest).encode("utf-8")
         or manifest_sha256 != release.provenance["manifest_sha256"]
+        or quality_signals_bytes
+        != canonical_json(release.quality_signals).encode("utf-8")
+        or quality_signals_sha256
+        != release.provenance["quality_signals_sha256"]
         or provenance_bytes != canonical_json(release.provenance).encode("utf-8")
     ):
         raise CompletionPublishError(
@@ -191,7 +205,9 @@ def run_completion_publish(
         "status": "activated",
         "release_provenance_sha256": release_provenance_sha256,
         "manifest_sha256": manifest_sha256,
+        "quality_signals_sha256": quality_signals_sha256,
         "activation_path": str(manifest_activation_path),
+        "quality_signals_activation_path": str(quality_signals_activation_path),
         "object_count": len(records),
         "uploaded_count": sum(record.status == "uploaded" for record in records),
         "already_present_count": sum(
@@ -209,31 +225,44 @@ def run_completion_publish(
     }
     receipt_bytes = canonical_json(receipt).encode("utf-8")
     activation_temporary: Path | None = None
+    quality_signals_temporary: Path | None = None
     receipt_temporary: Path | None = None
     try:
         activation_temporary = _prepare_temporary_file(
             manifest_activation_path,
             manifest_bytes,
         )
+        quality_signals_temporary = _prepare_temporary_file(
+            quality_signals_activation_path,
+            quality_signals_bytes,
+        )
         receipt_temporary = _prepare_temporary_file(
             publish_receipt_path,
             receipt_bytes,
+        )
+        _install_file(
+            quality_signals_temporary,
+            quality_signals_activation_path,
         )
         _install_file(activation_temporary, manifest_activation_path)
         _install_file(receipt_temporary, publish_receipt_path)
     except (CompletionPublishError, OSError) as error:
         if activation_temporary is not None:
             activation_temporary.unlink(missing_ok=True)
+        if quality_signals_temporary is not None:
+            quality_signals_temporary.unlink(missing_ok=True)
         if receipt_temporary is not None:
             receipt_temporary.unlink(missing_ok=True)
         raise CompletionPublishError(
-            "final HEAD後のmanifest activation/publish receipt書込みに失敗しました。",
+            "final HEAD後のquality/manifest activation/publish receipt書込みに失敗しました。",
         ) from error
     return CompletionPublishSummary(
         records=tuple(records),
         manifest_activation_path=manifest_activation_path,
+        quality_signals_activation_path=quality_signals_activation_path,
         publish_receipt_path=publish_receipt_path,
         manifest_sha256=manifest_sha256,
+        quality_signals_sha256=quality_signals_sha256,
     )
 
 
