@@ -1,5 +1,6 @@
+import { useEffect } from "react";
 import { ExternalLink, Mic2, Scale, ShieldCheck } from "lucide-react";
-import { Link } from "react-router";
+import { Link, useLocation } from "react-router";
 
 import { PageIntro } from "@/components/page-intro";
 import { Badge } from "@/components/ui/badge";
@@ -14,6 +15,12 @@ const redistributionLabels = {
 
 export function ReferenceVoicesPage() {
   const voices = benchmarkData.credits.reference_voices;
+  const { hash } = useLocation();
+
+  useEffect(() => {
+    if (hash.length <= 1) return;
+    document.getElementById(hash.slice(1))?.scrollIntoView({ block: "start" });
+  }, [hash]);
 
   return (
     <div className="min-w-0 space-y-6">
