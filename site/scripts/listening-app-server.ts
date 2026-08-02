@@ -20,6 +20,8 @@ import { fileURLToPath } from "node:url";
 
 import { createServer, type Plugin, type ViteDevServer } from "vite-plus";
 
+import { assertCanonicalJsonBytes } from "../src/lib/canonical-json.ts";
+
 export const LISTENING_HOST = "127.0.0.1";
 export const LISTENING_PROTOCOL = "gaya-listening-session-v1";
 export const ANCHOR_WORKFLOW = "role-review-anchor-v2";
@@ -225,15 +227,12 @@ export async function validateListeningBundle(
   const raw = await readFile(bundlePath).catch((reason: unknown) => {
     throw new Error(`${ANCHOR_BUNDLE_FILE} を読めません: ${errorMessage(reason)}`);
   });
+  assertCanonicalArtifactBytes(raw, ANCHOR_BUNDLE_FILE);
   let decoded: unknown;
   try {
     decoded = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(raw));
   } catch (reason: unknown) {
     throw new Error(`${ANCHOR_BUNDLE_FILE} は正しいUTF-8 JSONが必要です: ${errorMessage(reason)}`);
-  }
-  const canonical = canonicalJsonBytes(decoded, ANCHOR_BUNDLE_FILE);
-  if (!raw.equals(canonical)) {
-    throw new Error(`${ANCHOR_BUNDLE_FILE} はcanonical JSON bytesが必要です。`);
   }
   const document = validateBundleDocument(decoded);
   const actualPaths = listBundleFiles(root);
@@ -395,15 +394,7 @@ export async function readListeningPlanAuthority(options: {
   }
   assertAuthorityPlanBoundary(authorityPlanPath, options.bundleRoot, options.outputRoot);
   const raw = await readFile(authorityPlanPath);
-  let decoded: unknown;
-  try {
-    decoded = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(raw));
-  } catch (reason: unknown) {
-    throw new Error(`--authority-plan は正しいUTF-8 JSONが必要です: ${errorMessage(reason)}`);
-  }
-  if (!raw.equals(canonicalJsonBytes(decoded, "--authority-plan"))) {
-    throw new Error("--authority-plan はcanonical JSON bytesが必要です。");
-  }
+  assertCanonicalArtifactBytes(raw, "--authority-plan");
   return { path: authorityPlanPath, sha256: sha256(raw) };
 }
 
@@ -1777,14 +1768,12 @@ async function readCanonicalObject(
   const raw = await readFile(path.join(root, name)).catch((reason: unknown) => {
     throw new Error(`${name}を読めません: ${errorMessage(reason)}`);
   });
+  assertCanonicalArtifactBytes(raw, name);
   let decoded: unknown;
   try {
     decoded = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(raw));
   } catch (reason: unknown) {
     throw new Error(`${name}は正しいUTF-8 JSONが必要です: ${errorMessage(reason)}`);
-  }
-  if (!raw.equals(canonicalJsonBytes(decoded, name))) {
-    throw new Error(`${name}はcanonical JSON bytesが必要です。`);
   }
   return exactObject(decoded, keys, name);
 }
@@ -2606,16 +2595,21 @@ async function loadCanonicalDocument(
   validate: (value: unknown) => Record<string, unknown>,
 ): Promise<Record<string, unknown>> {
   const raw = await readFile(pathname);
+  assertCanonicalArtifactBytes(raw, path.basename(pathname));
   let decoded: unknown;
   try {
     decoded = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(raw));
   } catch (reason: unknown) {
     throw new Error(`${path.basename(pathname)} が不正です: ${errorMessage(reason)}`);
   }
-  if (!raw.equals(canonicalJsonBytes(decoded, path.basename(pathname)))) {
-    throw new Error(`${path.basename(pathname)} はcanonical JSON bytesが必要です。`);
-  }
   return validate(decoded);
+}
+
+function assertCanonicalArtifactBytes(raw: Buffer, label: string): void {
+  assertCanonicalJsonBytes(
+    raw.buffer.slice(raw.byteOffset, raw.byteOffset + raw.byteLength) as ArrayBuffer,
+    label,
+  );
 }
 
 async function atomicReplace(pathname: string, bytes: Buffer): Promise<void> {

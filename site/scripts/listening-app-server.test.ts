@@ -210,6 +210,20 @@ describe("listening bundle validation", () => {
     );
   }, 30_000);
 
+  it("Python canonical JSONの1.0をraw artifactの正規表現として受理する", async () => {
+    await withBaselineFixture(async ({ bundleRoot, expectedPlanSha256 }) => {
+      const manifestPath = path.join(bundleRoot, "manifest-v4.json");
+      const manifest = readFileSync(manifestPath, "utf8");
+      const pythonCanonicalFloat = manifest.replace('"duration_sec":1,', '"duration_sec":1.0,');
+      expect(pythonCanonicalFloat).not.toBe(manifest);
+      writeFileSync(manifestPath, pythonCanonicalFloat);
+
+      await expect(
+        validateListeningBundle(BASELINE_WORKFLOW, bundleRoot, expectedPlanSha256),
+      ).resolves.toBeDefined();
+    });
+  }, 30_000);
+
   it("anchor workflowはauthority plan指定を拒否する", async () => {
     await withFixture(async ({ root, bundleRoot, outputRoot }) => {
       const authorityPlanPath = path.join(root, "authority-plan.json");
