@@ -12,15 +12,21 @@ import { spawn, spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
 import {
-  DRAFT_FILE,
-  FINAL_FILE,
+  ANCHOR_DRAFT_FILE,
+  ANCHOR_FINAL_FILE,
+  BASELINE_DRAFT_FILE,
+  BASELINE_FINAL_FILE,
   LISTENING_PROTOCOL,
   LISTENING_STATE_DIR,
-  LISTENING_WORKFLOW,
+  ANCHOR_WORKFLOW,
+  BASELINE_WORKFLOW,
   LOG_FILE,
   MUTATION_TOKEN_HEADER,
   SESSION_FILE,
   type ListeningSessionState,
+  type ListeningWorkflow,
+  parseWorkflow,
+  readListeningPlanAuthority,
 } from "./listening-app-server.ts";
 
 const SERVER_SCRIPT = fileURLToPath(new URL("./listening-app-server.ts", import.meta.url));
@@ -47,12 +53,28 @@ async function main(argv: readonly string[]): Promise<void> {
 }
 
 async function start(options: {
+  readonly workflow: ListeningWorkflow;
   readonly bundle: string;
   readonly output: string;
+  readonly authorityPlan: string | null;
   readonly port: number;
 }): Promise<void> {
   requireAbsoluteDirectory(options.bundle, "--bundle");
   requireAbsoluteDirectory(options.output, "--output");
+  if (options.workflow === BASELINE_WORKFLOW && options.authorityPlan === null) {
+    throw new Error(`${BASELINE_WORKFLOW} は--authority-planが必要です。`);
+  }
+  if (options.workflow === ANCHOR_WORKFLOW && options.authorityPlan !== null) {
+    throw new Error(`${ANCHOR_WORKFLOW} は--authority-planを受け付けません。`);
+  }
+  const authority =
+    options.authorityPlan === null
+      ? null
+      : await readListeningPlanAuthority({
+          authorityPlanPath: options.authorityPlan,
+          bundleRoot: path.resolve(options.bundle),
+          outputRoot: path.resolve(options.output),
+        });
   mkdirSync(LISTENING_STATE_DIR, { recursive: true });
   if (existsSync(SESSION_FILE)) {
     const existing = readSession();
@@ -69,10 +91,15 @@ async function start(options: {
 
   const child = launchDaemon([
     SERVER_SCRIPT,
+    "--workflow",
+    options.workflow,
     "--bundle",
     path.resolve(options.bundle),
     "--output",
     path.resolve(options.output),
+    ...(authority === null
+      ? []
+      : ["--authority-plan", authority.path, "--expected-plan-sha256", authority.sha256]),
     "--port",
     String(options.port),
   ]);
@@ -224,10 +251,17 @@ async function status(): Promise<void> {
       `Gaya listening app は活動中です: ${session.origin}/internal.html#/completion (pid=${session.pid})`,
       `  bundle: ${session.bundle}`,
       `  output: ${session.output}`,
-      `  draft: ${path.join(session.output, DRAFT_FILE)}`,
+      `  workflow: ${session.workflow}`,
+      ...(session.authority_plan === null
+        ? []
+        : [
+            `  authority plan: ${session.authority_plan}`,
+            `  expected plan SHA-256: ${session.expected_plan_sha256}`,
+          ]),
+      `  draft: ${path.join(session.output, resultFiles(session.workflow).draft)}`,
       `  revision: ${String(health.revision)}`,
       `  finalized: ${health.finalized === true ? "yes" : "no"}`,
-      `  decision: ${path.join(session.output, FINAL_FILE)}`,
+      `  decision: ${path.join(session.output, resultFiles(session.workflow).final)}`,
     ].join("\n"),
   );
 }
@@ -298,17 +332,26 @@ function removeSessionIfOwned(sessionId: string): void {
 }
 
 function parseStartArguments(argv: readonly string[]): {
+  readonly workflow: ListeningWorkflow;
   readonly bundle: string;
   readonly output: string;
+  readonly authorityPlan: string | null;
   readonly port: number;
 } {
   const options = new Map<string, string>();
   for (let index = 0; index < argv.length; index += 2) {
     const key = argv[index];
     const value = argv[index + 1];
-    if ((key !== "--bundle" && key !== "--output" && key !== "--port") || value === undefined) {
+    if (
+      (key !== "--workflow" &&
+        key !== "--bundle" &&
+        key !== "--output" &&
+        key !== "--authority-plan" &&
+        key !== "--port") ||
+      value === undefined
+    ) {
       throw new Error(
-        "usage: vp run listening:start --bundle <absolute-dir> --output <absolute-dir> [--port 4173]",
+        "usage: vp run listening:start --workflow <role-review-anchor-v2|role-baseline-v1> --bundle <absolute-dir> --output <absolute-dir> [--authority-plan <absolute-canonical-plan.json>] [--port 4173]",
       );
     }
     if (options.has(key)) {
@@ -318,15 +361,24 @@ function parseStartArguments(argv: readonly string[]): {
   }
   const bundle = options.get("--bundle");
   const output = options.get("--output");
-  if (bundle === undefined || output === undefined) {
-    throw new Error("--bundle と --output は必須です。");
+  const workflowValue = options.get("--workflow");
+  if (workflowValue === undefined || bundle === undefined || output === undefined) {
+    throw new Error("--workflow / --bundle / --output は必須です。");
+  }
+  const workflow = parseWorkflow(workflowValue);
+  const authorityPlan = options.get("--authority-plan") ?? null;
+  if (workflow === BASELINE_WORKFLOW && authorityPlan === null) {
+    throw new Error(`${BASELINE_WORKFLOW} は--authority-planが必要です。`);
+  }
+  if (workflow === ANCHOR_WORKFLOW && authorityPlan !== null) {
+    throw new Error(`${ANCHOR_WORKFLOW} は--authority-planを受け付けません。`);
   }
   const portText = options.get("--port");
   const port = portText === undefined ? DEFAULT_PORT : Number(portText);
   if (!Number.isInteger(port) || port < 1 || port > 65_535) {
     throw new Error("--port は1..65535の整数が必要です。");
   }
-  return { bundle, output, port };
+  return { workflow, bundle, output, authorityPlan, port };
 }
 
 function readSession(): ListeningSessionState | null {
@@ -334,7 +386,7 @@ function readSession(): ListeningSessionState | null {
     const value = JSON.parse(readFileSync(SESSION_FILE, "utf8")) as Record<string, unknown>;
     if (
       value.protocol !== LISTENING_PROTOCOL ||
-      value.workflow !== LISTENING_WORKFLOW ||
+      (value.workflow !== ANCHOR_WORKFLOW && value.workflow !== BASELINE_WORKFLOW) ||
       (value.state !== "starting" && value.state !== "ready") ||
       typeof value.id !== "string" ||
       typeof value.pid !== "number" ||
@@ -346,7 +398,8 @@ function readSession(): ListeningSessionState | null {
       !/^[0-9a-f]{64}$/.test(value.mutation_token) ||
       typeof value.started_at !== "string" ||
       typeof value.bundle !== "string" ||
-      typeof value.output !== "string"
+      typeof value.output !== "string" ||
+      !validSessionAuthority(value)
     ) {
       return null;
     }
@@ -370,8 +423,10 @@ async function fetchHealth(
     if (
       health.status !== "ok" ||
       health.protocol !== LISTENING_PROTOCOL ||
-      health.workflow !== LISTENING_WORKFLOW ||
+      health.workflow !== session.workflow ||
       health.session_id !== session.id ||
+      health.authority_plan !== session.authority_plan ||
+      health.expected_plan_sha256 !== session.expected_plan_sha256 ||
       !Number.isSafeInteger(health.revision) ||
       (health.revision as number) < 0 ||
       typeof health.finalized !== "boolean" ||
@@ -383,6 +438,27 @@ async function fetchHealth(
   } catch {
     return null;
   }
+}
+
+function validSessionAuthority(value: Record<string, unknown>): boolean {
+  if (value.workflow === ANCHOR_WORKFLOW) {
+    return value.authority_plan === null && value.expected_plan_sha256 === null;
+  }
+  return (
+    typeof value.authority_plan === "string" &&
+    path.isAbsolute(value.authority_plan) &&
+    typeof value.expected_plan_sha256 === "string" &&
+    /^[0-9a-f]{64}$/.test(value.expected_plan_sha256)
+  );
+}
+
+function resultFiles(workflow: ListeningWorkflow): {
+  readonly draft: string;
+  readonly final: string;
+} {
+  return workflow === ANCHOR_WORKFLOW
+    ? { draft: ANCHOR_DRAFT_FILE, final: ANCHOR_FINAL_FILE }
+    : { draft: BASELINE_DRAFT_FILE, final: BASELINE_FINAL_FILE };
 }
 
 function requireAbsoluteDirectory(value: string, label: string): void {

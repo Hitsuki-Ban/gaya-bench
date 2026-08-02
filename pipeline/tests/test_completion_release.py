@@ -9,6 +9,10 @@ from typing import Any
 
 import pytest
 
+from gaya_pipeline.completion_listen import (
+    CompletionScenarioAuthority,
+    completion_group_sha256,
+)
 from gaya_pipeline.completion_plan import (
     CompletionPlanError,
     build_frozen_plan_document,
@@ -16,7 +20,6 @@ from gaya_pipeline.completion_plan import (
 )
 from gaya_pipeline.completion_release import (
     CompletionReleaseError,
-    _decision_group_sha256,
     _validate_decision_against_sources,
     _validate_candidate_set_manifest_join,
     _validate_audit_partition,
@@ -258,11 +261,13 @@ def test_decision_group_sha256はsite_candidate_catalogと同じexact投影を�
         "text": "台詞",
         "delivery": "強く",
     }
+    context = _source_context()
     document = {
         "model": identity[0],
         "scenario": identity[1],
         "line": identity[2],
         "variant": identity[3],
+        **context,
         "scenario_title": line["scenario_title"],
         "text": line["text"],
         "delivery": line["delivery"],
@@ -278,9 +283,10 @@ def test_decision_group_sha256はsite_candidate_catalogと同じexact投影を�
             },
         ],
     }
-    assert _decision_group_sha256(
+    assert completion_group_sha256(
         identity=identity,
         line=line,
+        context=context,
         role_epoch_sha256="c" * 64,
         source_run_id="run-1",
         minimum_eligible_candidates=1,
@@ -319,6 +325,7 @@ def test_releaseはdecision_group_sha256をcandidate_catalogから再計算す�
         "delivery": "強く",
     }
     epoch = "c" * 64
+    context = _source_context()
     source = SimpleNamespace(
         run_id="run-1",
         manifest={"candidates": [candidate]},
@@ -327,9 +334,10 @@ def test_releaseはdecision_group_sha256をcandidate_catalogから再計算す�
         expected_role_epochs={identity: epoch},
         group_sources={identity: source},
     )
-    group_sha256 = _decision_group_sha256(
+    group_sha256 = completion_group_sha256(
         identity=identity,
         line=line,
+        context=context,
         role_epoch_sha256=epoch,
         source_run_id=source.run_id,
         minimum_eligible_candidates=1,
@@ -354,11 +362,18 @@ def test_releaseはdecision_group_sha256をcandidate_catalogから再計算す�
             minimum_eligible_candidates=1,
         ),
     )
+    scenario_authority = CompletionScenarioAuthority(
+        scenario_sha256="e" * 64,
+        lines=(line,),
+        contexts={(identity[1], identity[2]): context},
+        line_characters={(identity[1], identity[2]): context["character"]},
+    )
     _validate_decision_against_sources(
         decision_groups={identity: decision_group},
         plan=plan,
         resolution=resolution,
         candidate_set=candidate_set,
+        scenario_authority=scenario_authority,
     )
     with pytest.raises(CompletionReleaseError, match="group_sha256"):
         _validate_decision_against_sources(
@@ -368,4 +383,27 @@ def test_releaseはdecision_group_sha256をcandidate_catalogから再計算す�
             plan=plan,
             resolution=resolution,
             candidate_set=candidate_set,
+            scenario_authority=scenario_authority,
         )
+
+
+def _source_context() -> dict[str, Any]:
+    return {
+        "character": "actor",
+        "role_identity_sha256": "f" * 64,
+        "reference_voice": None,
+        "role": {
+            "name": "Actor",
+            "kind": "human",
+            "gender": "neutral",
+            "age": "adult",
+            "archetype": "fixture",
+            "voice": "fixture voice",
+            "personality": "fixture personality",
+        },
+        "scene_setting": "fixture setting",
+        "reading": None,
+        "situation": "fixture situation",
+        "emotion": "neutral",
+        "intensity": 2,
+    }

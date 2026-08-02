@@ -1,27 +1,45 @@
 from __future__ import annotations
 
 import hashlib
+import json
+import shutil
 from dataclasses import replace
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
 
 import pytest
+import yaml
 
 import gaya_pipeline.completion_listen as completion_listen
 from gaya_pipeline.completion_listen import (
     CompletionListeningError,
     CompletionSourceRun,
     PRIMARY_MODELS,
-    _load_target_lines,
+    _load_completion_scenario_authority,
+    _read_canonical_authority_bytes,
     _validate_manifest_candidate_authority,
     build_completion_listening_bundle,
     phase_b_generation_binding,
     resolve_completion_sources,
 )
-from gaya_pipeline.completion_plan import CompletionPlanError, CompletionTarget
+from gaya_pipeline.completion_plan import (
+    CompletionPlanError,
+    CompletionTarget,
+    load_completion_plan,
+)
 from gaya_pipeline.qc_report import QCAuthority
 from gaya_pipeline.take_identity import canonical_json, derive_seed, make_take_id
+
+
+REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
+PRODUCTION_PLAN_PATH = (
+    REPOSITORY_ROOT
+    / "docs"
+    / "research"
+    / "full-baseline-completion"
+    / "plan.json"
+)
 
 
 def test_production_generationとlisteningは非正式planを処理前に拒否する(
@@ -34,11 +52,13 @@ def test_production_generationとlisteningは非正式planを処理前に拒否�
             plan=plan,
             model="qwen3-tts-12hz-1.7b",
             scenarios_dir=tmp_path / "scenarios",
+            voices_dir=tmp_path / "voices",
             anchor_selection_path=tmp_path / "anchor.json",
         )
     with pytest.raises(CompletionPlanError, match="Phase B production"):
         build_completion_listening_bundle(
             plan=plan,
+            plan_path=(tmp_path / "plan.json").resolve(),
             primary_run_ids=(),
             topup_run_ids=(),
             anchor_selection_path=tmp_path / "anchor.json",
@@ -49,103 +69,391 @@ def test_production_generationとlisteningは非正式planを処理前に拒否�
         )
 
 
-def test_target_linesは重複modelを除いたscenario_line集合を構成する(
+def test_phase_b_generation_bindingは単一scenario_authorityをrole_epochへ渡す(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    scenarios = tmp_path / "scenarios"
-    scenarios.mkdir()
-    (tmp_path / "assets" / "voices").mkdir(parents=True)
+    target = CompletionTarget("model", "scene", "line", "dry")
+    plan = SimpleNamespace(
+        targets_for_model=lambda _model: (target,),
+    )
+    authority = completion_listen.CompletionScenarioAuthority(
+        scenario_sha256="1" * 64,
+        lines=(),
+        contexts={},
+        line_characters={("scene", "line"): "actor"},
+    )
+    captured: dict[str, object] = {}
     monkeypatch.setattr(
         completion_listen,
-        "validate_scenario_ids",
-        lambda *_args, **_kwargs: SimpleNamespace(problems=()),
+        "require_production_completion_plan",
+        lambda _plan: None,
     )
-    (scenarios / "scene.yaml").write_text(
-        """
-format_version: 1
-id: scene
-title: Scene
-locale: ja
-scene:
-  setting: test
-characters:
-  - id: actor
-    name: Actor
-    gender: neutral
-    age: adult
-    voice: Test voice
-lines:
-  - id: line-001
-    character: actor
-    text: 台詞
-    delivery: 強く
-    emotion: neutral
-    intensity: 1
-""".lstrip(),
-        encoding="utf-8",
+    monkeypatch.setattr(
+        completion_listen,
+        "_load_anchor_selection",
+        lambda *_args: ("2" * 64, {}),
+    )
+    monkeypatch.setattr(
+        completion_listen,
+        "_load_completion_scenario_authority",
+        lambda **_kwargs: authority,
+    )
+    monkeypatch.setattr(
+        completion_listen,
+        "expected_phase_b_role_epochs",
+        lambda **kwargs: (
+            captured.update(kwargs) or {target.identity: "3" * 64}
+        ),
     )
 
-    scenario_sha256, lines = _load_target_lines(
-        scenarios_dir=scenarios,
-        voices_dir=tmp_path / "assets" / "voices",
-        targets={("scene", "line-001")},
+    anchor_sha, epochs = phase_b_generation_binding(
+        plan=plan,
+        model="model",
+        scenarios_dir=tmp_path / "scenarios",
+        voices_dir=tmp_path / "voices",
+        anchor_selection_path=tmp_path / "anchor.json",
     )
 
-    assert len(scenario_sha256) == 64
-    assert lines == [
+    assert anchor_sha == "2" * 64
+    assert epochs == {("scene", "line"): "3" * 64}
+    assert captured["line_characters"] is authority.line_characters
+
+
+def test_authority_bytesはcanonical_SHA_markerをexact検証する(
+    tmp_path: Path,
+) -> None:
+    path = (tmp_path / "authority.json").resolve()
+    raw = canonical_json({"protocol": "authority-v1"}).encode("utf-8")
+    digest = hashlib.sha256(raw).hexdigest()
+    path.write_bytes(raw)
+    marker = path.with_suffix(".sha256")
+    marker.write_text(digest, encoding="ascii")
+
+    assert _read_canonical_authority_bytes(
+        path,
+        label="authority",
+        expected_sha256=digest,
+        marker_path=marker,
+    ) == raw
+
+    path.write_text('{"protocol": "authority-v1"}', encoding="utf-8")
+    with pytest.raises(CompletionListeningError, match="canonical bytes"):
+        _read_canonical_authority_bytes(
+            path,
+            label="authority",
+            expected_sha256=digest,
+        )
+
+    path.write_bytes(raw)
+    with pytest.raises(CompletionListeningError, match="loaded authority"):
+        _read_canonical_authority_bytes(
+            path,
+            label="authority",
+            expected_sha256="f" * 64,
+        )
+
+    marker.write_text("e" * 64, encoding="ascii")
+    with pytest.raises(CompletionListeningError, match="SHA marker"):
+        _read_canonical_authority_bytes(
+            path,
+            label="authority",
+            expected_sha256=digest,
+            marker_path=marker,
+        )
+
+
+def test_source_map_contextは597group全件をfrozen_planとscenarioから構成する() -> None:
+    plan = load_completion_plan(
+        PRODUCTION_PLAN_PATH,
+        base_manifest_path=REPOSITORY_ROOT / "data" / "manifest.json",
+        scenarios_dir=REPOSITORY_ROOT / "scenarios",
+        voices_dir=REPOSITORY_ROOT / "assets" / "voices",
+    )
+    authority = _load_completion_scenario_authority(
+        scenarios_dir=REPOSITORY_ROOT / "scenarios",
+        voices_dir=REPOSITORY_ROOT / "assets" / "voices",
+        plan=plan,
+    )
+    contexts = authority.contexts
+    groups = [
         {
-            "scenario": "scene",
-            "line": "line-001",
-            "scenario_title": "Scene",
-            "text": "台詞",
-            "delivery": "強く",
-        },
+            "model": target.model,
+            "scenario": target.scenario,
+            "line": target.line,
+            "variant": target.variant,
+            **contexts[(target.scenario, target.line)],
+        }
+        for target in plan.targets
     ]
 
+    assert len(contexts) == 161
+    assert len(groups) == 597
+    expected_context_fields = {
+        "character",
+        "role_identity_sha256",
+        "reference_voice",
+        "role",
+        "scene_setting",
+        "reading",
+        "situation",
+        "emotion",
+        "intensity",
+    }
+    assert all(expected_context_fields <= set(group) for group in groups)
+    scenario_lines: dict[tuple[str, str], dict[str, Any]] = {}
+    for scenario in sorted({target.scenario for target in plan.targets}):
+        document = yaml.safe_load(
+            (REPOSITORY_ROOT / "scenarios" / f"{scenario}.yaml").read_text(
+                encoding="utf-8",
+            ),
+        )
+        scenario_lines.update(
+            {
+                (scenario, str(line["id"])): line
+                for line in document["lines"]
+            },
+        )
+    for group in groups:
+        line = scenario_lines[(group["scenario"], group["line"])]
+        role = plan.role(group["scenario"], str(line["character"]))
+        assert {
+            field: group[field]
+            for field in expected_context_fields
+        } == {
+            "character": str(line["character"]),
+            "role_identity_sha256": role.role_identity_sha256,
+            "reference_voice": role.reference_voice,
+            "role": dict(role.role),
+            "scene_setting": role.scene_setting,
+            "reading": line.get("reading"),
+            "situation": str(line["situation"]),
+            "emotion": str(line["emotion"]),
+            "intensity": line["intensity"],
+        }
+    guard = contexts[("castle-gate", "guard-otoko-001")]
+    assert guard["character"] == "guard-otoko"
+    assert guard["reading"] is None
+    assert guard["emotion"] == "shout"
+    assert guard["intensity"] == 3
+    assert guard["role"]["gender"] == "male"
+    wounded = contexts[("battlefield-camp", "wounded-001")]
+    assert wounded["reading"] == "グッ……ソコワサワルナ……"
+    assert wounded["situation"] == "傷口に触れられて激痛に耐えている。"
 
-def test_target_linesは存在しないlineを拒否する(
+
+def test_listening_bundleはplanとanchorの入力bytesをそのまま保存する(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    scenarios = tmp_path / "scenarios"
-    scenarios.mkdir()
-    (tmp_path / "assets" / "voices").mkdir(parents=True)
+    identity = ("fixture-model", "fixture-scene", "fixture-line", "dry")
+    plan_raw = canonical_json({"protocol": "fixture-plan-v1"}).encode("utf-8")
+    plan_sha = hashlib.sha256(plan_raw).hexdigest()
+    plan_path = (tmp_path / "plan.json").resolve()
+    plan_path.write_bytes(plan_raw)
+    anchor_raw = canonical_json(
+        {"protocol": "role-anchor-selection-v1"},
+    ).encode("utf-8")
+    anchor_sha = hashlib.sha256(anchor_raw).hexdigest()
+    anchor_path = (tmp_path / "anchor.json").resolve()
+    anchor_path.write_bytes(anchor_raw)
+    anchor_path.with_suffix(".sha256").write_text(anchor_sha, encoding="ascii")
+
+    audio = b"fixture-opus"
+    audio_sha = hashlib.sha256(audio).hexdigest()
+    run_root = (tmp_path / "run").resolve()
+    audio_path = run_root / "take-0001.opus"
+    audio_path.parent.mkdir(parents=True)
+    audio_path.write_bytes(audio)
+    candidate = {
+        "model": identity[0],
+        "scenario": identity[1],
+        "line": identity[2],
+        "variant": identity[3],
+        "take_index": 1,
+        "path": "fixture.opus",
+        "sha256": audio_sha,
+    }
+    model = {"id": identity[0]}
+    run = CompletionSourceRun(
+        run_id="fixture-run",
+        model=identity[0],
+        kind="primary",
+        supersedes_run_id=None,
+        root=run_root,
+        ledger_sha256="2" * 64,
+        qc_report_sha256="3" * 64,
+        manifest_sha256="4" * 64,
+        candidate_set_sha256="5" * 64,
+        manifest={
+            "generated_at": "2026-08-02T00:00:00Z",
+            "models": [model],
+            "candidates": [candidate],
+        },
+        groups=frozenset({identity}),
+        role_epochs={identity: "6" * 64},
+        seed_base=None,
+        attempt_seeds={identity: frozenset()},
+    )
+    resolution = completion_listen.CompletionSourceResolution(
+        runs=(run,),
+        group_sources={identity: run},
+        anchor_selection_sha256=anchor_sha,
+        expected_role_epochs={identity: "6" * 64},
+    )
+    plan = SimpleNamespace(
+        plan_id=plan_sha,
+        raw_sha256=plan_sha,
+        targets=(SimpleNamespace(scenario=identity[1], line=identity[2]),),
+        policy_for_model=lambda _model: SimpleNamespace(
+            minimum_eligible_candidates=1,
+        ),
+    )
+    context = {
+        "character": "actor",
+        "role_identity_sha256": "7" * 64,
+        "reference_voice": None,
+        "role": {
+            "name": "Actor",
+            "kind": "human",
+            "gender": "neutral",
+            "age": "adult",
+            "archetype": "fixture",
+            "voice": "fixture voice",
+            "personality": "fixture personality",
+        },
+        "scene_setting": "fixture setting",
+        "reading": None,
+        "situation": "fixture situation",
+        "emotion": "neutral",
+        "intensity": 2,
+    }
+    scenario_authority = completion_listen.CompletionScenarioAuthority(
+        scenario_sha256="8" * 64,
+        lines=(),
+        contexts={(identity[1], identity[2]): context},
+        line_characters={(identity[1], identity[2]): "actor"},
+    )
+    captured_authorities: list[object] = []
     monkeypatch.setattr(
         completion_listen,
-        "validate_scenario_ids",
-        lambda *_args, **_kwargs: SimpleNamespace(problems=()),
+        "require_production_completion_plan",
+        lambda _plan: None,
     )
-    (scenarios / "scene.yaml").write_text(
-        """
-format_version: 1
-id: scene
-title: Scene
-locale: ja
-scene:
-  setting: test
-characters:
-  - id: actor
-    name: Actor
-    gender: neutral
-    age: adult
-    voice: Test voice
-lines:
-  - id: line-001
-    character: actor
-    text: 台詞
-    delivery: 強く
-    emotion: neutral
-    intensity: 1
-""".lstrip(),
-        encoding="utf-8",
+    monkeypatch.setattr(
+        completion_listen,
+        "resolve_completion_sources",
+        lambda **kwargs: (
+            captured_authorities.append(kwargs["scenario_authority"])
+            or resolution
+        ),
+    )
+    monkeypatch.setattr(
+        completion_listen,
+        "_load_completion_scenario_authority",
+        lambda **_kwargs: scenario_authority,
+    )
+    monkeypatch.setattr(
+        completion_listen,
+        "build_candidate_set",
+        lambda **_kwargs: {"models": [model]},
+    )
+    monkeypatch.setattr(
+        completion_listen,
+        "canonical_candidate_set_bytes",
+        lambda candidate_set: canonical_json(candidate_set).encode("utf-8"),
+    )
+    monkeypatch.setattr(
+        completion_listen,
+        "validate_manifest_v4",
+        lambda manifest: manifest,
+    )
+    monkeypatch.setattr(
+        completion_listen,
+        "_local_audio_path",
+        lambda _root, _candidate: audio_path,
+    )
+    output = (tmp_path / "bundle").resolve()
+
+    build_completion_listening_bundle(
+        plan=plan,
+        plan_path=plan_path,
+        primary_run_ids=(run.run_id,),
+        topup_run_ids=(),
+        anchor_selection_path=anchor_path,
+        artifacts_dir=(tmp_path / "artifacts").resolve(),
+        scenarios_dir=(tmp_path / "scenarios").resolve(),
+        voices_dir=(tmp_path / "voices").resolve(),
+        output_dir=output,
     )
 
-    with pytest.raises(CompletionListeningError, match="ありません"):
-        _load_target_lines(
+    assert captured_authorities == [scenario_authority]
+    assert (output / "completion-plan.json").read_bytes() == plan_raw
+    assert (output / "completion-plan.sha256").read_text() == plan_sha
+    assert (output / "role-anchor-selection-v1.json").read_bytes() == anchor_raw
+    assert (
+        output / "role-anchor-selection-v1.sha256"
+    ).read_text() == anchor_sha
+    source_map = json.loads(
+        (output / "phase-b-source-map-v1.json").read_bytes(),
+    )
+    assert source_map["groups"][0] == {
+        "model": identity[0],
+        "scenario": identity[1],
+        "line": identity[2],
+        "variant": identity[3],
+        **context,
+        "role_epoch_sha256": "6" * 64,
+        "source_run_id": run.run_id,
+        "minimum_eligible_candidates": 1,
+    }
+
+
+@pytest.mark.parametrize(
+    ("scenario", "before", "after"),
+    (
+        (
+            "battlefield-camp",
+            "situation: 傷口に触れられて激痛に耐えている。",
+            "situation: 差し替えられた状況。",
+        ),
+        (
+            "battlefield-camp",
+            "reading: グッ……ソコワサワルナ……",
+            "reading: カイザンシタヨミ",
+        ),
+    ),
+)
+def test_plan_load後のscenario改変はauthority構築前に拒否する(
+    tmp_path: Path,
+    scenario: str,
+    before: str,
+    after: str,
+) -> None:
+    scenarios = tmp_path / "scenarios"
+    voices = tmp_path / "assets" / "voices"
+    shutil.copytree(REPOSITORY_ROOT / "scenarios", scenarios)
+    voices.mkdir(parents=True)
+    shutil.copyfile(
+        REPOSITORY_ROOT / "assets" / "voices" / "metadata.yaml",
+        voices / "metadata.yaml",
+    )
+    plan = load_completion_plan(
+        PRODUCTION_PLAN_PATH,
+        base_manifest_path=REPOSITORY_ROOT / "data" / "manifest.json",
+        scenarios_dir=scenarios.resolve(),
+        voices_dir=voices.resolve(),
+    )
+    scenario_path = scenarios / f"{scenario}.yaml"
+    source = scenario_path.read_text(encoding="utf-8")
+    assert before in source
+    scenario_path.write_text(source.replace(before, after, 1), encoding="utf-8")
+
+    with pytest.raises(CompletionListeningError, match="frozen plan source"):
+        _load_completion_scenario_authority(
             scenarios_dir=scenarios,
-            voices_dir=tmp_path / "assets" / "voices",
-            targets={("scene", "line-999")},
+            voices_dir=voices,
+            plan=plan,
         )
 
 
@@ -188,6 +496,20 @@ def _source_run(
             )
             for group in groups
         },
+    )
+
+
+def _scenario_authority_for_targets(
+    targets: list[CompletionTarget],
+) -> completion_listen.CompletionScenarioAuthority:
+    line_characters = {
+        (target.scenario, target.line): "actor" for target in targets
+    }
+    return completion_listen.CompletionScenarioAuthority(
+        scenario_sha256="9" * 64,
+        lines=(),
+        contexts={},
+        line_characters=line_characters,
     )
 
 
@@ -270,7 +592,7 @@ def test_topupはsuperseded_primaryのgroupを整組取代する(
         topup_run_ids=["topup-1"],
         anchor_selection_path=(tmp_path / "anchor.json").resolve(),
         artifacts_dir=(tmp_path / "artifacts").resolve(),
-        scenarios_dir=(tmp_path / "scenarios").resolve(),
+        scenario_authority=_scenario_authority_for_targets(targets),
     )
 
     assert len(resolution.group_sources) == 597
@@ -298,7 +620,7 @@ def test_topupはsuperseded_primaryのgroupを整組取代する(
             topup_run_ids=["topup-1"],
             anchor_selection_path=(tmp_path / "anchor.json").resolve(),
             artifacts_dir=(tmp_path / "artifacts").resolve(),
-            scenarios_dir=(tmp_path / "scenarios").resolve(),
+            scenario_authority=_scenario_authority_for_targets(targets),
         )
 
 
@@ -386,7 +708,7 @@ def test_topupは既に取代済みgroupへの古いsupersedesを拒否する(
             topup_run_ids=["t1", "t2"],
             anchor_selection_path=(tmp_path / "anchor.json").resolve(),
             artifacts_dir=(tmp_path / "artifacts").resolve(),
-            scenarios_dir=(tmp_path / "scenarios").resolve(),
+            scenario_authority=_scenario_authority_for_targets(plan_targets),
         )
 def test_candidateはledger_QC_generation_provenanceへ逐slot_exact_joinする() -> None:
     group = ("model", "scene", "line", "dry")

@@ -4,6 +4,8 @@ import hashlib
 import json
 import shutil
 from collections.abc import Mapping, Sequence
+from contextlib import contextmanager
+from copy import deepcopy
 from pathlib import Path
 from typing import Any
 
@@ -32,7 +34,8 @@ from gaya_pipeline.generation import (
     GenerationSummary,
     run_generation,
 )
-from gaya_pipeline.take_ledger import read_ledger
+from gaya_pipeline.run_lock import RunLockError
+from gaya_pipeline.take_ledger import read_ledger, write_ledger_atomic
 from gaya_pipeline.take_sidecar import validate_take_sidecar
 
 
@@ -238,6 +241,95 @@ def _run_fake(
     )
 
 
+def _run_phase_b_fake(
+    *,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    adapter: FakeStochasticAdapter,
+    resume_run_id: str | None = None,
+    takes: int = 3,
+) -> GenerationSummary:
+    monkeypatch.setattr(generation, "create_adapter", lambda _model: adapter)
+    return run_generation(
+        model_id=adapter.profile.id,
+        scenarios_dir=_scenarios(tmp_path),
+        artifacts_dir=tmp_path / "artifacts",
+        target_lines=(("tavern-night", "barmaid-001"),),
+        takes=takes,
+        seed_base=104,
+        completion_plan_sha256="a" * 64,
+        role_epochs={("tavern-night", "barmaid-001"): "b" * 64},
+        run_kind="primary",
+        resume_run_id=resume_run_id,
+    )
+
+
+def _minimal_attempt(
+    attempt: Mapping[str, Any],
+    *,
+    status: str,
+) -> dict[str, Any]:
+    generation_status = "planned" if status == "planned" else "failed"
+    generation_payload = {
+        "status": generation_status,
+        "seed": attempt["generation"]["seed"],
+        "sampling": dict(attempt["generation"]["sampling"]),
+    }
+    if status == "generation_failed":
+        generation_payload["error"] = "interrupted fixture failure"
+    return {
+        **{
+            key: attempt[key]
+            for key in (
+                "model",
+                "scenario",
+                "line",
+                "variant",
+                "take_index",
+                "generation_input_sha256",
+                "phase_b_provenance_sha256",
+            )
+        },
+        "generation": generation_payload,
+        "status": status,
+    }
+
+
+def _interrupted_phase_b_run(
+    *,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> tuple[GenerationSummary, dict[str, Any]]:
+    summary = _run_phase_b_fake(
+        tmp_path=tmp_path,
+        monkeypatch=monkeypatch,
+        adapter=FakeStochasticAdapter(),
+    )
+    ledger = read_ledger(summary.ledger_path)
+    original = deepcopy(ledger)
+    ledger["attempts"][1] = _minimal_attempt(
+        ledger["attempts"][1],
+        status="planned",
+    )
+    ledger["attempts"][2] = _minimal_attempt(
+        ledger["attempts"][2],
+        status="generation_failed",
+    )
+    write_ledger_atomic(summary.ledger_path, ledger)
+    failed_base = (
+        summary.ledger_path.parent
+        / "audio"
+        / "fake-stochastic"
+        / "tavern-night"
+        / "barmaid-001"
+        / "dry"
+        / "take-0003"
+    )
+    for suffix in (".wav", ".opus", ".json"):
+        failed_base.with_suffix(suffix).unlink()
+    return summary, original
+
+
 def test_Aivis式seedなしrecipeはnull_seed契約で生成する(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -410,6 +502,301 @@ def test_whole_run_cacheとforceは既存provenanceを変更しない(
         for path in first.ledger_path.parent.rglob("*")
         if path.is_file()
     } == first_bytes
+
+
+def test_phase_b_resumeはgeneratedとfailureを保持しplanned残留だけ清理して続行する(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    fake_audio: AudioTools,
+) -> None:
+    del fake_audio
+    interrupted, original = _interrupted_phase_b_run(
+        tmp_path=tmp_path,
+        monkeypatch=monkeypatch,
+    )
+    run_root = interrupted.ledger_path.parent
+    output_dir = (
+        run_root
+        / "audio"
+        / "fake-stochastic"
+        / "tavern-night"
+        / "barmaid-001"
+        / "dry"
+    )
+    residuals = [
+        output_dir / name
+        for name in (
+            ".take-0002.source.wav",
+            ".take-0002.pending.wav",
+            ".take-0002.pending.opus",
+            ".take-0002.pending.json",
+        )
+    ]
+    for path in residuals:
+        path.write_bytes(b"stale")
+    adapter = FakeStochasticAdapter()
+
+    resumed = _run_phase_b_fake(
+        tmp_path=tmp_path,
+        monkeypatch=monkeypatch,
+        adapter=adapter,
+        resume_run_id=interrupted.run_id,
+    )
+
+    ledger = read_ledger(resumed.ledger_path)
+    assert resumed.run_id == interrupted.run_id
+    assert ledger["created_at"] == original["created_at"]
+    assert ledger["attempts"][0] == original["attempts"][0]
+    assert ledger["attempts"][0]["take_id"] == original["attempts"][0]["take_id"]
+    assert ledger["attempts"][1]["status"] == "generated"
+    assert ledger["attempts"][2]["status"] == "generation_failed"
+    assert ledger["attempts"][2]["generation"]["error"] == (
+        "interrupted fixture failure"
+    )
+    assert [context.index for context in adapter.generate_contexts] == [2]
+    assert resumed.generated_count == 1
+    assert resumed.skipped_count == 1
+    assert resumed.failed_count == 1
+    assert not any(path.exists() for path in residuals)
+
+
+def test_phase_b_resumeは全generated_cache検証後までplanned残留を変更しない(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    fake_audio: AudioTools,
+) -> None:
+    del fake_audio
+    interrupted, _original = _interrupted_phase_b_run(
+        tmp_path=tmp_path,
+        monkeypatch=monkeypatch,
+    )
+    run_root = interrupted.ledger_path.parent
+    planned_residual = (
+        run_root
+        / "audio"
+        / "fake-stochastic"
+        / "tavern-night"
+        / "barmaid-001"
+        / "dry"
+        / ".take-0002.pending.opus"
+    )
+    planned_residual.write_bytes(b"must-remain")
+    generated_wav = (
+        run_root
+        / "audio"
+        / "fake-stochastic"
+        / "tavern-night"
+        / "barmaid-001"
+        / "dry"
+        / "take-0001.wav"
+    )
+    generated_wav.write_bytes(b"corrupt")
+    adapter = FakeStochasticAdapter()
+
+    with pytest.raises(GenerationError):
+        _run_phase_b_fake(
+            tmp_path=tmp_path,
+            monkeypatch=monkeypatch,
+            adapter=adapter,
+            resume_run_id=interrupted.run_id,
+        )
+
+    assert planned_residual.read_bytes() == b"must-remain"
+    assert adapter.generate_contexts == []
+
+
+@pytest.mark.parametrize(
+    "tamper",
+    (
+        "run_id",
+        "source",
+        "model",
+        "plan",
+        "slot",
+        "generation_input",
+        "phase_b_provenance",
+    ),
+)
+def test_phase_b_resumeはledger_authority改ざんを生成前に拒否する(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    fake_audio: AudioTools,
+    tamper: str,
+) -> None:
+    del fake_audio
+    interrupted, _original = _interrupted_phase_b_run(
+        tmp_path=tmp_path,
+        monkeypatch=monkeypatch,
+    )
+    ledger = read_ledger(interrupted.ledger_path)
+    if tamper == "run_id":
+        ledger["run_id"] = "different-run"
+    elif tamper == "source":
+        ledger["source"]["scenario_sha256"] = "c" * 64
+    elif tamper == "model":
+        ledger["source"]["model"] = "different-model"
+    elif tamper == "plan":
+        ledger["source"]["phase_b"]["plan_sha256"] = "d" * 64
+    elif tamper == "slot":
+        ledger["attempts"][1]["line"] = "different-line"
+    elif tamper == "generation_input":
+        ledger["attempts"][1]["generation_input_sha256"] = "e" * 64
+    else:
+        ledger["attempts"][1]["phase_b_provenance_sha256"] = "f" * 64
+    interrupted.ledger_path.write_text(
+        json.dumps(ledger, ensure_ascii=False, sort_keys=True, separators=(",", ":")),
+        encoding="utf-8",
+    )
+    adapter = FakeStochasticAdapter()
+
+    with pytest.raises(GenerationError):
+        _run_phase_b_fake(
+            tmp_path=tmp_path,
+            monkeypatch=monkeypatch,
+            adapter=adapter,
+            resume_run_id=interrupted.run_id,
+        )
+    assert adapter.generate_contexts == []
+
+
+def test_phase_b_resumeはQC状態を拒否しplanned_zeroは副作用なく完了する(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    fake_audio: AudioTools,
+) -> None:
+    del fake_audio
+    complete = _run_phase_b_fake(
+        tmp_path=tmp_path,
+        monkeypatch=monkeypatch,
+        adapter=FakeStochasticAdapter(),
+        takes=2,
+    )
+    adapter = FakeStochasticAdapter()
+    resumed = _run_phase_b_fake(
+        tmp_path=tmp_path,
+        monkeypatch=monkeypatch,
+        adapter=adapter,
+        resume_run_id=complete.run_id,
+        takes=2,
+    )
+    assert resumed.generated_count == 0
+    assert resumed.skipped_count == 2
+    assert adapter.generate_contexts == []
+
+    generated_ledger = read_ledger(complete.ledger_path)
+    qc_ledger = deepcopy(generated_ledger)
+    qc_ledger["attempts"][0]["status"] = "eligible"
+    qc_ledger["attempts"][0]["gates"] = {
+        "mechanical": "pass",
+        "content": "pass",
+    }
+    write_ledger_atomic(complete.ledger_path, qc_ledger)
+    with pytest.raises(GenerationError, match="QC前"):
+        _run_phase_b_fake(
+            tmp_path=tmp_path,
+            monkeypatch=monkeypatch,
+            adapter=FakeStochasticAdapter(),
+            resume_run_id=complete.run_id,
+            takes=2,
+        )
+
+    write_ledger_atomic(complete.ledger_path, generated_ledger)
+    (complete.ledger_path.parent / "qc-report.json").write_text(
+        "{}",
+        encoding="utf-8",
+    )
+    with pytest.raises(GenerationError, match="QC状態"):
+        _run_phase_b_fake(
+            tmp_path=tmp_path,
+            monkeypatch=monkeypatch,
+            adapter=FakeStochasticAdapter(),
+            resume_run_id=complete.run_id,
+            takes=2,
+        )
+
+
+def test_phase_b_resumeは存在しないrunと非PhaseBとforceをfail_fastする(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    fake_audio: AudioTools,
+) -> None:
+    del fake_audio
+    adapter = FakeStochasticAdapter()
+    monkeypatch.setattr(generation, "create_adapter", lambda _model: adapter)
+    with pytest.raises(GenerationError, match="存在しません"):
+        _run_phase_b_fake(
+            tmp_path=tmp_path,
+            monkeypatch=monkeypatch,
+            adapter=adapter,
+            resume_run_id="missing-run",
+        )
+    takes_root = tmp_path / "artifacts" / "takes"
+    assert not takes_root.exists() or list(takes_root.iterdir()) == []
+    with pytest.raises(GenerationError, match="Phase B"):
+        run_generation(
+            model_id=adapter.profile.id,
+            scenarios_dir=_scenarios(tmp_path / "non-phase"),
+            artifacts_dir=tmp_path / "non-phase" / "artifacts",
+            scenario_id="tavern-night",
+            line_id="barmaid-001",
+            takes=1,
+            seed_base=104,
+            resume_run_id="missing-run",
+        )
+    with pytest.raises(GenerationError, match="同時"):
+        run_generation(
+            model_id=adapter.profile.id,
+            scenarios_dir=_scenarios(tmp_path / "force"),
+            artifacts_dir=tmp_path / "force" / "artifacts",
+            target_lines=(("tavern-night", "barmaid-001"),),
+            takes=1,
+            seed_base=104,
+            force=True,
+            completion_plan_sha256="a" * 64,
+            role_epochs={("tavern-night", "barmaid-001"): "b" * 64},
+            run_kind="primary",
+            resume_run_id="missing-run",
+        )
+
+
+def test_generationとresumeはrun_lockを取得し競合失敗を伝播する(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    fake_audio: AudioTools,
+) -> None:
+    del fake_audio
+    locked_roots: list[Path] = []
+
+    @contextmanager
+    def spy_lock(run_root: Path):
+        locked_roots.append(run_root)
+        yield
+
+    monkeypatch.setattr(generation, "exclusive_run_lock", spy_lock)
+    complete = _run_phase_b_fake(
+        tmp_path=tmp_path,
+        monkeypatch=monkeypatch,
+        adapter=FakeStochasticAdapter(),
+        takes=1,
+    )
+    assert locked_roots == [complete.ledger_path.parent]
+
+    @contextmanager
+    def conflicting_lock(_run_root: Path):
+        raise RunLockError("fixture lock conflict")
+        yield
+
+    adapter = FakeStochasticAdapter()
+    monkeypatch.setattr(generation, "exclusive_run_lock", conflicting_lock)
+    with pytest.raises(GenerationError, match="run lock"):
+        _run_phase_b_fake(
+            tmp_path=tmp_path,
+            monkeypatch=monkeypatch,
+            adapter=adapter,
+            resume_run_id=complete.run_id,
+            takes=1,
+        )
+    assert adapter.generate_contexts == []
 
 
 def test_sidecar改ざんrunはwhole_run_cacheとして再利用しない(

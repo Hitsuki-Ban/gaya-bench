@@ -21,16 +21,21 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vite-plus/test";
 
 import {
-  BUNDLE_FILE,
+  ANCHOR_BUNDLE_FILE,
+  ANCHOR_DRAFT_FILE,
+  ANCHOR_FINAL_FILE,
+  ANCHOR_WORKFLOW,
+  BASELINE_DRAFT_FILE,
+  BASELINE_FINAL_FILE,
+  BASELINE_WORKFLOW,
+  assertAuthorityPlanBoundary,
   assertListeningDirectoryBoundaries,
   canonicalJsonBytes,
   createListeningRuntime,
-  DRAFT_FILE,
-  FINAL_FILE,
   MUTATION_TOKEN_HEADER,
   LISTENING_PROTOCOL,
   LISTENING_STATE_DIR,
-  LISTENING_WORKFLOW,
+  readListeningPlanAuthority,
   SESSION_FILE,
   SITE_ROOT,
   validateDecisionDocument,
@@ -43,14 +48,16 @@ const CLI_SCRIPT = fileURLToPath(new URL("./listening-app.ts", import.meta.url))
 describe("listening bundle validation", () => {
   it("canonical JSON、全音声SHA、exact file setを検証する", async () => {
     await withFixture(async ({ bundleRoot, bundle }) => {
-      const validated = await validateListeningBundle(bundleRoot);
+      const validated = await validateListeningBundle(ANCHOR_WORKFLOW, bundleRoot, null);
       expect(validated.candidates.size).toBe(424);
 
       writeFileSync(
-        path.join(bundleRoot, BUNDLE_FILE),
+        path.join(bundleRoot, ANCHOR_BUNDLE_FILE),
         `${canonicalJsonBytes(bundle).toString()}\n`,
       );
-      await expect(validateListeningBundle(bundleRoot)).rejects.toThrow("canonical JSON");
+      await expect(validateListeningBundle(ANCHOR_WORKFLOW, bundleRoot, null)).rejects.toThrow(
+        "canonical JSON",
+      );
     });
   });
 
@@ -58,27 +65,35 @@ describe("listening bundle validation", () => {
     await withFixture(async ({ bundleRoot, bundle }) => {
       const firstCandidate = firstBundleCandidate(bundle);
       writeFileSync(path.join(bundleRoot, firstCandidate.audio_path), "tampered");
-      await expect(validateListeningBundle(bundleRoot)).rejects.toThrow("SHA-256");
+      await expect(validateListeningBundle(ANCHOR_WORKFLOW, bundleRoot, null)).rejects.toThrow(
+        "SHA-256",
+      );
     });
 
     await withFixture(async ({ bundleRoot, bundle }) => {
       firstBundleCandidate(bundle).audio_path = "audio/../escape.wav";
       writeBundle(bundleRoot, bundle);
-      await expect(validateListeningBundle(bundleRoot)).rejects.toThrow("安全なrelative POSIX");
+      await expect(validateListeningBundle(ANCHOR_WORKFLOW, bundleRoot, null)).rejects.toThrow(
+        "安全なrelative POSIX",
+      );
     });
 
     await withFixture(async ({ bundleRoot }) => {
       writeFileSync(path.join(bundleRoot, "unexpected.txt"), "unexpected");
-      await expect(validateListeningBundle(bundleRoot)).rejects.toThrow("file set");
+      await expect(validateListeningBundle(ANCHOR_WORKFLOW, bundleRoot, null)).rejects.toThrow(
+        "file set",
+      );
     });
-  });
+  }, 15_000);
 
   it("model内のrole座標重複とmodel間の座標差を拒否する", async () => {
     await withFixture(async ({ bundleRoot, bundle }) => {
       bundle.groups[1]!.scenario = bundle.groups[0]!.scenario;
       bundle.groups[1]!.character = bundle.groups[0]!.character;
       writeBundle(bundleRoot, bundle);
-      await expect(validateListeningBundle(bundleRoot)).rejects.toThrow("role座標が重複");
+      await expect(validateListeningBundle(ANCHOR_WORKFLOW, bundleRoot, null)).rejects.toThrow(
+        "role座標が重複",
+      );
     });
 
     await withFixture(async ({ bundleRoot, bundle }) => {
@@ -89,7 +104,9 @@ describe("listening bundle validation", () => {
           .localeCompare([right.model, right.scenario, right.character].join("/"), "en"),
       );
       writeBundle(bundleRoot, bundle);
-      await expect(validateListeningBundle(bundleRoot)).rejects.toThrow("同じ53 role座標集合");
+      await expect(validateListeningBundle(ANCHOR_WORKFLOW, bundleRoot, null)).rejects.toThrow(
+        "同じ53 role座標集合",
+      );
     });
   });
 
@@ -101,11 +118,15 @@ describe("listening bundle validation", () => {
         });
       }
       writeBundle(bundleRoot, bundle);
-      await expect(validateListeningBundle(bundleRoot)).resolves.toBeDefined();
+      await expect(
+        validateListeningBundle(ANCHOR_WORKFLOW, bundleRoot, null),
+      ).resolves.toBeDefined();
 
       bundle.groups[0]!.candidates[1]!.attempt = 5;
       writeBundle(bundleRoot, bundle);
-      await expect(validateListeningBundle(bundleRoot)).rejects.toThrow("一意な昇順正整数");
+      await expect(validateListeningBundle(ANCHOR_WORKFLOW, bundleRoot, null)).rejects.toThrow(
+        "一意な昇順正整数",
+      );
     });
   });
 
@@ -122,9 +143,101 @@ describe("listening bundle validation", () => {
     expect(() => assertListeningDirectoryBoundaries(bundle, SITE_ROOT)).toThrow("output は site");
   });
 
+  it.runIf(process.platform === "win32")(
+    "Windows pathのdrive/directory大小文字が違ってもauthority boundaryを拒否する",
+    () => {
+      const bundle = path.join(tmpdir(), "Authority-Bundle");
+      const output = path.join(tmpdir(), "Authority-Output");
+      expect(() =>
+        assertListeningDirectoryBoundaries(swapPathCase(bundle), path.join(bundle, "results")),
+      ).toThrow("互いに独立");
+      expect(() =>
+        assertAuthorityPlanBoundary(swapPathCase(path.join(bundle, "plan.json")), bundle, output),
+      ).toThrow("bundle boundary");
+      expect(() =>
+        assertAuthorityPlanBoundary(swapPathCase(path.join(output, "plan.json")), bundle, output),
+      ).toThrow("output boundary");
+      expect(() =>
+        assertAuthorityPlanBoundary(
+          swapPathCase(path.join(SITE_ROOT, "plan.json")),
+          bundle,
+          output,
+        ),
+      ).toThrow("site boundary");
+      expect(() =>
+        assertAuthorityPlanBoundary(
+          swapPathCase(path.join(LISTENING_STATE_DIR, "plan.json")),
+          bundle,
+          output,
+        ),
+      ).toThrow("listening session boundary");
+      expect(() =>
+        assertAuthorityPlanBoundary(path.join(tmpdir(), "independent-plan.json"), bundle, output),
+      ).not.toThrow();
+    },
+  );
+
+  it("Phase B authority planをbundle/output/site stateから分離しcanonical bytesで固定する", async () => {
+    await withBaselineFixture(
+      async ({ bundleRoot, outputRoot, authorityPlanPath, expectedPlanSha256 }) => {
+        await expect(validateListeningBundle(BASELINE_WORKFLOW, bundleRoot, null)).rejects.toThrow(
+          "外部authority plan",
+        );
+        await expect(
+          readListeningPlanAuthority({
+            authorityPlanPath: path.join(bundleRoot, "completion-plan.json"),
+            bundleRoot,
+            outputRoot,
+          }),
+        ).rejects.toThrow("bundle boundary");
+
+        const nonCanonical = path.join(path.dirname(authorityPlanPath), "noncanonical-plan.json");
+        writeFileSync(nonCanonical, `${readFileSync(authorityPlanPath, "utf8")}\n`);
+        await expect(
+          readListeningPlanAuthority({
+            authorityPlanPath: nonCanonical,
+            bundleRoot,
+            outputRoot,
+          }),
+        ).rejects.toThrow("canonical JSON bytes");
+
+        writeFileSync(path.join(bundleRoot, "manifest-v4.json"), "not-json");
+        writeFileSync(path.join(bundleRoot, "completion-plan.json"), canonicalJsonBytes({}));
+        await expect(
+          validateListeningBundle(BASELINE_WORKFLOW, bundleRoot, expectedPlanSha256),
+        ).rejects.toThrow("外部authorityと一致しません");
+      },
+    );
+  }, 30_000);
+
+  it("anchor workflowはauthority plan指定を拒否する", async () => {
+    await withFixture(async ({ root, bundleRoot, outputRoot }) => {
+      const authorityPlanPath = path.join(root, "authority-plan.json");
+      writeFileSync(authorityPlanPath, canonicalJsonBytes({ format_version: 1 }));
+      const rejected = spawnSync(
+        process.execPath,
+        [
+          CLI_SCRIPT,
+          "start",
+          "--workflow",
+          ANCHOR_WORKFLOW,
+          "--bundle",
+          bundleRoot,
+          "--output",
+          outputRoot,
+          "--authority-plan",
+          authorityPlanPath,
+        ],
+        { encoding: "utf8", timeout: 10_000 },
+      );
+      expect(rejected.status).toBe(1);
+      expect(rejected.stderr).toContain("受け付けません");
+    });
+  });
+
   it("四候補すべて使用不可のdecisionは理由を必須にして候補を偽造しない", async () => {
     await withFixture(async ({ bundleRoot, bundle }) => {
-      const validated = await validateListeningBundle(bundleRoot);
+      const validated = await validateListeningBundle(ANCHOR_WORKFLOW, bundleRoot, null);
       const decision = makeDecision(bundle);
       const first = (
         decision.groups as Array<{
@@ -144,7 +257,7 @@ describe("listening bundle validation", () => {
 
   it("性別不一致のselected anchorをdecisionとして拒否する", async () => {
     await withFixture(async ({ bundleRoot, bundle }) => {
-      const validated = await validateListeningBundle(bundleRoot);
+      const validated = await validateListeningBundle(ANCHOR_WORKFLOW, bundleRoot, null);
       const decision = makeDecision(bundle);
       const first = (decision.groups as Array<{ rubric: Record<string, unknown> }>)[0]!;
       first.rubric.gender = "fail";
@@ -152,15 +265,169 @@ describe("listening bundle validation", () => {
       expect(() => validateDecisionDocument(decision, validated)).toThrow("gender=pass");
     });
   });
+
+  it("Phase Bのcandidate自己申告provenanceとdummy単一model planを拒否する", async () => {
+    await withBaselineFixture(async ({ bundleRoot, expectedPlanSha256 }) => {
+      const candidateSet = JSON.parse(
+        readFileSync(path.join(bundleRoot, "candidate-set.json"), "utf8"),
+      ) as Record<string, unknown>;
+      const manifest = JSON.parse(
+        readFileSync(path.join(bundleRoot, "manifest-v4.json"), "utf8"),
+      ) as Record<string, unknown>;
+      const candidate = (candidateSet.candidates as Record<string, unknown>[])[0]!;
+      const manifestCandidate = (manifest.candidates as Record<string, unknown>[])[0]!;
+      const tamper = (value: Record<string, unknown>) => {
+        const params = value.gen_params as Record<string, unknown>;
+        const requested = params.requested as Record<string, unknown>;
+        const provenance = requested.phase_b_provenance as Record<string, unknown>;
+        provenance.plan_sha256 = "0".repeat(64);
+      };
+      tamper(candidate);
+      tamper(manifestCandidate);
+      const candidateSetBytes = canonicalJsonBytes(candidateSet);
+      const candidateSetSha = hash(candidateSetBytes);
+      manifest.candidate_set_sha256 = candidateSetSha;
+      const sourceMap = JSON.parse(
+        readFileSync(path.join(bundleRoot, "phase-b-source-map-v1.json"), "utf8"),
+      ) as Record<string, unknown>;
+      sourceMap.candidate_set_sha256 = candidateSetSha;
+      const sourceMapBytes = canonicalJsonBytes(sourceMap);
+      writeFileSync(path.join(bundleRoot, "candidate-set.json"), candidateSetBytes);
+      writeFileSync(path.join(bundleRoot, "candidate-set.sha256"), candidateSetSha);
+      writeFileSync(path.join(bundleRoot, "manifest-v4.json"), canonicalJsonBytes(manifest));
+      writeFileSync(path.join(bundleRoot, "phase-b-source-map-v1.json"), sourceMapBytes);
+      writeFileSync(path.join(bundleRoot, "phase-b-source-map-v1.sha256"), hash(sourceMapBytes));
+      await expect(
+        validateListeningBundle(BASELINE_WORKFLOW, bundleRoot, expectedPlanSha256),
+      ).rejects.toThrow("provenance");
+    });
+
+    await withBaselineFixture(async ({ bundleRoot }) => {
+      const plan = JSON.parse(
+        readFileSync(path.join(bundleRoot, "completion-plan.json"), "utf8"),
+      ) as Record<string, unknown>;
+      (plan.models as Record<string, unknown>[])[0]!.id = "dummy-0.5";
+      const planBytes = canonicalJsonBytes(plan);
+      const planSha = hash(planBytes);
+      const sourceMap = JSON.parse(
+        readFileSync(path.join(bundleRoot, "phase-b-source-map-v1.json"), "utf8"),
+      ) as Record<string, unknown>;
+      sourceMap.plan_sha256 = planSha;
+      const sourceMapBytes = canonicalJsonBytes(sourceMap);
+      writeFileSync(path.join(bundleRoot, "completion-plan.json"), planBytes);
+      writeFileSync(path.join(bundleRoot, "completion-plan.sha256"), planSha);
+      writeFileSync(path.join(bundleRoot, "phase-b-source-map-v1.json"), sourceMapBytes);
+      writeFileSync(path.join(bundleRoot, "phase-b-source-map-v1.sha256"), hash(sourceMapBytes));
+      await expect(validateListeningBundle(BASELINE_WORKFLOW, bundleRoot, planSha)).rejects.toThrow(
+        "固定8 model",
+      );
+    });
+  }, 30_000);
 });
 
 describe("listening REST API", () => {
+  it("role-baseline-v1を明示してPhase B bundleを検証・保存・自動回収可能なfinalへ固定する", async () => {
+    await withBaselineFixture(
+      async ({ bundleRoot, outputRoot, authorityPlanPath, expectedPlanSha256 }) => {
+        const port = await unusedPort();
+        const runtime = await createListeningRuntime({
+          workflow: BASELINE_WORKFLOW,
+          bundleDirectory: bundleRoot,
+          outputDirectory: outputRoot,
+          authorityPlanPath,
+          expectedPlanSha256,
+          port,
+          mutationToken: TOKEN,
+        });
+        const server = createHttpServer((request, response) =>
+          runtime.api.handle(request, response),
+        );
+        await listen(server, port);
+        const origin = `http://127.0.0.1:${port}`;
+        try {
+          const bootstrapResponse = await fetch(`${origin}/__gaya-listening/bootstrap`);
+          const bootstrap = (await bootstrapResponse.json()) as Record<string, unknown>;
+          expect(bootstrap).toMatchObject({
+            workflow: BASELINE_WORKFLOW,
+            output: {
+              draft_file: BASELINE_DRAFT_FILE,
+              decision_file: BASELINE_FINAL_FILE,
+            },
+          });
+          const health = (await (
+            await fetch(`${origin}/__gaya-listening/health`)
+          ).json()) as Record<string, unknown>;
+          expect(health).toMatchObject({
+            authority_plan: authorityPlanPath,
+            expected_plan_sha256: expectedPlanSha256,
+          });
+          const bundle = bootstrap.bundle as Record<string, unknown>;
+          const draft = makeBaselineDraft(bundle);
+          const unheard = structuredClone(draft);
+          (unheard.groups as Record<string, unknown>[])[0]!.heard_candidate_ids = [];
+          const rejectedUnheard = await putDraft(origin, unheard, 0, origin, TOKEN);
+          expect(rejectedUnheard.status).toBe(400);
+          expect(await rejectedUnheard.text()).toContain("完全再生");
+          const saved = await putDraft(origin, draft, 0, origin, TOKEN);
+          expect(saved.status, await saved.clone().text()).toBe(200);
+          assertCanonicalResult(outputRoot, BASELINE_DRAFT_FILE, draft, false);
+
+          const decision = makeBaselineDecision(bundle, draft);
+          const finalized = await finalize(origin, decision, 1);
+          expect(finalized.status, await finalized.clone().text()).toBe(200);
+          assertCanonicalResult(outputRoot, BASELINE_FINAL_FILE, decision, true);
+
+          const candidateId = (
+            (bundle.groups as Record<string, unknown>[])[0]!.candidates as Record<string, unknown>[]
+          )[0]!.take_id as string;
+          expect((await fetch(`${origin}/__gaya-listening/audio/${candidateId}`)).status).toBe(200);
+        } finally {
+          await close(server);
+        }
+      },
+    );
+  }, 30_000);
+
+  it("startはworkflow省略やbundle種別の取り違えをfail fastする", async () => {
+    await withFixture(async ({ bundleRoot, outputRoot }) => {
+      const missing = spawnSync(
+        process.execPath,
+        [CLI_SCRIPT, "start", "--bundle", bundleRoot, "--output", outputRoot],
+        { encoding: "utf8", timeout: 10_000 },
+      );
+      expect(missing.status).toBe(1);
+      expect(missing.stderr).toContain("--workflow");
+      const missingAuthority = spawnSync(
+        process.execPath,
+        [
+          CLI_SCRIPT,
+          "start",
+          "--workflow",
+          BASELINE_WORKFLOW,
+          "--bundle",
+          bundleRoot,
+          "--output",
+          outputRoot,
+        ],
+        { encoding: "utf8", timeout: 10_000 },
+      );
+      expect(missingAuthority.status).toBe(1);
+      expect(missingAuthority.stderr).toContain("--authority-plan");
+      await expect(
+        validateListeningBundle(BASELINE_WORKFLOW, bundleRoot, "0".repeat(64)),
+      ).rejects.toThrow("completion-plan.json");
+    });
+  });
+
   it("Origin/token、revision、finalize gate、atomic result、final freezeを強制する", async () => {
     await withFixture(async ({ root, bundleRoot, outputRoot, bundle }) => {
       const port = await unusedPort();
       const runtime = await createListeningRuntime({
+        workflow: ANCHOR_WORKFLOW,
         bundleDirectory: bundleRoot,
         outputDirectory: outputRoot,
+        authorityPlanPath: null,
+        expectedPlanSha256: null,
         port,
         mutationToken: TOKEN,
       });
@@ -193,7 +460,7 @@ describe("listening REST API", () => {
         const saved = await putDraft(origin, draft, 0, origin, TOKEN);
         expect(saved.status).toBe(200);
         expect(await saved.json()).toMatchObject({ revision: 1, saved_at: expect.any(String) });
-        assertCanonicalResult(outputRoot, DRAFT_FILE, draft, false);
+        assertCanonicalResult(outputRoot, ANCHOR_DRAFT_FILE, draft, false);
 
         const stale = await putDraft(origin, draft, 0, origin, TOKEN);
         expect(stale.status).toBe(409);
@@ -216,13 +483,13 @@ describe("listening REST API", () => {
         const decision = makeDecision(bundle);
         const unbound = await finalize(origin, decision, 1);
         expect(unbound.status).toBe(409);
-        expect(await unbound.text()).toContain("確認済みではありません");
+        expect(await unbound.text()).toContain("判断が完了していません");
 
         const completedDraft = makeCompletedDraft(bundle);
         const completedSaved = await putDraft(origin, completedDraft, 1, origin, TOKEN);
         expect(completedSaved.status).toBe(200);
         expect(await completedSaved.json()).toMatchObject({ revision: 2 });
-        assertCanonicalResult(outputRoot, DRAFT_FILE, completedDraft, false);
+        assertCanonicalResult(outputRoot, ANCHOR_DRAFT_FILE, completedDraft, false);
 
         const mismatched = structuredClone(decision);
         (mismatched.groups as Array<Record<string, unknown>>)[0]!.selected_candidate_id =
@@ -233,7 +500,7 @@ describe("listening REST API", () => {
 
         const finalized = await finalize(origin, decision, 2);
         expect(finalized.status, await finalized.clone().text()).toBe(200);
-        assertCanonicalResult(outputRoot, FINAL_FILE, decision, true);
+        assertCanonicalResult(outputRoot, ANCHOR_FINAL_FILE, decision, true);
 
         const frozen = await putDraft(origin, draft, 2, origin, TOKEN);
         expect(frozen.status).toBe(409);
@@ -260,31 +527,37 @@ describe("listening REST API", () => {
   it("write-once finalのmarkerだけが中断した場合は検証済みJSONから復旧する", async () => {
     await withFixture(async ({ bundleRoot, outputRoot, bundle }) => {
       const decision = makeDecision(bundle);
-      writeFileSync(path.join(outputRoot, FINAL_FILE), canonicalJsonBytes(decision));
+      writeFileSync(path.join(outputRoot, ANCHOR_FINAL_FILE), canonicalJsonBytes(decision));
       const port = await unusedPort();
 
       await expect(
         createListeningRuntime({
+          workflow: ANCHOR_WORKFLOW,
           bundleDirectory: bundleRoot,
           outputDirectory: outputRoot,
+          authorityPlanPath: null,
+          expectedPlanSha256: null,
           port,
           mutationToken: TOKEN,
         }),
       ).rejects.toThrow("保存済みdraft");
 
       writeFileSync(
-        path.join(outputRoot, DRAFT_FILE),
+        path.join(outputRoot, ANCHOR_DRAFT_FILE),
         canonicalJsonBytes(makeCompletedDraft(bundle)),
       );
       const runtime = await createListeningRuntime({
+        workflow: ANCHOR_WORKFLOW,
         bundleDirectory: bundleRoot,
         outputDirectory: outputRoot,
+        authorityPlanPath: null,
+        expectedPlanSha256: null,
         port,
         mutationToken: TOKEN,
       });
 
       expect(runtime.api.snapshot().finalized).toBe(true);
-      assertCanonicalResult(outputRoot, FINAL_FILE, decision, true);
+      assertCanonicalResult(outputRoot, ANCHOR_FINAL_FILE, decision, true);
     });
   });
 
@@ -292,8 +565,11 @@ describe("listening REST API", () => {
     await withFixture(async ({ bundleRoot, outputRoot, bundle }) => {
       const port = await unusedPort();
       const runtime = await createListeningRuntime({
+        workflow: ANCHOR_WORKFLOW,
         bundleDirectory: bundleRoot,
         outputDirectory: outputRoot,
+        authorityPlanPath: null,
+        expectedPlanSha256: null,
         port,
         mutationToken: TOKEN,
       });
@@ -334,6 +610,8 @@ describe("listening REST API", () => {
           [
             CLI_SCRIPT,
             "start",
+            "--workflow",
+            ANCHOR_WORKFLOW,
             "--bundle",
             bundleRoot,
             "--output",
@@ -382,6 +660,61 @@ describe("listening REST API", () => {
     });
   }, 60_000);
 
+  it("Phase B start/status/health/sessionを外部authority plan pathとSHAへ固定する", async () => {
+    await withBaselineFixture(
+      async ({ bundleRoot, outputRoot, authorityPlanPath, expectedPlanSha256 }) => {
+        const port = await unusedPort();
+        try {
+          const started = spawnSync(
+            process.execPath,
+            [
+              CLI_SCRIPT,
+              "start",
+              "--workflow",
+              BASELINE_WORKFLOW,
+              "--bundle",
+              bundleRoot,
+              "--output",
+              outputRoot,
+              "--authority-plan",
+              authorityPlanPath,
+              "--port",
+              String(port),
+            ],
+            { encoding: "utf8", timeout: 30_000 },
+          );
+          expect(started.status, processOutput(started)).toBe(0);
+
+          const session = JSON.parse(readFileSync(SESSION_FILE, "utf8")) as Record<string, unknown>;
+          expect(session).toMatchObject({
+            workflow: BASELINE_WORKFLOW,
+            authority_plan: authorityPlanPath,
+            expected_plan_sha256: expectedPlanSha256,
+          });
+          const health = await fetch(`http://127.0.0.1:${port}/__gaya-listening/health`);
+          expect(await health.json()).toMatchObject({
+            authority_plan: authorityPlanPath,
+            expected_plan_sha256: expectedPlanSha256,
+          });
+
+          const status = spawnSync(process.execPath, [CLI_SCRIPT, "status"], {
+            encoding: "utf8",
+            timeout: 10_000,
+          });
+          expect(status.status, processOutput(status)).toBe(0);
+          expect(status.stdout).toContain(`authority plan: ${authorityPlanPath}`);
+          expect(status.stdout).toContain(`expected plan SHA-256: ${expectedPlanSha256}`);
+        } finally {
+          const stopped = spawnSync(process.execPath, [CLI_SCRIPT, "stop"], {
+            encoding: "utf8",
+            timeout: 20_000,
+          });
+          expect(stopped.status, processOutput(stopped)).toBe(0);
+        }
+      },
+    );
+  }, 60_000);
+
   it("session identityを検証できない生存PIDはkillせず停止失敗にする", async () => {
     await withFixture(async ({ bundleRoot, outputRoot }) => {
       mkdirSync(LISTENING_STATE_DIR, { recursive: true });
@@ -389,7 +722,7 @@ describe("listening REST API", () => {
       const session = {
         format_version: 1,
         protocol: LISTENING_PROTOCOL,
-        workflow: LISTENING_WORKFLOW,
+        workflow: ANCHOR_WORKFLOW,
         state: "ready",
         id: "unverified-session",
         pid: process.pid,
@@ -399,6 +732,8 @@ describe("listening REST API", () => {
         started_at: new Date().toISOString(),
         bundle: bundleRoot,
         output: outputRoot,
+        authority_plan: null,
+        expected_plan_sha256: null,
       };
       writeFileSync(SESSION_FILE, canonicalJsonBytes(session));
       try {
@@ -417,6 +752,432 @@ describe("listening REST API", () => {
     });
   });
 });
+
+async function withBaselineFixture(
+  run: (fixture: {
+    readonly bundleRoot: string;
+    readonly outputRoot: string;
+    readonly authorityPlanPath: string;
+    readonly expectedPlanSha256: string;
+  }) => Promise<void>,
+): Promise<void> {
+  const root = mkdtempSync(path.join(tmpdir(), "gaya-listening-baseline-"));
+  try {
+    const bundleRoot = path.join(root, "bundle");
+    const outputRoot = path.join(root, "output");
+    mkdirSync(bundleRoot);
+    mkdirSync(outputRoot);
+    const modelCounts = new Map([
+      ["aivisspeech-kohaku", 25],
+      ["chatterbox-multilingual-v3", 13],
+      ["cosyvoice3-0.5b-2512", 14],
+      ["gpt-sovits-v2-pro-plus", 37],
+      ["irodori-tts-600m-v3-voicedesign", 161],
+      ["qwen3-tts-12hz-1.7b", 161],
+      ["supertonic-3", 25],
+      ["voxcpm2", 161],
+    ]);
+    const revisions = new Map([...modelCounts.keys()].map((model) => [model, `revision-${model}`]));
+    const roles = Array.from({ length: 58 }, (_, index) => {
+      const scenario = `scene-role-${String(index).padStart(3, "0")}`;
+      const character = `character-${String(index).padStart(3, "0")}`;
+      const role = {
+        age: "adult",
+        archetype: "测试角色",
+        gender: index % 2 === 0 ? "male" : "female",
+        kind: "human",
+        name: `角色 ${index}`,
+        personality: "沉着",
+        voice: "清晰自然的声音",
+      };
+      const identity = {
+        scenario,
+        character,
+        role,
+        reference_voice: index < 53 ? null : `reference-${index}`,
+        scene_setting: `测试场景 ${index}`,
+      };
+      return { ...identity, role_identity_sha256: hash(canonicalJsonBytes(identity)) };
+    });
+    const anchorPlanSha = hash("anchor-plan");
+    const anchorCandidateSha = hash("anchor-candidate-set");
+    const anchorGroups = [...modelCounts.keys()]
+      .filter(
+        (model) => model === "irodori-tts-600m-v3-voicedesign" || model === "qwen3-tts-12hz-1.7b",
+      )
+      .flatMap((model) =>
+        roles.slice(0, 53).map((role) => {
+          const anchorId = hash(`anchor:${model}:${role.scenario}:${role.character}`);
+          const reviewEpoch = hash(`review-epoch:${model}:${role.scenario}:${role.character}`);
+          const audioSha = hash(`anchor-audio:${model}:${role.scenario}:${role.character}`);
+          const decision = {
+            character: role.character,
+            confirmed: true,
+            group_sha256: hash(`anchor-group:${model}:${role.scenario}:${role.character}`),
+            heard_candidate_ids: [anchorId],
+            id: hash(`anchor-decision:${model}:${role.scenario}:${role.character}`),
+            line: null,
+            model,
+            no_usable_candidate: false,
+            role_epoch_sha256: reviewEpoch,
+            rubric: completeRubric(),
+            scenario: role.scenario,
+            selected_candidate_id: anchorId,
+          };
+          const decisionSha = hash(canonicalJsonBytes(decision));
+          const roleEpoch = hash(
+            canonicalJsonBytes({
+              anchor_id: anchorId,
+              audio_sha256: audioSha,
+              decision_sha256: decisionSha,
+              model,
+              model_revision: revisions.get(model),
+              protocol: "selected-role-epoch-v1",
+              review_role_epoch_sha256: reviewEpoch,
+              role_identity_sha256: role.role_identity_sha256,
+              scenario: role.scenario,
+              character: role.character,
+            }),
+          );
+          const roleIdentity = { ...role } as Record<string, unknown>;
+          delete roleIdentity.role_identity_sha256;
+          const anchorText = `锚点 ${model} ${role.character}`;
+          return {
+            anchor_id: anchorId,
+            anchor_text: anchorText,
+            anchor_text_sha256: hash(anchorText),
+            attempt: 1,
+            audio_path: `audio/${anchorId}.wav`,
+            audio_sha256: audioSha,
+            character: role.character,
+            decision,
+            decision_sha256: decisionSha,
+            model,
+            model_revision: revisions.get(model),
+            review_role_epoch_sha256: reviewEpoch,
+            role_epoch_sha256: roleEpoch,
+            role_identity: roleIdentity,
+            role_identity_sha256: role.role_identity_sha256,
+            scenario: role.scenario,
+            seed: 1,
+          };
+        }),
+      )
+      .sort((left, right) =>
+        [left.model, left.scenario, left.character]
+          .join("/")
+          .localeCompare([right.model, right.scenario, right.character].join("/"), "en"),
+      );
+    const anchorSelection = {
+      candidate_set_sha256: anchorCandidateSha,
+      format_version: 1,
+      groups: anchorGroups,
+      plan_sha256: anchorPlanSha,
+      protocol: "role-anchor-selection-v1",
+    };
+    const anchorSelectionBytes = canonicalJsonBytes(anchorSelection);
+    const anchorSelectionSha = hash(anchorSelectionBytes);
+    const targetCoordinates = [...modelCounts.entries()].flatMap(([model, count]) =>
+      Array.from({ length: count }, (_, index) => ({
+        model,
+        scenario: roles[index % roles.length]!.scenario,
+        line: `line-${String(index).padStart(3, "0")}`,
+        variant: "dry",
+      })).sort((left, right) =>
+        [left.model, left.scenario, left.line, left.variant]
+          .join("/")
+          .localeCompare([right.model, right.scenario, right.line, right.variant].join("/"), "en"),
+      ),
+    );
+    const plan = {
+      anchor_authority: {
+        candidate_set_sha256: anchorCandidateSha,
+        selection_sha256: anchorSelectionSha,
+        source_plan_sha256: anchorPlanSha,
+      },
+      base: {
+        candidate_set_sha256: hash("base-set"),
+        final_groups: 1288,
+        git_blob: "a".repeat(40),
+        inherited_groups: 691,
+        manifest_sha256: hash("base-manifest"),
+        selection_sha256: hash("base-selection"),
+      },
+      format_version: 2,
+      models: [...modelCounts.keys()].map((id) => ({ id, revision: revisions.get(id) })),
+      phase_b: {
+        model_policies: [...modelCounts.keys()].map((model) => ({
+          minimum_eligible_candidates: model === "aivisspeech-kohaku" ? 1 : 3,
+          model,
+          primary_seed_base: model === "aivisspeech-kohaku" ? null : 104,
+          seed_policy: model === "aivisspeech-kohaku" ? "none" : "derived-sha256-v1",
+          takes: model === "aivisspeech-kohaku" ? 1 : 4,
+        })),
+        targets: targetCoordinates,
+      },
+      protocol: "role-baseline-plan-v2",
+      roles,
+      sources: {
+        scenario_files: [],
+        scenario_registry_sha256: hash("scenario-registry"),
+        voice_registry_path: "assets/voices/metadata.yaml",
+        voice_registry_sha256: hash("voice-registry"),
+      },
+    };
+    const planBytes = canonicalJsonBytes(plan);
+    const planSha = hash(planBytes);
+    const authorityPlanPath = path.join(root, "authority-plan.json");
+    writeFileSync(authorityPlanPath, planBytes);
+    const anchorEpochs = new Map(
+      anchorGroups.map((group) => [
+        JSON.stringify([group.model, group.scenario, group.character]),
+        group.role_epoch_sha256,
+      ]),
+    );
+    const models = [...modelCounts.keys()].map((id) => ({
+      id,
+      name: id,
+      version: revisions.get(id),
+      license_note: "",
+      capabilities: {},
+    }));
+    const lines: Record<string, unknown>[] = [];
+    const lineKeys = new Set<string>();
+    const candidates: Record<string, unknown>[] = [];
+    const sourceGroups: Record<string, unknown>[] = [];
+    for (const [index, target] of targetCoordinates.entries()) {
+      const { model, scenario, line, variant } = target;
+      const role = roles.find((item) => item.scenario === scenario)!;
+      const anchorEpoch = anchorEpochs.get(JSON.stringify([model, scenario, role.character]));
+      const roleEpoch =
+        anchorEpoch ??
+        hash(
+          canonicalJsonBytes({
+            anchor_selection_sha256:
+              model === "irodori-tts-600m-v3-voicedesign" || model === "qwen3-tts-12hz-1.7b"
+                ? anchorSelectionSha
+                : null,
+            character: role.character,
+            model,
+            model_revision: revisions.get(model),
+            plan_sha256: planSha,
+            protocol: "phase-b-role-epoch-v1",
+            reference_voice: role.reference_voice,
+            role_identity_sha256: role.role_identity_sha256,
+            scenario,
+          }),
+        );
+      const provenance = {
+        anchor_plan_sha256:
+          model === "irodori-tts-600m-v3-voicedesign" || model === "qwen3-tts-12hz-1.7b"
+            ? anchorPlanSha
+            : null,
+        anchor_selection_sha256:
+          model === "irodori-tts-600m-v3-voicedesign" || model === "qwen3-tts-12hz-1.7b"
+            ? anchorSelectionSha
+            : null,
+        plan_sha256: planSha,
+        protocol: "phase-b-generation-v2",
+        run_kind: "primary",
+        supersedes_run_id: null,
+        target_group: { line, model, role_epoch_sha256: roleEpoch, scenario, variant },
+      };
+      const lineKey = `${scenario}/${line}`;
+      if (!lineKeys.has(lineKey)) {
+        lineKeys.add(lineKey);
+        lines.push({
+          delivery: "自然に読む",
+          line,
+          scenario,
+          scenario_title: `Scene ${scenario}`,
+          text: `台詞 ${line}`,
+        });
+      }
+      const candidateCount = model === "aivisspeech-kohaku" ? 1 : 3;
+      for (let takeIndex = 1; takeIndex <= candidateCount; takeIndex += 1) {
+        const audio = Buffer.from(`opus:${model}:${index}:${takeIndex}`);
+        const audioSha = hash(audio);
+        const inputSha = hash(`input:${index}:${takeIndex}`);
+        const takeId = hash(
+          `{"final_opus_sha256":"${audioSha}","generation_input_sha256":"${inputSha}"}`,
+        );
+        const localAudio = path.join(
+          bundleRoot,
+          "audio",
+          model,
+          scenario,
+          line,
+          variant,
+          `take-${String(takeIndex).padStart(4, "0")}.opus`,
+        );
+        mkdirSync(path.dirname(localAudio), { recursive: true });
+        writeFileSync(localAudio, audio);
+        candidates.push({
+          duration_sec: 1,
+          gate: { content: "pass", mechanical: "pass", policy_version: "take-gates-v2" },
+          gen_params: {
+            realized: { phase_b_provenance: provenance },
+            recipe_version: "test-v1",
+            requested: { phase_b_provenance: provenance },
+            sampling: {},
+            seed: model === "aivisspeech-kohaku" ? null : index * 10 + takeIndex,
+          },
+          generation_input_sha256: inputSha,
+          line,
+          loudness: { i_lufs: -18, shortfall: false, source: "encoded_opus", tp_dbtp: -1 },
+          model,
+          path: `audio/takes/${model}/${scenario}/${line}/${variant}/take-${String(takeIndex).padStart(4, "0")}-${audioSha}.opus`,
+          rtf: 0.1,
+          scenario,
+          sha256: audioSha,
+          take_id: takeId,
+          take_index: takeIndex,
+          variant,
+        });
+      }
+      sourceGroups.push({
+        character: role.character,
+        emotion: "neutral",
+        intensity: 2,
+        line,
+        minimum_eligible_candidates: model === "aivisspeech-kohaku" ? 1 : 3,
+        model,
+        reading: null,
+        reference_voice: role.reference_voice,
+        role: role.role,
+        role_epoch_sha256: roleEpoch,
+        role_identity_sha256: role.role_identity_sha256,
+        scenario,
+        scene_setting: role.scene_setting,
+        situation: "正在向附近的人说话。",
+        source_run_id: "20260802T010439Z-run-001",
+        variant,
+      });
+    }
+    const candidateSet = {
+      candidates,
+      failures: [],
+      format_version: 4,
+      lines,
+      models,
+      scenario_sha256: hash("scenarios"),
+    };
+    const candidateSetBytes = canonicalJsonBytes(candidateSet);
+    const candidateSetSha = hash(candidateSetBytes);
+    const manifest = {
+      candidate_set_sha256: candidateSetSha,
+      candidates,
+      curations: [],
+      failures: [],
+      format_version: 4,
+      generated_at: "2026-08-02T00:00:00Z",
+      models,
+    };
+    const sourceMap = {
+      anchor_selection_sha256: anchorSelectionSha,
+      candidate_set_sha256: candidateSetSha,
+      format_version: 1,
+      groups: sourceGroups,
+      plan_sha256: planSha,
+      protocol: "phase-b-source-map-v1",
+    };
+    const sourceBytes = canonicalJsonBytes(sourceMap);
+    writeFileSync(path.join(bundleRoot, "candidate-set.json"), candidateSetBytes);
+    writeFileSync(path.join(bundleRoot, "candidate-set.sha256"), candidateSetSha);
+    writeFileSync(path.join(bundleRoot, "completion-plan.json"), planBytes);
+    writeFileSync(path.join(bundleRoot, "completion-plan.sha256"), planSha);
+    writeFileSync(path.join(bundleRoot, "manifest-v4.json"), canonicalJsonBytes(manifest));
+    writeFileSync(path.join(bundleRoot, "role-anchor-selection-v1.json"), anchorSelectionBytes);
+    writeFileSync(path.join(bundleRoot, "role-anchor-selection-v1.sha256"), anchorSelectionSha);
+    writeFileSync(path.join(bundleRoot, "phase-b-source-map-v1.json"), sourceBytes);
+    writeFileSync(path.join(bundleRoot, "phase-b-source-map-v1.sha256"), hash(sourceBytes));
+    await run({
+      bundleRoot,
+      outputRoot,
+      authorityPlanPath,
+      expectedPlanSha256: planSha,
+    });
+  } finally {
+    rmSync(root, { force: true, recursive: true });
+  }
+}
+
+function makeBaselineDraft(bundle: Record<string, unknown>): Record<string, unknown> {
+  const rubric = {
+    accent_naturalness: 4,
+    adoptable: true,
+    audio_quality: 4,
+    content_correct: true,
+    delivery_match: 4,
+    notes: "",
+    prompt_leakage: false,
+    reading_correct: true,
+    role_match: 4,
+  };
+  return {
+    anchor_selection_sha256: bundle.anchor_selection_sha256,
+    candidate_set_sha256: bundle.candidate_set_sha256,
+    format_version: 1,
+    groups: (bundle.groups as Record<string, unknown>[]).map((group) => ({
+      anchor_selection_sha256: bundle.anchor_selection_sha256,
+      candidate_set_sha256: bundle.candidate_set_sha256,
+      candidates: (group.export_candidates as Record<string, unknown>[]).map((candidate) => ({
+        rubric,
+        take_id: candidate.take_id,
+      })),
+      decision: {
+        take_id: (group.export_candidates as Record<string, unknown>[])[0]!.take_id,
+        type: "selected",
+      },
+      group_sha256: group.group_sha256,
+      heard_candidate_ids: (group.export_candidates as Record<string, unknown>[]).map(
+        (candidate) => candidate.take_id,
+      ),
+      line: group.line,
+      model: group.model,
+      plan_sha256: bundle.plan_sha256,
+      revalidation_reason: null,
+      role_epoch_sha256: group.role_epoch_sha256,
+      scenario: group.scenario,
+      variant: group.variant,
+    })),
+    plan_sha256: bundle.plan_sha256,
+    protocol: "role-baseline-draft-v1",
+  };
+}
+
+function makeBaselineDecision(
+  bundle: Record<string, unknown>,
+  draft: Record<string, unknown>,
+): Record<string, unknown> {
+  const draftGroups = draft.groups as Record<string, unknown>[];
+  return {
+    anchor_selection_sha256: bundle.anchor_selection_sha256,
+    candidate_set_sha256: bundle.candidate_set_sha256,
+    format_version: 1,
+    groups: (bundle.groups as Record<string, unknown>[]).map((group, index) => ({
+      authority: {
+        minimum_eligible_candidates: group.minimum_eligible_candidates,
+        policy_version: "missing-slot-best-of-n-v1",
+        reviewer: "owner",
+        type: "best_available",
+      },
+      candidates: (group.export_candidates as Record<string, unknown>[]).map((candidate) => ({
+        ...candidate,
+        rubric: (draftGroups[index]!.candidates as Record<string, unknown>[])[0]!.rubric,
+      })),
+      decision: draftGroups[index]!.decision,
+      group_sha256: group.group_sha256,
+      line: group.line,
+      model: group.model,
+      role_epoch_sha256: group.role_epoch_sha256,
+      scenario: group.scenario,
+      variant: group.variant,
+    })),
+    plan_sha256: bundle.plan_sha256,
+    protocol: "role-baseline-decision-v1",
+  };
+}
 
 interface Fixture {
   readonly root: string;
@@ -527,7 +1288,7 @@ function writeBundle(bundleRoot: string, bundle: TestBundle): void {
       delete candidate.audio_contents;
     }
   }
-  writeFileSync(path.join(bundleRoot, BUNDLE_FILE), canonicalJsonBytes(diskBundle));
+  writeFileSync(path.join(bundleRoot, ANCHOR_BUNDLE_FILE), canonicalJsonBytes(diskBundle));
 }
 
 function makeDraft(bundle: TestBundle): Record<string, unknown> {
@@ -734,6 +1495,12 @@ function assertCanonicalResult(
 
 function hash(value: string | NodeJS.ArrayBufferView): string {
   return createHash("sha256").update(value).digest("hex");
+}
+
+function swapPathCase(value: string): string {
+  return value.replace(/[a-z]/gi, (character) =>
+    character === character.toLowerCase() ? character.toUpperCase() : character.toLowerCase(),
+  );
 }
 
 async function unusedPort(): Promise<number> {

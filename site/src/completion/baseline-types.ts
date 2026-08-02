@@ -20,13 +20,32 @@ export interface BaselineExportCandidate {
   readonly gate: BaselineGate;
 }
 
+export interface BaselineRole {
+  readonly name: string;
+  readonly kind: string;
+  readonly gender: string;
+  readonly age: string;
+  readonly archetype: string;
+  readonly voice: string;
+  readonly personality: string;
+}
+
 export interface BaselineGroup {
   readonly model: string;
   readonly scenario: string;
   readonly line: string;
   readonly variant: string;
+  readonly character: string;
+  readonly roleIdentitySha256: string;
+  readonly referenceVoice: string | null;
+  readonly role: BaselineRole;
+  readonly sceneSetting: string;
   readonly scenarioTitle: string;
   readonly lineText: string;
+  readonly reading: string | null;
+  readonly situation: string;
+  readonly emotion: string;
+  readonly intensity: number;
   readonly delivery: string;
   readonly roleEpochSha256: string;
   readonly sourceRunId: string;
@@ -72,6 +91,7 @@ export interface BaselineGroupDraft {
   readonly anchor_selection_sha256: string;
   readonly candidate_set_sha256: string;
   readonly revalidation_reason: string | null;
+  readonly heard_candidate_ids: readonly string[];
   readonly candidates: readonly BaselineCandidateDraft[];
   readonly decision: { readonly type: "selected"; readonly take_id: string } | null;
 }

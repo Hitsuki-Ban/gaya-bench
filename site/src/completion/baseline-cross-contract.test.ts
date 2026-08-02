@@ -12,6 +12,7 @@ import { sha256Text } from "@/lib/sha256";
 import { loadBaselineCatalog } from "./baseline-contract";
 import { buildBaselineDecisionJson } from "./baseline-export";
 import { createBaselineDraft } from "./baseline-storage";
+import { BASELINE_WORKFLOW, validateListeningBundle } from "../../scripts/listening-app-server";
 
 describe("Phase B Python / site cross contract", () => {
   it("Python producerの597-group実fixtureとgroup別minimumを検証し、site decisionをPython validatorへ戻す", async () => {
@@ -32,6 +33,14 @@ describe("Phase B Python / site cross contract", () => {
       expect(produced.status, processFailure(produced)).toBe(0);
 
       const bundleRoot = join(fixtureRoot, "bundle");
+      const authorityPlan = readFileSync(join(fixtureRoot, "fixture-plan.json"), "utf8");
+      const daemonBundle = await validateListeningBundle(
+        BASELINE_WORKFLOW,
+        bundleRoot,
+        await sha256Text(authorityPlan),
+      );
+      expect(daemonBundle.candidates.size).toBeGreaterThanOrEqual(597);
+      expect(daemonBundle.document.groups as unknown[]).toHaveLength(597);
       const files = diskDirectoryFiles(bundleRoot);
       const catalog = await loadBaselineCatalog(files, NOOP_OBJECT_URLS);
       expect(catalog.groups).toHaveLength(597);
@@ -93,6 +102,7 @@ describe("Phase B Python / site cross contract", () => {
         ...empty,
         groups: empty.groups.map((group) => ({
           ...group,
+          heard_candidate_ids: group.candidates.map((candidate) => candidate.take_id),
           candidates: group.candidates.map((candidate) => ({
             ...candidate,
             rubric,
@@ -112,12 +122,9 @@ describe("Phase B Python / site cross contract", () => {
           pipelineRoot,
           "--locked",
           "python",
-          "-c",
-          [
-            "import json,sys",
-            "from gaya_pipeline.completion_selection import canonical_completion_decision_bytes",
-            "sys.stdout.buffer.write(canonical_completion_decision_bytes(json.load(sys.stdin)))",
-          ].join(";"),
+          generator,
+          "validate-decision",
+          bundleRoot,
         ],
         { encoding: "utf8", input: decision, maxBuffer: 16 * 1024 * 1024 },
       );

@@ -30,6 +30,15 @@ const SOURCE_MAP_GROUP_KEYS = [
   "scenario",
   "line",
   "variant",
+  "character",
+  "role_identity_sha256",
+  "reference_voice",
+  "role",
+  "scene_setting",
+  "reading",
+  "situation",
+  "emotion",
+  "intensity",
   "role_epoch_sha256",
   "source_run_id",
   "minimum_eligible_candidates",
@@ -38,7 +47,10 @@ const REQUIRED_ROOT_FILES = [
   "manifest-v4.json",
   "candidate-set.json",
   "candidate-set.sha256",
+  "completion-plan.json",
   BASELINE_PLAN_MARKER,
+  "role-anchor-selection-v1.json",
+  "role-anchor-selection-v1.sha256",
   BASELINE_SOURCE_MAP_FILE,
   BASELINE_SOURCE_MAP_MARKER,
 ] as const;
@@ -48,6 +60,23 @@ interface BaselineSourceGroup {
   readonly scenario: string;
   readonly line: string;
   readonly variant: string;
+  readonly character: string;
+  readonly role_identity_sha256: string;
+  readonly reference_voice: string | null;
+  readonly role: {
+    readonly name: string;
+    readonly kind: string;
+    readonly gender: string;
+    readonly age: string;
+    readonly archetype: string;
+    readonly voice: string;
+    readonly personality: string;
+  };
+  readonly scene_setting: string;
+  readonly reading: string | null;
+  readonly situation: string;
+  readonly emotion: string;
+  readonly intensity: number;
   readonly role_epoch_sha256: string;
   readonly source_run_id: string;
   readonly minimum_eligible_candidates: number;
@@ -131,6 +160,15 @@ export async function loadBaselineCatalog(
               scenario: group.scenario,
               line: group.line,
               variant: group.variant,
+              character: source.character,
+              role_identity_sha256: source.role_identity_sha256,
+              reference_voice: source.reference_voice,
+              role: source.role,
+              scene_setting: source.scene_setting,
+              reading: source.reading,
+              situation: source.situation,
+              emotion: source.emotion,
+              intensity: source.intensity,
               scenario_title: group.scenarioTitle,
               text: group.lineText,
               delivery: group.delivery,
@@ -149,6 +187,15 @@ export async function loadBaselineCatalog(
         );
         return {
           ...group,
+          character: source.character,
+          roleIdentitySha256: source.role_identity_sha256,
+          referenceVoice: source.reference_voice,
+          role: source.role,
+          sceneSetting: source.scene_setting,
+          reading: source.reading,
+          situation: source.situation,
+          emotion: source.emotion,
+          intensity: source.intensity,
           roleEpochSha256: source.role_epoch_sha256,
           sourceRunId: source.source_run_id,
           minimumEligibleCandidates: source.minimum_eligible_candidates,
@@ -210,6 +257,15 @@ export function validateBaselineSourceMap(value: unknown): BaselineSourceMap {
       scenario: pathSegment(group.scenario, `${field}.scenario`),
       line: pathSegment(group.line, `${field}.line`),
       variant: pathSegment(group.variant, `${field}.variant`),
+      character: pathSegment(group.character, `${field}.character`),
+      role_identity_sha256: sha(group.role_identity_sha256, `${field}.role_identity_sha256`),
+      reference_voice: nullableText(group.reference_voice, `${field}.reference_voice`),
+      role: validateSourceRole(group.role, `${field}.role`),
+      scene_setting: nonEmptyText(group.scene_setting, `${field}.scene_setting`),
+      reading: nullableText(group.reading, `${field}.reading`),
+      situation: nonEmptyText(group.situation, `${field}.situation`),
+      emotion: nonEmptyText(group.emotion, `${field}.emotion`),
+      intensity: positiveInteger(group.intensity, `${field}.intensity`),
       role_epoch_sha256: sha(group.role_epoch_sha256, `${field}.role_epoch_sha256`),
       source_run_id: pathSegment(group.source_run_id, `${field}.source_run_id`),
       minimum_eligible_candidates: positiveInteger(
@@ -236,6 +292,28 @@ export function validateBaselineSourceMap(value: unknown): BaselineSourceMap {
     candidate_set_sha256: candidateSetSha256,
     groups,
   };
+}
+
+function validateSourceRole(value: unknown, label: string): BaselineSourceGroup["role"] {
+  const role = exactObject(
+    value,
+    ["name", "kind", "gender", "age", "archetype", "voice", "personality"],
+    label,
+  );
+  return {
+    name: nonEmptyText(role.name, `${label}.name`),
+    kind: nonEmptyText(role.kind, `${label}.kind`),
+    gender: nonEmptyText(role.gender, `${label}.gender`),
+    age: nonEmptyText(role.age, `${label}.age`),
+    archetype: nonEmptyText(role.archetype, `${label}.archetype`),
+    voice: nonEmptyText(role.voice, `${label}.voice`),
+    personality: nonEmptyText(role.personality, `${label}.personality`),
+  };
+}
+
+function nullableText(value: unknown, label: string): string | null {
+  if (value === null) return null;
+  return nonEmptyText(value, label);
 }
 
 function validateGate(value: unknown, label: string): BaselineGate {

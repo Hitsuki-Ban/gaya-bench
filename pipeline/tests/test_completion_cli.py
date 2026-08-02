@@ -67,6 +67,8 @@ def test_completion_generateはphase_b契約を全て明示する(
             "primary",
             "--seed-base",
             "104",
+            "--resume-run-id",
+            "interrupted-voxcpm2-run",
         ],
     )
     assert result == 0
@@ -74,6 +76,7 @@ def test_completion_generateはphase_b契約を全て明示する(
     assert captured["role_epochs"] == {("scene", "line"): "c" * 64}
     assert captured["run_kind"] == "primary"
     assert captured["supersedes_run_id"] is None
+    assert captured["resume_run_id"] == "interrupted-voxcpm2-run"
     assert captured["takes"] == 4
     assert captured["seed_base"] == 104
     assert captured["role_anchor_selection_path"] == anchor
@@ -374,6 +377,7 @@ def test_completion_listenは八主runとtopupを分離する(
     assert result == 0
     assert captured["primary_run_ids"] == [f"primary-{index}" for index in range(8)]
     assert captured["topup_run_ids"] == ["topup-1"]
+    assert captured["plan_path"] == (tmp_path / "plan.json").resolve()
 
 
 def test_completion_publishはactivationとreceiptを明示する(

@@ -1,6 +1,6 @@
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it } from "vite-plus/test";
+import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 
 import { CompletionRubricFields } from "./completion-rubric-fields";
 import {
@@ -10,6 +10,7 @@ import {
   validateRoleReviewBundle,
 } from "./contract";
 import { EMPTY_ROLE_REVIEW_RUBRIC } from "./storage";
+import { loadLocalListeningBootstrap } from "./local-listening-session";
 import type { RoleReviewBundle } from "./types";
 
 describe("role-review-v2 contract", () => {
@@ -160,6 +161,74 @@ describe("中文紧凑问题入口", () => {
 
     expect(markup).toContain("先选择一条，再标问题");
     expect(markup).toContain("disabled");
+  });
+});
+
+describe("native listening workflow route", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("只接受显式role-baseline-v1及其固定结果文件名", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        async () =>
+          new Response(
+            JSON.stringify({
+              bundle: {
+                anchor_selection_sha256: "b".repeat(64),
+                candidate_set_sha256: "c".repeat(64),
+                format_version: 1,
+                groups: [],
+                plan_sha256: "a".repeat(64),
+                protocol: "role-baseline-listening-v1",
+              },
+              finalized: false,
+              format_version: 1,
+              mutation_token: "d".repeat(64),
+              output: {
+                decision_file: "role-baseline-decision-v1.json",
+                directory_name: "results",
+                draft_file: "role-baseline-draft-v1.json",
+              },
+              protocol: "gaya-listening-session-v1",
+              revision: 0,
+              workflow: "role-baseline-v1",
+            }),
+            { headers: { "Content-Type": "application/json" } },
+          ),
+      ),
+    );
+
+    await expect(loadLocalListeningBootstrap()).resolves.toMatchObject({
+      workflow: "role-baseline-v1",
+      output: { decision_file: "role-baseline-decision-v1.json" },
+    });
+  });
+
+  it("workflow省略や結果文件别名を拒绝する", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        async () =>
+          new Response(
+            JSON.stringify({
+              bundle: {},
+              finalized: false,
+              format_version: 1,
+              mutation_token: "d".repeat(64),
+              output: {
+                decision_file: "role-baseline-decision.json",
+                directory_name: "results",
+                draft_file: "role-baseline-draft-v1.json",
+              },
+              protocol: "gaya-listening-session-v1",
+              revision: 0,
+            }),
+          ),
+      ),
+    );
+
+    await expect(loadLocalListeningBootstrap()).rejects.toThrow("workflow");
   });
 });
 

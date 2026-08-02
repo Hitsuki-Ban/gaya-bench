@@ -1,21 +1,87 @@
+import type { BaselineCatalog, BaselineDraft, BaselineGate, BaselineGroup } from "./baseline-types";
 import type { RoleReviewBundle, RoleReviewDecision, RoleReviewDraft } from "./types";
 
 const API_ROOT = "/__gaya-listening";
 
-export interface LocalListeningBootstrap {
+interface LocalListeningBootstrapBase {
   readonly format_version: 1;
   readonly protocol: "gaya-listening-session-v1";
-  readonly workflow: "role-review-anchor-v2";
-  readonly bundle: RoleReviewBundle;
   readonly mutation_token: string;
   readonly revision: number;
   readonly finalized: boolean;
+}
+
+export interface AnchorListeningBootstrap extends LocalListeningBootstrapBase {
+  readonly workflow: "role-review-anchor-v2";
+  readonly bundle: RoleReviewBundle;
   readonly output: {
     readonly directory_name: string;
     readonly draft_file: "role-review-anchor-draft-v2.json";
     readonly decision_file: "role-review-anchor-decision-v2.json";
   };
 }
+
+interface SerializedBaselineCandidate {
+  readonly label?: string;
+  readonly take_id: string;
+  readonly path: string;
+  readonly audio_sha256: string;
+  readonly gate: BaselineGate;
+}
+
+interface SerializedBaselineGroup {
+  readonly model: string;
+  readonly scenario: string;
+  readonly line: string;
+  readonly variant: string;
+  readonly character: string;
+  readonly role_identity_sha256: string;
+  readonly reference_voice: string | null;
+  readonly role: {
+    readonly name: string;
+    readonly kind: string;
+    readonly gender: string;
+    readonly age: string;
+    readonly archetype: string;
+    readonly voice: string;
+    readonly personality: string;
+  };
+  readonly scene_setting: string;
+  readonly scenario_title: string;
+  readonly line_text: string;
+  readonly reading: string | null;
+  readonly situation: string;
+  readonly emotion: string;
+  readonly intensity: number;
+  readonly delivery: string;
+  readonly role_epoch_sha256: string;
+  readonly source_run_id: string;
+  readonly minimum_eligible_candidates: number;
+  readonly group_sha256: string;
+  readonly candidates: readonly SerializedBaselineCandidate[];
+  readonly export_candidates: readonly SerializedBaselineCandidate[];
+}
+
+interface SerializedBaselineBundle {
+  readonly format_version: 1;
+  readonly protocol: "role-baseline-listening-v1";
+  readonly plan_sha256: string;
+  readonly anchor_selection_sha256: string;
+  readonly candidate_set_sha256: string;
+  readonly groups: readonly SerializedBaselineGroup[];
+}
+
+export interface BaselineListeningBootstrap extends LocalListeningBootstrapBase {
+  readonly workflow: "role-baseline-v1";
+  readonly bundle: SerializedBaselineBundle;
+  readonly output: {
+    readonly directory_name: string;
+    readonly draft_file: "role-baseline-draft-v1.json";
+    readonly decision_file: "role-baseline-decision-v1.json";
+  };
+}
+
+export type LocalListeningBootstrap = AnchorListeningBootstrap | BaselineListeningBootstrap;
 
 export interface LocalListeningSaved {
   readonly revision: number;
@@ -31,7 +97,6 @@ export async function loadLocalListeningBootstrap(): Promise<LocalListeningBoots
   if (
     bootstrap.format_version !== 1 ||
     bootstrap.protocol !== "gaya-listening-session-v1" ||
-    bootstrap.workflow !== "role-review-anchor-v2" ||
     typeof bootstrap.mutation_token !== "string" ||
     bootstrap.mutation_token.length < 32 ||
     !Number.isSafeInteger(bootstrap.revision) ||
@@ -45,23 +110,93 @@ export async function loadLocalListeningBootstrap(): Promise<LocalListeningBoots
     throw new Error("本地听测服务的启动信息与当前契约不一致。");
   }
   const output = bootstrap.output as Record<string, unknown>;
-  if (
-    typeof output.directory_name !== "string" ||
-    output.draft_file !== "role-review-anchor-draft-v2.json" ||
-    output.decision_file !== "role-review-anchor-decision-v2.json"
-  ) {
+  if (typeof output.directory_name !== "string") {
     throw new Error("本地听测服务的结果目录信息无效。");
   }
-  return bootstrap as unknown as LocalListeningBootstrap;
+  if (bootstrap.workflow === "role-review-anchor-v2") {
+    if (
+      output.draft_file !== "role-review-anchor-draft-v2.json" ||
+      output.decision_file !== "role-review-anchor-decision-v2.json"
+    ) {
+      throw new Error("角色声音听测的结果文件契约无效。");
+    }
+    return bootstrap as unknown as AnchorListeningBootstrap;
+  }
+  if (bootstrap.workflow === "role-baseline-v1") {
+    const bundle = bootstrap.bundle as Record<string, unknown>;
+    if (
+      output.draft_file !== "role-baseline-draft-v1.json" ||
+      output.decision_file !== "role-baseline-decision-v1.json" ||
+      bundle.format_version !== 1 ||
+      bundle.protocol !== "role-baseline-listening-v1" ||
+      !Array.isArray(bundle.groups)
+    ) {
+      throw new Error("全量基线听测的启动契约无效。");
+    }
+    return bootstrap as unknown as BaselineListeningBootstrap;
+  }
+  throw new Error("本地听测服务返回了未支持的 workflow。");
+}
+
+export function createLocalBaselineCatalog(bootstrap: BaselineListeningBootstrap): BaselineCatalog {
+  const groups: BaselineGroup[] = bootstrap.bundle.groups.map((group) => ({
+    model: group.model,
+    scenario: group.scenario,
+    line: group.line,
+    variant: group.variant,
+    character: group.character,
+    roleIdentitySha256: group.role_identity_sha256,
+    referenceVoice: group.reference_voice,
+    role: group.role,
+    sceneSetting: group.scene_setting,
+    scenarioTitle: group.scenario_title,
+    lineText: group.line_text,
+    reading: group.reading,
+    situation: group.situation,
+    emotion: group.emotion,
+    intensity: group.intensity,
+    delivery: group.delivery,
+    roleEpochSha256: group.role_epoch_sha256,
+    sourceRunId: group.source_run_id,
+    minimumEligibleCandidates: group.minimum_eligible_candidates,
+    groupSha256: group.group_sha256,
+    candidates: group.candidates.map((candidate) => {
+      if (typeof candidate.label !== "string") {
+        throw new Error(`候选 ${candidate.take_id} 缺少盲听标签。`);
+      }
+      return {
+        label: candidate.label,
+        takeId: candidate.take_id,
+        audio: {
+          key: `baseline:${bootstrap.bundle.candidate_set_sha256}:${candidate.take_id}`,
+          url: localCandidateAudioUrl(candidate.take_id),
+        },
+        gateContent: candidate.gate.content,
+      };
+    }),
+    exportCandidates: group.export_candidates.map((candidate) => ({
+      takeId: candidate.take_id,
+      path: candidate.path,
+      audioSha256: candidate.audio_sha256,
+      gate: candidate.gate,
+    })),
+  }));
+  return {
+    planSha256: bootstrap.bundle.plan_sha256,
+    anchorSelectionSha256: bootstrap.bundle.anchor_selection_sha256,
+    candidateSetSha256: bootstrap.bundle.candidate_set_sha256,
+    groups,
+    dispose() {},
+  };
 }
 
 export function localCandidateAudioUrl(candidateId: string): string {
   return `${API_ROOT}/audio/${encodeURIComponent(candidateId)}`;
 }
 
-export async function loadLocalListeningDraft(
+export async function loadLocalListeningDraft<Draft extends RoleReviewDraft | BaselineDraft>(
   bootstrap: LocalListeningBootstrap,
-): Promise<{ readonly revision: number; readonly draft: RoleReviewDraft } | null> {
+): Promise<{ readonly revision: number; readonly draft: Draft } | null> {
   const response = await fetch(`${API_ROOT}/draft`, { headers: sessionHeaders(bootstrap) });
   if (response.status === 204) {
     return null;
@@ -81,13 +216,13 @@ export async function loadLocalListeningDraft(
   ) {
     throw new Error("本地听测草稿响应与当前契约不一致。");
   }
-  return result as unknown as { readonly revision: number; readonly draft: RoleReviewDraft };
+  return result as unknown as { readonly revision: number; readonly draft: Draft };
 }
 
 export async function saveLocalListeningDraft(
   bootstrap: LocalListeningBootstrap,
   revision: number,
-  draft: RoleReviewDraft,
+  draft: RoleReviewDraft | BaselineDraft,
 ): Promise<LocalListeningSaved> {
   return mutation(`${API_ROOT}/draft`, "PUT", bootstrap, { revision, draft });
 }
@@ -95,7 +230,7 @@ export async function saveLocalListeningDraft(
 export async function finalizeLocalListening(
   bootstrap: LocalListeningBootstrap,
   revision: number,
-  decision: RoleReviewDecision,
+  decision: RoleReviewDecision | Record<string, unknown>,
 ): Promise<LocalListeningSaved> {
   return mutation(`${API_ROOT}/finalize`, "POST", bootstrap, { revision, decision });
 }
@@ -153,7 +288,7 @@ async function responseError(response: Response): Promise<Error> {
       detail = (value as Record<string, string>).error!;
     }
   } catch {
-    // The status text is the complete error when the service did not return JSON.
+    // Non-JSON responses are represented by the HTTP status text.
   }
   return new Error(`本地听测服务请求失败：${detail}`);
 }

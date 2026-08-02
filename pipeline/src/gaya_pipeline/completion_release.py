@@ -10,10 +10,12 @@ from typing import Any, Mapping, Sequence
 
 from gaya_pipeline.completion_listen import (
     CompletionListeningError,
+    CompletionScenarioAuthority,
     CompletionSourceResolution,
     PRIMARY_MODELS,
-    _load_target_lines,
+    _load_completion_scenario_authority,
     _local_audio_path,
+    completion_group_sha256,
     resolve_completion_sources,
 )
 from gaya_pipeline.completion_plan import (
@@ -143,13 +145,18 @@ def _finalize_completion_release(
         raise CompletionReleaseError(f"release outputは既存pathを拒否します: {output_dir}")
     if not output_dir.resolve().parent.is_dir():
         raise CompletionReleaseError("release outputの親directoryが存在しません。")
+    scenario_authority = _load_completion_scenario_authority(
+        scenarios_dir=scenarios_dir,
+        voices_dir=voices_dir,
+        plan=plan,
+    )
     resolution = resolve_completion_sources(
         plan=plan,
         primary_run_ids=primary_run_ids,
         topup_run_ids=topup_run_ids,
         anchor_selection_path=anchor_selection_path,
         artifacts_dir=artifacts_dir,
-        scenarios_dir=scenarios_dir,
+        scenario_authority=scenario_authority,
     )
     base_raw = _read_bytes(base_manifest_path, "base manifest")
     if hashlib.sha256(base_raw).hexdigest() != plan.base_manifest_sha256:
@@ -199,9 +206,7 @@ def _finalize_completion_release(
             run.manifest["models"][0]
             for run in resolution.runs
         ],
-        scenarios_dir=scenarios_dir,
-        voices_dir=voices_dir,
-        plan=plan,
+        scenario_authority=scenario_authority,
     )
     replacement_candidate_bytes = canonical_candidate_set_bytes(
         replacement_candidate_set,
@@ -232,6 +237,7 @@ def _finalize_completion_release(
         plan=plan,
         resolution=resolution,
         candidate_set=replacement_candidate_set,
+        scenario_authority=scenario_authority,
     )
 
     base_candidates_by_take = {
@@ -270,9 +276,7 @@ def _finalize_completion_release(
     final_candidate_set = _build_candidate_set(
         candidates=final_candidates,
         models=base_manifest["models"],
-        scenarios_dir=scenarios_dir,
-        voices_dir=voices_dir,
-        plan=plan,
+        scenario_authority=scenario_authority,
     )
     candidate_set_bytes = canonical_candidate_set_bytes(final_candidate_set)
     candidate_set_sha256 = hashlib.sha256(candidate_set_bytes).hexdigest()
@@ -483,24 +487,13 @@ def _build_candidate_set(
     *,
     candidates: Sequence[Mapping[str, Any]],
     models: Sequence[Mapping[str, Any]],
-    scenarios_dir: Path,
-    voices_dir: Path,
-    plan: CompletionPlan,
+    scenario_authority: CompletionScenarioAuthority,
 ) -> dict[str, Any]:
-    scenario_sha, lines = _load_target_lines(
-        scenarios_dir=scenarios_dir,
-        voices_dir=voices_dir,
-        targets={(target.scenario, target.line) for target in plan.targets}
-        | {
-            (_group_key(candidate)[1], _group_key(candidate)[2])
-            for candidate in candidates
-        },
-    )
     by_id = {str(model["id"]): dict(model) for model in models}
     used_models = sorted({_group_key(candidate)[0] for candidate in candidates})
     return build_candidate_set(
-        scenario_sha256=scenario_sha,
-        lines=lines,
+        scenario_sha256=scenario_authority.scenario_sha256,
+        lines=list(scenario_authority.lines),
         models=[by_id[model] for model in used_models],
         candidates=[dict(candidate) for candidate in candidates],
         failures=[],
@@ -513,6 +506,7 @@ def _validate_decision_against_sources(
     plan: CompletionPlan,
     resolution: CompletionSourceResolution,
     candidate_set: Mapping[str, Any],
+    scenario_authority: CompletionScenarioAuthority,
 ) -> None:
     lines = {
         (str(line["scenario"]), str(line["line"])): line
@@ -539,9 +533,10 @@ def _validate_decision_against_sources(
             for candidate in source.manifest["candidates"]
             if _group_key(candidate) == identity
         }
-        expected_group_sha256 = _decision_group_sha256(
+        expected_group_sha256 = completion_group_sha256(
             identity=identity,
             line=line,
+            context=scenario_authority.contexts[(identity[1], identity[2])],
             role_epoch_sha256=resolution.expected_role_epochs[identity],
             source_run_id=source.run_id,
             minimum_eligible_candidates=minimum,
@@ -571,39 +566,6 @@ def _validate_decision_against_sources(
                 raise CompletionReleaseError(
                     f"decision candidate path/SHA/gateがsourceと不一致です: {identity}",
                 )
-
-
-def _decision_group_sha256(
-    *,
-    identity: tuple[str, str, str, str],
-    line: Mapping[str, Any],
-    role_epoch_sha256: str,
-    source_run_id: str,
-    minimum_eligible_candidates: int,
-    candidates: Sequence[Mapping[str, Any]],
-) -> str:
-    document = {
-        "model": identity[0],
-        "scenario": identity[1],
-        "line": identity[2],
-        "variant": identity[3],
-        "scenario_title": line["scenario_title"],
-        "text": line["text"],
-        "delivery": line["delivery"],
-        "role_epoch_sha256": role_epoch_sha256,
-        "source_run_id": source_run_id,
-        "minimum_eligible_candidates": minimum_eligible_candidates,
-        "candidates": [
-            {
-                "take_id": candidate["take_id"],
-                "path": candidate["path"],
-                "audio_sha256": candidate["sha256"],
-                "gate": candidate["gate"],
-            }
-            for candidate in candidates
-        ],
-    }
-    return hashlib.sha256(canonical_json(document).encode("utf-8")).hexdigest()
 
 
 def _load_source_audit(path: Path) -> dict[str, Any]:

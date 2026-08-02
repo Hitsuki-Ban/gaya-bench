@@ -31,7 +31,6 @@ from gaya_pipeline.qc_report import QCAuthority, QCReportError, validate_qc_repo
 from gaya_pipeline.take_identity import canonical_json, derive_seed
 from gaya_pipeline.take_ledger import TakeLedgerError, read_ledger
 from gaya_pipeline.take_manifest_v4 import TakeManifestError, validate_manifest_v4
-from gaya_pipeline.validation import validate_scenario_ids
 
 
 class CompletionListeningError(RuntimeError):
@@ -55,6 +54,14 @@ class CompletionListeningSummary:
     model_count: int
     group_count: int
     candidate_count: int
+
+
+@dataclass(frozen=True)
+class CompletionScenarioAuthority:
+    scenario_sha256: str
+    lines: tuple[dict[str, Any], ...]
+    contexts: Mapping[tuple[str, str], Mapping[str, Any]]
+    line_characters: Mapping[tuple[str, str], str]
 
 
 @dataclass(frozen=True)
@@ -83,11 +90,58 @@ class CompletionSourceResolution:
     expected_role_epochs: Mapping[tuple[str, str, str, str], str]
 
 
+def completion_group_sha256(
+    *,
+    identity: tuple[str, str, str, str],
+    line: Mapping[str, Any],
+    context: Mapping[str, Any],
+    role_epoch_sha256: str,
+    source_run_id: str,
+    minimum_eligible_candidates: int,
+    candidates: Sequence[Mapping[str, Any]],
+) -> str:
+    document = {
+        "model": identity[0],
+        "scenario": identity[1],
+        "line": identity[2],
+        "variant": identity[3],
+        "character": context["character"],
+        "role_identity_sha256": context["role_identity_sha256"],
+        "reference_voice": context["reference_voice"],
+        "role": context["role"],
+        "scene_setting": context["scene_setting"],
+        "reading": context["reading"],
+        "situation": context["situation"],
+        "emotion": context["emotion"],
+        "intensity": context["intensity"],
+        "scenario_title": line["scenario_title"],
+        "text": line["text"],
+        "delivery": line["delivery"],
+        "role_epoch_sha256": role_epoch_sha256,
+        "source_run_id": source_run_id,
+        "minimum_eligible_candidates": minimum_eligible_candidates,
+        "candidates": [
+            {
+                "take_id": candidate["take_id"],
+                "path": candidate["path"],
+                "audio_sha256": candidate["sha256"],
+                "gate": candidate["gate"],
+            }
+            for candidate in sorted(
+                candidates,
+                key=lambda candidate: str(candidate["take_id"]),
+            )
+        ],
+    }
+    return hashlib.sha256(canonical_json(document).encode("utf-8")).hexdigest()
+
+
 def phase_b_generation_binding(
     *,
     plan: CompletionPlan,
     model: str,
     scenarios_dir: Path,
+    voices_dir: Path,
     anchor_selection_path: Path,
 ) -> tuple[str, dict[tuple[str, str], str]]:
     """Resolve the exact anchor digest and per-line role epochs for one run."""
@@ -97,9 +151,14 @@ def phase_b_generation_binding(
         anchor_selection_path,
         plan,
     )
+    scenario_authority = _load_completion_scenario_authority(
+        scenarios_dir=scenarios_dir,
+        voices_dir=voices_dir,
+        plan=plan,
+    )
     expected = expected_phase_b_role_epochs(
         plan=plan,
-        scenarios_dir=scenarios_dir,
+        line_characters=scenario_authority.line_characters,
         anchor_selection_sha256=anchor_sha,
         selected_anchor_epochs=anchor_epochs,
     )
@@ -117,6 +176,7 @@ def phase_b_generation_binding(
 def build_completion_listening_bundle(
     *,
     plan: CompletionPlan,
+    plan_path: Path,
     primary_run_ids: Sequence[str],
     topup_run_ids: Sequence[str],
     anchor_selection_path: Path,
@@ -126,6 +186,15 @@ def build_completion_listening_bundle(
     output_dir: Path,
 ) -> CompletionListeningSummary:
     require_production_completion_plan(plan)
+    plan_bytes = _read_canonical_authority_bytes(
+        plan_path,
+        label="completion plan",
+        expected_sha256=plan.plan_id,
+    )
+    if hashlib.sha256(plan_bytes).hexdigest() != plan.raw_sha256:
+        raise CompletionListeningError(
+            "completion plan bytes SHAがloaded planと一致しません。",
+        )
     if output_dir.exists():
         raise CompletionListeningError(
             f"listening output は既存 path を拒否します: {output_dir}",
@@ -135,13 +204,24 @@ def build_completion_listening_bundle(
         raise CompletionListeningError(
             f"listening output の親 directory が存在しません: {parent}",
         )
+    scenario_authority = _load_completion_scenario_authority(
+        scenarios_dir=scenarios_dir.resolve(),
+        voices_dir=voices_dir.resolve(),
+        plan=plan,
+    )
     resolution = resolve_completion_sources(
         plan=plan,
         primary_run_ids=primary_run_ids,
         topup_run_ids=topup_run_ids,
         anchor_selection_path=anchor_selection_path,
         artifacts_dir=artifacts_dir,
-        scenarios_dir=scenarios_dir,
+        scenario_authority=scenario_authority,
+    )
+    anchor_selection_bytes = _read_canonical_authority_bytes(
+        anchor_selection_path,
+        label="anchor selection",
+        expected_sha256=resolution.anchor_selection_sha256,
+        marker_path=anchor_selection_path.with_suffix(".sha256"),
     )
 
     candidates: list[dict[str, Any]] = []
@@ -174,14 +254,9 @@ def build_completion_listening_bundle(
             candidates.append(candidate)
 
     candidates.sort(key=lambda item: (_group_key(item), int(item["take_index"])))
-    scenario_sha256, lines = _load_target_lines(
-        scenarios_dir=scenarios_dir.resolve(),
-        voices_dir=voices_dir.resolve(),
-        targets={(target.scenario, target.line) for target in plan.targets},
-    )
     candidate_set = build_candidate_set(
-        scenario_sha256=scenario_sha256,
-        lines=lines,
+        scenario_sha256=scenario_authority.scenario_sha256,
+        lines=list(scenario_authority.lines),
         models=[models[model] for model in sorted(models)],
         candidates=candidates,
         failures=[],
@@ -217,6 +292,7 @@ def build_completion_listening_bundle(
                 "scenario": identity[1],
                 "line": identity[2],
                 "variant": identity[3],
+                **scenario_authority.contexts[(identity[1], identity[2])],
                 "role_epoch_sha256": resolution.expected_role_epochs[identity],
                 "source_run_id": run.run_id,
                 "minimum_eligible_candidates": plan.policy_for_model(
@@ -240,10 +316,13 @@ def build_completion_listening_bundle(
             temporary / "candidate-set.sha256",
             candidate_set_sha256.encode("ascii"),
         )
-        _write_new_file(
-            temporary / "completion-plan.sha256",
-            plan.plan_id.encode("ascii"),
-        )
+        for name, payload in _listening_authority_files(
+            plan_bytes=plan_bytes,
+            plan_sha256=plan.plan_id,
+            anchor_selection_bytes=anchor_selection_bytes,
+            anchor_selection_sha256=resolution.anchor_selection_sha256,
+        ).items():
+            _write_new_file(temporary / name, payload)
         _write_new_file(
             temporary / "phase-b-source-map-v1.json",
             source_map_bytes,
@@ -278,7 +357,7 @@ def resolve_completion_sources(
     topup_run_ids: Sequence[str],
     anchor_selection_path: Path,
     artifacts_dir: Path,
-    scenarios_dir: Path,
+    scenario_authority: CompletionScenarioAuthority,
 ) -> CompletionSourceResolution:
     all_ids = [*primary_run_ids, *topup_run_ids]
     if len(all_ids) != len(set(all_ids)):
@@ -292,7 +371,7 @@ def resolve_completion_sources(
     )
     expected_epochs = expected_phase_b_role_epochs(
         plan=plan,
-        scenarios_dir=scenarios_dir,
+        line_characters=scenario_authority.line_characters,
         anchor_selection_sha256=anchor_sha,
         selected_anchor_epochs=anchor_epochs,
     )
@@ -406,11 +485,10 @@ def resolve_completion_sources(
 def expected_phase_b_role_epochs(
     *,
     plan: CompletionPlan,
-    scenarios_dir: Path,
+    line_characters: Mapping[tuple[str, str], str],
     anchor_selection_sha256: str,
     selected_anchor_epochs: Mapping[tuple[str, str, str], str],
 ) -> dict[tuple[str, str, str, str], str]:
-    line_characters = _load_line_characters(scenarios_dir, plan)
     result: dict[tuple[str, str, str, str], str] = {}
     for target in plan.targets:
         identity = target.identity
@@ -873,59 +951,88 @@ def _load_anchor_selection(
     return digest, epochs
 
 
-def _load_line_characters(
-    scenarios_dir: Path,
-    plan: CompletionPlan,
-) -> dict[tuple[str, str], str]:
-    result: dict[tuple[str, str], str] = {}
-    scenario_ids = sorted({target.scenario for target in plan.targets})
-    for scenario in scenario_ids:
-        path = scenarios_dir / f"{scenario}.yaml"
-        try:
-            document = yaml.safe_load(path.read_text(encoding="utf-8"))
-        except (OSError, UnicodeError, yaml.YAMLError) as error:
-            raise CompletionListeningError(f"scenarioを読めません: {path}: {error}") from error
-        for line in document["lines"]:
-            result[(scenario, str(line["id"]))] = str(line["character"])
-    expected = {(target.scenario, target.line) for target in plan.targets}
-    if not expected.issubset(result):
-        raise CompletionListeningError("Phase B target lineのcharacterを解決できません。")
-    return result
-
-
-def _load_target_lines(
+def _load_completion_scenario_authority(
     *,
     scenarios_dir: Path,
     voices_dir: Path,
-    targets: set[tuple[str, str]],
-) -> tuple[str, list[dict[str, Any]]]:
-    scenario_ids = sorted({scenario for scenario, _line in targets})
-    validation = validate_scenario_ids(
-        scenarios_dir,
-        scenario_ids,
-        voices_dir=voices_dir,
-    )
-    if validation.problems:
-        details = "\n".join(str(problem) for problem in validation.problems)
-        raise CompletionListeningError(f"target scenario 検証に失敗しました:\n{details}")
-    source_files: list[dict[str, str]] = []
+    plan: CompletionPlan,
+) -> CompletionScenarioAuthority:
+    scenarios_dir = scenarios_dir.resolve()
+    voices_dir = voices_dir.resolve()
+    expected = {(target.scenario, target.line) for target in plan.targets}
+    declared_sources = [
+        {
+            "scenario": source.scenario,
+            "path": source.path,
+            "sha256": source.sha256,
+        }
+        for source in plan.scenario_files
+    ]
+    declared_registry_sha = hashlib.sha256(
+        canonical_json(declared_sources).encode("utf-8"),
+    ).hexdigest()
+    if declared_registry_sha != plan.scenario_registry_sha256:
+        raise CompletionListeningError(
+            "frozen plan scenario registry SHAがsource snapshotと一致しません。",
+        )
+    if {source["scenario"] for source in declared_sources} != {
+        scenario for scenario, _line in expected
+    }:
+        raise CompletionListeningError(
+            "frozen plan scenario source集合がPhase B targetと一致しません。",
+        )
+    if plan.voice_registry_path != "assets/voices/metadata.yaml":
+        raise CompletionListeningError(
+            "frozen plan voice registry pathが不正です。",
+        )
+    voice_path = voices_dir / "metadata.yaml"
+    try:
+        resolved_voice = voice_path.resolve(strict=True)
+        voice_raw = resolved_voice.read_bytes()
+    except OSError as error:
+        raise CompletionListeningError(
+            f"frozen voice registryを読めません: {voice_path}: {error}",
+        ) from error
+    if (
+        resolved_voice.parent != voices_dir
+        or hashlib.sha256(voice_raw).hexdigest() != plan.voice_registry_sha256
+    ):
+        raise CompletionListeningError(
+            "voice registry bytesがfrozen plan source snapshotと一致しません。",
+        )
+
+    candidate_sources: list[dict[str, str]] = []
     lines: list[dict[str, Any]] = []
+    contexts: dict[tuple[str, str], dict[str, Any]] = {}
     found: set[tuple[str, str]] = set()
-    for scenario_id in scenario_ids:
+    for source in declared_sources:
+        scenario_id = source["scenario"]
         path = scenarios_dir / f"{scenario_id}.yaml"
         try:
-            raw = path.read_bytes()
+            resolved = path.resolve(strict=True)
+            raw = resolved.read_bytes()
             document = yaml.safe_load(raw.decode("utf-8"))
         except (OSError, UnicodeError, yaml.YAMLError) as error:
             raise CompletionListeningError(
-                f"target scenario を読み込めません: {path}: {error}",
+                f"frozen scenario authorityを読めません: {path}: {error}",
             ) from error
-        source_files.append(
-            {"path": path.name, "sha256": hashlib.sha256(raw).hexdigest()},
+        if (
+            resolved.parent != scenarios_dir
+            or source["path"] != f"scenarios/{scenario_id}.yaml"
+            or hashlib.sha256(raw).hexdigest() != source["sha256"]
+            or not isinstance(document, Mapping)
+            or document.get("id") != scenario_id
+        ):
+            raise CompletionListeningError(
+                "scenario bytesがfrozen plan source snapshotと一致しません: "
+                f"{scenario_id}",
+            )
+        candidate_sources.append(
+            {"path": path.name, "sha256": source["sha256"]},
         )
         for line in document["lines"]:
             identity = (scenario_id, str(line["id"]))
-            if identity not in targets:
+            if identity not in expected:
                 continue
             found.add(identity)
             lines.append(
@@ -937,16 +1044,44 @@ def _load_target_lines(
                     "delivery": str(line["delivery"]),
                 },
             )
-    if found != targets:
+            character = str(line["character"])
+            role = plan.role(scenario_id, character)
+            reading = line.get("reading")
+            if reading is not None:
+                reading = str(reading)
+            intensity = line["intensity"]
+            if not isinstance(intensity, int) or isinstance(intensity, bool):
+                raise CompletionListeningError(
+                    f"source map intensityが不正です: {scenario_id}/{line['id']}",
+                )
+            contexts[identity] = {
+                "character": character,
+                "role_identity_sha256": role.role_identity_sha256,
+                "reference_voice": role.reference_voice,
+                "role": dict(role.role),
+                "scene_setting": role.scene_setting,
+                "reading": reading,
+                "situation": str(line["situation"]),
+                "emotion": str(line["emotion"]),
+                "intensity": intensity,
+            }
+    if found != expected or set(contexts) != expected:
         raise CompletionListeningError(
-            f"target line が scenario source にありません: {sorted(targets - found)}",
+            "scenario authorityはplan target lineのexact集合が必要です: "
+            f"missing={sorted(expected - found)}, extra={sorted(found - expected)}",
         )
-    scenario_sha256 = hashlib.sha256(
-        canonical_json(source_files).encode("utf-8"),
-    ).hexdigest()
-    return scenario_sha256, sorted(
-        lines,
-        key=lambda line: (line["scenario"], line["line"]),
+    return CompletionScenarioAuthority(
+        scenario_sha256=hashlib.sha256(
+            canonical_json(candidate_sources).encode("utf-8"),
+        ).hexdigest(),
+        lines=tuple(
+            sorted(lines, key=lambda line: (line["scenario"], line["line"])),
+        ),
+        contexts=contexts,
+        line_characters={
+            identity: str(context["character"])
+            for identity, context in contexts.items()
+        },
     )
 
 
@@ -1020,6 +1155,58 @@ def _file_sha256(path: Path) -> str:
         return hashlib.sha256(path.read_bytes()).hexdigest()
     except OSError as error:
         raise CompletionListeningError(f"file SHAを計算できません: {path}") from error
+
+
+def _read_canonical_authority_bytes(
+    path: Path,
+    *,
+    label: str,
+    expected_sha256: str,
+    marker_path: Path | None = None,
+) -> bytes:
+    if not path.is_absolute():
+        raise CompletionListeningError(f"{label}は絶対pathが必要です。")
+    try:
+        raw = path.read_bytes()
+        document = json.loads(raw)
+    except (OSError, UnicodeError, json.JSONDecodeError) as error:
+        raise CompletionListeningError(f"{label}を読めません: {path}: {error}") from error
+    if raw != canonical_json(document).encode("utf-8"):
+        raise CompletionListeningError(f"{label}はcanonical bytesが必要です。")
+    digest = hashlib.sha256(raw).hexdigest()
+    if digest != expected_sha256:
+        raise CompletionListeningError(
+            f"{label} bytes SHAがloaded authorityと一致しません。",
+        )
+    if marker_path is not None:
+        try:
+            marker = marker_path.read_text(encoding="ascii").strip()
+        except (OSError, UnicodeError) as error:
+            raise CompletionListeningError(
+                f"{label} SHA markerを読めません: {marker_path}",
+            ) from error
+        if marker != digest:
+            raise CompletionListeningError(
+                f"{label} SHA markerが入力bytesと一致しません。",
+            )
+    return raw
+
+
+def _listening_authority_files(
+    *,
+    plan_bytes: bytes,
+    plan_sha256: str,
+    anchor_selection_bytes: bytes,
+    anchor_selection_sha256: str,
+) -> dict[str, bytes]:
+    return {
+        "completion-plan.json": plan_bytes,
+        "completion-plan.sha256": plan_sha256.encode("ascii"),
+        "role-anchor-selection-v1.json": anchor_selection_bytes,
+        "role-anchor-selection-v1.sha256": anchor_selection_sha256.encode(
+            "ascii",
+        ),
+    }
 
 
 def _read_json(path: Path, label: str) -> Any:

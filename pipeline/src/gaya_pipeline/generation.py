@@ -29,6 +29,7 @@ from gaya_pipeline.audio import (
     normalize_wav,
     probe_audio,
 )
+from gaya_pipeline.run_lock import RunLockError, exclusive_run_lock
 from gaya_pipeline.take_identity import (
     canonical_json,
     derive_seed,
@@ -138,6 +139,7 @@ def run_generation(
     takes: int,
     seed_base: int | None,
     force: bool = False,
+    resume_run_id: str | None = None,
     role_anchor_selection_path: Path | None = None,
     role_anchor_plan_sha256: str | None = None,
     role_anchor_selection_sha256: str | None = None,
@@ -188,8 +190,14 @@ def run_generation(
         raise GenerationError(
             "Phase B生成にはfrozen plan SHA、role epochs、run kindが必要です。",
         )
+    if resume_run_id is not None and force:
+        raise GenerationError("run resumeと--forceは同時に使用できません。")
     if phase_b_requested and force:
         raise GenerationError("Phase B生成では--forceを使用できません。")
+    if resume_run_id is not None and not phase_b_requested:
+        raise GenerationError("run resumeはPhase B生成だけで使用できます。")
+    if resume_run_id is not None:
+        _require_path_segment(resume_run_id, "resume_run_id")
     if not phase_b_requested and role_anchor_selection_sha256 is not None:
         raise GenerationError(
             "anchor selection SHAはPhase B provenanceと同時に指定してください。",
@@ -200,6 +208,11 @@ def run_generation(
         target_lines=target_lines,
         takes=takes,
         seed_base=seed_base,
+    )
+    resume_root = (
+        _resume_run_root(artifacts_dir / "takes", resume_run_id)
+        if resume_run_id is not None
+        else None
     )
     effective_voices_dir = (
         voices_dir
@@ -284,15 +297,61 @@ def run_generation(
         and phase_b_source["run_kind"] == "topup"
         else None
     )
-    try:
-        adapter.prepare(
-            jobs,
-            artifacts_dir,
-            effective_voices_dir,
-        )
-    except Exception as error:
-        raise GenerationError(f"adapter 準備に失敗しました: {error}") from error
+    takes_root = artifacts_dir / "takes"
+    if resume_run_id is not None:
+        if resume_root is None:
+            raise AssertionError("resume root must be resolved")
+        run_root = resume_root
+        try:
+            with exclusive_run_lock(run_root):
+                ledger = _load_resume_ledger(
+                    run_root=run_root,
+                    resume_run_id=resume_run_id,
+                    source=source,
+                )
+                _prepare_adapter(
+                    adapter=adapter,
+                    jobs=jobs,
+                    artifacts_dir=artifacts_dir,
+                    voices_dir=effective_voices_dir,
+                )
+                _verify_scenario_sources(scenario_sources)
+                plans = _build_attempt_plans(
+                    adapter=adapter,
+                    jobs=jobs,
+                    contexts=contexts,
+                    requested_params=requested_params,
+                    profile=profile,
+                    tools=tools,
+                    phase_b=phase_b_source,
+                )
+                if superseded_ledger is not None:
+                    _validate_topup_attempt_seeds(
+                        artifacts_dir=artifacts_dir,
+                        previous=superseded_ledger,
+                        plans=plans,
+                    )
+                _validate_resume_attempts(ledger=ledger, plans=plans)
+                return _execute_generation(
+                    run_root=run_root,
+                    ledger=ledger,
+                    adapter=adapter,
+                    plans=plans,
+                    requested_params=requested_params,
+                    profile=profile,
+                    tools=tools,
+                    started_at=started_at,
+                    resume=True,
+                )
+        except RunLockError as error:
+            raise GenerationError(f"run lock に失敗しました: {error}") from error
 
+    _prepare_adapter(
+        adapter=adapter,
+        jobs=jobs,
+        artifacts_dir=artifacts_dir,
+        voices_dir=effective_voices_dir,
+    )
     _verify_scenario_sources(scenario_sources)
     plans = _build_attempt_plans(
         adapter=adapter,
@@ -309,59 +368,121 @@ def run_generation(
             previous=superseded_ledger,
             plans=plans,
         )
-    takes_root = artifacts_dir / "takes"
     reused = (
         None
         if phase_b_source is not None or force
         else _find_reusable_run(takes_root, source, plans)
     )
+    new_ledger: dict[str, Any] | None = None
     if reused is None:
         run_id, created_at = _new_run_identity(adapter.profile.id, takes, takes_root)
         run_root = takes_root / run_id
-        ledger = _new_ledger(
+        run_root.mkdir(parents=True, exist_ok=False)
+        new_ledger = _new_ledger(
             run_id=run_id,
             created_at=created_at,
             source=source,
             plans=plans,
         )
-        ledger_path = run_root / "ledger.json"
-        write_ledger_atomic(ledger_path, ledger)
     else:
-        run_root, ledger = reused
-        run_id = str(ledger["run_id"])
-        ledger_path = run_root / "ledger.json"
+        run_root, _discovered_ledger = reused
+    try:
+        with exclusive_run_lock(run_root):
+            ledger_path = run_root / "ledger.json"
+            if new_ledger is not None:
+                ledger = new_ledger
+                write_ledger_atomic(ledger_path, ledger)
+            else:
+                try:
+                    ledger = read_ledger(ledger_path)
+                except (OSError, ValueError, json.JSONDecodeError) as error:
+                    raise GenerationError(
+                        f"run ledger が不正です: {ledger_path}: {error}",
+                    ) from error
+            return _execute_generation(
+                run_root=run_root,
+                ledger=ledger,
+                adapter=adapter,
+                plans=plans,
+                requested_params=requested_params,
+                profile=profile,
+                tools=tools,
+                started_at=started_at,
+                resume=False,
+            )
+    except RunLockError as error:
+        raise GenerationError(f"run lock に失敗しました: {error}") from error
 
+
+def _execute_generation(
+    *,
+    run_root: Path,
+    ledger: dict[str, Any],
+    adapter: Adapter,
+    plans: list[_AttemptPlan],
+    requested_params: dict[str, Any],
+    profile: PostprocessProfile,
+    tools: AudioTools,
+    started_at: float,
+    resume: bool,
+) -> GenerationSummary:
+    run_id = str(ledger["run_id"])
+    ledger_path = run_root / "ledger.json"
     records: list[GenerationRecord] = []
     failures: list[GenerationFailureRecord] = []
+    planned: list[_AttemptPlan] = []
     for plan in plans:
         current = _attempt_for_slot(ledger, plan.slot)
-        if current["status"] != "planned":
+        if current["status"] == "planned":
+            planned.append(plan)
+            continue
+        if resume and current["status"] == "generation_failed":
+            failures.append(
+                GenerationFailureRecord(
+                    scenario_id=plan.job.scenario_id,
+                    line_id=plan.job.line_id,
+                    take_index=plan.context.index,
+                    message=str(current["generation"]["error"]),
+                ),
+            )
+            continue
+        try:
+            record = _cached_record(
+                run_root=run_root,
+                attempt=current,
+                plan=plan,
+                requested_params=requested_params,
+                profile=profile,
+                tools=tools,
+            )
+        except (
+            AudioProcessingError,
+            GenerationError,
+            OSError,
+            TakeLedgerError,
+            TakeSidecarError,
+            TypeError,
+            ValueError,
+            json.JSONDecodeError,
+        ) as error:
+            raise GenerationError(
+                f"{plan.job.scenario_id}/{plan.job.line_id}/"
+                f"take-{plan.context.index:04d}: {error}",
+            ) from error
+        records.append(record)
+
+    if resume:
+        for plan in planned:
             try:
-                record = _cached_record(
-                    run_root=run_root,
-                    attempt=current,
-                    plan=plan,
-                    requested_params=requested_params,
-                    profile=profile,
-                    tools=tools,
-                )
-            except (
-                AudioProcessingError,
-                GenerationError,
-                OSError,
-                TakeLedgerError,
-                TakeSidecarError,
-                TypeError,
-                ValueError,
-                json.JSONDecodeError,
-            ) as error:
+                _remove_resume_attempt_outputs(run_root, plan)
+            except OSError as error:
                 raise GenerationError(
                     f"{plan.job.scenario_id}/{plan.job.line_id}/"
-                    f"take-{plan.context.index:04d}: {error}",
+                    f"take-{plan.context.index:04d}: 残留出力を削除できません: {error}",
                 ) from error
-            records.append(record)
-            continue
 
+    for plan in planned:
+        current = _attempt_for_slot(ledger, plan.slot)
         try:
             replacement, record = _generate_attempt(
                 run_id=run_id,
@@ -444,6 +565,19 @@ def run_generation(
         failures=tuple(failures),
         elapsed_seconds=time.perf_counter() - started_at,
     )
+
+
+def _prepare_adapter(
+    *,
+    adapter: Adapter,
+    jobs: list[LineJob],
+    artifacts_dir: Path,
+    voices_dir: Path,
+) -> None:
+    try:
+        adapter.prepare(jobs, artifacts_dir, voices_dir)
+    except Exception as error:
+        raise GenerationError(f"adapter 準備に失敗しました: {error}") from error
 
 
 def _validate_cli_inputs(
@@ -1261,6 +1395,88 @@ def _find_reusable_run(
     return run_root, ledger
 
 
+def _resume_run_root(takes_root: Path, resume_run_id: str) -> Path:
+    _require_path_segment(resume_run_id, "resume_run_id")
+    resolved_takes_root = takes_root.resolve()
+    run_root = (resolved_takes_root / resume_run_id).resolve()
+    if not run_root.is_relative_to(resolved_takes_root):
+        raise GenerationError("resume run root が artifacts/takes の外です。")
+    if not run_root.is_dir():
+        raise GenerationError(f"resume run が存在しません: {resume_run_id}")
+    return run_root
+
+
+def _load_resume_ledger(
+    *,
+    run_root: Path,
+    resume_run_id: str,
+    source: Mapping[str, Any],
+) -> dict[str, Any]:
+    ledger_path = run_root / "ledger.json"
+    try:
+        ledger = read_ledger(ledger_path)
+    except (OSError, ValueError, json.JSONDecodeError) as error:
+        raise GenerationError(
+            f"resume run ledger が不正です: {ledger_path}: {error}",
+        ) from error
+    if ledger["run_id"] != resume_run_id or run_root.name != resume_run_id:
+        raise GenerationError("resume run ID がdirectory/ledgerと一致しません。")
+    if ledger["source"] != source:
+        raise GenerationError("resume run source が現在の生成authorityと一致しません。")
+    statuses = {str(attempt["status"]) for attempt in ledger["attempts"]}
+    allowed = {"planned", "generated", "generation_failed"}
+    if not statuses <= allowed:
+        raise GenerationError(
+            "resume run はQC前のplanned/generated/generation_failedだけを"
+            f"許可します: {sorted(statuses - allowed)}",
+        )
+    qc_paths = [
+        run_root / name
+        for name in (
+            "qc-report.json",
+            "manifest-v4.json",
+            "candidate-set.json",
+            "candidate-set.sha256",
+        )
+    ]
+    existing_qc = [path.name for path in qc_paths if path.exists()]
+    if existing_qc:
+        raise GenerationError(
+            f"QC状態を持つrunはresumeできません: {sorted(existing_qc)}",
+        )
+    return ledger
+
+
+def _validate_resume_attempts(
+    *,
+    ledger: Mapping[str, Any],
+    plans: Sequence[_AttemptPlan],
+) -> None:
+    expected = {
+        plan.slot: (
+            plan.generation_input_sha256,
+            plan.phase_b_provenance_sha256,
+        )
+        for plan in plans
+    }
+    actual = {
+        tuple(
+            attempt[key]
+            for key in ("model", "scenario", "line", "variant")
+        )
+        + (attempt["take_index"],): (
+            attempt["generation_input_sha256"],
+            attempt["phase_b_provenance_sha256"],
+        )
+        for attempt in ledger["attempts"]
+    }
+    if actual != expected:
+        raise GenerationError(
+            "resume run slots/input/provenance が現在のplan authorityと"
+            "exact一致しません。",
+        )
+
+
 def _new_run_identity(
     model_id: str,
     takes: int,
@@ -1335,8 +1551,31 @@ def _paths_for_plan(
     )
 
 
+def _temporary_paths_for_plan(
+    run_root: Path,
+    plan: _AttemptPlan,
+) -> tuple[Path, Path, Path, Path]:
+    output_dir = _paths_for_plan(run_root, plan)[0].parent
+    prefix = f".take-{plan.context.index:04d}"
+    return (
+        output_dir / f"{prefix}.source.wav",
+        output_dir / f"{prefix}.pending.wav",
+        output_dir / f"{prefix}.pending.opus",
+        output_dir / f"{prefix}.pending.json",
+    )
+
+
 def _remove_attempt_outputs(run_root: Path, plan: _AttemptPlan) -> None:
     for path in _paths_for_plan(run_root, plan):
+        path.unlink(missing_ok=True)
+
+
+def _remove_resume_attempt_outputs(run_root: Path, plan: _AttemptPlan) -> None:
+    paths = (
+        *_paths_for_plan(run_root, plan),
+        *_temporary_paths_for_plan(run_root, plan),
+    )
+    for path in paths:
         path.unlink(missing_ok=True)
 
 
@@ -1378,10 +1617,9 @@ def _generate_attempt(
 ) -> tuple[dict[str, Any], GenerationRecord]:
     wav_path, opus_path, sidecar_path = _paths_for_plan(run_root, plan)
     output_dir = wav_path.parent
-    source_wav = output_dir / f".take-{plan.context.index:04d}.source.wav"
-    pending_wav = output_dir / f".take-{plan.context.index:04d}.pending.wav"
-    pending_opus = output_dir / f".take-{plan.context.index:04d}.pending.opus"
-    pending_sidecar = output_dir / f".take-{plan.context.index:04d}.pending.json"
+    source_wav, pending_wav, pending_opus, pending_sidecar = (
+        _temporary_paths_for_plan(run_root, plan)
+    )
     final_paths = (wav_path, opus_path, sidecar_path)
     if any(path.exists() for path in final_paths):
         raise GenerationError(

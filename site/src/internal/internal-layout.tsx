@@ -32,7 +32,7 @@ export function InternalLayout({ listeningMode = false }: { listeningMode?: bool
                 GAYA BENCH
               </span>
               <span className="block text-[11px] text-muted-foreground">
-                {listeningMode ? "角色声音四选一" : "本地听测工具"}
+                {listeningMode ? "本地听测工作台" : "本地听测工具"}
               </span>
             </span>
           </div>

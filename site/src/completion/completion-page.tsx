@@ -20,8 +20,10 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
 import { CompletionRubricFields } from "./completion-rubric-fields";
+import { BaselineCompletionPage } from "./baseline-page";
 import { createRoleReviewCatalog } from "./contract";
 import { buildRoleReviewDecision } from "./export";
+import { candidateShortcutIndex, candidateShortcutLabel } from "./listening-shortcuts";
 import {
   finalizeLocalListening,
   loadLocalListeningBootstrap,
@@ -29,6 +31,7 @@ import {
   localCandidateAudioUrl,
   saveLocalListeningDraft,
   type LocalListeningBootstrap,
+  type AnchorListeningBootstrap,
 } from "./local-listening-session";
 import {
   applyRoleReviewPlaybackCompletion,
@@ -61,10 +64,36 @@ type SaveState =
   | { readonly kind: "finalized" };
 
 export function CompletionPage() {
-  return <RoleReviewCompletionPage />;
+  const [session, setSession] = useState<LocalListeningBootstrap | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  useEffect(() => {
+    let active = true;
+    void loadLocalListeningBootstrap().then(
+      (loaded) => {
+        if (active) setSession(loaded);
+      },
+      (reason: unknown) => {
+        if (active) setError(reason instanceof Error ? reason.message : String(reason));
+      },
+    );
+    return () => {
+      active = false;
+    };
+  }, []);
+  if (error) return <ListeningFailure message={error} />;
+  if (!session) return <ListeningLoading />;
+  return session.workflow === "role-review-anchor-v2" ? (
+    <RoleReviewCompletionPage bootstrap={session} />
+  ) : (
+    <BaselineCompletionPage bootstrap={session} />
+  );
 }
 
-export function RoleReviewCompletionPage() {
+export function RoleReviewCompletionPage({
+  bootstrap: initialBootstrap,
+}: {
+  readonly bootstrap: AnchorListeningBootstrap;
+}) {
   const player = useAudioPlayer();
   const playbackManager = usePlaybackManager();
   const bootstrapRef = useRef<LocalListeningBootstrap | null>(null);
@@ -76,7 +105,7 @@ export function RoleReviewCompletionPage() {
   const saveFailureRef = useRef<Error | null>(null);
   const submissionRef = useRef(false);
   const handledPlaybackSessionRef = useRef<number | null>(null);
-  const [bootstrap, setBootstrap] = useState<LocalListeningBootstrap | null>(null);
+  const [bootstrap] = useState(initialBootstrap);
   const [catalog, setCatalog] = useState<RoleReviewCatalog | null>(null);
   const [draft, setDraft] = useState<RoleReviewDraft | null>(null);
   const [saveState, setSaveState] = useState<SaveState>({ kind: "loading" });
@@ -129,7 +158,7 @@ export function RoleReviewCompletionPage() {
     let active = true;
     const load = async () => {
       try {
-        const session = await loadLocalListeningBootstrap();
+        const session = initialBootstrap;
         const loadedCatalog = await createRoleReviewCatalog(session.bundle, localCandidateAudioUrl);
         const stored = await loadLocalListeningDraft(session);
         if (!active) {
@@ -142,7 +171,6 @@ export function RoleReviewCompletionPage() {
         catalogRef.current = loadedCatalog;
         draftRef.current = loadedDraft;
         revisionRef.current = stored?.revision ?? session.revision;
-        setBootstrap(session);
         setCatalog(loadedCatalog);
         setDraft(loadedDraft);
         setFinalized(session.finalized);
@@ -169,7 +197,7 @@ export function RoleReviewCompletionPage() {
       active = false;
       playbackManager.stop();
     };
-  }, [fail, persistDraft, playbackManager]);
+  }, [fail, initialBootstrap, persistDraft, playbackManager]);
 
   useEffect(() => {
     const completion = player.completion;
@@ -492,25 +520,15 @@ function RoleReviewWorkspace({
     }
   };
   const handleKeyDown = (event: KeyboardEvent<HTMLElement>) => {
-    if (
-      isEditableTarget(event.target) ||
-      locked ||
-      event.ctrlKey ||
-      event.metaKey ||
-      event.altKey
-    ) {
-      return;
-    }
-    const digitMatch = /^Digit([1-4])$/.exec(event.code);
-    if (digitMatch) {
-      const candidateIndex = Number(digitMatch[1]) - 1;
-      const candidate = group.candidates[candidateIndex]!;
-      event.preventDefault();
-      if (event.shiftKey) {
-        onSelect(candidate.id);
-      } else {
-        playCandidate(candidateIndex);
-      }
+    if (locked) return;
+    const candidateIndex = candidateShortcutIndex(event, group.candidates.length);
+    if (candidateIndex === null) return;
+    const candidate = group.candidates[candidateIndex]!;
+    event.preventDefault();
+    if (event.shiftKey) {
+      onSelect(candidate.id);
+    } else {
+      playCandidate(candidateIndex);
     }
   };
 
@@ -522,7 +540,7 @@ function RoleReviewWorkspace({
           <span className="ml-2 text-xs text-muted-foreground">完整听过 {heardCount}/4</span>
         </p>
         <span className="text-[11px] text-muted-foreground" title="数字键播放；Shift + 数字键选择">
-          快捷键 1–4
+          快捷键 {candidateShortcutLabel(group.candidates.length)}
         </span>
       </div>
 
@@ -866,8 +884,4 @@ function ageLabel(value: RoleReviewGroup["role"]["age"]): string {
     middle_aged: "中年",
     elderly: "老年",
   }[value];
-}
-
-function isEditableTarget(target: EventTarget): boolean {
-  return target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement;
 }

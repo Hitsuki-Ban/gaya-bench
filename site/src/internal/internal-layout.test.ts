@@ -31,7 +31,7 @@ describe("InternalLayout", () => {
 
     expect(markup).toContain('data-listening-mode="true"');
     expect(markup).toContain('lang="zh-CN"');
-    expect(markup).toContain("角色声音四选一");
+    expect(markup).toContain("本地听测工作台");
     expect(markup).not.toContain("本地工具导航");
     expect(markup).not.toContain('href="/curate"');
     expect(markup).not.toContain('href="/pilot"');

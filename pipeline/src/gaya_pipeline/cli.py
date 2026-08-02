@@ -250,6 +250,10 @@ def build_parser() -> argparse.ArgumentParser:
         help="topupが整組取代する明示run ID",
     )
     completion_generate_parser.add_argument(
+        "--resume-run-id",
+        help="中断した同一Phase B runを明示的に再開するrun ID",
+    )
+    completion_generate_parser.add_argument(
         "--seed-base",
         type=int,
         help="seedを使うtopupの派生基準。primaryはplan policyとexact一致が必要",
@@ -1068,6 +1072,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                     plan=plan,
                     model=args.model,
                     scenarios_dir=args.scenarios,
+                    voices_dir=args.voices,
                     anchor_selection_path=args.anchor_selection,
                 )
                 if args.run_kind == "primary":
@@ -1117,6 +1122,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                     role_epochs=role_epochs,
                     run_kind=args.run_kind,
                     supersedes_run_id=args.supersedes_run_id,
+                    resume_run_id=args.resume_run_id,
                     role_anchor_selection_path=(
                         args.anchor_selection
                         if args.model
@@ -1180,6 +1186,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 )
                 summary = build_completion_listening_bundle(
                     plan=plan,
+                    plan_path=args.plan,
                     primary_run_ids=args.primary_run_ids,
                     topup_run_ids=args.topup_run_ids,
                     anchor_selection_path=args.anchor_selection,

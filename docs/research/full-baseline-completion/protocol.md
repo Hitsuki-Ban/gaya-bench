@@ -119,11 +119,26 @@ request の本文、reading、role、seed が次の runtime call へ残らない
 
 ## listening と decision
 
-listening bundle は 8 primary run と明示 topup だけから作る。source map は 597 group
-すべてに model policy 由来の `minimum_eligible_candidates` を持つ。Aivis の単一候補も
-自動採用せず、owner が明示確認する。
+中断したPhase B生成は、対象run IDを明示したresumeだけを許可する。自動探索やfallbackは
+行わず、現在のplan / scenario / role authorityから再構成したsource、slot、generation
+input SHA、Phase B provenance SHAがledgerとexact一致する場合に限る。QC前かつstatusが
+`planned` / `generated` / `generation_failed`のrunだけを受理し、全generated cacheを
+先に検証した後、plannedの既知残留だけを削除して元seedで続行する。generation failureは
+保持して再試行しない。generationとQCは同じrun lockで排他する。
 
-ページでは全候補について次を常時表示し、選択候補を最後まで再生してから確定する。
+listening bundle は 8 primary run と明示 topup だけから作る。source map は 597 group
+すべてに model policy 由来の `minimum_eligible_candidates` と、frozen plan / scenario
+由来の character、role identity、reference voice、7項目の role snapshot、scene setting、
+reading、situation、emotion、intensity を持つ。line ID から役柄や文脈を推測しない。
+bundle は入力 `plan.json` の canonical bytes を `completion-plan.json`、入力 anchor
+selection の canonical bytes を `role-anchor-selection-v1.json` としてそのまま保存し、
+両者の SHA marker も保存する。build 時に入力 bytes SHA と loaded authority が一致しない
+場合は bundle を作らない。Aivis の単一候補も自動採用せず、owner が明示確認する。
+listening daemonはbundle外のcanonical planを必須authorityとして受け取り、そのraw bytes
+SHAをsessionへ固定する。bundle JSONのparse前に埋込みplan bytesとexact照合し、authority
+planがbundle / output / site / session boundary内にある場合やsymlinkの場合は拒否する。
+
+ページでは全候補について次を常時表示し、全候補を最後まで再生してから確定する。
 
 - 内容の欠落／追加／反復と prompt leakage
 - 漢字の文脈上の読み
@@ -134,7 +149,7 @@ listening bundle は 8 primary run と明示 topup だけから作る。source m
 
 decision は `role-baseline-decision-v1` の canonical bytes とし、plan SHA、anchor
 selection SHA、candidate-set SHA、597 group SHA、各 rubric、owner selection を exact
-に拘束する。
+に拘束する。全候補を最後まで再生した後、owner が明示的に finalize する。
 
 ## final release と publish
 

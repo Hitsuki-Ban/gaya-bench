@@ -10,9 +10,11 @@ import {
 import { validateBaselineSourceMap } from "./baseline-contract";
 import { buildBaselineDecisionJson, validateBaselineDecision } from "./baseline-export";
 import {
+  applyBaselinePlaybackCompletion,
   createBaselineDraft,
   LEGACY_BASELINE_STORAGE_KEY,
   readBaselineDraft,
+  selectBaselineCandidate,
   writeBaselineDraft,
   type BaselineStorage,
 } from "./baseline-storage";
@@ -36,6 +38,45 @@ const COMPLETE_RUBRIC: BaselineRubric = {
 };
 
 describe("Phase B group-local storage", () => {
+  it("natural endedだけをheardに記録し、全候補を聞く前の選択を拒否する", () => {
+    const catalog = makeCatalog("a", [makeGroup(0, "1", 1, 2)]);
+    let draft = createBaselineDraft(catalog);
+    const group = catalog.groups[0]!;
+    draft = {
+      ...draft,
+      groups: draft.groups.map((item) => ({
+        ...item,
+        candidates: item.candidates.map((candidate) => ({ ...candidate, rubric: COMPLETE_RUBRIC })),
+      })),
+    };
+    const key = JSON.stringify([group.model, group.scenario, group.line, group.variant]);
+    expect(() => selectBaselineCandidate(catalog, draft, key, group.candidates[0]!.takeId)).toThrow(
+      "最後まで再生",
+    );
+    draft = applyBaselinePlaybackCompletion(catalog, draft, {
+      sessionId: 1,
+      clipKey: group.candidates[0]!.audio.key,
+      termination: "stopped",
+    });
+    expect(draft.groups[0]!.heard_candidate_ids).toEqual([]);
+    draft = applyBaselinePlaybackCompletion(catalog, draft, {
+      sessionId: 2,
+      clipKey: group.candidates[0]!.audio.key,
+      termination: "ended",
+    });
+    expect(draft.groups[0]!.heard_candidate_ids).toEqual([group.candidates[0]!.takeId]);
+    expect(() => selectBaselineCandidate(catalog, draft, key, group.candidates[0]!.takeId)).toThrow(
+      "最後まで再生",
+    );
+    draft = applyBaselinePlaybackCompletion(catalog, draft, {
+      sessionId: 3,
+      clipKey: group.candidates[1]!.audio.key,
+      termination: "ended",
+    });
+    expect(() =>
+      selectBaselineCandidate(catalog, draft, key, group.candidates[0]!.takeId),
+    ).not.toThrow();
+  });
   it("candidate-set aggregate変更では同一groupだけ保存し、変更groupの旧状態を復活させない", () => {
     const storage = new MemoryStorage();
     const initialCatalog = makeCatalog("a", [makeGroup(0, "1"), makeGroup(1, "2")]);
@@ -184,14 +225,16 @@ describe("role-baseline-decision-v1 export / UI", () => {
     for (const text of [
       "data-baseline-judgment-criteria",
       "data-baseline-mobile-criteria",
-      "内容 / 漏洩 / 読み / 音調",
-      "Gender / Age / Archetype / Voice identity",
-      "Delivery / Naturalness",
-      "Baseline採用可否 (adoptable)",
-      "採用可否",
-      "初期候補も全件",
+      "内容、提示词、读法",
+      "角色是否合适",
+      "说法与整体质量",
+      "能否发布",
+      "实际听完",
     ]) {
       expect(markup).toContain(text);
+    }
+    for (const term of ["Gender", "Archetype", "Voice identity", "Delivery", "adoptable"]) {
+      expect(markup).not.toContain(term);
     }
   });
 
@@ -204,7 +247,7 @@ describe("role-baseline-decision-v1 export / UI", () => {
     expect(desktop).toContain("data-baseline-desktop-criteria-sticky");
     expect(desktop).toContain("top-[calc(var(--gaya-sticky-header-offset)+1rem)]");
     expect(desktop).toContain("z-10");
-    expect(mobile).toContain("top-(--gaya-sticky-header-offset)");
+    expect(mobile).toContain("top-[calc(var(--gaya-sticky-header-offset)+3.25rem)]");
     expect(mobile).toContain("z-10");
     expect(mobile).not.toContain("top-0");
   });
@@ -215,6 +258,7 @@ function completeDraft(draft: BaselineDraft): BaselineDraft {
     ...draft,
     groups: draft.groups.map((group) => ({
       ...group,
+      heard_candidate_ids: group.candidates.map((candidate) => candidate.take_id),
       candidates: group.candidates.map((candidate) => ({
         ...candidate,
         rubric: COMPLETE_RUBRIC,
@@ -265,8 +309,25 @@ function makeGroup(
     scenario: `scene-${index}`,
     line: `line-${index}`,
     variant: "dry",
+    character: `character-${index}`,
+    roleIdentitySha256: `${index + 2}${version}`.padEnd(64, "0"),
+    referenceVoice: null,
+    role: {
+      name: `Role ${index}`,
+      kind: "human",
+      gender: "female",
+      age: "adult",
+      archetype: "受付",
+      voice: "明るい声",
+      personality: "親切",
+    },
+    sceneSetting: `Setting ${index}`,
     scenarioTitle: `Scene ${index}`,
     lineText: `Line ${index}`,
+    reading: `Reading ${index}`,
+    situation: `Situation ${index}`,
+    emotion: "calm",
+    intensity: 3,
     delivery: "natural",
     roleEpochSha256: `${index + 3}${version}`.padEnd(64, "0"),
     sourceRunId: `run-${version}`,
@@ -297,9 +358,26 @@ function makeSourceMap(): {
     anchor_selection_sha256: "b".repeat(64),
     candidate_set_sha256: "c".repeat(64),
     groups: Array.from({ length: 597 }, (_, index) => ({
+      character: `character-${String(index).padStart(3, "0")}`,
+      emotion: "neutral",
+      intensity: 2,
       model: "dummy",
+      reading: null,
+      reference_voice: null,
+      role: {
+        age: "adult",
+        archetype: "测试角色",
+        gender: "neutral",
+        kind: "human",
+        name: `角色 ${index}`,
+        personality: "沉着",
+        voice: "清晰自然",
+      },
+      role_identity_sha256: "e".repeat(64),
       scenario: `scene-${String(index).padStart(3, "0")}`,
+      scene_setting: "测试场景",
       line: `line-${String(index).padStart(3, "0")}`,
+      situation: "正在说话",
       variant: "dry",
       role_epoch_sha256: "d".repeat(64),
       source_run_id: `run-${index}`,

@@ -6,6 +6,7 @@ import {
   type BaselineGroupDraft,
   type BaselineRubric,
 } from "./baseline-types";
+import type { PlaybackCompletion } from "@/audio/playback-manager";
 
 export const BASELINE_STORAGE_PREFIX = "gaya-bench:role-baseline:v1:group:";
 export const LEGACY_BASELINE_STORAGE_KEY = "gaya-bench:baseline-completion:v1";
@@ -21,6 +22,7 @@ const GROUP_KEYS = [
   "anchor_selection_sha256",
   "candidate_set_sha256",
   "revalidation_reason",
+  "heard_candidate_ids",
   "candidates",
   "decision",
 ] as const;
@@ -204,6 +206,45 @@ export function selectBaselineCandidate(
   });
 }
 
+export function applyBaselinePlaybackCompletion(
+  catalog: BaselineCatalog,
+  draft: BaselineDraft,
+  completion: PlaybackCompletion,
+): BaselineDraft {
+  assertBaselineDraft(draft, catalog);
+  if (completion.termination !== "ended") {
+    return draft;
+  }
+  for (const [groupIndex, group] of catalog.groups.entries()) {
+    const candidate = group.candidates.find((item) => item.audio.key === completion.clipKey);
+    if (!candidate) {
+      continue;
+    }
+    const groupDraft = draft.groups[groupIndex]!;
+    if (groupDraft.heard_candidate_ids.includes(candidate.takeId)) {
+      return draft;
+    }
+    return {
+      ...draft,
+      groups: draft.groups.map((item, index) =>
+        index === groupIndex
+          ? {
+              ...item,
+              heard_candidate_ids: group.exportCandidates
+                .map((exportCandidate) => exportCandidate.takeId)
+                .filter(
+                  (takeId) =>
+                    takeId === candidate.takeId || item.heard_candidate_ids.includes(takeId),
+                ),
+              decision: null,
+            }
+          : item,
+      ),
+    };
+  }
+  return draft;
+}
+
 export function clearBaselineDecision(
   catalog: BaselineCatalog,
   draft: BaselineDraft,
@@ -299,6 +340,7 @@ function createGroupDraft(
     anchor_selection_sha256: catalog.anchorSelectionSha256,
     candidate_set_sha256: catalog.candidateSetSha256,
     revalidation_reason: reason,
+    heard_candidate_ids: [],
     candidates: group.exportCandidates.map((candidate) => ({
       take_id: candidate.takeId,
       rubric: { ...EMPTY_BASELINE_RUBRIC },
@@ -349,6 +391,17 @@ function groupBindingMatches(
 function assertGroupState(draft: BaselineGroupDraft, group: BaselineGroup): void {
   nullableReason(draft.revalidation_reason, "revalidation_reason");
   const expected = group.exportCandidates.map((candidate) => candidate.takeId);
+  const heard = draft.heard_candidate_ids;
+  if (
+    heard.some((takeId) => !expected.includes(takeId)) ||
+    expected
+      .filter((takeId) => heard.includes(takeId))
+      .some((takeId, index) => takeId !== heard[index])
+  ) {
+    throw new Error(
+      `Phase B draft heard candidate集合・順序が一致しません: ${baselineGroupKey(group)}`,
+    );
+  }
   const actual = draft.candidates.map((candidate) => candidate.take_id);
   if (
     actual.length !== expected.length ||
@@ -365,6 +418,12 @@ function assertGroupState(draft: BaselineGroupDraft, group: BaselineGroup): void
 }
 
 function assertDecisionAllowed(group: BaselineGroupDraft, takeId: string): void {
+  if (
+    group.heard_candidate_ids.length !== group.candidates.length ||
+    group.candidates.some((candidate) => !group.heard_candidate_ids.includes(candidate.take_id))
+  ) {
+    throw new Error("選択前にgroup内の全candidateを最後まで再生してください。");
+  }
   if (group.candidates.some((candidate) => !isBaselineRubricComplete(candidate.rubric))) {
     throw new Error("選択前にgroup内の全candidate rubricを入力してください。");
   }
@@ -388,6 +447,15 @@ function validateStoredGroup(value: unknown, label: string): BaselineGroupDraft 
     sha(group[key], `${label}.${key}`);
   }
   const reason = nullableReason(group.revalidation_reason, `${label}.revalidation_reason`);
+  if (!Array.isArray(group.heard_candidate_ids)) {
+    throw new Error(`${label}.heard_candidate_ids は配列が必要です。`);
+  }
+  const heardCandidateIds = group.heard_candidate_ids.map((value, index) =>
+    sha(value, `${label}.heard_candidate_ids[${index}]`),
+  );
+  if (new Set(heardCandidateIds).size !== heardCandidateIds.length) {
+    throw new Error(`${label}.heard_candidate_ids が重複しています。`);
+  }
   if (!Array.isArray(group.candidates) || group.candidates.length === 0) {
     throw new Error(`${label}.candidates は1件以上の配列が必要です。`);
   }
@@ -422,6 +490,7 @@ function validateStoredGroup(value: unknown, label: string): BaselineGroupDraft 
     anchor_selection_sha256: group.anchor_selection_sha256,
     candidate_set_sha256: group.candidate_set_sha256,
     revalidation_reason: reason,
+    heard_candidate_ids: heardCandidateIds,
     candidates,
     decision,
   } as BaselineGroupDraft;

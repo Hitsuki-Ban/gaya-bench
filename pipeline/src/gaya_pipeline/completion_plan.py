@@ -207,6 +207,13 @@ class ModelPolicy:
 
 
 @dataclass(frozen=True)
+class ScenarioSource:
+    scenario: str
+    path: str
+    sha256: str
+
+
+@dataclass(frozen=True)
 class CompletionPlan:
     plan_id: str
     base_manifest_sha256: str
@@ -219,6 +226,8 @@ class CompletionPlan:
     inherited_groups: int
     final_groups: int
     scenario_registry_sha256: str
+    scenario_files: tuple[ScenarioSource, ...]
+    voice_registry_path: str
     voice_registry_sha256: str
     models: Mapping[str, str]
     roles: tuple[RoleSnapshot, ...]
@@ -331,6 +340,11 @@ def load_completion_plan(
         scenario_registry_sha256=normalized["sources"][
             "scenario_registry_sha256"
         ],
+        scenario_files=tuple(
+            ScenarioSource(**source)
+            for source in normalized["sources"]["scenario_files"]
+        ),
+        voice_registry_path=normalized["sources"]["voice_registry_path"],
         voice_registry_sha256=normalized["sources"]["voice_registry_sha256"],
         models=models,
         roles=roles,

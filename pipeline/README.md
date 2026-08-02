@@ -300,6 +300,22 @@ uv run --project <pipeline> --locked --extra <model-extra> gaya completion gener
   --run-kind primary --seed-base 104
 ```
 
+Phase B生成が中断した場合だけ、同じplan、model、target、anchor authority、takes、seed
+base、run kindを再指定し、対象runを`--resume-run-id`で明示する。runの自動探索や別runへの
+fallbackは行わない。resumeはQC前の`planned` / `generated` / `generation_failed`だけを
+受理し、既存`generated`を全件再検証して保持、`generation_failed`を再試行せず保持し、
+`planned`だけを元のseedで生成する。`--force`との併用、source/slot/input/provenanceの
+不一致、QC済みrunは生成前に拒否する。generationとQCは同じrun lockを使用する。
+
+```console
+uv run --project <pipeline> --locked --extra voxcpm2 gaya completion generate \
+  --plan <absolute-plan.json> --base-manifest <absolute-manifest.json> \
+  --model voxcpm2 --artifacts <absolute-artifacts> \
+  --scenarios <absolute-scenarios> --voices <absolute-voices> \
+  --anchor-selection <absolute-role-anchor-selection.json> \
+  --run-kind primary --seed-base 104 --resume-run-id <exact-interrupted-run-id>
+```
+
 各primary runと後述する各topup runは、生成直後に固定QC modelで権威QCを完了させる。
 `completion listen`はplan / anchor plan、ledger、manifest、candidate set、QC reportの
 provenanceがexactに一致しないrunを受け付けない。
@@ -340,6 +356,25 @@ uv run --project <pipeline> --locked gaya completion listen \
   --topup-run-id <explicit-topup-if-any> \
   --output <absolute-new-listening-directory>
 ```
+
+bundle は入力 plan の原 canonical bytes を `completion-plan.json`、入力 role anchor
+selection の原 canonical bytesを `role-anchor-selection-v1.json` として保存し、各 SHA
+markerも同梱する。`phase-b-source-map-v1.json` の597 groupは、frozen plan / scenario
+由来の役柄、場面、reading、situation、emotion、intensityを持つ。入力bytes SHAとloaded
+authorityが一致しない場合や非canonical入力の場合は生成しない。ローカル聴取は全候補を
+最後まで再生し、明示的にfinalizeする。
+
+```console
+vp run listening:start --workflow role-baseline-v1 \
+  --bundle <absolute-new-listening-directory> \
+  --output <absolute-new-result-directory> \
+  --authority-plan <absolute-canonical-plan.json> --port 4173
+```
+
+`--authority-plan`はbundle外の既存canonical planを独立authorityとして指定する。CLIと
+daemonはそのraw bytes SHAを再計算し、bundle内`completion-plan.json`とJSON parse前に
+exact照合する。authority planはbundle / output / site / session directory内に置かず、
+symlinkではない通常fileを絶対pathで指定する。anchor workflowではこの引数を拒否する。
 
 finalizeはsource auditをreplacement 597
 （mismatch 357 + unverifiable 145 + match 89 + failure 6）とinherited match 691へ

@@ -22,10 +22,14 @@ import { createServer, type Plugin, type ViteDevServer } from "vite-plus";
 
 export const LISTENING_HOST = "127.0.0.1";
 export const LISTENING_PROTOCOL = "gaya-listening-session-v1";
-export const LISTENING_WORKFLOW = "role-review-anchor-v2";
-export const BUNDLE_FILE = "role-review-v2.json";
-export const DRAFT_FILE = "role-review-anchor-draft-v2.json";
-export const FINAL_FILE = "role-review-anchor-decision-v2.json";
+export const ANCHOR_WORKFLOW = "role-review-anchor-v2";
+export const BASELINE_WORKFLOW = "role-baseline-v1";
+export type ListeningWorkflow = typeof ANCHOR_WORKFLOW | typeof BASELINE_WORKFLOW;
+export const ANCHOR_BUNDLE_FILE = "role-review-v2.json";
+export const ANCHOR_DRAFT_FILE = "role-review-anchor-draft-v2.json";
+export const ANCHOR_FINAL_FILE = "role-review-anchor-decision-v2.json";
+export const BASELINE_DRAFT_FILE = "role-baseline-draft-v1.json";
+export const BASELINE_FINAL_FILE = "role-baseline-decision-v1.json";
 export const MUTATION_TOKEN_HEADER = "x-gaya-listening-token";
 export const BODY_LIMIT_BYTES = 4 * 1024 * 1024;
 
@@ -133,6 +137,7 @@ const COMPARISON_REASONS = [
 ] as const;
 
 export interface ValidatedBundle {
+  readonly workflow: ListeningWorkflow;
   readonly document: Record<string, unknown>;
   readonly root: string;
   readonly bundleSha256: string;
@@ -160,7 +165,7 @@ interface GroupBinding {
 
 export interface ListeningSessionState {
   readonly protocol: typeof LISTENING_PROTOCOL;
-  readonly workflow: typeof LISTENING_WORKFLOW;
+  readonly workflow: ListeningWorkflow;
   readonly state: "starting" | "ready";
   readonly id: string;
   readonly pid: number;
@@ -170,6 +175,8 @@ export interface ListeningSessionState {
   readonly started_at: string;
   readonly bundle: string;
   readonly output: string;
+  readonly authority_plan: string | null;
+  readonly expected_plan_sha256: string | null;
 }
 
 export interface ListeningRuntime {
@@ -178,6 +185,8 @@ export interface ListeningRuntime {
   readonly origin: string;
   readonly mutationToken: string;
   readonly sessionId: string;
+  readonly authorityPlanPath: string | null;
+  readonly expectedPlanSha256: string | null;
   readonly api: ListeningApi;
 }
 
@@ -196,27 +205,40 @@ export class HttpError extends Error {
   }
 }
 
-export async function validateListeningBundle(bundleDirectory: string): Promise<ValidatedBundle> {
+export async function validateListeningBundle(
+  workflow: ListeningWorkflow,
+  bundleDirectory: string,
+  expectedPlanSha256: string | null,
+): Promise<ValidatedBundle> {
+  if (workflow === BASELINE_WORKFLOW) {
+    if (expectedPlanSha256 === null) {
+      throw new Error(`${BASELINE_WORKFLOW} は外部authority plan SHA-256が必要です。`);
+    }
+    return validateBaselineListeningBundle(bundleDirectory, expectedPlanSha256);
+  }
+  if (expectedPlanSha256 !== null) {
+    throw new Error(`${ANCHOR_WORKFLOW} はauthority planを受け付けません。`);
+  }
   requireAbsoluteDirectory(bundleDirectory, "bundle");
   const root = path.resolve(bundleDirectory);
-  const bundlePath = path.join(root, BUNDLE_FILE);
+  const bundlePath = path.join(root, ANCHOR_BUNDLE_FILE);
   const raw = await readFile(bundlePath).catch((reason: unknown) => {
-    throw new Error(`${BUNDLE_FILE} を読めません: ${errorMessage(reason)}`);
+    throw new Error(`${ANCHOR_BUNDLE_FILE} を読めません: ${errorMessage(reason)}`);
   });
   let decoded: unknown;
   try {
     decoded = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(raw));
   } catch (reason: unknown) {
-    throw new Error(`${BUNDLE_FILE} は正しいUTF-8 JSONが必要です: ${errorMessage(reason)}`);
+    throw new Error(`${ANCHOR_BUNDLE_FILE} は正しいUTF-8 JSONが必要です: ${errorMessage(reason)}`);
   }
-  const canonical = canonicalJsonBytes(decoded, BUNDLE_FILE);
+  const canonical = canonicalJsonBytes(decoded, ANCHOR_BUNDLE_FILE);
   if (!raw.equals(canonical)) {
-    throw new Error(`${BUNDLE_FILE} はcanonical JSON bytesが必要です。`);
+    throw new Error(`${ANCHOR_BUNDLE_FILE} はcanonical JSON bytesが必要です。`);
   }
   const document = validateBundleDocument(decoded);
   const actualPaths = listBundleFiles(root);
   const candidates = new Map<string, ValidatedCandidate>();
-  const referencedPaths = new Set<string>([BUNDLE_FILE]);
+  const referencedPaths = new Set<string>([ANCHOR_BUNDLE_FILE]);
   const groupBindings: GroupBinding[] = [];
   for (const [groupIndex, rawGroup] of (document.groups as unknown[]).entries()) {
     const group = rawGroup as Record<string, unknown>;
@@ -274,6 +296,7 @@ export async function validateListeningBundle(bundleDirectory: string): Promise<
     );
   }
   return {
+    workflow,
     document,
     root,
     bundleSha256: sha256(raw),
@@ -283,8 +306,11 @@ export async function validateListeningBundle(bundleDirectory: string): Promise<
 }
 
 export async function createListeningRuntime(options: {
+  readonly workflow: ListeningWorkflow;
   readonly bundleDirectory: string;
   readonly outputDirectory: string;
+  readonly authorityPlanPath: string | null;
+  readonly expectedPlanSha256: string | null;
   readonly port: number;
   readonly mutationToken?: string;
   readonly sessionId?: string;
@@ -298,7 +324,18 @@ export async function createListeningRuntime(options: {
   const bundleRoot = path.resolve(options.bundleDirectory);
   const outputRoot = path.resolve(options.outputDirectory);
   assertListeningDirectoryBoundaries(bundleRoot, outputRoot);
-  const bundle = await validateListeningBundle(options.bundleDirectory);
+  const authority = await verifyListeningPlanAuthority({
+    workflow: options.workflow,
+    authorityPlanPath: options.authorityPlanPath,
+    expectedPlanSha256: options.expectedPlanSha256,
+    bundleRoot,
+    outputRoot,
+  });
+  const bundle = await validateListeningBundle(
+    options.workflow,
+    options.bundleDirectory,
+    authority?.sha256 ?? null,
+  );
   const origin = `http://${LISTENING_HOST}:${options.port}`;
   const mutationToken = options.mutationToken ?? randomBytes(32).toString("hex");
   const sessionId = options.sessionId ?? randomUUID();
@@ -308,9 +345,20 @@ export async function createListeningRuntime(options: {
     origin,
     mutationToken,
     sessionId,
+    authorityPlanPath: authority?.path ?? null,
+    expectedPlanSha256: authority?.sha256 ?? null,
     onShutdown: options.onShutdown,
   });
-  return { bundle, outputRoot, origin, mutationToken, sessionId, api };
+  return {
+    bundle,
+    outputRoot,
+    origin,
+    mutationToken,
+    sessionId,
+    authorityPlanPath: authority?.path ?? null,
+    expectedPlanSha256: authority?.sha256 ?? null,
+    api,
+  };
 }
 
 export function assertListeningDirectoryBoundaries(bundleRoot: string, outputRoot: string): void {
@@ -325,14 +373,112 @@ export function assertListeningDirectoryBoundaries(bundleRoot: string, outputRoo
   }
 }
 
+export async function readListeningPlanAuthority(options: {
+  readonly authorityPlanPath: string;
+  readonly bundleRoot: string;
+  readonly outputRoot: string;
+}): Promise<{ readonly path: string; readonly sha256: string }> {
+  if (!path.isAbsolute(options.authorityPlanPath)) {
+    throw new Error(`--authority-plan は絶対pathが必要です: ${options.authorityPlanPath}`);
+  }
+  const authorityPlanPath = path.resolve(options.authorityPlanPath);
+  let info;
+  try {
+    info = lstatSync(authorityPlanPath);
+  } catch (reason: unknown) {
+    throw new Error(
+      `--authority-plan fileがありません: ${authorityPlanPath}: ${errorMessage(reason)}`,
+    );
+  }
+  if (!info.isFile() || info.isSymbolicLink()) {
+    throw new Error("--authority-plan は既存の通常fileが必要です。");
+  }
+  assertAuthorityPlanBoundary(authorityPlanPath, options.bundleRoot, options.outputRoot);
+  const raw = await readFile(authorityPlanPath);
+  let decoded: unknown;
+  try {
+    decoded = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(raw));
+  } catch (reason: unknown) {
+    throw new Error(`--authority-plan は正しいUTF-8 JSONが必要です: ${errorMessage(reason)}`);
+  }
+  if (!raw.equals(canonicalJsonBytes(decoded, "--authority-plan"))) {
+    throw new Error("--authority-plan はcanonical JSON bytesが必要です。");
+  }
+  return { path: authorityPlanPath, sha256: sha256(raw) };
+}
+
+export function assertAuthorityPlanBoundary(
+  authorityPlanPath: string,
+  bundleRoot: string,
+  outputRoot: string,
+): void {
+  const authority = path.resolve(authorityPlanPath);
+  for (const [label, boundary] of [
+    ["bundle", bundleRoot],
+    ["output", outputRoot],
+    ["site", SITE_ROOT],
+    ["listening session", LISTENING_STATE_DIR],
+  ] as const) {
+    if (pathIsInside(authority, boundary)) {
+      throw new Error(`--authority-plan は ${label} boundary の外に置く必要があります。`);
+    }
+  }
+}
+
+async function verifyListeningPlanAuthority(options: {
+  readonly workflow: ListeningWorkflow;
+  readonly authorityPlanPath: string | null;
+  readonly expectedPlanSha256: string | null;
+  readonly bundleRoot: string;
+  readonly outputRoot: string;
+}): Promise<{ readonly path: string; readonly sha256: string } | null> {
+  if (options.workflow === ANCHOR_WORKFLOW) {
+    if (options.authorityPlanPath !== null || options.expectedPlanSha256 !== null) {
+      throw new Error(`${ANCHOR_WORKFLOW} は--authority-planを受け付けません。`);
+    }
+    return null;
+  }
+  if (options.authorityPlanPath === null || options.expectedPlanSha256 === null) {
+    throw new Error(`${BASELINE_WORKFLOW} は--authority-planとexpected plan SHA-256が必要です。`);
+  }
+  if (!SHA_PATTERN.test(options.expectedPlanSha256)) {
+    throw new Error("expected plan SHA-256は64桁の小文字hexが必要です。");
+  }
+  const authority = await readListeningPlanAuthority({
+    authorityPlanPath: options.authorityPlanPath,
+    bundleRoot: options.bundleRoot,
+    outputRoot: options.outputRoot,
+  });
+  if (authority.sha256 !== options.expectedPlanSha256) {
+    throw new Error(
+      `authority plan SHA-256が起動時のexpected値と一致しません: expected=${options.expectedPlanSha256} actual=${authority.sha256}`,
+    );
+  }
+  return authority;
+}
+
 function directoriesOverlap(left: string, right: string): boolean {
-  const resolvedLeft = path.resolve(left);
-  const resolvedRight = path.resolve(right);
+  const resolvedLeft = pathComparisonKey(left);
+  const resolvedRight = pathComparisonKey(right);
   return (
     resolvedLeft === resolvedRight ||
     resolvedLeft.startsWith(`${resolvedRight}${path.sep}`) ||
     resolvedRight.startsWith(`${resolvedLeft}${path.sep}`)
   );
+}
+
+function pathIsInside(candidate: string, directory: string): boolean {
+  const resolvedCandidate = pathComparisonKey(candidate);
+  const resolvedDirectory = pathComparisonKey(directory);
+  return (
+    resolvedCandidate === resolvedDirectory ||
+    resolvedCandidate.startsWith(`${resolvedDirectory}${path.sep}`)
+  );
+}
+
+function pathComparisonKey(value: string): string {
+  const resolved = path.resolve(value);
+  return process.platform === "win32" ? resolved.toLowerCase() : resolved;
 }
 
 export async function createListeningApi(options: {
@@ -341,25 +487,28 @@ export async function createListeningApi(options: {
   readonly origin: string;
   readonly mutationToken: string;
   readonly sessionId: string;
+  readonly authorityPlanPath: string | null;
+  readonly expectedPlanSha256: string | null;
   readonly onShutdown?: () => void;
 }): Promise<ListeningApi> {
-  const draftPath = path.join(options.outputRoot, DRAFT_FILE);
-  const finalPath = path.join(options.outputRoot, FINAL_FILE);
+  const files = workflowFiles(options.bundle.workflow);
+  const draftPath = path.join(options.outputRoot, files.draft);
+  const finalPath = path.join(options.outputRoot, files.final);
   const draft = await loadExistingDraft(draftPath, (value) =>
-    validateDraftDocument(value, options.bundle),
+    validateWorkflowDraft(value, options.bundle),
   );
   const final = await loadExistingFinal(finalPath, (value) =>
-    validateDecisionDocument(value, options.bundle),
+    validateWorkflowDecision(value, options.bundle),
   );
   if (final !== null) {
     if (draft === null) {
       throw new Error("final decisionの復元には対応する保存済みdraftが必要です。");
     }
-    const expectedDecision = decisionFromDraft(draft);
+    const expectedDecision = decisionFromWorkflowDraft(draft, options.bundle);
     try {
-      validateDecisionDocument(expectedDecision, options.bundle);
+      validateWorkflowDecision(expectedDecision, options.bundle);
     } catch {
-      throw new Error("final decisionに対応するdraftは全106 groupが確認済みではありません。");
+      throw new Error("final decisionに対応するdraftは全groupの判断が完了していません。");
     }
     if (!canonicalJsonBytes(final).equals(canonicalJsonBytes(expectedDecision))) {
       throw new Error("final decisionと保存済みdraftの内容が一致しません。");
@@ -387,8 +536,10 @@ export async function createListeningApi(options: {
       sendJson(response, 200, {
         status: "ok",
         protocol: LISTENING_PROTOCOL,
-        workflow: LISTENING_WORKFLOW,
+        workflow: options.bundle.workflow,
         session_id: options.sessionId,
+        authority_plan: options.authorityPlanPath,
+        expected_plan_sha256: options.expectedPlanSha256,
         revision,
         finalized,
         shutting_down: shuttingDown,
@@ -399,15 +550,15 @@ export async function createListeningApi(options: {
       sendJson(response, 200, {
         format_version: 1,
         protocol: LISTENING_PROTOCOL,
-        workflow: LISTENING_WORKFLOW,
+        workflow: options.bundle.workflow,
         bundle: options.bundle.document,
         mutation_token: options.mutationToken,
         revision,
         finalized,
         output: {
           directory_name: path.basename(options.outputRoot),
-          draft_file: DRAFT_FILE,
-          decision_file: FINAL_FILE,
+          draft_file: files.draft,
+          decision_file: files.final,
         },
       });
       return;
@@ -435,7 +586,7 @@ export async function createListeningApi(options: {
         "draft PUT body",
       );
       const requestedRevision = nonNegativeInteger(body.revision, "draft PUT body.revision");
-      const validated = requestValidation(() => validateDraftDocument(body.draft, options.bundle));
+      const validated = requestValidation(() => validateWorkflowDraft(body.draft, options.bundle));
       if (shuttingDown) {
         throw new HttpError(409, "listening app は停止処理中です。");
       }
@@ -462,7 +613,7 @@ export async function createListeningApi(options: {
       );
       const requestedRevision = nonNegativeInteger(body.revision, "finalize body.revision");
       const decision = requestValidation(() =>
-        validateDecisionDocument(body.decision, options.bundle),
+        validateWorkflowDecision(body.decision, options.bundle),
       );
       if (shuttingDown) {
         throw new HttpError(409, "listening app は停止処理中です。");
@@ -477,11 +628,11 @@ export async function createListeningApi(options: {
         if (currentDraft === null) {
           throw new HttpError(409, "保存済みdraftがありません。");
         }
-        const expectedDecision = decisionFromDraft(currentDraft);
+        const expectedDecision = decisionFromWorkflowDraft(currentDraft, options.bundle);
         try {
-          validateDecisionDocument(expectedDecision, options.bundle);
+          validateWorkflowDecision(expectedDecision, options.bundle);
         } catch {
-          throw new HttpError(409, "保存済みdraftは全106 groupが確認済みではありません。");
+          throw new HttpError(409, "保存済みdraftは全groupの判断が完了していません。");
         }
         if (!canonicalJsonBytes(decision).equals(canonicalJsonBytes(expectedDecision))) {
           throw new HttpError(409, "decisionが保存済みdraftの内容と一致しません。");
@@ -540,8 +691,11 @@ export async function createListeningApi(options: {
 }
 
 export async function runListeningServer(options: {
+  readonly workflow: ListeningWorkflow;
   readonly bundleDirectory: string;
   readonly outputDirectory: string;
+  readonly authorityPlanPath: string | null;
+  readonly expectedPlanSha256: string | null;
   readonly port: number;
 }): Promise<void> {
   let shutdownCallback = () => undefined;
@@ -553,7 +707,7 @@ export async function runListeningServer(options: {
   const startedAt = new Date().toISOString();
   const baseSession = {
     protocol: LISTENING_PROTOCOL,
-    workflow: LISTENING_WORKFLOW,
+    workflow: options.workflow,
     id: sessionId,
     pid: process.pid,
     port: options.port,
@@ -562,6 +716,8 @@ export async function runListeningServer(options: {
     started_at: startedAt,
     bundle: runtime.bundle.root,
     output: runtime.outputRoot,
+    authority_plan: runtime.authorityPlanPath,
+    expected_plan_sha256: runtime.expectedPlanSha256,
   } as const;
   writeNewSession({ ...baseSession, state: "starting" });
   let vite: ViteDevServer | null = null;
@@ -645,6 +801,1379 @@ export async function runListeningServer(options: {
   } catch (reason: unknown) {
     await shutdown(1);
     throw reason;
+  }
+}
+
+interface WorkflowFiles {
+  readonly draft: string;
+  readonly final: string;
+}
+
+function workflowFiles(workflow: ListeningWorkflow): WorkflowFiles {
+  if (workflow === ANCHOR_WORKFLOW) {
+    return { draft: ANCHOR_DRAFT_FILE, final: ANCHOR_FINAL_FILE };
+  }
+  return { draft: BASELINE_DRAFT_FILE, final: BASELINE_FINAL_FILE };
+}
+
+const BASELINE_METADATA_FILES = [
+  "manifest-v4.json",
+  "candidate-set.json",
+  "candidate-set.sha256",
+  "completion-plan.json",
+  "completion-plan.sha256",
+  "role-anchor-selection-v1.json",
+  "role-anchor-selection-v1.sha256",
+  "phase-b-source-map-v1.json",
+  "phase-b-source-map-v1.sha256",
+] as const;
+const BASELINE_GROUP_COUNT = 597;
+const BASELINE_SOURCE_ROOT_KEYS = [
+  "format_version",
+  "protocol",
+  "plan_sha256",
+  "anchor_selection_sha256",
+  "candidate_set_sha256",
+  "groups",
+] as const;
+const BASELINE_SOURCE_GROUP_KEYS = [
+  "model",
+  "scenario",
+  "line",
+  "variant",
+  "character",
+  "role_identity_sha256",
+  "reference_voice",
+  "role",
+  "scene_setting",
+  "reading",
+  "situation",
+  "emotion",
+  "intensity",
+  "role_epoch_sha256",
+  "source_run_id",
+  "minimum_eligible_candidates",
+] as const;
+const BASELINE_MANIFEST_KEYS = [
+  "format_version",
+  "generated_at",
+  "candidate_set_sha256",
+  "models",
+  "candidates",
+  "curations",
+  "failures",
+] as const;
+const BASELINE_CANDIDATE_SET_KEYS = [
+  "format_version",
+  "scenario_sha256",
+  "models",
+  "lines",
+  "candidates",
+  "failures",
+] as const;
+const BASELINE_LINE_KEYS = ["scenario", "line", "scenario_title", "text", "delivery"] as const;
+const BASELINE_TAKE_KEYS = [
+  "model",
+  "scenario",
+  "line",
+  "variant",
+  "take_index",
+  "take_id",
+  "path",
+  "duration_sec",
+  "sha256",
+  "generation_input_sha256",
+  "gen_params",
+  "rtf",
+  "loudness",
+  "gate",
+] as const;
+const BASELINE_GATE_KEYS = ["mechanical", "content", "policy_version"] as const;
+const BASELINE_ROLE_KEYS = [
+  "name",
+  "kind",
+  "gender",
+  "age",
+  "archetype",
+  "voice",
+  "personality",
+] as const;
+const BASELINE_MODELS = [
+  "aivisspeech-kohaku",
+  "chatterbox-multilingual-v3",
+  "cosyvoice3-0.5b-2512",
+  "gpt-sovits-v2-pro-plus",
+  "irodori-tts-600m-v3-voicedesign",
+  "qwen3-tts-12hz-1.7b",
+  "supertonic-3",
+  "voxcpm2",
+] as const;
+const BASELINE_MODEL_GROUP_COUNTS = new Map<string, number>([
+  ["aivisspeech-kohaku", 25],
+  ["chatterbox-multilingual-v3", 13],
+  ["cosyvoice3-0.5b-2512", 14],
+  ["gpt-sovits-v2-pro-plus", 37],
+  ["irodori-tts-600m-v3-voicedesign", 161],
+  ["qwen3-tts-12hz-1.7b", 161],
+  ["supertonic-3", 25],
+  ["voxcpm2", 161],
+]);
+const BASELINE_ANCHOR_MODELS = new Set(["irodori-tts-600m-v3-voicedesign", "qwen3-tts-12hz-1.7b"]);
+
+async function validateBaselineListeningBundle(
+  bundleDirectory: string,
+  expectedPlanSha256: string,
+): Promise<ValidatedBundle> {
+  requireAbsoluteDirectory(bundleDirectory, "bundle");
+  const root = path.resolve(bundleDirectory);
+  const planBytes = await readFile(path.join(root, "completion-plan.json")).catch(
+    (reason: unknown) => {
+      throw new Error(`completion-plan.json を読めません: ${errorMessage(reason)}`);
+    },
+  );
+  const planSha256 = sha256(planBytes);
+  if (planSha256 !== expectedPlanSha256) {
+    throw new Error(
+      `埋め込みcompletion-plan SHA-256が外部authorityと一致しません: expected=${expectedPlanSha256} actual=${planSha256}`,
+    );
+  }
+  const plan = await readCanonicalObject(root, "completion-plan.json", [
+    "format_version",
+    "protocol",
+    "base",
+    "sources",
+    "models",
+    "roles",
+    "anchor_authority",
+    "phase_b",
+  ]);
+  const anchorSelection = await readCanonicalObject(root, "role-anchor-selection-v1.json", [
+    "format_version",
+    "protocol",
+    "plan_sha256",
+    "candidate_set_sha256",
+    "groups",
+  ]);
+  const manifest = await readCanonicalObject(root, "manifest-v4.json", BASELINE_MANIFEST_KEYS);
+  const candidateSetRaw = await readCanonicalObject(
+    root,
+    "candidate-set.json",
+    BASELINE_CANDIDATE_SET_KEYS,
+  );
+  const sourceMap = await readCanonicalObject(
+    root,
+    "phase-b-source-map-v1.json",
+    BASELINE_SOURCE_ROOT_KEYS,
+  );
+  if (readShaMarker(root, "completion-plan.sha256") !== planSha256) {
+    throw new Error("completion-plan SHA-256 markerが埋め込みplanと一致しません。");
+  }
+  const anchorSelectionBytes = await readFile(path.join(root, "role-anchor-selection-v1.json"));
+  const anchorSelectionSha256 = sha256(anchorSelectionBytes);
+  if (readShaMarker(root, "role-anchor-selection-v1.sha256") !== anchorSelectionSha256) {
+    throw new Error("role-anchor-selection SHA-256 markerが埋め込みselectionと一致しません。");
+  }
+  const authorities = validateBaselineAuthorities({
+    plan,
+    planSha256,
+    anchorSelection,
+    anchorSelectionSha256,
+    sourceMap,
+  });
+  if (manifest.format_version !== 4 || candidateSetRaw.format_version !== 4) {
+    throw new Error("Phase B manifest/candidate-set はformat_version=4が必要です。");
+  }
+  if (
+    !Array.isArray(manifest.curations) ||
+    manifest.curations.length !== 0 ||
+    !Array.isArray(manifest.failures) ||
+    manifest.failures.length !== 0 ||
+    !Array.isArray(candidateSetRaw.failures) ||
+    candidateSetRaw.failures.length !== 0
+  ) {
+    throw new Error("Phase B listening bundle はcurations 0 / failures 0が必要です。");
+  }
+  const candidateSetBytes = await readFile(path.join(root, "candidate-set.json"));
+  const candidateSetSha256 = sha256(candidateSetBytes);
+  if (
+    readShaMarker(root, "candidate-set.sha256") !== candidateSetSha256 ||
+    manifest.candidate_set_sha256 !== candidateSetSha256
+  ) {
+    throw new Error("candidate-set SHA-256がmanifest/markerと一致しません。");
+  }
+  if (
+    sourceMap.format_version !== 1 ||
+    sourceMap.protocol !== "phase-b-source-map-v1" ||
+    sourceMap.candidate_set_sha256 !== candidateSetSha256
+  ) {
+    throw new Error("Phase B source map rootが現在のcandidate setと一致しません。");
+  }
+  const sourceMapBytes = await readFile(path.join(root, "phase-b-source-map-v1.json"));
+  if (readShaMarker(root, "phase-b-source-map-v1.sha256") !== sha256(sourceMapBytes)) {
+    throw new Error("Phase B source map SHA-256 markerが一致しません。");
+  }
+  if (
+    canonicalJsonBytes({
+      format_version: candidateSetRaw.format_version,
+      models: candidateSetRaw.models,
+      candidates: candidateSetRaw.candidates,
+      failures: candidateSetRaw.failures,
+    }).compare(
+      canonicalJsonBytes({
+        format_version: manifest.format_version,
+        models: manifest.models,
+        candidates: manifest.candidates,
+        failures: manifest.failures,
+      }),
+    ) !== 0
+  ) {
+    throw new Error("candidate-setのcandidate subsetがmanifest-v4と一致しません。");
+  }
+  validateBaselineBundleModels(candidateSetRaw.models, authorities.modelRevisions);
+  if (!Array.isArray(candidateSetRaw.lines) || !Array.isArray(candidateSetRaw.candidates)) {
+    throw new Error("Phase B candidate-setのlines/candidatesは配列が必要です。");
+  }
+  const lines = new Map<string, Record<string, unknown>>();
+  for (const [index, value] of candidateSetRaw.lines.entries()) {
+    const line = exactObject(value, BASELINE_LINE_KEYS, `candidate-set.lines[${index}]`);
+    const scenario = safeSegment(line.scenario, `candidate-set.lines[${index}].scenario`);
+    const lineId = safeSegment(line.line, `candidate-set.lines[${index}].line`);
+    const key = `${scenario}/${lineId}`;
+    if (lines.has(key)) {
+      throw new Error(`candidate-set lineが重複しています: ${key}`);
+    }
+    nonEmptyText(line.scenario_title, `candidate-set.lines[${index}].scenario_title`);
+    nonEmptyText(line.text, `candidate-set.lines[${index}].text`);
+    nonEmptyText(line.delivery, `candidate-set.lines[${index}].delivery`);
+    lines.set(key, line);
+  }
+  const takesByGroup = new Map<string, Array<Record<string, unknown>>>();
+  const candidates = new Map<string, ValidatedCandidate>();
+  const referencedPaths = new Set<string>(BASELINE_METADATA_FILES);
+  for (const [index, value] of candidateSetRaw.candidates.entries()) {
+    const take = exactObject(value, BASELINE_TAKE_KEYS, `candidate-set.candidates[${index}]`);
+    const model = safePathSegment(take.model, `candidate-set.candidates[${index}].model`);
+    const scenario = safeSegment(take.scenario, `candidate-set.candidates[${index}].scenario`);
+    const line = safeSegment(take.line, `candidate-set.candidates[${index}].line`);
+    const variant = safeSegment(take.variant, `candidate-set.candidates[${index}].variant`);
+    const takeIndex = positiveInteger(
+      take.take_index,
+      `candidate-set.candidates[${index}].take_index`,
+    );
+    const takeId = sha(take.take_id, `candidate-set.candidates[${index}].take_id`);
+    const audioSha256 = sha(take.sha256, `candidate-set.candidates[${index}].sha256`);
+    const inputSha256 = sha(
+      take.generation_input_sha256,
+      `candidate-set.candidates[${index}].generation_input_sha256`,
+    );
+    const expectedTakeId = sha256(
+      Buffer.from(
+        `{"final_opus_sha256":"${audioSha256}","generation_input_sha256":"${inputSha256}"}`,
+      ),
+    );
+    if (takeId !== expectedTakeId || candidates.has(takeId)) {
+      throw new Error(`Phase B take identityが不正または重複しています: ${takeId}`);
+    }
+    const gate = exactObject(take.gate, BASELINE_GATE_KEYS, `candidate ${takeId}.gate`);
+    if (
+      gate.mechanical !== "pass" ||
+      (gate.content !== "pass" && gate.content !== "review_required") ||
+      gate.policy_version !== "take-gates-v2"
+    ) {
+      throw new Error(`candidate ${takeId}.gateがPhase B contractと一致しません。`);
+    }
+    const artifactPrefix = `audio/takes/${model}/${scenario}/${line}/${variant}/take-${String(takeIndex).padStart(4, "0")}-`;
+    if (take.path !== `${artifactPrefix}${audioSha256}.opus`) {
+      throw new Error(`candidate ${takeId}.pathがPhase B artifact identityと一致しません。`);
+    }
+    const localPath = `audio/${model}/${scenario}/${line}/${variant}/take-${String(takeIndex).padStart(4, "0")}.opus`;
+    const absolutePath = safeBundleChild(root, localPath, `candidate ${takeId}.audio`);
+    const file = await stat(absolutePath).catch((reason: unknown) => {
+      throw new Error(`候補音声がありません: ${localPath}: ${errorMessage(reason)}`);
+    });
+    if (!file.isFile() || sha256(await readFile(absolutePath)) !== audioSha256) {
+      throw new Error(`候補音声SHA-256が一致しません: ${localPath}`);
+    }
+    referencedPaths.add(localPath);
+    candidates.set(takeId, {
+      id: takeId,
+      path: localPath,
+      absolutePath,
+      size: file.size,
+      contentType: "audio/ogg",
+    });
+    const groupKey = baselineCoordinate({ model, scenario, line, variant });
+    takesByGroup.set(groupKey, [...(takesByGroup.get(groupKey) ?? []), take]);
+  }
+  if (!Array.isArray(sourceMap.groups) || sourceMap.groups.length !== BASELINE_GROUP_COUNT) {
+    throw new Error(`Phase B source map.groupsはexactly ${BASELINE_GROUP_COUNT}件が必要です。`);
+  }
+  const serializedGroups: Record<string, unknown>[] = [];
+  let previousCoordinate = "";
+  const seenCoordinates = new Set<string>();
+  for (const [index, value] of sourceMap.groups.entries()) {
+    const source = exactObject(value, BASELINE_SOURCE_GROUP_KEYS, `source-map.groups[${index}]`);
+    const model = safePathSegment(source.model, `source-map.groups[${index}].model`);
+    const scenario = safeSegment(source.scenario, `source-map.groups[${index}].scenario`);
+    const line = safeSegment(source.line, `source-map.groups[${index}].line`);
+    const variant = safeSegment(source.variant, `source-map.groups[${index}].variant`);
+    const character = safeSegment(source.character, `source-map.groups[${index}].character`);
+    const roleIdentitySha256 = sha(
+      source.role_identity_sha256,
+      `source-map.groups[${index}].role_identity_sha256`,
+    );
+    const referenceVoice = nullableNonEmptyText(
+      source.reference_voice,
+      `source-map.groups[${index}].reference_voice`,
+    );
+    const role = validateBaselineRole(source.role, `source-map.groups[${index}].role`);
+    const sceneSetting = nonEmptyText(
+      source.scene_setting,
+      `source-map.groups[${index}].scene_setting`,
+    );
+    const reading = nullableNonEmptyText(source.reading, `source-map.groups[${index}].reading`);
+    const situation = nonEmptyText(source.situation, `source-map.groups[${index}].situation`);
+    const emotion = nonEmptyText(source.emotion, `source-map.groups[${index}].emotion`);
+    const intensity = positiveInteger(source.intensity, `source-map.groups[${index}].intensity`);
+    const coordinate = baselineCoordinate({ model, scenario, line, variant });
+    if (
+      seenCoordinates.has(coordinate) ||
+      (previousCoordinate !== "" && coordinate < previousCoordinate)
+    ) {
+      throw new Error("Phase B source map.groupsは重複のないcanonical順が必要です。");
+    }
+    seenCoordinates.add(coordinate);
+    previousCoordinate = coordinate;
+    const roleEpochSha256 = sha(source.role_epoch_sha256, `${coordinate}.role_epoch_sha256`);
+    const sourceRunId = safePathSegment(source.source_run_id, `${coordinate}.source_run_id`);
+    const minimum = positiveInteger(
+      source.minimum_eligible_candidates,
+      `${coordinate}.minimum_eligible_candidates`,
+    );
+    const target = authorities.targets.get(coordinate);
+    const roleSnapshot = authorities.roles.get(JSON.stringify([scenario, character]));
+    if (!target || target.minimum !== minimum || !roleSnapshot) {
+      throw new Error(`Phase B source map groupがplan target/policyと一致しません: ${coordinate}`);
+    }
+    const actualRoleSnapshot = {
+      scenario,
+      character,
+      role,
+      reference_voice: referenceVoice,
+      scene_setting: sceneSetting,
+      role_identity_sha256: roleIdentitySha256,
+    };
+    if (!canonicalJsonBytes(actualRoleSnapshot).equals(canonicalJsonBytes(roleSnapshot))) {
+      throw new Error(`Phase B source map role snapshotがplanと一致しません: ${coordinate}`);
+    }
+    const groupTakes = [...(takesByGroup.get(coordinate) ?? [])].sort((left, right) =>
+      compareText(left.take_id as string, right.take_id as string),
+    );
+    if (groupTakes.length < minimum) {
+      throw new Error(`Phase B group候補数がminimum未満です: ${coordinate}`);
+    }
+    const lineDocument = lines.get(`${scenario}/${line}`);
+    if (!lineDocument) {
+      throw new Error(`Phase B line metadataがありません: ${scenario}/${line}`);
+    }
+    const exportCandidates = groupTakes.map((take) => ({
+      take_id: take.take_id,
+      path: take.path,
+      audio_sha256: take.sha256,
+      gate: take.gate,
+    }));
+    const expectedRoleEpoch = expectedBaselineRoleEpoch({
+      model,
+      scenario,
+      character,
+      roleIdentitySha256,
+      referenceVoice,
+      planSha256,
+      anchorSelectionSha256,
+      modelRevision: authorities.modelRevisions.get(model)!,
+      anchorEpochs: authorities.anchorEpochs,
+    });
+    if (roleEpochSha256 !== expectedRoleEpoch) {
+      throw new Error(
+        `Phase B source map role epochがplan/anchor authorityと一致しません: ${coordinate}`,
+      );
+    }
+    for (const take of groupTakes) {
+      validateBaselineCandidateProvenance(take, {
+        model,
+        scenario,
+        line,
+        variant,
+        roleEpochSha256,
+        planSha256,
+        anchorSelectionSha256,
+        anchorPlanSha256: authorities.anchorPlanSha256,
+      });
+    }
+    const groupSha256 = sha256(
+      canonicalJsonBytes({
+        model,
+        scenario,
+        line,
+        variant,
+        character,
+        role_identity_sha256: roleIdentitySha256,
+        reference_voice: referenceVoice,
+        role,
+        scene_setting: sceneSetting,
+        reading,
+        situation,
+        emotion,
+        intensity,
+        scenario_title: lineDocument.scenario_title,
+        text: lineDocument.text,
+        delivery: lineDocument.delivery,
+        role_epoch_sha256: roleEpochSha256,
+        source_run_id: sourceRunId,
+        minimum_eligible_candidates: minimum,
+        candidates: exportCandidates,
+      }),
+    );
+    const presented = [...exportCandidates]
+      .sort((left, right) => {
+        const compared = compareText(
+          sha256(Buffer.from(candidateSetSha256 + (left.take_id as string))),
+          sha256(Buffer.from(candidateSetSha256 + (right.take_id as string))),
+        );
+        return compared || compareText(left.take_id as string, right.take_id as string);
+      })
+      .map((candidate, candidateIndex) => ({
+        ...candidate,
+        label: blindLabel(candidateIndex),
+      }));
+    serializedGroups.push({
+      model,
+      scenario,
+      line,
+      variant,
+      character,
+      role_identity_sha256: roleIdentitySha256,
+      reference_voice: referenceVoice,
+      role,
+      scene_setting: sceneSetting,
+      scenario_title: lineDocument.scenario_title,
+      line_text: lineDocument.text,
+      reading,
+      situation,
+      emotion,
+      intensity,
+      delivery: lineDocument.delivery,
+      role_epoch_sha256: roleEpochSha256,
+      source_run_id: sourceRunId,
+      minimum_eligible_candidates: minimum,
+      group_sha256: groupSha256,
+      candidates: presented,
+      export_candidates: exportCandidates,
+    });
+  }
+  if (
+    takesByGroup.size !== seenCoordinates.size ||
+    [...takesByGroup.keys()].some((key) => !seenCoordinates.has(key))
+  ) {
+    throw new Error("Phase B source mapとcandidate group集合が一致しません。");
+  }
+  if (seenCoordinates.size !== authorities.targets.size) {
+    throw new Error("Phase B source mapとplan targetのexact集合が一致しません。");
+  }
+  const actualPaths = listBundleFiles(root);
+  const expectedPaths = [...referencedPaths].sort(compareText);
+  if (
+    actualPaths.length !== expectedPaths.length ||
+    actualPaths.some((value, index) => value !== expectedPaths[index])
+  ) {
+    throw new Error(
+      `Phase B bundle file setがexact contractと一致しません: expected=${expectedPaths.length}, actual=${actualPaths.length}`,
+    );
+  }
+  const document = {
+    format_version: 1,
+    protocol: "role-baseline-listening-v1",
+    plan_sha256: planSha256,
+    anchor_selection_sha256: anchorSelectionSha256,
+    candidate_set_sha256: candidateSetSha256,
+    groups: serializedGroups,
+  };
+  return {
+    workflow: BASELINE_WORKFLOW,
+    document,
+    root,
+    bundleSha256: sha256(sourceMapBytes),
+    candidates,
+    groupBindings: [],
+  };
+}
+
+interface BaselineAuthorities {
+  readonly modelRevisions: ReadonlyMap<string, string>;
+  readonly roles: ReadonlyMap<string, Record<string, unknown>>;
+  readonly targets: ReadonlyMap<string, { readonly minimum: number }>;
+  readonly anchorEpochs: ReadonlyMap<string, string>;
+  readonly anchorPlanSha256: string;
+}
+
+function validateBaselineAuthorities(options: {
+  readonly plan: Record<string, unknown>;
+  readonly planSha256: string;
+  readonly anchorSelection: Record<string, unknown>;
+  readonly anchorSelectionSha256: string;
+  readonly sourceMap: Record<string, unknown>;
+}): BaselineAuthorities {
+  const { plan, planSha256, anchorSelection, anchorSelectionSha256, sourceMap } = options;
+  if (plan.format_version !== 2 || plan.protocol !== "role-baseline-plan-v2") {
+    throw new Error("completion-planはrole-baseline-plan-v2が必要です。");
+  }
+  if (
+    sourceMap.plan_sha256 !== planSha256 ||
+    sourceMap.anchor_selection_sha256 !== anchorSelectionSha256
+  ) {
+    throw new Error("source mapが埋め込みplan/anchor selection authorityと一致しません。");
+  }
+  exactObject(
+    plan.base,
+    [
+      "manifest_sha256",
+      "git_blob",
+      "candidate_set_sha256",
+      "selection_sha256",
+      "inherited_groups",
+      "final_groups",
+    ],
+    "completion-plan.base",
+  );
+  exactObject(
+    plan.sources,
+    ["scenario_registry_sha256", "scenario_files", "voice_registry_path", "voice_registry_sha256"],
+    "completion-plan.sources",
+  );
+  const anchorAuthority = exactObject(
+    plan.anchor_authority,
+    ["source_plan_sha256", "candidate_set_sha256", "selection_sha256"],
+    "completion-plan.anchor_authority",
+  );
+  const anchorPlanSha256 = sha(
+    anchorAuthority.source_plan_sha256,
+    "completion-plan.anchor_authority.source_plan_sha256",
+  );
+  if (anchorAuthority.selection_sha256 !== anchorSelectionSha256) {
+    throw new Error("completion-plan anchor selection SHAが埋め込みselectionと一致しません。");
+  }
+  if (
+    anchorSelection.format_version !== 1 ||
+    anchorSelection.protocol !== "role-anchor-selection-v1" ||
+    anchorSelection.plan_sha256 !== anchorPlanSha256 ||
+    anchorSelection.candidate_set_sha256 !== anchorAuthority.candidate_set_sha256
+  ) {
+    throw new Error("埋め込みanchor selection rootがcompletion-planと一致しません。");
+  }
+
+  if (!Array.isArray(plan.models) || plan.models.length !== BASELINE_MODELS.length) {
+    throw new Error("completion-plan.modelsはexactly 8件が必要です。");
+  }
+  const modelRevisions = new Map<string, string>();
+  for (const [index, value] of plan.models.entries()) {
+    const model = exactObject(value, ["id", "revision"], `completion-plan.models[${index}]`);
+    const id = safePathSegment(model.id, `completion-plan.models[${index}].id`);
+    const revision = nonEmptyText(model.revision, `completion-plan.models[${index}].revision`);
+    if (id !== BASELINE_MODELS[index] || modelRevisions.has(id)) {
+      throw new Error("completion-plan.modelsが固定8 modelのcanonical順と一致しません。");
+    }
+    modelRevisions.set(id, revision);
+  }
+
+  if (!Array.isArray(plan.roles) || plan.roles.length !== 58) {
+    throw new Error("completion-plan.rolesはexactly 58件が必要です。");
+  }
+  const roles = new Map<string, Record<string, unknown>>();
+  for (const [index, value] of plan.roles.entries()) {
+    const label = `completion-plan.roles[${index}]`;
+    const snapshot = exactObject(
+      value,
+      ["scenario", "character", "role", "reference_voice", "scene_setting", "role_identity_sha256"],
+      label,
+    );
+    const scenario = safeSegment(snapshot.scenario, `${label}.scenario`);
+    const character = safeSegment(snapshot.character, `${label}.character`);
+    const role = validateBaselineRole(snapshot.role, `${label}.role`);
+    const referenceVoice = nullableNonEmptyText(
+      snapshot.reference_voice,
+      `${label}.reference_voice`,
+    );
+    const sceneSetting = nonEmptyText(snapshot.scene_setting, `${label}.scene_setting`);
+    const roleIdentitySha256 = sha(snapshot.role_identity_sha256, `${label}.role_identity_sha256`);
+    const identity = {
+      scenario,
+      character,
+      role,
+      reference_voice: referenceVoice,
+      scene_setting: sceneSetting,
+    };
+    if (sha256(canonicalJsonBytes(identity)) !== roleIdentitySha256) {
+      throw new Error(`${label}.role identity SHAが不正です。`);
+    }
+    const key = JSON.stringify([scenario, character]);
+    if (roles.has(key)) throw new Error(`completion-plan roleが重複しています: ${key}`);
+    roles.set(key, { ...identity, role_identity_sha256: roleIdentitySha256 });
+  }
+
+  const phaseB = exactObject(
+    plan.phase_b,
+    ["model_policies", "targets"],
+    "completion-plan.phase_b",
+  );
+  if (!Array.isArray(phaseB.model_policies) || phaseB.model_policies.length !== 8) {
+    throw new Error("completion-plan.phase_b.model_policiesはexactly 8件が必要です。");
+  }
+  const minimums = new Map<string, number>();
+  for (const [index, value] of phaseB.model_policies.entries()) {
+    const label = `completion-plan.phase_b.model_policies[${index}]`;
+    const policy = exactObject(
+      value,
+      ["model", "takes", "minimum_eligible_candidates", "seed_policy", "primary_seed_base"],
+      label,
+    );
+    const model = safePathSegment(policy.model, `${label}.model`);
+    if (model !== BASELINE_MODELS[index] || minimums.has(model)) {
+      throw new Error("completion-plan model policiesが固定8 modelのcanonical順と一致しません。");
+    }
+    const takes = positiveInteger(policy.takes, `${label}.takes`);
+    const minimum = positiveInteger(policy.minimum_eligible_candidates, `${label}.minimum`);
+    const expectedTakes = model === "aivisspeech-kohaku" ? 1 : 4;
+    const expectedMinimum = model === "aivisspeech-kohaku" ? 1 : 3;
+    if (takes !== expectedTakes || minimum !== expectedMinimum) {
+      throw new Error(`${label} takes/minimumが固定Phase B policyと一致しません。`);
+    }
+    if (model === "aivisspeech-kohaku") {
+      if (policy.seed_policy !== "none" || policy.primary_seed_base !== null) {
+        throw new Error(`${label} seed policyが不正です。`);
+      }
+    } else if (
+      policy.seed_policy !== "derived-sha256-v1" ||
+      typeof policy.primary_seed_base !== "number" ||
+      !Number.isSafeInteger(policy.primary_seed_base)
+    ) {
+      throw new Error(`${label} seed policyが不正です。`);
+    }
+    minimums.set(model, minimum);
+  }
+  if (!Array.isArray(phaseB.targets) || phaseB.targets.length !== BASELINE_GROUP_COUNT) {
+    throw new Error(
+      `completion-plan.phase_b.targetsはexactly ${BASELINE_GROUP_COUNT}件が必要です。`,
+    );
+  }
+  const targets = new Map<string, { minimum: number }>();
+  const targetCounts = new Map<string, number>();
+  let previousTarget = "";
+  for (const [index, value] of phaseB.targets.entries()) {
+    const label = `completion-plan.phase_b.targets[${index}]`;
+    const target = exactObject(value, ["model", "scenario", "line", "variant"], label);
+    const coordinate = baselineCoordinate({
+      model: safePathSegment(target.model, `${label}.model`),
+      scenario: safeSegment(target.scenario, `${label}.scenario`),
+      line: safeSegment(target.line, `${label}.line`),
+      variant: safeSegment(target.variant, `${label}.variant`),
+    });
+    const model = JSON.parse(coordinate)[0] as string;
+    const minimum = minimums.get(model);
+    if (!minimum || targets.has(coordinate) || (previousTarget && coordinate < previousTarget)) {
+      throw new Error(
+        "completion-plan targetsが固定model policyの重複なしcanonical集合ではありません。",
+      );
+    }
+    targets.set(coordinate, { minimum });
+    targetCounts.set(model, (targetCounts.get(model) ?? 0) + 1);
+    previousTarget = coordinate;
+  }
+  for (const [model, expectedCount] of BASELINE_MODEL_GROUP_COUNTS) {
+    if (targetCounts.get(model) !== expectedCount) {
+      throw new Error(`completion-plan target分布が固定597 groupと一致しません: ${model}`);
+    }
+  }
+
+  const anchorEpochs = validateEmbeddedAnchorSelection(anchorSelection, roles, modelRevisions);
+  const expectedAnchorKeys = new Set<string>();
+  for (const [roleKey, role] of roles) {
+    if (role.reference_voice !== null) continue;
+    const [scenario, character] = JSON.parse(roleKey) as [string, string];
+    for (const model of BASELINE_ANCHOR_MODELS) {
+      expectedAnchorKeys.add(JSON.stringify([model, scenario, character]));
+    }
+  }
+  if (
+    anchorEpochs.size !== expectedAnchorKeys.size ||
+    [...expectedAnchorKeys].some((key) => !anchorEpochs.has(key))
+  ) {
+    throw new Error("anchor selection group集合がplanのno-reference role対象と一致しません。");
+  }
+  return { modelRevisions, roles, targets, anchorEpochs, anchorPlanSha256 };
+}
+
+function validateEmbeddedAnchorSelection(
+  selection: Record<string, unknown>,
+  roles: ReadonlyMap<string, Record<string, unknown>>,
+  modelRevisions: ReadonlyMap<string, string>,
+): ReadonlyMap<string, string> {
+  if (!Array.isArray(selection.groups) || selection.groups.length !== 106) {
+    throw new Error("anchor selection.groupsはexactly 106件が必要です。");
+  }
+  const keys = [
+    "model",
+    "model_revision",
+    "scenario",
+    "character",
+    "role_identity",
+    "role_identity_sha256",
+    "review_role_epoch_sha256",
+    "role_epoch_sha256",
+    "anchor_id",
+    "attempt",
+    "seed",
+    "audio_path",
+    "audio_sha256",
+    "anchor_text",
+    "anchor_text_sha256",
+    "decision",
+    "decision_sha256",
+  ] as const;
+  const epochs = new Map<string, string>();
+  let previous = "";
+  for (const [index, value] of selection.groups.entries()) {
+    const label = `anchor selection.groups[${index}]`;
+    const group = exactObject(value, keys, label);
+    const model = safePathSegment(group.model, `${label}.model`);
+    const scenario = safeSegment(group.scenario, `${label}.scenario`);
+    const character = safeSegment(group.character, `${label}.character`);
+    if (!BASELINE_ANCHOR_MODELS.has(model) || group.model_revision !== modelRevisions.get(model)) {
+      throw new Error(`${label} model/revisionがcompletion-planと一致しません。`);
+    }
+    const role = roles.get(JSON.stringify([scenario, character]));
+    if (!role || role.reference_voice !== null)
+      throw new Error(`${label} roleがplan対象ではありません。`);
+    const roleIdentity = exactObject(
+      group.role_identity,
+      ["scenario", "character", "role", "reference_voice", "scene_setting"],
+      `${label}.role_identity`,
+    );
+    const expectedIdentity = { ...role };
+    delete expectedIdentity.role_identity_sha256;
+    if (!canonicalJsonBytes(roleIdentity).equals(canonicalJsonBytes(expectedIdentity))) {
+      throw new Error(`${label} role identityがcompletion-planと一致しません。`);
+    }
+    const roleIdentitySha = sha(group.role_identity_sha256, `${label}.role_identity_sha256`);
+    if (roleIdentitySha !== role.role_identity_sha256)
+      throw new Error(`${label} role SHAが不正です。`);
+    const reviewEpoch = sha(group.review_role_epoch_sha256, `${label}.review_role_epoch_sha256`);
+    const epoch = sha(group.role_epoch_sha256, `${label}.role_epoch_sha256`);
+    const anchorId = sha(group.anchor_id, `${label}.anchor_id`);
+    const audioSha = sha(group.audio_sha256, `${label}.audio_sha256`);
+    positiveInteger(group.attempt, `${label}.attempt`);
+    if (typeof group.seed !== "number" || !Number.isSafeInteger(group.seed))
+      throw new Error(`${label}.seedが不正です。`);
+    nonEmptyText(group.audio_path, `${label}.audio_path`);
+    const anchorText = nonEmptyText(group.anchor_text, `${label}.anchor_text`);
+    if (sha256(Buffer.from(anchorText, "utf8")) !== group.anchor_text_sha256)
+      throw new Error(`${label}.anchor text SHAが不正です。`);
+    const decision = exactObject(group.decision, DECISION_GROUP_KEYS, `${label}.decision`);
+    const decisionSha = sha(group.decision_sha256, `${label}.decision_sha256`);
+    if (
+      sha256(canonicalJsonBytes(decision)) !== decisionSha ||
+      decision.model !== model ||
+      decision.scenario !== scenario ||
+      decision.character !== character ||
+      decision.role_epoch_sha256 !== reviewEpoch ||
+      decision.selected_candidate_id !== anchorId
+    ) {
+      throw new Error(`${label}.decisionがselected anchorと一致しません。`);
+    }
+    const expectedEpoch = sha256(
+      canonicalJsonBytes({
+        protocol: "selected-role-epoch-v1",
+        model,
+        model_revision: group.model_revision,
+        scenario,
+        character,
+        role_identity_sha256: roleIdentitySha,
+        review_role_epoch_sha256: reviewEpoch,
+        anchor_id: anchorId,
+        audio_sha256: audioSha,
+        decision_sha256: decisionSha,
+      }),
+    );
+    if (epoch !== expectedEpoch) throw new Error(`${label}.role epochが不正です。`);
+    const key = JSON.stringify([model, scenario, character]);
+    if (epochs.has(key) || (previous && key < previous))
+      throw new Error("anchor selection groupsがcanonical順ではありません。");
+    epochs.set(key, epoch);
+    previous = key;
+  }
+  return epochs;
+}
+
+function validateBaselineBundleModels(
+  value: unknown,
+  revisions: ReadonlyMap<string, string>,
+): void {
+  if (!Array.isArray(value) || value.length !== BASELINE_MODELS.length) {
+    throw new Error("Phase B candidate-set modelsはexactly 8件が必要です。");
+  }
+  value.forEach((raw, index) => {
+    if (typeof raw !== "object" || raw === null || Array.isArray(raw))
+      throw new Error("candidate-set modelが不正です。");
+    const model = raw as Record<string, unknown>;
+    if (
+      model.id !== BASELINE_MODELS[index] ||
+      model.version !== revisions.get(BASELINE_MODELS[index]!)
+    ) {
+      throw new Error("candidate-set model/revisionがcompletion-planの固定8 modelと一致しません。");
+    }
+  });
+}
+
+function validateBaselineRole(value: unknown, label: string): Record<string, string> {
+  const role = exactObject(value, BASELINE_ROLE_KEYS, label);
+  return Object.fromEntries(
+    BASELINE_ROLE_KEYS.map((key) => [key, nonEmptyText(role[key], `${label}.${key}`)]),
+  );
+}
+
+function expectedBaselineRoleEpoch(options: {
+  readonly model: string;
+  readonly scenario: string;
+  readonly character: string;
+  readonly roleIdentitySha256: string;
+  readonly referenceVoice: string | null;
+  readonly planSha256: string;
+  readonly anchorSelectionSha256: string;
+  readonly modelRevision: string;
+  readonly anchorEpochs: ReadonlyMap<string, string>;
+}): string {
+  const anchor = options.anchorEpochs.get(
+    JSON.stringify([options.model, options.scenario, options.character]),
+  );
+  if (anchor) return anchor;
+  return sha256(
+    canonicalJsonBytes({
+      protocol: "phase-b-role-epoch-v1",
+      plan_sha256: options.planSha256,
+      model: options.model,
+      model_revision: options.modelRevision,
+      scenario: options.scenario,
+      character: options.character,
+      role_identity_sha256: options.roleIdentitySha256,
+      reference_voice: options.referenceVoice,
+      anchor_selection_sha256: BASELINE_ANCHOR_MODELS.has(options.model)
+        ? options.anchorSelectionSha256
+        : null,
+    }),
+  );
+}
+
+function validateBaselineCandidateProvenance(
+  take: Record<string, unknown>,
+  expected: {
+    readonly model: string;
+    readonly scenario: string;
+    readonly line: string;
+    readonly variant: string;
+    readonly roleEpochSha256: string;
+    readonly planSha256: string;
+    readonly anchorSelectionSha256: string;
+    readonly anchorPlanSha256: string;
+  },
+): void {
+  if (
+    typeof take.gen_params !== "object" ||
+    take.gen_params === null ||
+    Array.isArray(take.gen_params)
+  ) {
+    throw new Error(`candidate ${String(take.take_id)} gen_paramsが不正です。`);
+  }
+  const params = take.gen_params as Record<string, unknown>;
+  const requested = objectValue(params.requested, "candidate gen_params.requested");
+  const realized = objectValue(params.realized, "candidate gen_params.realized");
+  const requestProvenance = exactObject(
+    requested.phase_b_provenance,
+    [
+      "protocol",
+      "plan_sha256",
+      "run_kind",
+      "supersedes_run_id",
+      "anchor_selection_sha256",
+      "anchor_plan_sha256",
+      "target_group",
+    ],
+    "candidate requested.phase_b_provenance",
+  );
+  const realizedProvenance = exactObject(
+    realized.phase_b_provenance,
+    [
+      "protocol",
+      "plan_sha256",
+      "run_kind",
+      "supersedes_run_id",
+      "anchor_selection_sha256",
+      "anchor_plan_sha256",
+      "target_group",
+    ],
+    "candidate realized.phase_b_provenance",
+  );
+  if (!canonicalJsonBytes(requestProvenance).equals(canonicalJsonBytes(realizedProvenance))) {
+    throw new Error(
+      `candidate ${String(take.take_id)} requested/realized Phase B provenanceが一致しません。`,
+    );
+  }
+  const targetGroup = exactObject(
+    requestProvenance.target_group,
+    ["model", "scenario", "line", "variant", "role_epoch_sha256"],
+    "candidate phase_b_provenance.target_group",
+  );
+  const anchorBound = BASELINE_ANCHOR_MODELS.has(expected.model);
+  if (
+    requestProvenance.protocol !== "phase-b-generation-v2" ||
+    requestProvenance.plan_sha256 !== expected.planSha256 ||
+    (requestProvenance.run_kind !== "primary" && requestProvenance.run_kind !== "topup") ||
+    (requestProvenance.run_kind === "primary"
+      ? requestProvenance.supersedes_run_id !== null
+      : typeof requestProvenance.supersedes_run_id !== "string") ||
+    requestProvenance.anchor_selection_sha256 !==
+      (anchorBound ? expected.anchorSelectionSha256 : null) ||
+    requestProvenance.anchor_plan_sha256 !== (anchorBound ? expected.anchorPlanSha256 : null) ||
+    !canonicalJsonBytes(targetGroup).equals(
+      canonicalJsonBytes({
+        model: expected.model,
+        scenario: expected.scenario,
+        line: expected.line,
+        variant: expected.variant,
+        role_epoch_sha256: expected.roleEpochSha256,
+      }),
+    )
+  ) {
+    throw new Error(
+      `candidate ${String(take.take_id)} Phase B provenanceがplan/anchor/targetと一致しません。`,
+    );
+  }
+}
+
+function objectValue(value: unknown, label: string): Record<string, unknown> {
+  if (typeof value !== "object" || value === null || Array.isArray(value))
+    throw new Error(`${label}はobjectが必要です。`);
+  return value as Record<string, unknown>;
+}
+
+function nullableNonEmptyText(value: unknown, label: string): string | null {
+  if (value === null) return null;
+  return nonEmptyText(value, label);
+}
+
+async function readCanonicalObject(
+  root: string,
+  name: string,
+  keys: readonly string[],
+): Promise<Record<string, unknown>> {
+  const raw = await readFile(path.join(root, name)).catch((reason: unknown) => {
+    throw new Error(`${name}を読めません: ${errorMessage(reason)}`);
+  });
+  let decoded: unknown;
+  try {
+    decoded = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(raw));
+  } catch (reason: unknown) {
+    throw new Error(`${name}は正しいUTF-8 JSONが必要です: ${errorMessage(reason)}`);
+  }
+  if (!raw.equals(canonicalJsonBytes(decoded, name))) {
+    throw new Error(`${name}はcanonical JSON bytesが必要です。`);
+  }
+  return exactObject(decoded, keys, name);
+}
+
+function readShaMarker(root: string, name: string): string {
+  const raw = readFileSync(path.join(root, name));
+  if (raw.length !== 64) {
+    throw new Error(`${name}は改行なし64-byte SHA-256が必要です。`);
+  }
+  return sha(raw.toString("ascii"), name);
+}
+
+function baselineCoordinate(value: {
+  readonly model: string;
+  readonly scenario: string;
+  readonly line: string;
+  readonly variant: string;
+}): string {
+  return JSON.stringify([value.model, value.scenario, value.line, value.variant]);
+}
+
+function blindLabel(index: number): string {
+  let value = index + 1;
+  let label = "";
+  while (value > 0) {
+    value -= 1;
+    label = String.fromCharCode(65 + (value % 26)) + label;
+    value = Math.floor(value / 26);
+  }
+  return label;
+}
+
+const BASELINE_DRAFT_ROOT_KEYS = [
+  "format_version",
+  "protocol",
+  "plan_sha256",
+  "anchor_selection_sha256",
+  "candidate_set_sha256",
+  "groups",
+] as const;
+const BASELINE_DRAFT_GROUP_KEYS = [
+  "model",
+  "scenario",
+  "line",
+  "variant",
+  "role_epoch_sha256",
+  "group_sha256",
+  "plan_sha256",
+  "anchor_selection_sha256",
+  "candidate_set_sha256",
+  "revalidation_reason",
+  "heard_candidate_ids",
+  "candidates",
+  "decision",
+] as const;
+const BASELINE_DRAFT_CANDIDATE_KEYS = ["take_id", "rubric"] as const;
+const BASELINE_RUBRIC_KEYS = [
+  "content_correct",
+  "prompt_leakage",
+  "reading_correct",
+  "accent_naturalness",
+  "role_match",
+  "delivery_match",
+  "audio_quality",
+  "adoptable",
+  "notes",
+] as const;
+const BASELINE_DECISION_ROOT_KEYS = BASELINE_DRAFT_ROOT_KEYS;
+const BASELINE_DECISION_GROUP_KEYS = [
+  "model",
+  "scenario",
+  "line",
+  "variant",
+  "role_epoch_sha256",
+  "group_sha256",
+  "authority",
+  "candidates",
+  "decision",
+] as const;
+const BASELINE_AUTHORITY_KEYS = [
+  "type",
+  "policy_version",
+  "reviewer",
+  "minimum_eligible_candidates",
+] as const;
+const BASELINE_DECISION_CANDIDATE_KEYS = [
+  "take_id",
+  "path",
+  "audio_sha256",
+  "gate",
+  "rubric",
+] as const;
+
+function validateWorkflowDraft(value: unknown, bundle: ValidatedBundle): Record<string, unknown> {
+  return bundle.workflow === ANCHOR_WORKFLOW
+    ? validateDraftDocument(value, bundle)
+    : validateBaselineDraftDocument(value, bundle);
+}
+
+function validateWorkflowDecision(
+  value: unknown,
+  bundle: ValidatedBundle,
+): Record<string, unknown> {
+  return bundle.workflow === ANCHOR_WORKFLOW
+    ? validateDecisionDocument(value, bundle)
+    : validateBaselineDecisionDocument(value, bundle);
+}
+
+function decisionFromWorkflowDraft(
+  draft: Record<string, unknown>,
+  bundle: ValidatedBundle,
+): Record<string, unknown> {
+  return bundle.workflow === ANCHOR_WORKFLOW
+    ? decisionFromDraft(draft)
+    : baselineDecisionFromDraft(draft, bundle);
+}
+
+export function validateBaselineDraftDocument(
+  value: unknown,
+  bundle: ValidatedBundle,
+): Record<string, unknown> {
+  if (bundle.workflow !== BASELINE_WORKFLOW) {
+    throw new Error("role-baseline draftにはrole-baseline-v1 bundleが必要です。");
+  }
+  const root = exactObject(value, BASELINE_DRAFT_ROOT_KEYS, "role baseline draft");
+  assertBaselineRoot(root, "role-baseline-draft-v1", bundle, "role baseline draft");
+  const bundleGroups = bundle.document.groups as Record<string, unknown>[];
+  if (!Array.isArray(root.groups) || root.groups.length !== bundleGroups.length) {
+    throw new Error(`role baseline draft.groupsはexactly ${bundleGroups.length}件が必要です。`);
+  }
+  root.groups.forEach((value, index) => {
+    const group = exactObject(value, BASELINE_DRAFT_GROUP_KEYS, `baseline draft.groups[${index}]`);
+    const binding = bundleGroups[index]!;
+    assertBaselineGroupBinding(group, binding, root, `baseline draft.groups[${index}]`);
+    if (group.revalidation_reason !== null) {
+      nonEmptyText(
+        group.revalidation_reason,
+        `baseline draft.groups[${index}].revalidation_reason`,
+      );
+    }
+    const exportCandidates = binding.export_candidates as Record<string, unknown>[];
+    const expectedTakeIds = exportCandidates.map((candidate) => candidate.take_id as string);
+    const heardCandidateIds = shaArray(
+      group.heard_candidate_ids,
+      `baseline draft.groups[${index}].heard_candidate_ids`,
+      true,
+    );
+    if (
+      heardCandidateIds.some((takeId) => !expectedTakeIds.includes(takeId)) ||
+      expectedTakeIds
+        .filter((takeId) => heardCandidateIds.includes(takeId))
+        .some((takeId, heardIndex) => takeId !== heardCandidateIds[heardIndex])
+    ) {
+      throw new Error(
+        `baseline draft.groups[${index}].heard_candidate_idsがbundle順と一致しません。`,
+      );
+    }
+    if (!Array.isArray(group.candidates) || group.candidates.length !== exportCandidates.length) {
+      throw new Error(`baseline draft.groups[${index}].candidatesがbundleと一致しません。`);
+    }
+    group.candidates.forEach((candidateValue, candidateIndex) => {
+      const candidate = exactObject(
+        candidateValue,
+        BASELINE_DRAFT_CANDIDATE_KEYS,
+        `baseline draft.groups[${index}].candidates[${candidateIndex}]`,
+      );
+      if (candidate.take_id !== exportCandidates[candidateIndex]!.take_id) {
+        throw new Error(`baseline draft.groups[${index}]のcandidate順がbundleと一致しません。`);
+      }
+      validateBaselineRubric(candidate.rubric, false, `candidate ${String(candidate.take_id)}`);
+    });
+    if (group.decision !== null) {
+      if (heardCandidateIds.length !== expectedTakeIds.length) {
+        throw new Error(`baseline draft.groups[${index}]は全candidateの完全再生が必要です。`);
+      }
+      const decision = exactObject(group.decision, ["type", "take_id"], "baseline draft decision");
+      if (
+        decision.type !== "selected" ||
+        !exportCandidates.some((candidate) => candidate.take_id === decision.take_id)
+      ) {
+        throw new Error(`baseline draft.groups[${index}].decisionがbundle候補と一致しません。`);
+      }
+      for (const candidate of group.candidates as Record<string, unknown>[]) {
+        validateBaselineRubric(candidate.rubric, true, `candidate ${String(candidate.take_id)}`);
+      }
+    }
+  });
+  return root;
+}
+
+export function validateBaselineDecisionDocument(
+  value: unknown,
+  bundle: ValidatedBundle,
+): Record<string, unknown> {
+  if (bundle.workflow !== BASELINE_WORKFLOW) {
+    throw new Error("role-baseline decisionにはrole-baseline-v1 bundleが必要です。");
+  }
+  const root = exactObject(value, BASELINE_DECISION_ROOT_KEYS, "role baseline decision");
+  assertBaselineRoot(root, "role-baseline-decision-v1", bundle, "role baseline decision");
+  const bundleGroups = bundle.document.groups as Record<string, unknown>[];
+  if (!Array.isArray(root.groups) || root.groups.length !== bundleGroups.length) {
+    throw new Error(`role baseline decision.groupsはexactly ${bundleGroups.length}件が必要です。`);
+  }
+  root.groups.forEach((value, index) => {
+    const group = exactObject(
+      value,
+      BASELINE_DECISION_GROUP_KEYS,
+      `baseline decision.groups[${index}]`,
+    );
+    const binding = bundleGroups[index]!;
+    for (const key of [
+      "model",
+      "scenario",
+      "line",
+      "variant",
+      "role_epoch_sha256",
+      "group_sha256",
+    ] as const) {
+      if (group[key] !== binding[key]) {
+        throw new Error(`baseline decision.groups[${index}]がbundle bindingと一致しません。`);
+      }
+    }
+    const authority = exactObject(
+      group.authority,
+      BASELINE_AUTHORITY_KEYS,
+      `baseline decision.groups[${index}].authority`,
+    );
+    if (
+      authority.type !== "best_available" ||
+      authority.policy_version !== "missing-slot-best-of-n-v1" ||
+      authority.reviewer !== "owner" ||
+      authority.minimum_eligible_candidates !== binding.minimum_eligible_candidates
+    ) {
+      throw new Error(`baseline decision.groups[${index}].authorityがbundleと一致しません。`);
+    }
+    const exportCandidates = binding.export_candidates as Record<string, unknown>[];
+    if (!Array.isArray(group.candidates) || group.candidates.length !== exportCandidates.length) {
+      throw new Error(`baseline decision.groups[${index}].candidatesがbundleと一致しません。`);
+    }
+    group.candidates.forEach((candidateValue, candidateIndex) => {
+      const candidate = exactObject(
+        candidateValue,
+        BASELINE_DECISION_CANDIDATE_KEYS,
+        `baseline decision.groups[${index}].candidates[${candidateIndex}]`,
+      );
+      const expected = exportCandidates[candidateIndex]!;
+      for (const key of ["take_id", "path", "audio_sha256"] as const) {
+        if (candidate[key] !== expected[key]) {
+          throw new Error(`baseline decision.groups[${index}] candidateがbundleと一致しません。`);
+        }
+      }
+      if (!canonicalJsonBytes(candidate.gate).equals(canonicalJsonBytes(expected.gate))) {
+        throw new Error(
+          `baseline decision.groups[${index}] candidate gateがbundleと一致しません。`,
+        );
+      }
+      validateBaselineRubric(candidate.rubric, true, `candidate ${String(candidate.take_id)}`);
+    });
+    const decision = exactObject(group.decision, ["type", "take_id"], "baseline decision decision");
+    if (
+      decision.type !== "selected" ||
+      !exportCandidates.some((candidate) => candidate.take_id === decision.take_id)
+    ) {
+      throw new Error(`baseline decision.groups[${index}]は明示的なbundle候補選択が必要です。`);
+    }
+  });
+  return root;
+}
+
+function baselineDecisionFromDraft(
+  draft: Record<string, unknown>,
+  bundle: ValidatedBundle,
+): Record<string, unknown> {
+  validateBaselineDraftDocument(draft, bundle);
+  const bundleGroups = bundle.document.groups as Record<string, unknown>[];
+  const draftGroups = draft.groups as Record<string, unknown>[];
+  return {
+    format_version: 1,
+    protocol: "role-baseline-decision-v1",
+    plan_sha256: bundle.document.plan_sha256,
+    anchor_selection_sha256: bundle.document.anchor_selection_sha256,
+    candidate_set_sha256: bundle.document.candidate_set_sha256,
+    groups: bundleGroups.map((group, index) => {
+      const draftGroup = draftGroups[index]!;
+      if (draftGroup.decision === null) {
+        throw new Error(`baseline draft.groups[${index}]の明示選択がありません。`);
+      }
+      const rubricByTake = new Map(
+        (draftGroup.candidates as Record<string, unknown>[]).map((candidate) => [
+          candidate.take_id,
+          candidate.rubric,
+        ]),
+      );
+      return {
+        model: group.model,
+        scenario: group.scenario,
+        line: group.line,
+        variant: group.variant,
+        role_epoch_sha256: group.role_epoch_sha256,
+        group_sha256: group.group_sha256,
+        authority: {
+          type: "best_available",
+          policy_version: "missing-slot-best-of-n-v1",
+          reviewer: "owner",
+          minimum_eligible_candidates: group.minimum_eligible_candidates,
+        },
+        candidates: (group.export_candidates as Record<string, unknown>[]).map((candidate) => ({
+          ...candidate,
+          rubric: rubricByTake.get(candidate.take_id),
+        })),
+        decision: draftGroup.decision,
+      };
+    }),
+  };
+}
+
+function assertBaselineRoot(
+  root: Record<string, unknown>,
+  protocol: string,
+  bundle: ValidatedBundle,
+  label: string,
+): void {
+  if (
+    root.format_version !== 1 ||
+    root.protocol !== protocol ||
+    root.plan_sha256 !== bundle.document.plan_sha256 ||
+    root.anchor_selection_sha256 !== bundle.document.anchor_selection_sha256 ||
+    root.candidate_set_sha256 !== bundle.document.candidate_set_sha256
+  ) {
+    throw new Error(`${label} rootがPhase B bundleと一致しません。`);
+  }
+}
+
+function assertBaselineGroupBinding(
+  group: Record<string, unknown>,
+  binding: Record<string, unknown>,
+  root: Record<string, unknown>,
+  label: string,
+): void {
+  for (const key of [
+    "model",
+    "scenario",
+    "line",
+    "variant",
+    "role_epoch_sha256",
+    "group_sha256",
+  ] as const) {
+    if (group[key] !== binding[key]) {
+      throw new Error(`${label}がPhase B bundle groupと一致しません。`);
+    }
+  }
+  for (const key of ["plan_sha256", "anchor_selection_sha256", "candidate_set_sha256"] as const) {
+    if (group[key] !== root[key]) {
+      throw new Error(`${label}.${key}がdraft rootと一致しません。`);
+    }
+  }
+}
+
+function validateBaselineRubric(value: unknown, complete: boolean, label: string): void {
+  const rubric = exactObject(value, BASELINE_RUBRIC_KEYS, `${label}.rubric`);
+  for (const key of [
+    "content_correct",
+    "prompt_leakage",
+    "reading_correct",
+    "adoptable",
+  ] as const) {
+    if (typeof rubric[key] !== "boolean" && (complete || rubric[key] !== null)) {
+      throw new Error(`${label}.rubric.${key}はboolean${complete ? "" : "またはnull"}が必要です。`);
+    }
+  }
+  for (const key of [
+    "accent_naturalness",
+    "role_match",
+    "delivery_match",
+    "audio_quality",
+  ] as const) {
+    if (
+      rubric[key] !== null || complete
+        ? typeof rubric[key] !== "number" ||
+          !Number.isInteger(rubric[key]) ||
+          rubric[key] < 1 ||
+          rubric[key] > 5
+        : false
+    ) {
+      throw new Error(`${label}.rubric.${key}は1..5${complete ? "" : "またはnull"}が必要です。`);
+    }
+  }
+  if (typeof rubric.notes !== "string") {
+    throw new Error(`${label}.rubric.notesは文字列が必要です。`);
   }
 }
 
@@ -1384,6 +2913,14 @@ function safeSegment(value: unknown, label: string): string {
   return text;
 }
 
+function safePathSegment(value: unknown, label: string): string {
+  const text = nonEmptyText(value, label);
+  if (text === "." || text === ".." || text.includes("/") || text.includes("\\")) {
+    throw new Error(`${label} は安全なpath segmentが必要です。`);
+  }
+  return text;
+}
+
 function nonEmptyText(value: unknown, label: string): string {
   if (typeof value !== "string" || value.length === 0 || value !== value.trim()) {
     throw new Error(`${label} は前後空白のない非空文字列が必要です。`);
@@ -1499,17 +3036,28 @@ function appendServerLog(message: string): void {
 }
 
 function parseServerArguments(argv: readonly string[]): {
+  readonly workflow: ListeningWorkflow;
   readonly bundleDirectory: string;
   readonly outputDirectory: string;
+  readonly authorityPlanPath: string | null;
+  readonly expectedPlanSha256: string | null;
   readonly port: number;
 } {
   const values = new Map<string, string>();
   for (let index = 0; index < argv.length; index += 2) {
     const key = argv[index];
     const value = argv[index + 1];
-    if ((key !== "--bundle" && key !== "--output" && key !== "--port") || value === undefined) {
+    if (
+      (key !== "--workflow" &&
+        key !== "--bundle" &&
+        key !== "--output" &&
+        key !== "--authority-plan" &&
+        key !== "--expected-plan-sha256" &&
+        key !== "--port") ||
+      value === undefined
+    ) {
       throw new Error(
-        "usage: listening-app-server.ts --bundle <absolute-dir> --output <absolute-dir> --port <port>",
+        "usage: listening-app-server.ts --workflow <role-review-anchor-v2|role-baseline-v1> --bundle <absolute-dir> --output <absolute-dir> [--authority-plan <absolute-canonical-plan.json> --expected-plan-sha256 <sha256>] --port <port>",
       );
     }
     if (values.has(key)) {
@@ -1520,14 +3068,48 @@ function parseServerArguments(argv: readonly string[]): {
   const bundleDirectory = values.get("--bundle");
   const outputDirectory = values.get("--output");
   const portValue = values.get("--port");
-  if (bundleDirectory === undefined || outputDirectory === undefined || portValue === undefined) {
-    throw new Error("--bundle / --output / --port は必須です。");
+  const workflowValue = values.get("--workflow");
+  if (
+    workflowValue === undefined ||
+    bundleDirectory === undefined ||
+    outputDirectory === undefined ||
+    portValue === undefined
+  ) {
+    throw new Error("--workflow / --bundle / --output / --port は必須です。");
+  }
+  const workflow = parseWorkflow(workflowValue);
+  const authorityPlanPath = values.get("--authority-plan") ?? null;
+  const expectedPlanSha256 = values.get("--expected-plan-sha256") ?? null;
+  if (
+    workflow === BASELINE_WORKFLOW &&
+    (authorityPlanPath === null || expectedPlanSha256 === null)
+  ) {
+    throw new Error(`${BASELINE_WORKFLOW} は--authority-planが必要です。`);
+  }
+  if (workflow === ANCHOR_WORKFLOW && (authorityPlanPath !== null || expectedPlanSha256 !== null)) {
+    throw new Error(`${ANCHOR_WORKFLOW} は--authority-planを受け付けません。`);
   }
   const port = Number(portValue);
   if (!Number.isInteger(port)) {
     throw new Error("--port は整数が必要です。");
   }
-  return { bundleDirectory, outputDirectory, port };
+  return {
+    workflow,
+    bundleDirectory,
+    outputDirectory,
+    authorityPlanPath,
+    expectedPlanSha256,
+    port,
+  };
+}
+
+export function parseWorkflow(value: string): ListeningWorkflow {
+  if (value !== ANCHOR_WORKFLOW && value !== BASELINE_WORKFLOW) {
+    throw new Error(
+      `--workflow は${ANCHOR_WORKFLOW}または${BASELINE_WORKFLOW}を明示してください: ${value}`,
+    );
+  }
+  return value;
 }
 
 const invokedPath = process.argv[1] === undefined ? "" : path.resolve(process.argv[1]);
