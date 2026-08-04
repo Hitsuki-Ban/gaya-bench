@@ -426,15 +426,23 @@ class IrodoriTTSV4Adapter(_v3.IrodoriTTSAdapter):
                     "reference_voice=nullのPhase B準備にはrole anchor selectionの"
                     "絶対pathとfrozen plan SHAが必要です。",
                 )
+            # 人手選抜 (role-anchor-selection-v1) と増分の機械選抜
+            # (role-anchor-machine-selection-v1) の両方を受理する。
+            # protocol分岐はresolverが行い、どちらも同じreceiptを返す。
+            from gaya_pipeline.increment_anchor import (
+                IncrementAnchorError,
+                resolve_increment_anchor,
+            )
+
             try:
-                selected = resolve_selected_anchor(
+                selected = resolve_increment_anchor(
                     selection_path=self._role_anchor_selection_path,
                     plan_sha256=self._role_anchor_plan_sha256,
                     model=MODEL_ID,
                     model_revision=PROFILE_VERSION,
                     role=role_snapshots[character_key],
                 )
-            except CompletionAnchorError as error:
+            except (CompletionAnchorError, IncrementAnchorError) as error:
                 raise IrodoriTTSV4AdapterError(
                     f"selected role anchorが不正です: {error}",
                 ) from error
