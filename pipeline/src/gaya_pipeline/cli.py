@@ -28,6 +28,33 @@ from gaya_pipeline.completion_anchor import (
     merge_role_anchor_topup,
     run_role_anchor_topup_generation,
 )
+from gaya_pipeline.take_identity import canonical_json
+from gaya_pipeline.increment_anchor import (
+    AnchorBootstrapGenerationSummary,
+    AnchorBootstrapPlanSummary,
+    AnchorMachineSelectionSummary,
+    IncrementAnchorError,
+    increment_generation_binding,
+    load_anchor_bootstrap_plan,
+    run_anchor_bootstrap_generation,
+    select_role_anchors,
+    write_anchor_bootstrap_plan,
+)
+from gaya_pipeline.increment_auto import (
+    IncrementAutoDecisionError,
+    create_increment_auto_decision,
+)
+from gaya_pipeline.increment_plan import (
+    IncrementPlanError,
+    build_increment_plan_document,
+    load_increment_plan,
+)
+from gaya_pipeline.increment_release import (
+    IncrementReleaseError,
+    IncrementReleaseSummary,
+    finalize_increment_release,
+    validate_increment_release,
+)
 from gaya_pipeline.completion_listen import (
     CompletionListeningError,
     CompletionListeningSummary,
@@ -622,6 +649,203 @@ def build_parser() -> argparse.ArgumentParser:
         "output",
     ):
         completion_review_parser.add_argument(
+            f"--{name}",
+            required=True,
+            type=Path,
+        )
+
+    increment_parser = subparsers.add_parser(
+        "increment",
+        help="公開済みbaselineへ1 modelを増分追加する (anchor機械選抜経路)",
+    )
+    increment_subparsers = increment_parser.add_subparsers(
+        dest="increment_command",
+        required=True,
+    )
+
+    increment_anchor_bootstrap_parser = increment_subparsers.add_parser(
+        "anchor-bootstrap",
+        help="新規modelの53 role x N=4 anchor候補planを決定論的に固定する",
+    )
+    increment_anchor_bootstrap_parser.add_argument("--model", required=True)
+    for name in ("scenarios", "voices", "output"):
+        increment_anchor_bootstrap_parser.add_argument(
+            f"--{name}",
+            required=True,
+            type=Path,
+        )
+
+    increment_anchor_generate_parser = increment_subparsers.add_parser(
+        "anchor-generate",
+        help="固定anchor planの1 roundを独立runとして生成する (GPU)",
+    )
+    for name in ("anchor-plan", "artifacts"):
+        increment_anchor_generate_parser.add_argument(
+            f"--{name}",
+            required=True,
+            type=Path,
+        )
+    increment_anchor_generate_parser.add_argument("--run-id", required=True)
+    increment_anchor_generate_parser.add_argument(
+        "--round",
+        required=True,
+        type=int,
+        help="0=初回N4、1/2=有界top-up (上限2回)",
+    )
+    increment_anchor_generate_parser.add_argument(
+        "--target",
+        action="append",
+        dest="targets",
+        default=[],
+        metavar="SCENARIO/CHARACTER",
+        help="top-up対象role (round>=1で必須、繰返し指定)",
+    )
+
+    increment_anchor_select_parser = increment_subparsers.add_parser(
+        "anchor-select",
+        help="mechanical QC + F0 gender screeningでanchorを機械選抜する",
+    )
+    for name in ("anchor-plan", "artifacts", "output"):
+        increment_anchor_select_parser.add_argument(
+            f"--{name}",
+            required=True,
+            type=Path,
+        )
+    increment_anchor_select_parser.add_argument(
+        "--run-id",
+        action="append",
+        dest="run_ids",
+        required=True,
+    )
+
+    increment_plan_build_parser = increment_subparsers.add_parser(
+        "plan-build",
+        help="確定anchor authorityを束縛した161 group増分planを固定する",
+    )
+    increment_plan_build_parser.add_argument("--model", required=True)
+    for name in ("scenarios", "voices", "anchor-plan", "anchor-selection", "output"):
+        increment_plan_build_parser.add_argument(
+            f"--{name}",
+            required=True,
+            type=Path,
+        )
+
+    increment_generate_parser = increment_subparsers.add_parser(
+        "generate",
+        help="増分planの161 groupをmodel policyどおり生成する (GPU)",
+    )
+    for name in ("plan", "scenarios", "voices", "anchor-selection", "artifacts"):
+        increment_generate_parser.add_argument(
+            f"--{name}",
+            required=True,
+            type=Path,
+        )
+    increment_generate_parser.add_argument(
+        "--run-kind",
+        required=True,
+        choices=("primary", "topup"),
+    )
+    increment_generate_parser.add_argument("--seed-base", type=int)
+    increment_generate_parser.add_argument("--supersedes-run-id")
+    increment_generate_parser.add_argument("--resume-run-id")
+    increment_generate_parser.add_argument(
+        "--target",
+        action="append",
+        dest="targets",
+        default=[],
+        metavar="SCENARIO/LINE",
+    )
+
+    increment_auto_parser = increment_subparsers.add_parser(
+        "auto-decide",
+        help="161 groupを機械順位付けしF0 soft signal付きで確定する",
+    )
+    for name in (
+        "plan",
+        "scenarios",
+        "voices",
+        "anchor-selection",
+        "artifacts",
+        "pasqa-project",
+        "pasqa-model-dir",
+        "output",
+    ):
+        increment_auto_parser.add_argument(
+            f"--{name}",
+            required=True,
+            type=Path,
+        )
+    increment_auto_parser.add_argument(
+        "--primary-run-id",
+        action="append",
+        dest="primary_run_ids",
+        required=True,
+    )
+    increment_auto_parser.add_argument(
+        "--topup-run-id",
+        action="append",
+        dest="topup_run_ids",
+        default=[],
+    )
+
+    increment_finalize_parser = increment_subparsers.add_parser(
+        "finalize",
+        help="公開済み1,288 selectedへ161を足して1,449 releaseを確定する",
+    )
+    for name in (
+        "plan",
+        "base-release",
+        "decision",
+        "quality-signals",
+        "anchor-selection",
+        "artifacts",
+        "scenarios",
+        "voices",
+        "output",
+    ):
+        increment_finalize_parser.add_argument(
+            f"--{name}",
+            required=True,
+            type=Path,
+        )
+    increment_finalize_parser.add_argument(
+        "--primary-run-id",
+        action="append",
+        dest="primary_run_ids",
+        required=True,
+    )
+    increment_finalize_parser.add_argument(
+        "--topup-run-id",
+        action="append",
+        dest="topup_run_ids",
+        default=[],
+    )
+
+    increment_verify_parser = increment_subparsers.add_parser(
+        "verify",
+        help="増分release bundleの完全性契約だけを検証する (publish前のdry-run)",
+    )
+    for name in ("release", "artifacts"):
+        increment_verify_parser.add_argument(
+            f"--{name}",
+            required=True,
+            type=Path,
+        )
+
+    increment_publish_parser = increment_subparsers.add_parser(
+        "publish",
+        help="新規objectだけをuploadし1,449 manifestをactivateする",
+    )
+    for name in (
+        "release",
+        "artifacts",
+        "source-audit",
+        "env-file",
+        "manifest-activation",
+        "quality-signals-activation",
+        "publish-receipt",
+    ):
+        increment_publish_parser.add_argument(
             f"--{name}",
             required=True,
             type=Path,
@@ -1408,6 +1632,356 @@ def main(argv: Sequence[str] | None = None) -> int:
             f"unknown completion command: {args.completion_command}",
         )
 
+    if args.command == "increment":
+        path_names = {
+            "anchor-bootstrap": ("scenarios", "voices", "output"),
+            "anchor-generate": ("anchor_plan", "artifacts"),
+            "anchor-select": ("anchor_plan", "artifacts", "output"),
+            "plan-build": (
+                "scenarios",
+                "voices",
+                "anchor_plan",
+                "anchor_selection",
+                "output",
+            ),
+            "generate": (
+                "plan",
+                "scenarios",
+                "voices",
+                "anchor_selection",
+                "artifacts",
+            ),
+            "auto-decide": (
+                "plan",
+                "scenarios",
+                "voices",
+                "anchor_selection",
+                "artifacts",
+                "pasqa_project",
+                "pasqa_model_dir",
+                "output",
+            ),
+            "finalize": (
+                "plan",
+                "base_release",
+                "decision",
+                "quality_signals",
+                "anchor_selection",
+                "artifacts",
+                "scenarios",
+                "voices",
+                "output",
+            ),
+            "verify": ("release", "artifacts"),
+            "publish": (
+                "release",
+                "artifacts",
+                "source_audit",
+                "env_file",
+                "manifest_activation",
+                "quality_signals_activation",
+                "publish_receipt",
+            ),
+        }[args.increment_command]
+        relative_paths = [
+            f"--{name.replace('_', '-')}"
+            for name in path_names
+            if getattr(args, name) is not None
+            and not getattr(args, name).is_absolute()
+        ]
+        if relative_paths:
+            print(
+                "ERROR: increment path は絶対pathが必要です: "
+                + ", ".join(relative_paths),
+                file=sys.stderr,
+            )
+            return 1
+
+        increment_errors = (
+            CompletionAnchorError,
+            CompletionAutoDecisionError,
+            CompletionListeningError,
+            CompletionPlanError,
+            GenerationError,
+            IncrementAnchorError,
+            IncrementAutoDecisionError,
+            IncrementPlanError,
+            IncrementReleaseError,
+        )
+
+        if args.increment_command == "anchor-bootstrap":
+            try:
+                summary = write_anchor_bootstrap_plan(
+                    model=args.model,
+                    model_revision=_increment_model_revision(args.model),
+                    scenarios_dir=args.scenarios,
+                    voices_dir=args.voices,
+                    anchor_text=_increment_anchor_text(args.model),
+                    output_path=args.output,
+                )
+            except increment_errors as error:
+                print(f"ERROR: {error}", file=sys.stderr)
+                return 1
+            print(f"anchor bootstrap plan: {summary.plan_path}")
+            print(f"  plan_sha256: {summary.plan_sha256}")
+            print(f"  targets: {summary.target_count}")
+            return 0
+
+        if args.increment_command == "anchor-generate":
+            try:
+                plan_document = load_anchor_bootstrap_plan(args.anchor_plan)
+                identities = (
+                    None
+                    if not args.targets
+                    else _parse_increment_roles(args.targets)
+                )
+                if args.round >= 1 and identities is None:
+                    raise IncrementAnchorError(
+                        "top-up round には --target が必要です。",
+                    )
+                if args.round == 0 and identities is not None:
+                    raise IncrementAnchorError(
+                        "初回 round に --target は指定できません。",
+                    )
+                summary = run_anchor_bootstrap_generation(
+                    plan_document=plan_document,
+                    plan_sha256=plan_document["plan_sha256"],
+                    round_index=args.round,
+                    identities=identities,
+                    artifacts_dir=args.artifacts,
+                    run_id=args.run_id,
+                )
+            except increment_errors as error:
+                print(f"ERROR: {error}", file=sys.stderr)
+                return 1
+            print(f"anchor run: {summary.run_dir}")
+            print(f"  ledger_sha256: {summary.ledger_sha256}")
+            print(f"  generated: {summary.generated_count}")
+            print(f"  eligible: {summary.eligible_count}")
+            print(f"  rejected: {summary.rejected_count}")
+            print(f"  failed: {summary.failed_count}")
+            return 1 if summary.rejected_count or summary.failed_count else 0
+
+        if args.increment_command == "anchor-select":
+            try:
+                plan_document = load_anchor_bootstrap_plan(args.anchor_plan)
+                summary = select_role_anchors(
+                    plan_document=plan_document,
+                    plan_sha256=plan_document["plan_sha256"],
+                    run_ids=args.run_ids,
+                    artifacts_dir=args.artifacts,
+                    output_dir=args.output,
+                )
+            except increment_errors as error:
+                print(f"ERROR: {error}", file=sys.stderr)
+                return 1
+            print(f"anchor machine selection: {summary.output_dir}")
+            print(f"  decision_sha256: {summary.decision_sha256}")
+            print(f"  selection_sha256: {summary.selection_sha256}")
+            print(f"  selected: {summary.selected_count}")
+            print(f"  screening_pass: {summary.screening_pass_count}")
+            print(f"  soft_signal: {summary.soft_signal_count}")
+            return 0
+
+        if args.increment_command == "plan-build":
+            try:
+                plan_document = load_anchor_bootstrap_plan(args.anchor_plan)
+                selection_sha256, decision_sha256 = _increment_anchor_authority(
+                    args.anchor_selection,
+                )
+                document = build_increment_plan_document(
+                    model=args.model,
+                    model_revision=plan_document["model_revision"],
+                    scenarios_dir=args.scenarios,
+                    voices_dir=args.voices,
+                    anchor_source_plan_sha256=plan_document["plan_sha256"],
+                    anchor_candidate_set_sha256=decision_sha256,
+                    anchor_selection_sha256=selection_sha256,
+                )
+                _write_increment_document(args.output, document)
+                plan = load_increment_plan(
+                    args.output,
+                    scenarios_dir=args.scenarios,
+                    voices_dir=args.voices,
+                )
+            except increment_errors + (OSError,) as error:
+                print(f"ERROR: {error}", file=sys.stderr)
+                return 1
+            print(f"increment plan: {args.output}")
+            print(f"  plan_sha256: {plan.plan_id}")
+            print(f"  model: {plan.model}")
+            print(f"  targets: {len(plan.targets)}")
+            print(f"  anchor_roles: {len(plan.anchor_roles())}")
+            return 0
+
+        if args.increment_command == "generate":
+            try:
+                plan = load_increment_plan(
+                    args.plan,
+                    scenarios_dir=args.scenarios,
+                    voices_dir=args.voices,
+                )
+                policy = plan.policy_for_model(plan.model)
+                anchor_selection_sha256, role_epochs = increment_generation_binding(
+                    plan=plan,
+                    scenarios_dir=args.scenarios,
+                    voices_dir=args.voices,
+                    anchor_selection_path=args.anchor_selection,
+                )
+                target_lines = plan.target_lines_for_model(plan.model)
+                if args.run_kind == "primary":
+                    if args.targets:
+                        raise GenerationError(
+                            "primary runに--targetは指定できません。",
+                        )
+                    if args.supersedes_run_id is not None:
+                        raise GenerationError(
+                            "primary runに--supersedes-run-idは指定できません。",
+                        )
+                    if args.seed_base != policy.primary_seed_base:
+                        raise GenerationError(
+                            "primary runの--seed-baseはmodel policyと"
+                            f"exact一致が必要です: {policy.primary_seed_base!r}",
+                        )
+                else:
+                    if args.seed_base is None:
+                        raise GenerationError("topup runには--seed-baseが必要です。")
+                    if args.supersedes_run_id is None:
+                        raise GenerationError(
+                            "topup runに--supersedes-run-idが必要です。",
+                        )
+                    target_lines = _parse_completion_targets(
+                        args.targets,
+                        allowed=set(target_lines),
+                    )
+                    role_epochs = {
+                        identity: role_epochs[identity]
+                        for identity in target_lines
+                    }
+                summary = run_generation(
+                    model_id=plan.model,
+                    scenarios_dir=args.scenarios,
+                    artifacts_dir=args.artifacts,
+                    voices_dir=args.voices,
+                    target_lines=target_lines,
+                    takes=policy.takes,
+                    seed_base=args.seed_base,
+                    completion_plan_sha256=plan.plan_id,
+                    role_epochs=role_epochs,
+                    run_kind=args.run_kind,
+                    supersedes_run_id=args.supersedes_run_id,
+                    resume_run_id=args.resume_run_id,
+                    role_anchor_selection_path=args.anchor_selection,
+                    role_anchor_plan_sha256=plan.anchor_source_plan_sha256,
+                    role_anchor_selection_sha256=anchor_selection_sha256,
+                )
+            except increment_errors as error:
+                print(f"ERROR: {error}", file=sys.stderr)
+                return 1
+            _print_generation_summary(summary)
+            return 1 if summary.failed_count else 0
+
+        if args.increment_command == "auto-decide":
+            try:
+                plan = load_increment_plan(
+                    args.plan,
+                    scenarios_dir=args.scenarios,
+                    voices_dir=args.voices,
+                )
+                summary = create_increment_auto_decision(
+                    plan=plan,
+                    primary_run_ids=args.primary_run_ids,
+                    topup_run_ids=args.topup_run_ids,
+                    anchor_selection_path=args.anchor_selection,
+                    artifacts_dir=args.artifacts,
+                    scenarios_dir=args.scenarios,
+                    voices_dir=args.voices,
+                    pasqa_project_dir=args.pasqa_project,
+                    pasqa_model_dir=args.pasqa_model_dir,
+                    output_dir=args.output,
+                )
+            except increment_errors as error:
+                print(f"ERROR: {error}", file=sys.stderr)
+                return 1
+            _print_completion_auto_decision_summary(summary)
+            return 0
+
+        if args.increment_command == "finalize":
+            try:
+                plan = load_increment_plan(
+                    args.plan,
+                    scenarios_dir=args.scenarios,
+                    voices_dir=args.voices,
+                )
+                summary = finalize_increment_release(
+                    plan=plan,
+                    base_release_dir=args.base_release,
+                    decision_path=args.decision,
+                    quality_signals_path=args.quality_signals,
+                    primary_run_ids=args.primary_run_ids,
+                    topup_run_ids=args.topup_run_ids,
+                    anchor_selection_path=args.anchor_selection,
+                    artifacts_dir=args.artifacts,
+                    scenarios_dir=args.scenarios,
+                    voices_dir=args.voices,
+                    output_dir=args.output,
+                )
+            except increment_errors as error:
+                print(f"ERROR: {error}", file=sys.stderr)
+                return 1
+            print(f"increment release: {summary.output_dir}")
+            print(f"  manifest_sha256: {summary.manifest_sha256}")
+            print(f"  candidate_set_sha256: {summary.candidate_set_sha256}")
+            print(f"  selection_sha256: {summary.selection_sha256}")
+            print(f"  quality_signals_sha256: {summary.quality_signals_sha256}")
+            print(f"  models: {summary.model_count}")
+            print(f"  candidates: {summary.candidate_count}")
+            print(f"  selected: {summary.selected_count}")
+            print(f"  increment_candidates: {summary.increment_candidate_count}")
+            return 0
+
+        if args.increment_command == "verify":
+            try:
+                bundle = validate_increment_release(
+                    release_dir=args.release,
+                    artifacts_dir=args.artifacts,
+                )
+            except IncrementReleaseError as error:
+                print(f"ERROR: {error}", file=sys.stderr)
+                return 1
+            print(f"increment release: {bundle.root}")
+            print(f"  models: {len(bundle.manifest['models'])}")
+            print(f"  candidates: {len(bundle.manifest['candidates'])}")
+            print(f"  selected: {len(bundle.selection['groups'])}")
+            print(f"  quality_signals: {len(bundle.quality_signals['groups'])}")
+            return 0
+
+        if args.increment_command == "publish":
+            try:
+                summary = run_completion_publish(
+                    release_dir=args.release,
+                    artifacts_dir=args.artifacts,
+                    source_audit_path=args.source_audit,
+                    client=create_r2_client(args.env_file),
+                    manifest_activation_path=args.manifest_activation,
+                    quality_signals_activation_path=args.quality_signals_activation,
+                    publish_receipt_path=args.publish_receipt,
+                    release_validator=validate_increment_release,
+                )
+            except (
+                CompletionPublishError,
+                IncrementReleaseError,
+                PublishError,
+            ) as error:
+                print(f"ERROR: {error}", file=sys.stderr)
+                return 1
+            _print_completion_publish_summary(summary)
+            return 0
+
+        raise AssertionError(
+            f"unknown increment command: {args.increment_command}",
+        )
+
     if args.command == "intonation":
         if args.intonation_command != "report":
             raise AssertionError(
@@ -1570,6 +2144,75 @@ def _parse_completion_targets(
     if len(targets) != len(set(targets)):
         raise GenerationError("--targetが重複しています。")
     return tuple(sorted(targets))
+
+
+def _parse_increment_roles(
+    values: Sequence[str],
+) -> tuple[tuple[str, str], ...]:
+    roles: list[tuple[str, str]] = []
+    for value in values:
+        parts = value.split("/")
+        if len(parts) != 2 or not all(parts):
+            raise IncrementAnchorError(
+                "--targetはSCENARIO/CHARACTER形式が必要です。",
+            )
+        roles.append((parts[0], parts[1]))
+    if len(roles) != len(set(roles)):
+        raise IncrementAnchorError("--targetが重複しています。")
+    return tuple(sorted(roles))
+
+
+def _increment_model_revision(model_id: str) -> str:
+    """adapterのprofile versionをそのままplanのmodel revisionにする。
+
+    runtimeを起動せずclass属性だけを読む (plan固定はCPUだけで完結する)。
+    """
+
+    from gaya_pipeline.adapters import _adapter_class
+
+    return _adapter_class(model_id).profile.version
+
+
+def _increment_anchor_text(model_id: str) -> str:
+    from gaya_pipeline.adapters import _adapter_class
+
+    module = sys.modules[_adapter_class(model_id).__module__]
+    anchor_text = getattr(module, "ROLE_ANCHOR_TEXT", None)
+    if not isinstance(anchor_text, str) or not anchor_text:
+        raise IncrementAnchorError(
+            f"adapterがROLE_ANCHOR_TEXTを公開していません: {model_id}",
+        )
+    return anchor_text
+
+
+def _increment_anchor_authority(selection_path: Path) -> tuple[str, str]:
+    """機械選抜selectionから (selection SHA, candidate set SHA) を読む。"""
+
+    import hashlib
+    import json
+
+    from gaya_pipeline.increment_anchor import validate_machine_anchor_selection
+
+    raw = selection_path.read_bytes()
+    selection = validate_machine_anchor_selection(json.loads(raw.decode("utf-8")))
+    if canonical_json(selection).encode("utf-8") != raw:
+        raise IncrementAnchorError("anchor selectionはcanonical bytesが必要です。")
+    return (
+        hashlib.sha256(raw).hexdigest(),
+        selection["candidate_set_sha256"],
+    )
+
+
+def _write_increment_document(output_path: Path, document: object) -> None:
+    import hashlib
+
+    payload = canonical_json(document).encode("utf-8")
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    with output_path.open("xb") as stream:
+        stream.write(payload)
+    digest = hashlib.sha256(payload).hexdigest()
+    with output_path.with_suffix(".sha256").open("xb") as stream:
+        stream.write(f"{digest}\n".encode("ascii"))
 
 
 def _print_completion_listening_summary(
