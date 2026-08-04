@@ -677,6 +677,44 @@ short-caption same-seed F0 canary では、男性 caption `若い成人の男性
 
 コード・重み・codec は MIT。作者は倫理規約 (無断のなりすまし・誤情報生成の禁止) を守る限り生成音声の商用利用に追加制限を設けていない。参照音声は `assets/voices/metadata.yaml` の権利条件に従う。
 
+### 増分 (increment) 経路で9 model目を追加する
+
+公開済み baseline は 8 model x 161 line = 1,288 selected で、`completion_plan` / `completion_anchor` の plan・anchor 定数と `docs/research/role-conditioning-audit/` の証跡は SHA 凍結されている。新規 model はそこへ差し込めないため、`gaya increment` が並行経路として **53 role の anchor 機械選抜 → 161 group 生成 → 機械選抜 → 1,449 への増分 release → 増分 publish** を担う。凍結側の定数・公開済み artifact は一切変更しない。
+
+anchor は `role-anchor-machine-selection-v1` として選抜権限を `auto-selected-v1` で記録する。#174 の `role-anchor-selection-v1` は人手 rubric (`role-review-decision-v2`) を内包する契約なので、機械選抜がその形を名乗ることはしない。adapter 側の resolver は protocol で分岐し、人手選抜・機械選抜のどちらも同じ receipt を返す。
+
+すべての path は絶対 path が必要で、成果物は `artifacts/issue-194/` 配下へ write-once で置く。`<ROOT>` は repository 絶対 path とする。
+
+```console
+# (a) anchor 候補 plan を固定し、53 role x N=4 を生成する (GPU)
+uv run --project pipeline --locked gaya increment anchor-bootstrap --model irodori-tts-v4-small --scenarios <ROOT>/scenarios --voices <ROOT>/assets/voices --output <ROOT>/artifacts/issue-194/role-anchors/plans/role-anchor-bootstrap-plan-v1.json
+uv run --project pipeline --locked --extra irodori-v4 gaya increment anchor-generate --anchor-plan <ROOT>/artifacts/issue-194/role-anchors/plans/role-anchor-bootstrap-plan-v1.json --artifacts <ROOT>/artifacts/issue-194 --run-id 194-v4-anchor-round0 --round 0
+
+# (b) mechanical QC + F0 gender screening で anchor を機械選抜する (qc extra)
+uv run --project pipeline --locked --extra qc gaya increment anchor-select --anchor-plan <ROOT>/artifacts/issue-194/role-anchors/plans/role-anchor-bootstrap-plan-v1.json --artifacts <ROOT>/artifacts/issue-194 --run-id 194-v4-anchor-round0 --output <ROOT>/artifacts/issue-194/role-anchors/selections/194-v4-anchor-final
+```
+
+`anchor-select` は F0 screening を1件も通過しない role があると停止し、その role を列挙する。上限2回の top-up を `--round 1` / `--round 2` と `--target <scenario>/<character>` で回し、再度 `anchor-select` へ全 run-id を渡す。上限到達後は best-available を選び、role 単位の soft signal `anchor_gender_f0_soft_signal_exhausted` を残す (pass を捏造しない)。
+
+```console
+# (c) anchor authority を束縛した増分 plan を固定し、161 group x N=4 を生成する (GPU)
+uv run --project pipeline --locked gaya increment plan-build --model irodori-tts-v4-small --scenarios <ROOT>/scenarios --voices <ROOT>/assets/voices --anchor-plan <ROOT>/artifacts/issue-194/role-anchors/plans/role-anchor-bootstrap-plan-v1.json --anchor-selection <ROOT>/artifacts/issue-194/role-anchors/selections/194-v4-anchor-final/role-anchor-machine-selection-v1.json --output <ROOT>/artifacts/issue-194/plans/increment-plan-v1.json
+uv run --project pipeline --locked --extra irodori-v4 gaya increment generate --plan <ROOT>/artifacts/issue-194/plans/increment-plan-v1.json --scenarios <ROOT>/scenarios --voices <ROOT>/assets/voices --anchor-selection <ROOT>/artifacts/issue-194/role-anchors/selections/194-v4-anchor-final/role-anchor-machine-selection-v1.json --artifacts <ROOT>/artifacts/issue-194 --run-kind primary --seed-base 194
+
+# (d) QC → 機械選抜 → 増分 release
+uv run --project pipeline --locked --extra qc gaya completion qc --run-id <PRIMARY_RUN_ID> --artifacts <ROOT>/artifacts/issue-194 --scenarios <ROOT>/scenarios --voices <ROOT>/assets/voices --qc-model-root <ROOT>/artifacts/models/qc/sbintuitions--kana-whisper
+uv run --project pipeline --locked gaya increment auto-decide --plan <ROOT>/artifacts/issue-194/plans/increment-plan-v1.json --scenarios <ROOT>/scenarios --voices <ROOT>/assets/voices --anchor-selection <ROOT>/artifacts/issue-194/role-anchors/selections/194-v4-anchor-final/role-anchor-machine-selection-v1.json --artifacts <ROOT>/artifacts/issue-194 --primary-run-id <PRIMARY_RUN_ID> --pasqa-project <ROOT>/pasqa-ranking --pasqa-model-dir <ROOT>/artifacts/models/pasqa --output <ROOT>/artifacts/issue-194/decisions/194-increment-auto-v1
+uv run --project pipeline --locked gaya increment finalize --plan <ROOT>/artifacts/issue-194/plans/increment-plan-v1.json --base-release <ROOT>/artifacts/issue-174/releases/174-full-baseline-auto-v1 --decision <ROOT>/artifacts/issue-194/decisions/194-increment-auto-v1/role-baseline-decision-v1.json --quality-signals <ROOT>/artifacts/issue-194/decisions/194-increment-auto-v1/role-quality-signals-v1.json --anchor-selection <ROOT>/artifacts/issue-194/role-anchors/selections/194-v4-anchor-final/role-anchor-machine-selection-v1.json --artifacts <ROOT>/artifacts/issue-194 --scenarios <ROOT>/scenarios --voices <ROOT>/assets/voices --primary-run-id <PRIMARY_RUN_ID> --output <ROOT>/artifacts/issue-194/releases/194-increment-v4-v1
+
+# (e) publish 前の検証 (dry-run) と増分 publish
+uv run --project pipeline --locked gaya increment verify --release <ROOT>/artifacts/issue-194/releases/194-increment-v4-v1 --artifacts <ROOT>/artifacts/issue-194
+uv run --project pipeline --locked gaya increment publish --release <ROOT>/artifacts/issue-194/releases/194-increment-v4-v1 --artifacts <ROOT>/artifacts/issue-194 --source-audit <ROOT>/docs/research/role-conditioning-audit/source-audit.json --env-file <ROOT>/infra/.env --manifest-activation <ROOT>/data/manifest.json --quality-signals-activation <ROOT>/data/quality-signals.json --publish-receipt <ROOT>/artifacts/issue-194/releases/194-increment-v4-v1-publish-receipt.json
+```
+
+`increment publish` は `completion publish` と同じ upload/verify/activate 本体を使う。公開済み 1,288 分の音声は content-addressed key として `inherited` に分類され、preflight の HEAD で存在確認だけを行い再 upload しない。新規 v4 の take だけが `IfNoneMatch: *` の条件付き PUT で追加される。
+
+`--seed-base` は増分既定の 194 で、凍結 plan の 104 とは別値である。model policy は非 AivisSpeech と同形 (takes 4 / minimum eligible 3 / `derived-sha256-v1`)。増分 quality signals は `role-gender-f0-soft-v1` の 165/180 閾値をそのまま使うため、site の QC badge は追加実装なしで拾う。
+
 ## AivisSpeech Engine + コハク
 
 `aivisspeech-kohaku` は AivisSpeech Engine のローカル HTTP API と公式 ACML-1.0 モデル「コハク」だけを使う、日本語品質の固定声ベースラインである。検証経路は Windows native Engine の CPU 実行で、Python package や CUDA は追加しない。

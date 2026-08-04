@@ -951,15 +951,18 @@ def _phase_b_source(
                 "anchor selectionはcanonical JSON bytesが必要です。",
             )
         try:
-            from gaya_pipeline.completion_anchor import (
-                CompletionAnchorError,
-                validate_anchor_selection,
+            from gaya_pipeline.completion_anchor import CompletionAnchorError
+            from gaya_pipeline.increment_anchor import (
+                IncrementAnchorError,
+                validate_any_anchor_selection,
             )
 
-            validated_selection = validate_anchor_selection(
+            # 人手選抜 (role-anchor-selection-v1) と増分の機械選抜
+            # (role-anchor-machine-selection-v1) の両方を受理する。
+            validated_selection = validate_any_anchor_selection(
                 selection_document,
             )
-        except CompletionAnchorError as error:
+        except (CompletionAnchorError, IncrementAnchorError) as error:
             raise GenerationError(
                 f"anchor selection contractが不正です: {error}",
             ) from error

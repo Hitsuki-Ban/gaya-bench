@@ -1396,6 +1396,20 @@ def validate_machine_anchor_selection(document: Any) -> dict[str, Any]:
     }
 
 
+def validate_any_anchor_selection(document: Any) -> dict[str, Any]:
+    """人手選抜 v1 / 増分の機械選抜 v1 をprotocolで分岐して検証する。
+
+    どちらも root に `plan_sha256` / `candidate_set_sha256` / `groups` を持つ。
+    """
+
+    protocol = document.get("protocol") if isinstance(document, dict) else None
+    if protocol == SELECTION_PROTOCOL:
+        return validate_machine_anchor_selection(document)
+    from gaya_pipeline.completion_anchor import validate_anchor_selection
+
+    return validate_anchor_selection(document)
+
+
 def resolve_increment_anchor(
     *,
     selection_path: Path,
