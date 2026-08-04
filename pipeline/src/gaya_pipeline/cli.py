@@ -1234,6 +1234,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                         in {
                             "qwen3-tts-12hz-1.7b",
                             "irodori-tts-600m-v3-voicedesign",
+                            "irodori-tts-v4-small",
                         }
                         else None
                     ),
@@ -1243,6 +1244,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                         in {
                             "qwen3-tts-12hz-1.7b",
                             "irodori-tts-600m-v3-voicedesign",
+                            "irodori-tts-v4-small",
                         }
                         else None
                     ),
@@ -1252,6 +1254,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                         in {
                             "qwen3-tts-12hz-1.7b",
                             "irodori-tts-600m-v3-voicedesign",
+                            "irodori-tts-v4-small",
                         }
                         else None
                     ),

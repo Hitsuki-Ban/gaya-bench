@@ -57,6 +57,7 @@ VARIANT = "dry"
 PHASE_B_PROTOCOL = "phase-b-generation-v2"
 ANCHOR_MODELS = {
     "irodori-tts-600m-v3-voicedesign",
+    "irodori-tts-v4-small",
     "qwen3-tts-12hz-1.7b",
 }
 
