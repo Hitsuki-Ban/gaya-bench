@@ -78,6 +78,13 @@ irodori = [
     "torchaudio==2.10.0",
     "torchcodec==0.10.0",
 ]
+irodori-v4 = [
+    "irodori-tts==0.1.0",
+    "torch==2.10.0",
+    "torchaudio==2.10.0",
+    "torchao==0.16.0",
+    "torchcodec==0.10.0",
+]
 qwen = [
     "qwen-tts==0.1.1",
     "torch==2.11.0",
@@ -142,6 +149,10 @@ conflicts = [
     ],
     [
         { extra = "qc" },
+        { extra = "irodori-v4" },
+    ],
+    [
+        { extra = "qc" },
         { extra = "qwen" },
     ],
     [
@@ -158,11 +169,23 @@ conflicts = [
     ],
     [
         { extra = "gpt-sovits" },
+        { extra = "irodori-v4" },
+    ],
+    [
+        { extra = "gpt-sovits" },
         { extra = "qwen" },
     ],
     [
         { extra = "irodori" },
         { extra = "qwen" },
+    ],
+    [
+        { extra = "irodori-v4" },
+        { extra = "qwen" },
+    ],
+    [
+        { extra = "irodori" },
+        { extra = "irodori-v4" },
     ],
     [
         { extra = "gpt-sovits" },
@@ -170,6 +193,10 @@ conflicts = [
     ],
     [
         { extra = "irodori" },
+        { extra = "voxcpm2" },
+    ],
+    [
+        { extra = "irodori-v4" },
         { extra = "voxcpm2" },
     ],
     [
@@ -183,6 +210,10 @@ conflicts = [
     [
         { extra = "chatterbox" },
         { extra = "irodori" },
+    ],
+    [
+        { extra = "chatterbox" },
+        { extra = "irodori-v4" },
     ],
     [
         { extra = "chatterbox" },
@@ -203,6 +234,10 @@ conflicts = [
     [
         { extra = "cosyvoice3" },
         { extra = "irodori" },
+    ],
+    [
+        { extra = "cosyvoice3" },
+        { extra = "irodori-v4" },
     ],
     [
         { extra = "cosyvoice3" },
@@ -227,6 +262,10 @@ conflicts = [
     [
         { extra = "supertonic3" },
         { extra = "irodori" },
+    ],
+    [
+        { extra = "supertonic3" },
+        { extra = "irodori-v4" },
     ],
     [
         { extra = "supertonic3" },
@@ -244,7 +283,10 @@ openai-whisper = ["setuptools==80.9.0"]
 
 [tool.uv.sources]
 chatterbox-tts = { git = "https://github.com/resemble-ai/chatterbox.git", rev = "65b18437192794391a0308a8f705b1e33e633948" }
-irodori-tts = { git = "https://github.com/Aratako/Irodori-TTS.git", rev = "eaf74d6a19138f743acb5b71a445fd25a57db987" }
+irodori-tts = [
+    { git = "https://github.com/Aratako/Irodori-TTS.git", rev = "eaf74d6a19138f743acb5b71a445fd25a57db987", extra = "irodori" },
+    { git = "https://github.com/Aratako/Irodori-TTS.git", rev = "8ca3acb58ab4e19ad6d594aaed6bafe3e88f7f71", extra = "irodori-v4" },
+]
 dacvae = { git = "https://github.com/facebookresearch/dacvae", rev = "414c20785fc3a28373073ea8ef7a1316eeeaca6e" }
 resemble-perth = { git = "https://github.com/resemble-ai/Perth.git", rev = "ce86c49d029f42272c1902eccb675556b9ed2330" }
 voxcpm = { git = "https://github.com/OpenBMB/VoxCPM.git", rev = "616d3d3e630a9c96c2853250eef91b0f39dcd5fa" }
@@ -254,6 +296,7 @@ torch = [
     { index = "pytorch-cu121", extra = "cosyvoice3" },
     { index = "pytorch-cu128", extra = "gpt-sovits" },
     { index = "pytorch-cu128", extra = "irodori" },
+    { index = "pytorch-cu128", extra = "irodori-v4" },
     { index = "pytorch-cu130", extra = "qc" },
     { index = "pytorch-cu130", extra = "qwen" },
     { index = "pytorch-cu130", extra = "voxcpm2" },
@@ -263,6 +306,7 @@ torchaudio = [
     { index = "pytorch-cu121", extra = "cosyvoice3" },
     { index = "pytorch-cu128", extra = "gpt-sovits" },
     { index = "pytorch-cu128", extra = "irodori" },
+    { index = "pytorch-cu128", extra = "irodori-v4" },
     { index = "pytorch-cu130", extra = "qwen" },
     { index = "pytorch-cu130", extra = "voxcpm2" },
 ]

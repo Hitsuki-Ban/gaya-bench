@@ -31,3 +31,15 @@ def test_role_anchor_selectionは対象外modelへ渡せない() -> None:
             "dummy",
             role_anchor_selection_path=Path("C:/anchors/selection.json"),
         )
+
+
+def test_irodori_v4_is_an_independent_registered_model() -> None:
+    v3 = get_model_profile("irodori-tts-600m-v3-voicedesign")
+    v4 = get_model_profile("irodori-tts-v4-small")
+
+    assert v4.id == "irodori-tts-v4-small"
+    assert v4.name == "Irodori-TTS v4-Small"
+    assert v4.version != v3.version
+    assert v4.capabilities.voice_prompt is True
+    assert v4.capabilities.clone is True
+    assert v4.capabilities.reading is False
