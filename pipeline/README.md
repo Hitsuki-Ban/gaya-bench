@@ -640,6 +640,43 @@ Code、model weight、codec は MIT。学習データの詳細と生成物の独
 
 依存欠落、Windows native 以外、CUDA unavailable、BF16 非対応、cu128 wheel 不一致、固定 revision の取得失敗、参照 WAV 不備、SilentCipher 不可、OOM は明示的に失敗する。CPU、WSL、別 CUDA wheel、量子化、クラウド、無透かし音声への自動切替は行わない。
 
+## Irodori-TTS v4-Small
+
+`irodori-tts-v4-small` は Irodori-TTS の 9 モデル目として **v3 と併存する独立 model** である。conditioning 契約は v3 と同一で、明示 `character.reference_voice` を最優先し、`null` の役は役ごとに一つの frozen role anchor と全 role caption を全台詞へ渡す。未選定・stale anchor は生成前に fail fast する。
+
+v3 との差分は checkpoint / tokenizer / 参照上限だけである。
+
+| 項目 | v3 | v4-Small |
+| --- | --- | --- |
+| checkpoint | `Aratako/Irodori-TTS-600M-v3-VoiceDesign@e863a3a93e652e09afeff3e84823a206a0a60314` | `Aratako/Irodori-TTS-v4-Small@e4aaac4df355ff560dcd35e0dae272c3a759317b` |
+| code | `Aratako/Irodori-TTS@eaf74d6a19138f743acb5b71a445fd25a57db987` | `Aratako/Irodori-TTS@8ca3acb58ab4e19ad6d594aaed6bafe3e88f7f71` |
+| tokenizer | `llm-jp/llm-jp-3-150m` を pin | checkpoint 同梱 ModernBERT-ja tokenizer |
+| parameters | 600M 級 | 766,052,385 |
+| 参照上限 | 30 秒 / 単一 clip | 連結 120 秒 |
+| backbone | — | RF-DiT + ModernBERT-ja |
+
+`model.safetensors` は SHA-256 `5863c986345d9f6d20b7d8748fee1af02079c5161cf0c9e52557da0a0c378593` を runtime load 前に照合する。cache identity は model id と PROFILE_VERSION が `generation_input_sha256` に入ることで v3 と分離され、v3 の role anchor selection は `prepare()` が model 不一致として拒否する。
+
+`reading` は v3 と同じく非対応で、明示 `line.reading` があっても原文 `line.text` をそのまま渡す (#177 reading 契約)。
+
+v3 (torch 2.10 / cu128) と同じ toolchain だが、checkpoint と tokenizer が異なるため独立した uv extra として同期する。
+
+```console
+uv sync --project pipeline --locked --extra irodori-v4
+```
+
+まず caption-only の1行で CUDA・BF16・12GB VRAM・120秒 reference 上限・watermark の gate を確認する。
+
+```console
+uv run --project pipeline --locked --extra irodori-v4 gaya gen --model irodori-tts-v4-small --scenario tavern-night --line barmaid-001 --takes 1 --seed-base 42
+```
+
+2026-08 に Windows 11 / RTX 4070 Ti 12GB / CUDA 12.8 / torch 2.10.0 / BF16 model + FP32 codec / 40 steps で caption-only を実測し、cold load peak 3,079 MiB allocated / 3,228 MiB reserved、generation peak 2,571 MiB allocated / 3,744 MiB reserved、`total_to_decode` 4.523 秒、RTF 1.413 だった。BF16 が 12GB に収まるため INT8 variant は使用しない。checkpoint の `default_max_ref_seconds` は 120 で、SilentCipher stage は実行済みである。
+
+short-caption same-seed F0 canary では、男性 caption `若い成人の男性。低く落ち着いた男性の声。` が 5 seed 中 4 件で既存 soft-signal 境界 (median F0 <= 180 Hz) を通過し、1 件が 389.56 Hz へ逸脱した。caption だけで N=1 を公開することはできないため、**N>=4 + F0 screening で逸脱 take を除外する条件付き**で進める。F0 は hard gate へ昇格させず soft signal / provenance として残す。
+
+コード・重み・codec は MIT。作者は倫理規約 (無断のなりすまし・誤情報生成の禁止) を守る限り生成音声の商用利用に追加制限を設けていない。参照音声は `assets/voices/metadata.yaml` の権利条件に従う。
+
 ## AivisSpeech Engine + コハク
 
 `aivisspeech-kohaku` は AivisSpeech Engine のローカル HTTP API と公式 ACML-1.0 モデル「コハク」だけを使う、日本語品質の固定声ベースラインである。検証経路は Windows native Engine の CPU 実行で、Python package や CUDA は追加しない。
