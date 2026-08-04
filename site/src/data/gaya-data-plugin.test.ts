@@ -221,6 +221,70 @@ describe("loadBenchmarkData v4", () => {
     expect(() => loadBenchmarkData(createFixture(manifest))).toThrow("Irodori checkpoint_revision");
   });
 
+  it("Irodori v4-Smallの固定code・checkpointをcreditsへ投影する", () => {
+    const manifest = manifestForModel("irodori-tts-v4-small", {
+      checkpoint: "Aratako/Irodori-TTS-v4-Small",
+      checkpoint_revision: "e4aaac4df355ff560dcd35e0dae272c3a759317b",
+      upstream_revision: "8ca3acb58ab4e19ad6d594aaed6bafe3e88f7f71",
+    });
+
+    const sources = loadBenchmarkData(createFixture(manifest)).credits.model_sources[0]?.sources;
+
+    expect(sources).toEqual([
+      {
+        kind: "code",
+        label: "コード",
+        repository: "Aratako/Irodori-TTS",
+        revision: "8ca3acb58ab4e19ad6d594aaed6bafe3e88f7f71",
+        url:
+          "https://github.com/Aratako/Irodori-TTS/tree/" +
+          "8ca3acb58ab4e19ad6d594aaed6bafe3e88f7f71",
+      },
+      {
+        kind: "weights",
+        label: "v4-Small ウェイト",
+        repository: "Aratako/Irodori-TTS-v4-Small",
+        revision: "e4aaac4df355ff560dcd35e0dae272c3a759317b",
+        url:
+          "https://huggingface.co/Aratako/Irodori-TTS-v4-Small/tree/" +
+          "e4aaac4df355ff560dcd35e0dae272c3a759317b",
+      },
+    ]);
+
+    manifest.candidates[0]!.gen_params.requested.checkpoint = "Aratako/Irodori-TTS-600M-v3";
+    expect(() => loadBenchmarkData(createFixture(manifest))).toThrow("Irodori v4 checkpoint");
+  });
+
+  it("Irodori v4-Smallの方式・参照 receipt はsite側の model 分岐なしで編入される", () => {
+    const manifest = manifestForModel("irodori-tts-v4-small", {
+      checkpoint: "Aratako/Irodori-TTS-v4-Small",
+      checkpoint_revision: "e4aaac4df355ff560dcd35e0dae272c3a759317b",
+      upstream_revision: "8ca3acb58ab4e19ad6d594aaed6bafe3e88f7f71",
+    });
+    manifest.models[0]!.capabilities.voice_prompt = true;
+    manifest.models[0]!.capabilities.clone = true;
+    manifest.candidates[1]!.gen_params.realized = {
+      reference_control: "character-stable-reference-audio-v1",
+      reference_source: "selected-role-anchor",
+      reference_voice: null,
+      reference_sha256: "b".repeat(64),
+      reference_caption: "若い成人の男性。低く落ち着いた男性の声。",
+      reference_text: "Sample",
+      selected_anchor: validSelectedAnchor("b".repeat(64)),
+    };
+
+    const data = loadBenchmarkData(createFixture(manifest));
+    const model = data.release.models.find(({ id }) => id === "irodori-tts-v4-small");
+
+    // 方式バッジは capabilities からのみ導出される (#178)。
+    expect(model?.capabilities.voice_prompt).toBe(true);
+    expect(selectedOutcome(data).reference_conditioning).toEqual({
+      kind: "model_generated_reference",
+      inference_reference_sha256: "b".repeat(64),
+      source_kind: "selected-role-anchor",
+    });
+  });
+
   it("reference voice metadata を exact validation し scenario 参照と結合する", () => {
     const unknownReference = validScenario().replace(
       "voice: Clear",
