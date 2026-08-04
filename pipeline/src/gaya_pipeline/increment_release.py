@@ -21,7 +21,6 @@ from gaya_pipeline.completion_auto import (
 )
 from gaya_pipeline.completion_listen import (
     CompletionListeningError,
-    CompletionScenarioAuthority,
     CompletionSourceResolution,
     _load_completion_scenario_authority,
     _local_audio_path,
@@ -65,14 +64,6 @@ RELEASE_PROTOCOL = "role-increment-release-v1"
 RELEASE_FORMAT_VERSION = 1
 BASE_QUALITY_SIGNAL_GROUPS = 597
 FINAL_QUALITY_SIGNAL_GROUPS = BASE_QUALITY_SIGNAL_GROUPS + INCREMENT_GROUPS
-RELEASE_FILES = (
-    "manifest-v4.json",
-    "candidate-set.json",
-    "selection.json",
-    "quality-signals.json",
-    "release-provenance.json",
-)
-
 
 @dataclass(frozen=True)
 class IncrementReleaseSummary:
