@@ -462,6 +462,182 @@ def test_v4は120秒の連結referenceを条件として宣言する() -> None:
     assert params["role_reference"]["selection_required_for_null_reference"] is True
 
 
+def _line(line_id: str) -> dict[str, Any]:
+    return {
+        "id": line_id,
+        "text": "異常なし。",
+        "reading": "イジョウナシ",
+        "emotion": "neutral",
+        "intensity": 1,
+        "delivery": "短く報告する。",
+    }
+
+
+def test_anchor参照のcache鍵空間はroleでありlineやtakeではない(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # #194: 161 line x 4 take の run で anchor 参照が line 単位/take 単位に
+    # 積み上がると host memory が枯渇する。解決も保持も role 単位で bound
+    # されていることを固定する。
+    base = _job()
+    jobs = [
+        LineJob(
+            scene=base.scene,
+            character=base.character,
+            line=_line(f"guard-{index:03d}"),
+            locale="ja",
+        )
+        for index in range(1, 8)
+    ]
+    selection = _selection(tmp_path, base)
+    adapter = IrodoriTTSV4Adapter(
+        runtime=FakeRuntime(),
+        role_anchor_selection_path=selection,
+        role_anchor_plan_sha256=PLAN_SHA256,
+    )
+
+    import gaya_pipeline.increment_anchor as increment_anchor
+
+    resolved_roles: list[tuple[str, str]] = []
+    real_resolve = increment_anchor.resolve_increment_anchor
+
+    def counting_resolve(**kwargs: Any) -> Any:
+        role = kwargs["role"]
+        resolved_roles.append((role.scenario, role.character))
+        return real_resolve(**kwargs)
+
+    monkeypatch.setattr(
+        increment_anchor,
+        "resolve_increment_anchor",
+        counting_resolve,
+    )
+    adapter.prepare(jobs, tmp_path / "artifacts", tmp_path / "voices")
+
+    # 7 line / 1 role -> anchor 解決は role ごとに1回だけ。
+    assert len(jobs) == 7
+    assert resolved_roles == [("tavern-night", "guard")]
+
+    prepared = [adapter._prepared_input(job) for job in jobs]
+    assert len(prepared) == len(jobs)
+    # reference 実体 (wav path / sha / anchor receipt) は role ごとに1つを共有し、
+    # line 数・take 数に比例して増えない。
+    assert len({id(item.selected_anchor_receipt) for item in prepared}) == 1
+    assert len({item.reference_wav for item in prepared}) == 1
+    assert len({item.reference_sha256 for item in prepared}) == 1
+
+
+class _RecordingCuda:
+    def __init__(self, log: list[str]) -> None:
+        self._log = log
+
+    def synchronize(self, _device: int) -> None:
+        return
+
+    def reset_peak_memory_stats(self, _device: int) -> None:
+        self._log.append("reset_peak")
+
+    def empty_cache(self) -> None:
+        self._log.append("empty_cache")
+
+    def max_memory_allocated(self, _device: int) -> int:
+        return 1024 * 1024
+
+    def max_memory_reserved(self, _device: int) -> int:
+        return 2 * 1024 * 1024
+
+
+class _FakeTensor:
+    ndim = 1
+
+    def detach(self) -> _FakeTensor:
+        return self
+
+    def float(self) -> _FakeTensor:
+        return self
+
+    def cpu(self) -> _FakeTensor:
+        return self
+
+    def squeeze(self) -> _FakeTensor:
+        return self
+
+    def numel(self) -> int:
+        return 4800
+
+    def numpy(self) -> _FakeTensor:
+        return self
+
+
+def _native_runtime_stub(module: Any, log: list[str]) -> Any:
+    from types import SimpleNamespace
+
+    runtime = object.__new__(module._NativeRuntime)
+    runtime.torch = SimpleNamespace(cuda=_RecordingCuda(log))
+    runtime.inference_runtime = SimpleNamespace(
+        SamplingRequest=lambda **kwargs: SimpleNamespace(**kwargs),
+    )
+    runtime.soundfile = SimpleNamespace(
+        write=lambda path, *_a, **_k: _write_wave(Path(path)),
+    )
+
+    def synthesize(_request: Any, *, log_fn: Any = None) -> Any:
+        del log_fn
+        log.append("synthesize")
+        return SimpleNamespace(
+            used_seed=17,
+            sample_rate=48_000,
+            audio=_FakeTensor(),
+            stage_timings=(("silentcipher_watermark", 0.5),),
+            total_to_decode=1.0,
+        )
+
+    runtime._runtime = SimpleNamespace(
+        watermarker=SimpleNamespace(ready=True),
+        synthesize=synthesize,
+    )
+    return runtime
+
+
+def test_v4のsynthesizeはtakeごとにcaching_allocator_poolを畳む(
+    tmp_path: Path,
+) -> None:
+    from gaya_pipeline.adapters import irodori_tts_v4 as v4_module
+
+    log: list[str] = []
+    runtime = _native_runtime_stub(v4_module, log)
+
+    for index in range(3):
+        runtime.synthesize(
+            text="異常なし。",
+            caption="成人の男性。",
+            reference_wav=None,
+            output_wav=tmp_path / f"out-{index}.wav",
+            seed=17,
+        )
+
+    # take ごとに1回、かつ peak 計測の reset より前に解放する。
+    assert log.count("empty_cache") == 3
+    assert log[:3] == ["empty_cache", "reset_peak", "synthesize"]
+
+
+def test_v3のsynthesizeは公開baselineのままpoolを畳まない(tmp_path: Path) -> None:
+    from gaya_pipeline.adapters import irodori_tts as v3_module
+
+    log: list[str] = []
+    runtime = _native_runtime_stub(v3_module, log)
+    runtime.synthesize(
+        text="異常なし。",
+        caption="成人の男性。",
+        reference_wav=None,
+        output_wav=tmp_path / "v3.wav",
+        seed=17,
+    )
+
+    assert "empty_cache" not in log
+    assert log[:2] == ["reset_peak", "synthesize"]
+
+
 def test_v4はanchor_modelとして生成経路に登録されている() -> None:
     from gaya_pipeline.generation import ANCHOR_MODELS as GENERATION_ANCHOR_MODELS
     from gaya_pipeline.take_ledger import ANCHOR_MODELS as LEDGER_ANCHOR_MODELS

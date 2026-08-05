@@ -86,6 +86,24 @@ def _role_anchor_sampling() -> dict[str, Any]:
 
 
 class _NativeRuntime(_v3._NativeRuntime):
+    def release_cached_vram(self) -> None:
+        """caching allocator の未使用 block を driver へ返す。
+
+        Windows(WDDM) では PyTorch caching allocator の reserved pool が
+        そのまま process の system commit charge を消費する。take ごとに
+        text 長・reference 長が変わる長時間 run では pool が単調に肥大し、
+        host 側の commit を圧迫して ffmpeg 子プロセスの ENOMEM や
+        `json.dumps` の MemoryError を誘発する (#194 実測)。生成結果には
+        影響しない (kernel も RNG も不変) ので、take 境界で pool を畳んで
+        commit 上限を bound する。v3 の凍結 source には手を入れないため、
+        v4 subclass 側に定義する。
+        """
+        import gc
+
+        gc.collect()
+        self.torch.cuda.synchronize(0)
+        self.torch.cuda.empty_cache()
+
     def prepare(self) -> Mapping[str, float]:
         if self._runtime is not None:
             raise IrodoriTTSV4AdapterError("runtime はすでに prepare 済みです。")
@@ -206,6 +224,14 @@ class _NativeRuntime(_v3._NativeRuntime):
                 "SilentCipher watermark model が利用できません。",
             )
 
+        # take 境界で caching allocator の reserved pool を畳む。
+        # v4 は checkpoint (766M) と reference 上限 (120s) が v3 より大きく、
+        # 161 line x N take の run では shape 差で pool が単調増加する。
+        # WDDM ではその reserved 分がそのまま host の commit charge になるため、
+        # 畳まないと host 側が先に枯渇する (#194)。
+        # peak 計測前に呼ぶので receipt の reserved_mib は
+        # 「その take が実際に必要とした量」になり、run 履歴に依存しなくなる。
+        self.release_cached_vram()
         self.reset_peak_memory_stats()
         request = self.inference_runtime.SamplingRequest(
             text=text,
