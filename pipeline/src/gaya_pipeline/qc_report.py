@@ -331,7 +331,7 @@ def _validate_realized_anchor_receipt(
         selected_required = (
             reference_control == "selected_voice_design_anchor"
         )
-    elif model == "irodori-tts-600m-v3-voicedesign":
+    elif model in {"irodori-tts-600m-v3-voicedesign", "irodori-tts-v4-small"}:
         reference_source = realized.get("reference_source")
         if reference_source not in {"voice-asset", "selected-role-anchor"}:
             raise QCReportError(f"{field}.reference_sourceが不正です。")

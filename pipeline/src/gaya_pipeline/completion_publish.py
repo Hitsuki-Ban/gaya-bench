@@ -6,7 +6,7 @@ import os
 import tempfile
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
-from typing import Any, Literal, Protocol
+from typing import Any, Callable, Literal, Protocol
 
 from botocore.exceptions import BotoCoreError, ClientError
 
@@ -76,8 +76,15 @@ def run_completion_publish(
     manifest_activation_path: Path,
     quality_signals_activation_path: Path,
     publish_receipt_path: Path,
+    release_validator: Callable[..., Any] | None = None,
 ) -> CompletionPublishSummary:
-    """Upload immutable audio, verify every object, then activate the manifest."""
+    """Upload immutable audio, verify every object, then activate the manifest.
+
+    `release_validator` は release bundle 契約の検証器を差し替えるためだけの
+    追加引数で、既定 (None) では従来どおり `validate_completion_release` を使う。
+    増分 release は同じ bundle 形状・同じ provenance source_runs 形状を持つため、
+    upload/verify/activate の本体は完全に共有できる。
+    """
 
     for path, label in (
         (release_dir, "release"),
@@ -102,8 +109,13 @@ def run_completion_publish(
     if not publish_receipt_path.parent.is_dir():
         raise CompletionPublishError("publish receiptの親directoryが存在しません。")
 
+    validate = (
+        validate_completion_release
+        if release_validator is None
+        else release_validator
+    )
     try:
-        release = validate_completion_release(
+        release = validate(
             release_dir=release_dir,
             artifacts_dir=artifacts_dir,
             source_audit_path=source_audit_path,

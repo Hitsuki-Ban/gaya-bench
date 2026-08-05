@@ -183,6 +183,10 @@ const IRODORI_UPSTREAM_REPOSITORY = "Aratako/Irodori-TTS";
 const IRODORI_UPSTREAM_REVISION = "eaf74d6a19138f743acb5b71a445fd25a57db987";
 const IRODORI_CHECKPOINT = "Aratako/Irodori-TTS-600M-v3-VoiceDesign";
 const IRODORI_CHECKPOINT_REVISION = "e863a3a93e652e09afeff3e84823a206a0a60314";
+const IRODORI_V4_MODEL_ID = "irodori-tts-v4-small";
+const IRODORI_V4_UPSTREAM_REVISION = "8ca3acb58ab4e19ad6d594aaed6bafe3e88f7f71";
+const IRODORI_V4_CHECKPOINT = "Aratako/Irodori-TTS-v4-Small";
+const IRODORI_V4_CHECKPOINT_REVISION = "e4aaac4df355ff560dcd35e0dae272c3a759317b";
 
 interface ModelSourceField {
   readonly repository: string;
@@ -1521,6 +1525,9 @@ function extractModelSources(candidate: Candidate, modelId: string): readonly Mo
   if (modelId === IRODORI_MODEL_ID) {
     return extractIrodoriSources(requested);
   }
+  if (modelId === IRODORI_V4_MODEL_ID) {
+    return extractIrodoriV4Sources(requested);
+  }
 
   const sources: ModelSourceLink[] = [];
   for (const field of MODEL_SOURCE_FIELDS) {
@@ -1612,6 +1619,36 @@ function extractIrodoriSources(requested: UnknownRecord): readonly ModelSourceLi
       repository: IRODORI_CHECKPOINT,
       revision: IRODORI_CHECKPOINT_REVISION,
       url: `https://huggingface.co/${IRODORI_CHECKPOINT}/tree/${IRODORI_CHECKPOINT_REVISION}`,
+    },
+  ];
+}
+
+function extractIrodoriV4Sources(requested: UnknownRecord): readonly ModelSourceLink[] {
+  assertExactValue(
+    requested.upstream_revision,
+    IRODORI_V4_UPSTREAM_REVISION,
+    "Irodori v4 upstream_revision",
+  );
+  assertExactValue(requested.checkpoint, IRODORI_V4_CHECKPOINT, "Irodori v4 checkpoint");
+  assertExactValue(
+    requested.checkpoint_revision,
+    IRODORI_V4_CHECKPOINT_REVISION,
+    "Irodori v4 checkpoint_revision",
+  );
+  return [
+    {
+      kind: "code",
+      label: "コード",
+      repository: IRODORI_UPSTREAM_REPOSITORY,
+      revision: IRODORI_V4_UPSTREAM_REVISION,
+      url: `https://github.com/${IRODORI_UPSTREAM_REPOSITORY}/tree/${IRODORI_V4_UPSTREAM_REVISION}`,
+    },
+    {
+      kind: "weights",
+      label: "v4-Small ウェイト",
+      repository: IRODORI_V4_CHECKPOINT,
+      revision: IRODORI_V4_CHECKPOINT_REVISION,
+      url: `https://huggingface.co/${IRODORI_V4_CHECKPOINT}/tree/${IRODORI_V4_CHECKPOINT_REVISION}`,
     },
   ];
 }

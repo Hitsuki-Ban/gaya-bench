@@ -23,6 +23,7 @@ from gaya_pipeline.adapters.base import (
 from gaya_pipeline.adapters.dummy import DummyAdapter
 from gaya_pipeline.audio import (
     AudioProbe,
+    AudioProcessingError,
     AudioTools,
     EncodedLoudnessReport,
     NormalizedLoudnessReport,
@@ -959,6 +960,72 @@ def test_generated_checkpoint_failureは成果物を除去して残りを続行�
         "generated",
     ]
     assert not list(summary.ledger_path.parent.rglob("take-0001.*"))
+
+
+def test_失敗理由は空文字例外でも必ずattemptへ残る(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    fake_audio: AudioTools,
+) -> None:
+    del fake_audio
+    # `AudioProcessingError()` のように str(error) が空の例外でも
+    # ledger契約 (generation.error は非空 string) を満たす失敗理由を残す。
+    # 空のまま渡すと write_ledger_atomic が TakeLedgerError で run ごと落ち、
+    # 失敗理由がどこにも残らない (#194)。
+    real_probe = generation.probe_audio
+    source_probes = 0
+
+    def probe(tools: AudioTools, path: Path) -> AudioProbe:
+        nonlocal source_probes
+        if path.name.endswith(".source.wav"):
+            source_probes += 1
+            if source_probes == 2:
+                raise AudioProcessingError
+        return real_probe(tools, path)
+
+    monkeypatch.setattr(generation, "probe_audio", probe)
+    summary = _run_fake(
+        tmp_path=tmp_path,
+        monkeypatch=monkeypatch,
+        adapter=FakeStochasticAdapter(),
+        takes=3,
+    )
+
+    assert summary.generated_count == 2
+    assert summary.failed_count == 1
+    assert summary.failures[0].take_index == 2
+    assert "AudioProcessingError" in summary.failures[0].message
+    failed = [
+        attempt
+        for attempt in read_ledger(summary.ledger_path)["attempts"]
+        if attempt["status"] == "generation_failed"
+    ]
+    assert len(failed) == 1
+    assert failed[0]["generation"]["error"].strip()
+
+
+def test_failure_messageは非空を保証し原文を変えない() -> None:
+    assert generation._failure_message(RuntimeError("boom")) == "boom"
+    assert generation._failure_message(RuntimeError("  boom  ")) == "boom"
+    assert "MemoryError" in generation._failure_message(MemoryError())
+    assert "OSError" in generation._failure_message(OSError())
+    assert generation._failure_message(OSError()).strip()
+
+
+def test_failed_attemptは空の失敗理由を拒否する() -> None:
+    planned = {
+        "model": "fake",
+        "scenario": "tavern-night",
+        "line": "barmaid-001",
+        "variant": "dry",
+        "take_index": 1,
+        "generation_input_sha256": "a" * 64,
+        "generation": {"status": "planned", "seed": 1, "sampling": {}},
+        "status": "planned",
+    }
+
+    with pytest.raises(GenerationError, match="非空の失敗理由"):
+        generation._failed_attempt(planned, "   ")
 
 
 def test_realized_sampling不一致はgeneration_failedにする(

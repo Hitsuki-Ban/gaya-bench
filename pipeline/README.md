@@ -640,6 +640,81 @@ Code、model weight、codec は MIT。学習データの詳細と生成物の独
 
 依存欠落、Windows native 以外、CUDA unavailable、BF16 非対応、cu128 wheel 不一致、固定 revision の取得失敗、参照 WAV 不備、SilentCipher 不可、OOM は明示的に失敗する。CPU、WSL、別 CUDA wheel、量子化、クラウド、無透かし音声への自動切替は行わない。
 
+## Irodori-TTS v4-Small
+
+`irodori-tts-v4-small` は Irodori-TTS の 9 モデル目として **v3 と併存する独立 model** である。conditioning 契約は v3 と同一で、明示 `character.reference_voice` を最優先し、`null` の役は役ごとに一つの frozen role anchor と全 role caption を全台詞へ渡す。未選定・stale anchor は生成前に fail fast する。
+
+v3 との差分は checkpoint / tokenizer / 参照上限だけである。
+
+| 項目 | v3 | v4-Small |
+| --- | --- | --- |
+| checkpoint | `Aratako/Irodori-TTS-600M-v3-VoiceDesign@e863a3a93e652e09afeff3e84823a206a0a60314` | `Aratako/Irodori-TTS-v4-Small@e4aaac4df355ff560dcd35e0dae272c3a759317b` |
+| code | `Aratako/Irodori-TTS@eaf74d6a19138f743acb5b71a445fd25a57db987` | `Aratako/Irodori-TTS@8ca3acb58ab4e19ad6d594aaed6bafe3e88f7f71` |
+| tokenizer | `llm-jp/llm-jp-3-150m` を pin | checkpoint 同梱 ModernBERT-ja tokenizer |
+| parameters | 600M 級 | 766,052,385 |
+| 参照上限 | 30 秒 / 単一 clip | 連結 120 秒 |
+| backbone | — | RF-DiT + ModernBERT-ja |
+
+`model.safetensors` は SHA-256 `5863c986345d9f6d20b7d8748fee1af02079c5161cf0c9e52557da0a0c378593` を runtime load 前に照合する。cache identity は model id と PROFILE_VERSION が `generation_input_sha256` に入ることで v3 と分離され、v3 の role anchor selection は `prepare()` が model 不一致として拒否する。
+
+`reading` は v3 と同じく非対応で、明示 `line.reading` があっても原文 `line.text` をそのまま渡す (#177 reading 契約)。
+
+v3 (torch 2.10 / cu128) と同じ toolchain だが、checkpoint と tokenizer が異なるため独立した uv extra として同期する。
+
+```console
+uv sync --project pipeline --locked --extra irodori-v4
+```
+
+まず caption-only の1行で CUDA・BF16・12GB VRAM・120秒 reference 上限・watermark の gate を確認する。
+
+```console
+uv run --project pipeline --locked --extra irodori-v4 gaya gen --model irodori-tts-v4-small --scenario tavern-night --line barmaid-001 --takes 1 --seed-base 42
+```
+
+2026-08 に Windows 11 / RTX 4070 Ti 12GB / CUDA 12.8 / torch 2.10.0 / BF16 model + FP32 codec / 40 steps で caption-only を実測し、cold load peak 3,079 MiB allocated / 3,228 MiB reserved、generation peak 2,571 MiB allocated / 3,744 MiB reserved、`total_to_decode` 4.523 秒、RTF 1.413 だった。BF16 が 12GB に収まるため INT8 variant は使用しない。checkpoint の `default_max_ref_seconds` は 120 で、SilentCipher stage は実行済みである。
+
+short-caption same-seed F0 canary では、男性 caption `若い成人の男性。低く落ち着いた男性の声。` が 5 seed 中 4 件で既存 soft-signal 境界 (median F0 <= 180 Hz) を通過し、1 件が 389.56 Hz へ逸脱した。caption だけで N=1 を公開することはできないため、**N>=4 + F0 screening で逸脱 take を除外する条件付き**で進める。F0 は hard gate へ昇格させず soft signal / provenance として残す。
+
+コード・重み・codec は MIT。作者は倫理規約 (無断のなりすまし・誤情報生成の禁止) を守る限り生成音声の商用利用に追加制限を設けていない。参照音声は `assets/voices/metadata.yaml` の権利条件に従う。
+
+### 増分 (increment) 経路で9 model目を追加する
+
+公開済み baseline は 8 model x 161 line = 1,288 selected で、`completion_plan` / `completion_anchor` の plan・anchor 定数と `docs/research/role-conditioning-audit/` の証跡は SHA 凍結されている。新規 model はそこへ差し込めないため、`gaya increment` が並行経路として **53 role の anchor 機械選抜 → 161 group 生成 → 機械選抜 → 1,449 への増分 release → 増分 publish** を担う。凍結側の定数・公開済み artifact は一切変更しない。
+
+anchor は `role-anchor-machine-selection-v1` として選抜権限を `auto-selected-v1` で記録する。#174 の `role-anchor-selection-v1` は人手 rubric (`role-review-decision-v2`) を内包する契約なので、機械選抜がその形を名乗ることはしない。adapter 側の resolver は protocol で分岐し、人手選抜・機械選抜のどちらも同じ receipt を返す。
+
+すべての path は絶対 path が必要で、成果物は `artifacts/issue-194/` 配下へ write-once で置く。`<ROOT>` は repository 絶対 path とする。
+
+```console
+# (a) anchor 候補 plan を固定し、53 role x N=4 を生成する (GPU)
+uv run --project pipeline --locked gaya increment anchor-bootstrap --model irodori-tts-v4-small --scenarios <ROOT>/scenarios --voices <ROOT>/assets/voices --output <ROOT>/artifacts/issue-194/role-anchors/plans/role-anchor-bootstrap-plan-v1.json
+uv run --project pipeline --locked --extra irodori-v4 gaya increment anchor-generate --anchor-plan <ROOT>/artifacts/issue-194/role-anchors/plans/role-anchor-bootstrap-plan-v1.json --artifacts <ROOT>/artifacts/issue-194 --run-id 194-v4-anchor-round0 --round 0
+
+# (b) mechanical QC + F0 gender screening で anchor を機械選抜する (qc extra)
+uv run --project pipeline --locked --extra qc gaya increment anchor-select --anchor-plan <ROOT>/artifacts/issue-194/role-anchors/plans/role-anchor-bootstrap-plan-v1.json --artifacts <ROOT>/artifacts/issue-194 --run-id 194-v4-anchor-round0 --output <ROOT>/artifacts/issue-194/role-anchors/selections/194-v4-anchor-final
+```
+
+`anchor-select` は F0 screening を1件も通過しない role があると停止し、その role を列挙する。上限2回の top-up を `--round 1` / `--round 2` と `--target <scenario>/<character>` で回し、再度 `anchor-select` へ全 run-id を渡す。上限到達後は best-available を選び、role 単位の soft signal `anchor_gender_f0_soft_signal_exhausted` を残す (pass を捏造しない)。
+
+```console
+# (c) anchor authority を束縛した増分 plan を固定し、161 group x N=4 を生成する (GPU)
+uv run --project pipeline --locked gaya increment plan-build --model irodori-tts-v4-small --scenarios <ROOT>/scenarios --voices <ROOT>/assets/voices --anchor-plan <ROOT>/artifacts/issue-194/role-anchors/plans/role-anchor-bootstrap-plan-v1.json --anchor-selection <ROOT>/artifacts/issue-194/role-anchors/selections/194-v4-anchor-final/role-anchor-machine-selection-v1.json --output <ROOT>/artifacts/issue-194/plans/increment-plan-v1.json
+uv run --project pipeline --locked --extra irodori-v4 gaya increment generate --plan <ROOT>/artifacts/issue-194/plans/increment-plan-v1.json --scenarios <ROOT>/scenarios --voices <ROOT>/assets/voices --anchor-selection <ROOT>/artifacts/issue-194/role-anchors/selections/194-v4-anchor-final/role-anchor-machine-selection-v1.json --artifacts <ROOT>/artifacts/issue-194 --run-kind primary --seed-base 194
+
+# (d) QC → 機械選抜 → 増分 release
+uv run --project pipeline --locked --extra qc gaya completion qc --run-id <PRIMARY_RUN_ID> --artifacts <ROOT>/artifacts/issue-194 --scenarios <ROOT>/scenarios --voices <ROOT>/assets/voices --qc-model-root <ROOT>/artifacts/models/qc/sbintuitions--kana-whisper
+uv run --project pipeline --locked gaya increment auto-decide --plan <ROOT>/artifacts/issue-194/plans/increment-plan-v1.json --scenarios <ROOT>/scenarios --voices <ROOT>/assets/voices --anchor-selection <ROOT>/artifacts/issue-194/role-anchors/selections/194-v4-anchor-final/role-anchor-machine-selection-v1.json --artifacts <ROOT>/artifacts/issue-194 --primary-run-id <PRIMARY_RUN_ID> --pasqa-project <ROOT>/pasqa-ranking --pasqa-model-dir <ROOT>/artifacts/models/pasqa --output <ROOT>/artifacts/issue-194/decisions/194-increment-auto-v1
+uv run --project pipeline --locked gaya increment finalize --plan <ROOT>/artifacts/issue-194/plans/increment-plan-v1.json --base-release <ROOT>/artifacts/issue-174/releases/174-full-baseline-auto-v1 --decision <ROOT>/artifacts/issue-194/decisions/194-increment-auto-v1/role-baseline-decision-v1.json --quality-signals <ROOT>/artifacts/issue-194/decisions/194-increment-auto-v1/role-quality-signals-v1.json --anchor-selection <ROOT>/artifacts/issue-194/role-anchors/selections/194-v4-anchor-final/role-anchor-machine-selection-v1.json --artifacts <ROOT>/artifacts/issue-194 --scenarios <ROOT>/scenarios --voices <ROOT>/assets/voices --primary-run-id <PRIMARY_RUN_ID> --output <ROOT>/artifacts/issue-194/releases/194-increment-v4-v1
+
+# (e) publish 前の検証 (dry-run) と増分 publish
+uv run --project pipeline --locked gaya increment verify --release <ROOT>/artifacts/issue-194/releases/194-increment-v4-v1 --artifacts <ROOT>/artifacts/issue-194
+uv run --project pipeline --locked gaya increment publish --release <ROOT>/artifacts/issue-194/releases/194-increment-v4-v1 --artifacts <ROOT>/artifacts/issue-194 --source-audit <ROOT>/docs/research/role-conditioning-audit/source-audit.json --env-file <ROOT>/infra/.env --manifest-activation <ROOT>/data/manifest.json --quality-signals-activation <ROOT>/data/quality-signals.json --publish-receipt <ROOT>/artifacts/issue-194/releases/194-increment-v4-v1-publish-receipt.json
+```
+
+`increment publish` は `completion publish` と同じ upload/verify/activate 本体を使う。公開済み 1,288 分の音声は content-addressed key として `inherited` に分類され、preflight の HEAD で存在確認だけを行い再 upload しない。新規 v4 の take だけが `IfNoneMatch: *` の条件付き PUT で追加される。
+
+`--seed-base` は増分既定の 194 で、凍結 plan の 104 とは別値である。model policy は非 AivisSpeech と同形 (takes 4 / minimum eligible 3 / `derived-sha256-v1`)。増分 quality signals は `role-gender-f0-soft-v1` の 165/180 閾値をそのまま使うため、site の QC badge は追加実装なしで拾う。
+
 ## AivisSpeech Engine + コハク
 
 `aivisspeech-kohaku` は AivisSpeech Engine のローカル HTTP API と公式 ACML-1.0 モデル「コハク」だけを使う、日本語品質の固定声ベースラインである。検証経路は Windows native Engine の CPU 実行で、Python package や CUDA は追加しない。

@@ -6,7 +6,7 @@ import shutil
 import tempfile
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Mapping, Sequence
+from typing import Any, Callable, Mapping, Sequence
 
 import yaml
 
@@ -44,6 +44,13 @@ SOURCE_MAP_PROTOCOL = "phase-b-source-map-v1"
 PRIMARY_MODELS = frozenset(
     MODEL_REVISIONS,
 )
+ANCHOR_BOUND_MODELS = frozenset({QWEN_MODEL, IRODORI_MODEL})
+EXPECTED_SOURCE_GROUP_COUNT = 597
+
+AnchorLoader = Callable[
+    [Path, Any],
+    "tuple[str, Mapping[tuple[str, str, str], str]]",
+]
 
 
 @dataclass(frozen=True)
@@ -147,7 +154,28 @@ def phase_b_generation_binding(
     """Resolve the exact anchor digest and per-line role epochs for one run."""
 
     require_production_completion_plan(plan)
-    anchor_sha, anchor_epochs = _load_anchor_selection(
+    return generation_binding(
+        plan=plan,
+        model=model,
+        scenarios_dir=scenarios_dir,
+        voices_dir=voices_dir,
+        anchor_selection_path=anchor_selection_path,
+    )
+
+
+def generation_binding(
+    *,
+    plan: Any,
+    model: str,
+    scenarios_dir: Path,
+    voices_dir: Path,
+    anchor_selection_path: Path,
+    anchor_loader: AnchorLoader | None = None,
+) -> tuple[str, dict[tuple[str, str], str]]:
+    """Bind one generation run to its anchor digest without production gating."""
+
+    load_anchor = _load_anchor_selection if anchor_loader is None else anchor_loader
+    anchor_sha, anchor_epochs = load_anchor(
         anchor_selection_path,
         plan,
     )
@@ -358,14 +386,25 @@ def resolve_completion_sources(
     anchor_selection_path: Path,
     artifacts_dir: Path,
     scenario_authority: CompletionScenarioAuthority,
+    primary_models: frozenset[str] | None = None,
+    anchor_loader: AnchorLoader | None = None,
+    anchor_bound_models: frozenset[str] | None = None,
+    expected_group_count: int = EXPECTED_SOURCE_GROUP_COUNT,
 ) -> CompletionSourceResolution:
+    models = PRIMARY_MODELS if primary_models is None else primary_models
+    bound_models = (
+        ANCHOR_BOUND_MODELS if anchor_bound_models is None else anchor_bound_models
+    )
+    load_anchor = _load_anchor_selection if anchor_loader is None else anchor_loader
     all_ids = [*primary_run_ids, *topup_run_ids]
     if len(all_ids) != len(set(all_ids)):
         raise CompletionListeningError("Phase B source run-id が重複しています。")
-    if len(primary_run_ids) != len(PRIMARY_MODELS):
-        raise CompletionListeningError("Phase B primary run は8件必要です。")
+    if len(primary_run_ids) != len(models):
+        raise CompletionListeningError(
+            f"Phase B primary run は{len(models)}件必要です。",
+        )
     takes_root = _require_directory(artifacts_dir / "takes", "takes root")
-    anchor_sha, anchor_epochs = _load_anchor_selection(
+    anchor_sha, anchor_epochs = load_anchor(
         anchor_selection_path,
         plan,
     )
@@ -385,15 +424,17 @@ def resolve_completion_sources(
             expected_epochs=expected_epochs,
             expected_anchor_sha256=anchor_sha,
             required_kind="primary",
+            primary_models=models,
+            anchor_bound_models=bound_models,
         )
         for run_id in primary_run_ids
     ]
     primary_by_model = {run.model: run for run in primary_runs}
-    if set(primary_by_model) != PRIMARY_MODELS or len(primary_by_model) != len(
+    if set(primary_by_model) != models or len(primary_by_model) != len(
         primary_runs
     ):
         raise CompletionListeningError(
-            "primary run はplanの8 modelを各1件必要です。",
+            f"primary run はplanの{len(models)} modelを各1件必要です。",
         )
     for model, run in primary_by_model.items():
         expected_model_groups = {
@@ -421,6 +462,8 @@ def resolve_completion_sources(
             expected_epochs=expected_epochs,
             expected_anchor_sha256=anchor_sha,
             required_kind="topup",
+            primary_models=models,
+            anchor_bound_models=bound_models,
         )
         predecessor = runs_by_id.get(str(run.supersedes_run_id))
         if predecessor is None or predecessor.model != run.model:
@@ -467,11 +510,14 @@ def resolve_completion_sources(
         runs_by_id[run.run_id] = run
         topup_runs.append(run)
 
-    if set(group_sources) != expected_targets or len(group_sources) != 597:
+    if (
+        set(group_sources) != expected_targets
+        or len(group_sources) != expected_group_count
+    ):
         missing = sorted(expected_targets - set(group_sources))
         extra = sorted(set(group_sources) - expected_targets)
         raise CompletionListeningError(
-            f"最終source mapはplan exact 597 groupが必要です: "
+            f"最終source mapはplan exact {expected_group_count} groupが必要です: "
             f"missing={missing}, extra={extra}",
         )
     return CompletionSourceResolution(
@@ -528,7 +574,13 @@ def _load_phase_b_run(
     expected_epochs: Mapping[tuple[str, str, str, str], str],
     expected_anchor_sha256: str,
     required_kind: str,
+    primary_models: frozenset[str] | None = None,
+    anchor_bound_models: frozenset[str] | None = None,
 ) -> CompletionSourceRun:
+    models = PRIMARY_MODELS if primary_models is None else primary_models
+    bound_models = (
+        ANCHOR_BOUND_MODELS if anchor_bound_models is None else anchor_bound_models
+    )
     root = _resolve_direct_child(takes_root, run_id, f"source run {run_id}")
     try:
         ledger = read_ledger(root / "ledger.json")
@@ -599,7 +651,7 @@ def _load_phase_b_run(
     if len(run_models) != 1:
         raise CompletionListeningError(f"Phase B runは単一modelが必要です: {run_id}")
     model = str(run_models[0]["id"])
-    if model not in PRIMARY_MODELS or run_models[0]["version"] != plan.models[model]:
+    if model not in models or run_models[0]["version"] != plan.models[model]:
         raise CompletionListeningError(
             f"Phase B model/revision がplanと一致しません: {run_id}",
         )
@@ -622,11 +674,11 @@ def _load_phase_b_run(
     anchor_sha = phase_b["anchor_selection_sha256"]
     anchor_plan_sha = phase_b["anchor_plan_sha256"]
     expected_run_anchor = (
-        expected_anchor_sha256 if model in {QWEN_MODEL, IRODORI_MODEL} else None
+        expected_anchor_sha256 if model in bound_models else None
     )
     expected_anchor_plan = (
         plan.anchor_source_plan_sha256
-        if model in {QWEN_MODEL, IRODORI_MODEL}
+        if model in bound_models
         else None
     )
     if (

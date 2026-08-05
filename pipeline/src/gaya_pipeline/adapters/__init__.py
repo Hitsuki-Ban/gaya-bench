@@ -21,6 +21,10 @@ def _adapter_class(model_id: str) -> type[Adapter]:
         from gaya_pipeline.adapters.irodori_tts import IrodoriTTSAdapter
 
         return IrodoriTTSAdapter
+    if model_id == "irodori-tts-v4-small":
+        from gaya_pipeline.adapters.irodori_tts_v4 import IrodoriTTSV4Adapter
+
+        return IrodoriTTSV4Adapter
     if model_id == "aivisspeech-kohaku":
         from gaya_pipeline.adapters.aivisspeech import AivisSpeechAdapter
 
@@ -58,6 +62,7 @@ def create_adapter(
     if model_id in {
         "qwen3-tts-12hz-1.7b",
         "irodori-tts-600m-v3-voicedesign",
+        "irodori-tts-v4-small",
     }:
         return adapter_class(
             role_anchor_selection_path=role_anchor_selection_path,

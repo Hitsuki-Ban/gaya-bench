@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Any, Mapping, Sequence
 
 from gaya_pipeline.completion_listen import (
+    AnchorLoader,
     CompletionListeningError,
     CompletionScenarioAuthority,
     CompletionSourceResolution,
@@ -77,11 +78,24 @@ class CompletionAutoDecisionSummary:
     review_required_count: int
 
 
-def canonical_completion_quality_signals_bytes(value: Any) -> bytes:
-    return canonical_json(validate_completion_quality_signals(value)).encode("utf-8")
+def canonical_completion_quality_signals_bytes(
+    value: Any,
+    *,
+    expected_group_count: int = EXPECTED_GROUP_COUNT,
+) -> bytes:
+    return canonical_json(
+        validate_completion_quality_signals(
+            value,
+            expected_group_count=expected_group_count,
+        ),
+    ).encode("utf-8")
 
 
-def validate_completion_quality_signals(value: Any) -> dict[str, Any]:
+def validate_completion_quality_signals(
+    value: Any,
+    *,
+    expected_group_count: int = EXPECTED_GROUP_COUNT,
+) -> dict[str, Any]:
     if not isinstance(value, dict) or set(value) != {
         "format_version",
         "protocol",
@@ -95,8 +109,10 @@ def validate_completion_quality_signals(value: Any) -> dict[str, Any]:
     for field in ("plan_sha256", "decision_sha256"):
         _require_sha256(value[field], f"quality signals.{field}")
     groups = value["groups"]
-    if not isinstance(groups, list) or len(groups) != EXPECTED_GROUP_COUNT:
-        raise CompletionAutoDecisionError("quality signalsはexact 597 groupが必要です。")
+    if not isinstance(groups, list) or len(groups) != expected_group_count:
+        raise CompletionAutoDecisionError(
+            f"quality signalsはexact {expected_group_count} groupが必要です。"
+        )
     identities: set[tuple[str, str, str, str]] = set()
     normalized_groups: list[dict[str, Any]] = []
     for group in groups:
@@ -172,8 +188,16 @@ def create_completion_auto_decision(
     pasqa_project_dir: Path,
     pasqa_model_dir: Path,
     output_dir: Path,
+    expected_group_count: int = EXPECTED_GROUP_COUNT,
+    expected_candidate_count: int | None = EXPECTED_CANDIDATE_COUNT,
+    require_production: bool = True,
+    primary_models: frozenset[str] | None = None,
+    anchor_loader: AnchorLoader | None = None,
+    anchor_bound_models: frozenset[str] | None = None,
+    minimum_candidate_count: int | None = None,
 ) -> CompletionAutoDecisionSummary:
-    require_production_completion_plan(plan)
+    if require_production:
+        require_production_completion_plan(plan)
     try:
         return _create_completion_auto_decision(
             plan=plan,
@@ -186,6 +210,12 @@ def create_completion_auto_decision(
             pasqa_project_dir=pasqa_project_dir,
             pasqa_model_dir=pasqa_model_dir,
             output_dir=output_dir,
+            expected_group_count=expected_group_count,
+            expected_candidate_count=expected_candidate_count,
+            primary_models=primary_models,
+            anchor_loader=anchor_loader,
+            anchor_bound_models=anchor_bound_models,
+            minimum_candidate_count=minimum_candidate_count,
         )
     except CompletionAutoDecisionError:
         raise
@@ -216,6 +246,12 @@ def _create_completion_auto_decision(
     pasqa_project_dir: Path,
     pasqa_model_dir: Path,
     output_dir: Path,
+    expected_group_count: int = EXPECTED_GROUP_COUNT,
+    expected_candidate_count: int | None = EXPECTED_CANDIDATE_COUNT,
+    primary_models: frozenset[str] | None = None,
+    anchor_loader: AnchorLoader | None = None,
+    anchor_bound_models: frozenset[str] | None = None,
+    minimum_candidate_count: int | None = None,
 ) -> CompletionAutoDecisionSummary:
     if output_dir.exists():
         raise CompletionAutoDecisionError(
@@ -252,6 +288,10 @@ def _create_completion_auto_decision(
         anchor_selection_path=anchor_selection_path,
         artifacts_dir=artifacts_dir,
         scenario_authority=scenario_authority,
+        primary_models=primary_models,
+        anchor_loader=anchor_loader,
+        anchor_bound_models=anchor_bound_models,
+        expected_group_count=expected_group_count,
     )
     candidate_set = _replacement_candidate_set(
         plan=plan,
@@ -261,12 +301,25 @@ def _create_completion_auto_decision(
     candidate_set_bytes = canonical_candidate_set_bytes(candidate_set)
     candidate_set_sha256 = hashlib.sha256(candidate_set_bytes).hexdigest()
     candidates_by_group = _candidates_by_group(candidate_set["candidates"])
+    if len(candidates_by_group) != expected_group_count or (
+        expected_candidate_count is not None
+        and len(candidate_set["candidates"]) != expected_candidate_count
+    ):
+        expected_candidates = (
+            "任意"
+            if expected_candidate_count is None
+            else f"{expected_candidate_count:,}"
+        )
+        raise CompletionAutoDecisionError(
+            f"auto decisionはexact {expected_group_count} group / "
+            f"{expected_candidates} candidateが必要です。"
+        )
     if (
-        len(candidates_by_group) != EXPECTED_GROUP_COUNT
-        or len(candidate_set["candidates"]) != EXPECTED_CANDIDATE_COUNT
+        minimum_candidate_count is not None
+        and len(candidate_set["candidates"]) < minimum_candidate_count
     ):
         raise CompletionAutoDecisionError(
-            "auto decisionはexact 597 group / 2,307 candidateが必要です。"
+            f"auto decision candidateは{minimum_candidate_count}件以上が必要です。"
         )
     qc_attempts = _load_qc_attempts(resolution)
 
@@ -366,6 +419,7 @@ def _create_completion_auto_decision(
         )
         quality_signals_bytes = canonical_completion_quality_signals_bytes(
             quality_signals,
+            expected_group_count=expected_group_count,
         )
         quality_signals_sha256 = hashlib.sha256(quality_signals_bytes).hexdigest()
 

@@ -57,6 +57,7 @@ VARIANT = "dry"
 PHASE_B_PROTOCOL = "phase-b-generation-v2"
 ANCHOR_MODELS = {
     "irodori-tts-600m-v3-voicedesign",
+    "irodori-tts-v4-small",
     "qwen3-tts-12hz-1.7b",
 }
 
@@ -504,7 +505,7 @@ def _execute_generation(
             json.JSONDecodeError,
         ) as error:
             _remove_attempt_outputs(run_root, plan)
-            replacement = _failed_attempt(current, str(error))
+            replacement = _failed_attempt(current, _failure_message(error))
             ledger = transition_attempt(
                 ledger,
                 slot=plan.slot,
@@ -516,7 +517,7 @@ def _execute_generation(
                     scenario_id=plan.job.scenario_id,
                     line_id=plan.job.line_id,
                     take_index=plan.context.index,
-                    message=str(error),
+                    message=_failure_message(error),
                 ),
             )
             continue
@@ -530,7 +531,7 @@ def _execute_generation(
             write_ledger_atomic(ledger_path, next_ledger)
         except (OSError, TakeLedgerError) as error:
             _remove_attempt_outputs(run_root, plan)
-            message = f"ledger checkpoint に失敗しました: {error}"
+            message = f"ledger checkpoint に失敗しました: {_failure_message(error)}"
             failed_ledger = transition_attempt(
                 ledger,
                 slot=plan.slot,
@@ -950,15 +951,18 @@ def _phase_b_source(
                 "anchor selectionはcanonical JSON bytesが必要です。",
             )
         try:
-            from gaya_pipeline.completion_anchor import (
-                CompletionAnchorError,
-                validate_anchor_selection,
+            from gaya_pipeline.completion_anchor import CompletionAnchorError
+            from gaya_pipeline.increment_anchor import (
+                IncrementAnchorError,
+                validate_any_anchor_selection,
             )
 
-            validated_selection = validate_anchor_selection(
+            # 人手選抜 (role-anchor-selection-v1) と増分の機械選抜
+            # (role-anchor-machine-selection-v1) の両方を受理する。
+            validated_selection = validate_any_anchor_selection(
                 selection_document,
             )
-        except CompletionAnchorError as error:
+        except (CompletionAnchorError, IncrementAnchorError) as error:
             raise GenerationError(
                 f"anchor selection contractが不正です: {error}",
             ) from error
@@ -1827,10 +1831,27 @@ def _generated_attempt(
     return result
 
 
+def _failure_message(error: BaseException) -> str:
+    """attempt へ記録する失敗理由を必ず非空にする。
+
+    `str(error)` は引数なしで construct された例外 (`OSError()` /
+    `MemoryError()` など) では空文字になる。空のまま `_failed_attempt` へ
+    渡すと ledger 契約 (`generation.error` は非空 string) 違反となり、
+    `write_ledger_atomic` が TakeLedgerError を投げて run 全体が落ち、
+    失敗理由がどこにも残らない。exception 型名で必ず補完する。
+    """
+    text = str(error).strip()
+    if text:
+        return text
+    return f"{type(error).__name__} が詳細メッセージなしで送出されました。"
+
+
 def _failed_attempt(
     planned: dict[str, Any],
     message: str,
 ) -> dict[str, Any]:
+    if not message.strip():
+        raise GenerationError("failed attempt には非空の失敗理由が必要です。")
     result = {
         "model": planned["model"],
         "scenario": planned["scenario"],
