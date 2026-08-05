@@ -32,7 +32,8 @@ describe("virtual:gaya-data integration", () => {
     } = await import("./index");
 
     expect(benchmarkData.release.format_version).toBe(4);
-    expect(selectedCandidates).toHaveLength(1288);
+    const expectedSlots = benchmarkData.release.models.length * 161;
+    expect(selectedCandidates).toHaveLength(expectedSlots);
     expect(benchmarkData.outcomes.filter(({ kind }) => kind === "skipped")).toHaveLength(0);
     expect(benchmarkData.outcomes.filter(({ kind }) => kind === "failure")).toHaveLength(0);
     expect(
@@ -40,7 +41,7 @@ describe("virtual:gaya-data integration", () => {
         (count, profile) => count + profile.candidate_count,
         0,
       ),
-    ).toBe(1288);
+    ).toBe(expectedSlots);
     expect("manifest" in benchmarkData).toBe(false);
     expect(Object.keys(selectedCandidates[0]!).sort()).toEqual([
       "duration_sec",

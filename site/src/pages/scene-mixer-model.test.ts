@@ -13,8 +13,9 @@ import {
 import { buildSceneMixerOptions } from "./scene-mixer-model";
 
 describe("buildSceneMixerOptions", () => {
-  it("公開データの全15 scene × 8 model に3件以上の再生可能 clip を構築する", () => {
+  it("公開データの全15 scene × 全 model に3件以上の再生可能 clip を構築する", () => {
     const pairs: string[] = [];
+    const modelCount = benchmarkData.release.models.length;
 
     for (const scenario of benchmarkData.scenarios) {
       const options = buildSceneMixerOptions(
@@ -22,7 +23,7 @@ describe("buildSceneMixerOptions", () => {
         getOutcomesForScenario(scenario.id),
         playableModels,
       );
-      expect(options).toHaveLength(8);
+      expect(options).toHaveLength(modelCount);
       for (const option of options) {
         expect(option.candidates.length).toBeGreaterThanOrEqual(3);
         expect(option.candidates.every(({ variant }) => variant === "dry")).toBe(true);
@@ -35,7 +36,7 @@ describe("buildSceneMixerOptions", () => {
       }
     }
 
-    expect(new Set(pairs).size).toBe(120);
+    expect(new Set(pairs).size).toBe(benchmarkData.scenarios.length * modelCount);
   });
 
   it("selected dry かつ loop_ok の clip だけを line 順で採用する", () => {
