@@ -179,6 +179,8 @@ def _finalize_increment_release(
             path,
             plan=current,
         ),
+        anchor_bound_models=frozenset({plan.model}),
+        expected_group_count=len(plan.targets),
     )
 
     increment_candidates = _increment_candidates(plan, resolution)
