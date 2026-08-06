@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Mapping
 
+from gaya_pipeline.conditioning_variants import base_model_of
 from gaya_pipeline.take_identity import canonical_json
 
 
@@ -320,7 +321,7 @@ def _validate_realized_anchor_receipt(
     provenance: Mapping[str, Any],
     field: str,
 ) -> None:
-    model = provenance["target_group"]["model"]
+    model = base_model_of(str(provenance["target_group"]["model"]))
     if model == "qwen3-tts-12hz-1.7b":
         reference_control = realized.get("reference_control")
         if reference_control not in {

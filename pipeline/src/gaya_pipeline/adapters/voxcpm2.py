@@ -16,6 +16,12 @@ from typing import Any, Protocol, TypeVar
 
 import yaml
 
+from gaya_pipeline.adapters.conditioning import (
+    effective_reference_voice,
+    normalize_conditioning_mode,
+    reference_selection_source,
+    variant_profile,
+)
 from gaya_pipeline.adapters.base import (
     Capabilities,
     LineJob,
@@ -400,8 +406,11 @@ class VoxCPM2Adapter:
         *,
         runtime: _Runtime | None = None,
         model_root: Path | None = None,
+        conditioning_mode: str | None = None,
     ) -> None:
         self._runtime = _NativeRuntime() if runtime is None else runtime
+        self._conditioning_mode = normalize_conditioning_mode(conditioning_mode)
+        self.profile = variant_profile(type(self).profile, self._conditioning_mode)
         self._model_root = model_root
         self._model: Any | None = None
         self._runtime_load_peak: dict[str, float] | None = None
@@ -442,7 +451,13 @@ class VoxCPM2Adapter:
                     f"{character_key[0]}/{character_key[1]}",
                 )
             character_references[character_key] = reference_value
-            if reference_value is None:
+            effective_value = effective_reference_voice(
+                mode=self._conditioning_mode,
+                scenario=character_key[0],
+                character=character_key[1],
+                explicit=reference_value,
+            )
+            if effective_value is None:
                 design_identity = _voice_design_identity(job)
                 previous_identity = character_identities.get(character_key)
                 if previous_identity is not None and previous_identity != design_identity:
@@ -452,7 +467,9 @@ class VoxCPM2Adapter:
                     )
                 character_identities[character_key] = design_identity
             character_jobs.setdefault(character_key, job)
-            has_explicit_reference = has_explicit_reference or reference_value is not None
+            has_explicit_reference = (
+                has_explicit_reference or effective_value is not None
+            )
             prepared_lines[line_key] = _line_input(job)
 
         reference_entries = (
@@ -461,12 +478,25 @@ class VoxCPM2Adapter:
         missing_designs: list[tuple[str, str]] = []
         cache_paths: dict[tuple[str, str], tuple[Path, Path]] = {}
         for character_key, job in character_jobs.items():
-            reference_voice = _reference_voice_value(job)
+            explicit_voice = _reference_voice_value(job)
+            reference_voice = effective_reference_voice(
+                mode=self._conditioning_mode,
+                scenario=character_key[0],
+                character=character_key[1],
+                explicit=explicit_voice,
+            )
             if reference_voice is not None:
+                selection_source = reference_selection_source(
+                    mode=self._conditioning_mode,
+                    scenario=character_key[0],
+                    character=character_key[1],
+                    explicit=explicit_voice,
+                )
                 self._references[character_key] = _explicit_reference(
                     voice_id=reference_voice,
                     voices_dir=voices_dir,
                     entries=reference_entries,
+                    selection_source=str(selection_source),
                 )
                 continue
 
@@ -863,6 +893,7 @@ def _explicit_reference(
     voice_id: str,
     voices_dir: Path,
     entries: Mapping[str, Mapping[str, Any]],
+    selection_source: str = "character.reference_voice",
 ) -> _VoiceReference:
     try:
         entry = entries[voice_id]
@@ -915,7 +946,7 @@ def _explicit_reference(
     return _VoiceReference(
         wav_path=wav_path,
         sha256=actual_sha256,
-        selection_source="character.reference_voice",
+        selection_source=selection_source,
         kind="asset",
         voice_id=voice_id,
         provenance={

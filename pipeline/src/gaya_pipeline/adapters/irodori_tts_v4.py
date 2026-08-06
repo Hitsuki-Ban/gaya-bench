@@ -7,10 +7,8 @@ from typing import Any
 
 from gaya_pipeline.adapters import irodori_tts as _v3
 from gaya_pipeline.adapters.base import Capabilities, LineJob, ModelProfile
-from gaya_pipeline.completion_anchor import (
-    CompletionAnchorError,
-    resolve_selected_anchor,
-)
+from gaya_pipeline.adapters.conditioning import effective_reference_voice
+from gaya_pipeline.completion_anchor import CompletionAnchorError
 from gaya_pipeline.completion_plan import RoleSnapshot
 
 MODEL_ID = "irodori-tts-v4-small"
@@ -354,11 +352,13 @@ class IrodoriTTSV4Adapter(_v3.IrodoriTTSAdapter):
         runtime: _v3._Runtime | None = None,
         role_anchor_selection_path: Path | None = None,
         role_anchor_plan_sha256: str | None = None,
+        conditioning_mode: str | None = None,
     ) -> None:
         super().__init__(
             runtime=runtime if runtime is not None else _NativeRuntime(),
             role_anchor_selection_path=role_anchor_selection_path,
             role_anchor_plan_sha256=role_anchor_plan_sha256,
+            conditioning_mode=conditioning_mode,
         )
 
     def prepare(
@@ -414,15 +414,24 @@ class IrodoriTTSV4Adapter(_v3.IrodoriTTSAdapter):
             reference_voice_by_character[character_key] = reference_voice
             jobs_by_character.setdefault(character_key, []).append(job)
 
+        effective_voices = {
+            character_key: effective_reference_voice(
+                mode=self._conditioning_mode,
+                scenario=character_key[0],
+                character=character_key[1],
+                explicit=explicit,
+            )
+            for character_key, explicit in reference_voice_by_character.items()
+        }
         reference_entries = (
             _v3._load_reference_entries(voices_dir)
-            if any(value is not None for value in reference_voice_by_character.values())
+            if any(value is not None for value in effective_voices.values())
             else {}
         )
         references: dict[tuple[str, str], _v3._RoleReference] = {}
         for character_key in sorted(jobs_by_character):
-            voice_id = reference_voice_by_character[character_key]
-            # 明示 reference が最優先。anchor selection は参照しない。
+            voice_id = effective_voices[character_key]
+            # 明示 reference が最優先 (条件バリアントではmodeが優先する)。
             if voice_id is not None:
                 try:
                     entry = reference_entries[voice_id]
@@ -464,7 +473,7 @@ class IrodoriTTSV4Adapter(_v3.IrodoriTTSAdapter):
                 selected = resolve_increment_anchor(
                     selection_path=self._role_anchor_selection_path,
                     plan_sha256=self._role_anchor_plan_sha256,
-                    model=MODEL_ID,
+                    model=self.profile.id,
                     model_revision=PROFILE_VERSION,
                     role=role_snapshots[character_key],
                 )

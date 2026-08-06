@@ -8,6 +8,7 @@ from copy import deepcopy
 from pathlib import Path, PurePosixPath
 from typing import Any
 
+from gaya_pipeline.conditioning_variants import requires_anchor_authority
 from gaya_pipeline.take_identity import (
     TakeIdentityError,
     canonical_json,
@@ -411,7 +412,7 @@ def _validate_phase_b_source(
         )
     anchor_sha = phase_b["anchor_selection_sha256"]
     anchor_plan_sha = phase_b["anchor_plan_sha256"]
-    if model in ANCHOR_MODELS:
+    if requires_anchor_authority(model):
         _sha(
             anchor_sha,
             "ledger.source.phase_b.anchor_selection_sha256",

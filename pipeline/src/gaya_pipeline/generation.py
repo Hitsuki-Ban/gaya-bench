@@ -12,6 +12,10 @@ from typing import Any, Literal
 import yaml
 
 from gaya_pipeline.adapters import UnknownAdapterError, create_adapter
+from gaya_pipeline.conditioning_variants import (
+    base_model_of,
+    requires_anchor_authority,
+)
 from gaya_pipeline.adapters.base import (
     Adapter,
     LineJob,
@@ -901,7 +905,7 @@ def _phase_b_source(
                 f"{role_key[0]}/{role_key[1]}",
             )
 
-    if model_id in ANCHOR_MODELS:
+    if requires_anchor_authority(model_id):
         if (
             role_anchor_selection_path is None
             or role_anchor_plan_sha256 is None
@@ -1046,13 +1050,14 @@ def _validate_anchor_receipt(
     resolved_input: Mapping[str, Any],
     phase_b_attempt: Mapping[str, Any],
 ) -> None:
-    if model_id not in ANCHOR_MODELS:
+    base_model = base_model_of(model_id)
+    if base_model not in ANCHOR_MODELS:
         return
     selected = resolved_input.get("selected_anchor")
     selected_required = (
         resolved_input.get("reference_control")
         == "selected_voice_design_anchor"
-        if model_id == "qwen3-tts-12hz-1.7b"
+        if base_model == "qwen3-tts-12hz-1.7b"
         else resolved_input.get("reference_source") == "selected-role-anchor"
     )
     if selected is None:

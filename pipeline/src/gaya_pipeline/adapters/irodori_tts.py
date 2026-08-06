@@ -21,10 +21,12 @@ from gaya_pipeline.adapters.base import (
     TakeRecipe,
     require_take_context,
 )
-from gaya_pipeline.completion_anchor import (
-    CompletionAnchorError,
-    resolve_selected_anchor,
+from gaya_pipeline.adapters.conditioning import (
+    effective_reference_voice,
+    normalize_conditioning_mode,
+    variant_profile,
 )
+from gaya_pipeline.completion_anchor import CompletionAnchorError
 from gaya_pipeline.completion_plan import (
     CompletionPlanError,
     RoleSnapshot,
@@ -570,6 +572,7 @@ class IrodoriTTSAdapter:
         runtime: _Runtime | None = None,
         role_anchor_selection_path: Path | None = None,
         role_anchor_plan_sha256: str | None = None,
+        conditioning_mode: str | None = None,
     ) -> None:
         if (role_anchor_selection_path is None) != (
             role_anchor_plan_sha256 is None
@@ -594,6 +597,8 @@ class IrodoriTTSAdapter:
         self._runtime = runtime if runtime is not None else _NativeRuntime()
         self._role_anchor_selection_path = role_anchor_selection_path
         self._role_anchor_plan_sha256 = role_anchor_plan_sha256
+        self._conditioning_mode = normalize_conditioning_mode(conditioning_mode)
+        self.profile = variant_profile(type(self).profile, self._conditioning_mode)
         self._prepared_inputs: dict[tuple[str, str], _PreparedInput] = {}
         self._load_peak: dict[str, float] | None = None
         self._prepared = False
@@ -648,17 +653,23 @@ class IrodoriTTSAdapter:
             reference_voice_by_character[character_key] = reference_voice
             jobs_by_character.setdefault(character_key, []).append(job)
 
+        effective_voices = {
+            character_key: effective_reference_voice(
+                mode=self._conditioning_mode,
+                scenario=character_key[0],
+                character=character_key[1],
+                explicit=explicit,
+            )
+            for character_key, explicit in reference_voice_by_character.items()
+        }
         reference_entries = (
             _load_reference_entries(voices_dir)
-            if any(
-                value is not None
-                for value in reference_voice_by_character.values()
-            )
+            if any(value is not None for value in effective_voices.values())
             else {}
         )
         references: dict[tuple[str, str], _RoleReference] = {}
         for character_key in sorted(jobs_by_character):
-            voice_id = reference_voice_by_character[character_key]
+            voice_id = effective_voices[character_key]
             if voice_id is not None:
                 try:
                     entry = reference_entries[voice_id]
@@ -687,15 +698,20 @@ class IrodoriTTSAdapter:
                     "reference_voice=nullのPhase B準備には"
                     "role anchor selectionの絶対pathとfrozen plan SHAが必要です。",
                 )
+            from gaya_pipeline.increment_anchor import (
+                IncrementAnchorError,
+                resolve_increment_anchor,
+            )
+
             try:
-                selected = resolve_selected_anchor(
+                selected = resolve_increment_anchor(
                     selection_path=self._role_anchor_selection_path,
                     plan_sha256=self._role_anchor_plan_sha256,
-                    model=MODEL_ID,
+                    model=self.profile.id,
                     model_revision=PROFILE_VERSION,
                     role=role_snapshots[character_key],
                 )
-            except CompletionAnchorError as error:
+            except (CompletionAnchorError, IncrementAnchorError) as error:
                 raise IrodoriTTSAdapterError(
                     f"selected role anchorが不正です: {error}",
                 ) from error

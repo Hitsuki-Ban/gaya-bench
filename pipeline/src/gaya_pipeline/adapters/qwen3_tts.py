@@ -21,10 +21,12 @@ from gaya_pipeline.adapters.base import (
     TakeRecipe,
     require_take_context,
 )
-from gaya_pipeline.completion_anchor import (
-    CompletionAnchorError,
-    resolve_selected_anchor,
+from gaya_pipeline.adapters.conditioning import (
+    effective_reference_voice,
+    normalize_conditioning_mode,
+    variant_profile,
 )
+from gaya_pipeline.completion_anchor import CompletionAnchorError
 from gaya_pipeline.completion_plan import (
     CompletionPlanError,
     RoleSnapshot,
@@ -354,6 +356,7 @@ class Qwen3TTSAdapter:
         *,
         role_anchor_selection_path: Path | None = None,
         role_anchor_plan_sha256: str | None = None,
+        conditioning_mode: str | None = None,
     ) -> None:
         if (role_anchor_selection_path is None) != (
             role_anchor_plan_sha256 is None
@@ -378,6 +381,8 @@ class Qwen3TTSAdapter:
         self._runtime = _NativeRuntime() if runtime is None else runtime
         self._role_anchor_selection_path = role_anchor_selection_path
         self._role_anchor_plan_sha256 = role_anchor_plan_sha256
+        self._conditioning_mode = normalize_conditioning_mode(conditioning_mode)
+        self.profile = variant_profile(type(self).profile, self._conditioning_mode)
         self._references: dict[_ReferenceKey, _VoiceReference] = {}
         self._clone_prompts: dict[_ReferenceKey, Any] = {}
         self._clone_prompt_peaks: dict[_ReferenceKey, dict[str, float]] = {}
@@ -442,14 +447,23 @@ class Qwen3TTSAdapter:
             reference_voices[key] = reference_voice
         del artifacts_dir
 
+        effective_voices = {
+            key: effective_reference_voice(
+                mode=self._conditioning_mode,
+                scenario=key[0],
+                character=key[1],
+                explicit=explicit,
+            )
+            for key, explicit in reference_voices.items()
+        }
         explicit_entries = (
             _load_reference_entries(voices_dir)
-            if any(value is not None for value in reference_voices.values())
+            if any(value is not None for value in effective_voices.values())
             else {}
         )
         for key in sorted(identities):
             identity = identities[key]
-            reference_voice = reference_voices[key]
+            reference_voice = effective_voices[key]
             if reference_voice is not None:
                 self._references[key] = _explicit_reference(
                     voice_id=reference_voice,
@@ -458,23 +472,28 @@ class Qwen3TTSAdapter:
                     character_identity=identity,
                 )
                 continue
+            if (
+                self._role_anchor_selection_path is None
+                or self._role_anchor_plan_sha256 is None
+            ):
+                raise Qwen3TTSAdapterError(
+                    "reference_voice=nullのPhase B準備には"
+                    "role anchor selectionの絶対pathとfrozen plan SHAが必要です。",
+                )
+            from gaya_pipeline.increment_anchor import (
+                IncrementAnchorError,
+                resolve_increment_anchor,
+            )
+
             try:
-                if (
-                    self._role_anchor_selection_path is None
-                    or self._role_anchor_plan_sha256 is None
-                ):
-                    raise Qwen3TTSAdapterError(
-                        "reference_voice=nullのPhase B準備には"
-                        "role anchor selectionの絶対pathとfrozen plan SHAが必要です。",
-                    )
-                selected = resolve_selected_anchor(
+                selected = resolve_increment_anchor(
                     selection_path=self._role_anchor_selection_path,
                     plan_sha256=self._role_anchor_plan_sha256,
-                    model=MODEL_ID,
+                    model=self.profile.id,
                     model_revision=PROFILE_VERSION,
                     role=roles[key],
                 )
-            except CompletionAnchorError as error:
+            except (CompletionAnchorError, IncrementAnchorError) as error:
                 raise Qwen3TTSAdapterError(
                     f"selected role anchorが不正です: {error}",
                 ) from error
