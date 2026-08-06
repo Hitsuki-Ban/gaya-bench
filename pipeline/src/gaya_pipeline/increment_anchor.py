@@ -35,6 +35,13 @@ from gaya_pipeline.completion_selection import (
     GENDER_SCREENING_PROTOCOL,
     MALE_F0_UPPER_BOUND_HZ,
 )
+from gaya_pipeline.conditioning_variants import (
+    ROLE_SCOPE_EXPLICIT_REFERENCE,
+    ROLE_SCOPE_NO_REFERENCE,
+    ROLE_SCOPES,
+    ConditioningVariantError,
+    require_role_scope,
+)
 from gaya_pipeline.increment_plan import IncrementPlan
 from gaya_pipeline.qc import count_japanese_mora
 from gaya_pipeline.qc_runtime import SAMPLE_RATE_HZ, analyze_prosody_samples
@@ -53,6 +60,9 @@ DECISION_FORMAT_VERSION = 1
 DECISION_PROTOCOL = "role-anchor-machine-decision-v1"
 SELECTION_FORMAT_VERSION = 1
 SELECTION_PROTOCOL = "role-anchor-machine-selection-v1"
+# 条件バリアント (#201) の合成済み58役 authority。protocol名だけをここに持ち、
+# 検証本体は `variant_anchor` 側に置く (循環importを避けるため遅延解決)。
+VARIANT_SELECTION_PROTOCOL = "role-anchor-variant-selection-v1"
 INPUT_PROTOCOL = "role-anchor-increment-input-v1"
 EPOCH_PROTOCOL = "role-anchor-bootstrap-epoch-v1"
 IDENTITY_PROTOCOL = "role-anchor-identity-v1"
@@ -74,9 +84,8 @@ ANCHOR_ROLE_COUNT = 53
 # その差分だけを別scopeとして取る。既存の凍結plan/selectionは `role_scope` を
 # 持たないため canonical bytes は不変のまま受理される。
 # --------------------------------------------------------------------------- #
-ROLE_SCOPE_NO_REFERENCE = "no-reference-roles-v1"
-ROLE_SCOPE_EXPLICIT_REFERENCE = "explicit-reference-roles-v1"
-ROLE_SCOPES = (ROLE_SCOPE_NO_REFERENCE, ROLE_SCOPE_EXPLICIT_REFERENCE)
+# 語彙そのものは adapter からも参照するため `conditioning_variants` にある。
+# 既存の import 位置を壊さないよう名前はここでも公開する。
 EXPLICIT_REFERENCE_ROLE_COUNT = 5
 # 変異列の anchor seed は #104 / #194 と衝突しない専用値。
 VARIANT_SEED_BASE = 201
@@ -92,11 +101,10 @@ _ROLE_SCOPE_SEED_BASE = {
 
 
 def _require_role_scope(value: Any) -> str:
-    if value not in ROLE_SCOPES:
-        raise IncrementAnchorError(
-            f"role_scopeは{ROLE_SCOPES}のいずれかが必要です: {value!r}",
-        )
-    return str(value)
+    try:
+        return require_role_scope(value)
+    except ConditioningVariantError as error:
+        raise IncrementAnchorError(str(error)) from error
 
 
 def role_scope_target_count(role_scope: str) -> int:
@@ -629,6 +637,9 @@ def run_anchor_bootstrap_generation(
     model_revision = plan_document["model_revision"]
     anchor_text = plan_document["anchor_text"]
     anchor_text_sha256 = plan_document["anchor_text_sha256"]
+    role_scope = _require_role_scope(
+        plan_document.get("role_scope", ROLE_SCOPE_NO_REFERENCE),
+    )
     targets = anchor_round_targets(
         plan_document=plan_document,
         round_index=round_index,
@@ -690,6 +701,7 @@ def run_anchor_bootstrap_generation(
                     seed=seed,
                     anchor_text=anchor_text,
                     anchor_text_sha256=anchor_text_sha256,
+                    role_scope=role_scope,
                 )
                 generation_input_sha256 = _canonical_sha256(generation_input)
                 error: str | None = None
@@ -700,6 +712,7 @@ def run_anchor_bootstrap_generation(
                             role,
                             seed=seed,
                             output_wav=output_wav,
+                            role_scope=role_scope,
                         ),
                     )
                 except Exception as exception:  # noqa: BLE001 - 記録して継続
@@ -1508,14 +1521,26 @@ def validate_machine_anchor_selection(document: Any) -> dict[str, Any]:
 
 
 def validate_any_anchor_selection(document: Any) -> dict[str, Any]:
-    """人手選抜 v1 / 増分の機械選抜 v1 をprotocolで分岐して検証する。
+    """人手選抜 v1 / 増分の機械選抜 v1 / 条件バリアント合成 v1 を分岐して検証する。
 
-    どちらも root に `plan_sha256` / `candidate_set_sha256` / `groups` を持つ。
+    いずれも root に `plan_sha256` / `candidate_set_sha256` / `groups` を持つ。
     """
 
     protocol = document.get("protocol") if isinstance(document, dict) else None
     if protocol == SELECTION_PROTOCOL:
         return validate_machine_anchor_selection(document)
+    if protocol == VARIANT_SELECTION_PROTOCOL:
+        from gaya_pipeline.variant_anchor import (
+            VariantAnchorError,
+            validate_variant_anchor_selection,
+        )
+
+        try:
+            return validate_variant_anchor_selection(document)
+        except VariantAnchorError as error:
+            raise IncrementAnchorError(
+                f"variant anchor selectionが不正です: {error}",
+            ) from error
     from gaya_pipeline.completion_anchor import validate_anchor_selection
 
     return validate_anchor_selection(document)
@@ -1535,6 +1560,25 @@ def resolve_increment_anchor(
     raw = _read_bytes(selection_path, "anchor selection")
     document = _decode_json(raw, selection_path)
     protocol = document.get("protocol") if isinstance(document, dict) else None
+    if protocol == VARIANT_SELECTION_PROTOCOL:
+        # `--text` バリアント列の合成済み58役 authority。
+        from gaya_pipeline.variant_anchor import (
+            VariantAnchorError,
+            resolve_variant_anchor,
+        )
+
+        try:
+            return resolve_variant_anchor(
+                selection_path=selection_path,
+                plan_sha256=plan_sha256,
+                model=model,
+                model_revision=model_revision,
+                role=role,
+            )
+        except VariantAnchorError as error:
+            raise IncrementAnchorError(
+                f"variant anchor selectionが不正です: {error}",
+            ) from error
     if protocol != SELECTION_PROTOCOL:
         return resolve_selected_anchor(
             selection_path=selection_path,
@@ -1757,8 +1801,14 @@ def _generation_input(
     seed: int,
     anchor_text: str,
     anchor_text_sha256: str,
+    role_scope: str = ROLE_SCOPE_NO_REFERENCE,
 ) -> dict[str, Any]:
-    conditioning = dict(generator.role_anchor_generation_input(role))
+    # role_scope は conditioning document には入れない。既定scopeの
+    # generation_input_sha256 を凍結値のまま保つため (scope差は
+    # role identity / role epoch / seed base 側で既に分離されている)。
+    conditioning = dict(
+        generator.role_anchor_generation_input(role, role_scope=role_scope),
+    )
     canonical_json(conditioning)
     if "emotion" in _recursive_keys(conditioning) or "intensity" in _recursive_keys(
         conditioning,

@@ -26,6 +26,10 @@ from gaya_pipeline.adapters.conditioning import (
     normalize_conditioning_mode,
     variant_profile,
 )
+from gaya_pipeline.conditioning_variants import (
+    ROLE_SCOPE_NO_REFERENCE,
+    anchor_scope_allows_explicit_reference,
+)
 from gaya_pipeline.completion_anchor import CompletionAnchorError
 from gaya_pipeline.completion_plan import (
     CompletionPlanError,
@@ -745,8 +749,10 @@ class IrodoriTTSAdapter:
     def role_anchor_generation_input(
         self,
         role: RoleSnapshot,
+        *,
+        role_scope: str = ROLE_SCOPE_NO_REFERENCE,
     ) -> Mapping[str, Any]:
-        identity = _identity_from_role(role)
+        identity = _identity_from_role(role, role_scope=role_scope)
         return {
             "model": MODEL_ID,
             "model_revision": PROFILE_VERSION,
@@ -763,8 +769,12 @@ class IrodoriTTSAdapter:
         *,
         seed: int,
         output_wav: Path,
+        role_scope: str = ROLE_SCOPE_NO_REFERENCE,
     ) -> Mapping[str, Any]:
-        generation_input = self.role_anchor_generation_input(role)
+        generation_input = self.role_anchor_generation_input(
+            role,
+            role_scope=role_scope,
+        )
         self._ensure_runtime_loaded()
         realized = self._run_phase(
             f"Irodori role anchor generation ({role.scenario}/{role.character})",
@@ -1056,8 +1066,17 @@ def _role_snapshot(job: LineJob) -> RoleSnapshot:
         raise IrodoriTTSAdapterError(f"role snapshotが不正です: {error}") from error
 
 
-def _identity_from_role(role: RoleSnapshot) -> dict[str, str]:
-    if role.reference_voice is not None:
+def _identity_from_role(
+    role: RoleSnapshot,
+    *,
+    role_scope: str = ROLE_SCOPE_NO_REFERENCE,
+) -> dict[str, str]:
+    # 既定scopeでは「明示reference役はanchor対象外」を維持する (凍結契約)。
+    # `--text` バリアント用の explicit-reference scope では、明示referenceを
+    # 意図的に無視して役別anchorを作るのが目的なので対象になる (#201)。
+    if role.reference_voice is not None and not anchor_scope_allows_explicit_reference(
+        role_scope,
+    ):
         raise IrodoriTTSAdapterError(
             "明示reference roleはIrodori anchor対象にできません。",
         )

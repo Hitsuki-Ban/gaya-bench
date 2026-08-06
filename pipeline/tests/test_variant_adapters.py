@@ -32,6 +32,7 @@ from gaya_pipeline.increment_anchor import (
     GATE_POLICY_VERSION,
     MINIMUM_ELIGIBLE_CANDIDATES,
     ROLE_SCOPE_EXPLICIT_REFERENCE,
+    ROLE_SCOPE_NO_REFERENCE,
     SELECTION_AUTHORITY_TYPE,
     SELECTION_POLICY,
     gender_screening,
@@ -407,6 +408,57 @@ def test_base_adapters_are_unchanged_without_mode(
     for adapter in adapters:
         assert adapter.profile.conditioning is None
         assert "conditioning" not in adapter.profile.as_manifest_entry()
+
+
+@pytest.mark.parametrize(
+    "base_model",
+    [
+        "irodori-tts-600m-v3-voicedesign",
+        "irodori-tts-v4-small",
+        "qwen3-tts-12hz-1.7b",
+    ],
+)
+def test_anchor_generation_input_scope_guard(
+    tmp_path: Path,
+    base_model: str,
+) -> None:
+    """明示reference役の anchor 生成は scope でだけ許可される (#201 GPU run 回帰)。"""
+
+    adapter = _anchor_adapter(base_model, tmp_path, conditioning_mode=None)
+    explicit_role = _role(
+        _job(
+            scenario=EXPLICIT_SCENARIO,
+            character=EXPLICIT_CHARACTER,
+            reference_voice=EXPLICIT_VOICE,
+        ),
+    )
+    assert explicit_role.reference_voice == EXPLICIT_VOICE
+
+    # 既定scope: 凍結契約どおり拒否される。
+    with pytest.raises(Exception, match="明示reference role"):
+        adapter.role_anchor_generation_input(explicit_role)
+    with pytest.raises(Exception, match="明示reference role"):
+        adapter.role_anchor_generation_input(
+            explicit_role,
+            role_scope=ROLE_SCOPE_NO_REFERENCE,
+        )
+
+    # explicit-reference scope: `--text` 列のanchor対象なので通る。
+    document = adapter.role_anchor_generation_input(
+        explicit_role,
+        role_scope=ROLE_SCOPE_EXPLICIT_REFERENCE,
+    )
+    assert document
+    assert "reference_wav" not in document or document["reference_wav"] is None
+
+    # no-reference役は両scopeで通り、既定scopeの documentは不変。
+    assigned_role = _role(_assigned_job())
+    assert adapter.role_anchor_generation_input(assigned_role) == (
+        adapter.role_anchor_generation_input(
+            assigned_role,
+            role_scope=ROLE_SCOPE_EXPLICIT_REFERENCE,
+        )
+    )
 
 
 def test_create_adapter_passes_conditioning_mode(

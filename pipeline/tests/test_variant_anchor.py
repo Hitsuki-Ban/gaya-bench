@@ -353,6 +353,100 @@ def test_compose_rejects_voxcpm2(tmp_path: Path) -> None:
         )
 
 
+def test_composed_selection_resolves_through_the_variant_plan_path(
+    tmp_path: Path,
+) -> None:
+    """compose → plan-build → generation binding → adapter解決 の一連を通す。"""
+
+    import json
+
+    from gaya_pipeline.take_identity import canonical_json as _canonical
+    from gaya_pipeline.increment_anchor import (
+        resolve_increment_anchor,
+        validate_any_anchor_selection,
+    )
+    from gaya_pipeline.variant_auto import variant_generation_binding
+    from gaya_pipeline.variant_plan import (
+        build_variant_plan_document,
+        load_variant_plan,
+    )
+
+    from test_variant_plan import (  # type: ignore[import-not-found]
+        EXPLICIT_ROLE_LINES,
+        _base_release,
+    )
+
+    inherited, supplement = _sources(tmp_path)
+    composed = compose_variant_anchor_selection(
+        base_model=BASE_MODEL,
+        model_revision=MODEL_REVISION,
+        inherited_selection_path=inherited,
+        supplement_selection_path=supplement,
+        output_dir=tmp_path / "variant",
+    )
+    selection_document = json.loads(
+        composed.selection_path.read_text(encoding="utf-8"),
+    )
+
+    # `variant generate` は generation.py の `_phase_b_source` 経由で
+    # この protocol を検証する。分岐が無いと human 選抜側に落ちて壊れる。
+    validated = validate_any_anchor_selection(selection_document)
+    assert validated["protocol"] == "role-anchor-variant-selection-v1"
+    assert len(validated["groups"]) == ROLE_COUNT
+
+    document = build_variant_plan_document(
+        base_model=BASE_MODEL,
+        mode=MODE_TEXT_ONLY,
+        model_revision=MODEL_REVISION,
+        base_release_dir=_base_release(tmp_path),
+        scenarios_dir=SCENARIOS_DIR,
+        voices_dir=VOICES_DIR,
+        anchor_source_plan_sha256=composed.plan_sha256,
+        anchor_candidate_set_sha256=selection_document["candidate_set_sha256"],
+        anchor_selection_sha256=composed.selection_sha256,
+    )
+    plan_path = tmp_path / "variant-plan.json"
+    plan_path.write_bytes(_canonical(document).encode("utf-8"))
+    plan = load_variant_plan(
+        plan_path,
+        scenarios_dir=SCENARIOS_DIR,
+        voices_dir=VOICES_DIR,
+    )
+    assert plan.model == variant_model_id(BASE_MODEL, MODE_TEXT_ONLY)
+
+    anchor_sha, role_epochs = variant_generation_binding(
+        plan=plan,
+        scenarios_dir=SCENARIOS_DIR,
+        voices_dir=VOICES_DIR,
+        anchor_selection_path=composed.selection_path,
+    )
+    assert anchor_sha == composed.selection_sha256
+    # 生成対象は明示reference 5役ぶんの14行だけ。
+    assert len(role_epochs) == EXPLICIT_ROLE_LINES
+    epochs_by_role = {
+        group["scenario"] + "/" + group["character"]: group["role_epoch_sha256"]
+        for group in selection_document["groups"]
+    }
+    assert (
+        role_epochs[("tavern-night", "barmaid-001")]
+        == epochs_by_role["tavern-night/barmaid"]
+    )
+
+    # adapter は composed selection を variant protocol として解決する。
+    barmaid = {role.identity: role for role in _roles()}[
+        ("tavern-night", "barmaid")
+    ]
+    resolved = resolve_increment_anchor(
+        selection_path=composed.selection_path,
+        plan_sha256=plan.anchor_source_plan_sha256,
+        model=plan.model,
+        model_revision=MODEL_REVISION,
+        role=barmaid,
+    )
+    assert resolved.model == plan.model
+    assert resolved.role_epoch_sha256 == epochs_by_role["tavern-night/barmaid"]
+
+
 class _PlanStub:
     def __init__(self, *, model: str, plan_sha: str, candidate_sha: str, sha: str):
         self.model = model

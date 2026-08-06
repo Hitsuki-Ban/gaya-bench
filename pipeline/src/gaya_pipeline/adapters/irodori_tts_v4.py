@@ -8,6 +8,7 @@ from typing import Any
 from gaya_pipeline.adapters import irodori_tts as _v3
 from gaya_pipeline.adapters.base import Capabilities, LineJob, ModelProfile
 from gaya_pipeline.adapters.conditioning import effective_reference_voice
+from gaya_pipeline.conditioning_variants import ROLE_SCOPE_NO_REFERENCE
 from gaya_pipeline.completion_anchor import CompletionAnchorError
 from gaya_pipeline.completion_plan import RoleSnapshot
 
@@ -509,8 +510,10 @@ class IrodoriTTSV4Adapter(_v3.IrodoriTTSAdapter):
     def role_anchor_generation_input(
         self,
         role: RoleSnapshot,
+        *,
+        role_scope: str = ROLE_SCOPE_NO_REFERENCE,
     ) -> Mapping[str, Any]:
-        identity = _v3._identity_from_role(role)
+        identity = _v3._identity_from_role(role, role_scope=role_scope)
         return {
             "model": MODEL_ID,
             "model_revision": PROFILE_VERSION,
@@ -527,8 +530,12 @@ class IrodoriTTSV4Adapter(_v3.IrodoriTTSAdapter):
         *,
         seed: int,
         output_wav: Path,
+        role_scope: str = ROLE_SCOPE_NO_REFERENCE,
     ) -> Mapping[str, Any]:
-        generation_input = self.role_anchor_generation_input(role)
+        generation_input = self.role_anchor_generation_input(
+            role,
+            role_scope=role_scope,
+        )
         self._ensure_runtime_loaded()
         realized = self._run_phase(
             f"Irodori v4 role anchor generation ({role.scenario}/{role.character})",

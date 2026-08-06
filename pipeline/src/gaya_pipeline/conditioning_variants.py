@@ -59,6 +59,38 @@ ANCHOR_BASE_MODELS: frozenset[str] = frozenset(
 
 CONDITIONING_FIELDS = frozenset({"mode", "base_model"})
 
+# --------------------------------------------------------------------------- #
+# anchor role scope
+#
+# anchor bootstrap が対象にする役の部分集合。adapter 側の anchor 生成 guard も
+# この語彙で判断するため、増分/バリアント両方から参照できる本moduleに置く。
+# --------------------------------------------------------------------------- #
+ROLE_SCOPE_NO_REFERENCE = "no-reference-roles-v1"
+ROLE_SCOPE_EXPLICIT_REFERENCE = "explicit-reference-roles-v1"
+ROLE_SCOPES: tuple[str, ...] = (
+    ROLE_SCOPE_NO_REFERENCE,
+    ROLE_SCOPE_EXPLICIT_REFERENCE,
+)
+
+
+def require_role_scope(value: Any) -> str:
+    if value not in ROLE_SCOPES:
+        raise ConditioningVariantError(
+            f"role_scopeは{ROLE_SCOPES}のいずれかが必要です: {value!r}",
+        )
+    return str(value)
+
+
+def anchor_scope_allows_explicit_reference(role_scope: Any) -> bool:
+    """その scope で「明示referenceを持つ役」が anchor 対象になりうるか。
+
+    既定 (`no-reference-roles-v1`) では False。`--text` バリアント用の
+    `explicit-reference-roles-v1` では、明示referenceを意図的に無視して
+    役別anchorを作るのが目的なので True。
+    """
+
+    return require_role_scope(role_scope) == ROLE_SCOPE_EXPLICIT_REFERENCE
+
 # 最終形 (#201): 単方式5列 + バリアント8列。
 VARIANT_COLUMN_COUNT = len(VARIANT_BASE_MODELS) * len(CONDITIONING_MODES)
 SINGLE_MODE_COLUMN_COUNT = 5
@@ -324,7 +356,12 @@ __all__ = [
     "MODE_LABEL",
     "MODE_SUFFIX",
     "MODE_TEXT_ONLY",
+    "ROLE_SCOPES",
+    "ROLE_SCOPE_EXPLICIT_REFERENCE",
+    "ROLE_SCOPE_NO_REFERENCE",
     "SINGLE_MODE_COLUMN_COUNT",
+    "anchor_scope_allows_explicit_reference",
+    "require_role_scope",
     "SUFFIX_MODE",
     "VARIANT_BASE_MODELS",
     "VARIANT_COLUMN_COUNT",

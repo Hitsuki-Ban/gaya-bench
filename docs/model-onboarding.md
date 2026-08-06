@@ -72,6 +72,11 @@ manifest v4 の `models[]` に optional field
 - **VoxCPM2 の `--text` は anchor 不要**。adapter 内蔵の voice design (自己参照) が
   text-only 経路そのものなので、anchor plan/run/selection を作らない
   (`requires_anchor_authority("voxcpm2--text") == False`)
+- `role_scope` は plan → `run_anchor_bootstrap_generation` → adapter の
+  `role_anchor_generation_input` / `generate_role_anchor` まで引数で流れる。
+  adapter 側の「明示reference役は anchor 対象外」guard はこの scope でのみ緩む
+  (既定scopeでは凍結契約のまま拒否)。新規 anchor adapter を足すときは
+  この2メソッドに `role_scope` キーワードを実装すること
 - **`--ref` 列は anchor 権限を持たない**。`--anchor-selection` を渡すと拒否される
 - 継承テイクは `take_id` / `audio SHA` / `generation_input_sha256` が不変。
   `path` だけが model id を含むため列 id に追従する

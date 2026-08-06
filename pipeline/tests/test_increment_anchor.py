@@ -15,9 +15,12 @@ from gaya_pipeline.increment_anchor import (
     ANCHOR_ROLE_COUNT,
     CANDIDATES_PER_ROLE,
     MAX_TOPUP_ROUNDS,
+    ROLE_SCOPE_EXPLICIT_REFERENCE,
+    ROLE_SCOPE_NO_REFERENCE,
     SELECTION_AUTHORITY_TYPE,
     SELECTION_POLICY,
     SOFT_SIGNAL_EXHAUSTED,
+    VARIANT_SEED_BASE,
     IncrementAnchorError,
     anchor_round_targets,
     build_anchor_bootstrap_plan_document,
@@ -91,8 +94,15 @@ class _FakeGenerator:
     def __init__(self, *, silent_roles: frozenset[str] = frozenset()) -> None:
         self.closed = False
         self._silent_roles = silent_roles
+        self.role_scopes: list[str] = []
 
-    def role_anchor_generation_input(self, role: Any) -> Mapping[str, Any]:
+    def role_anchor_generation_input(
+        self,
+        role: Any,
+        *,
+        role_scope: str = ROLE_SCOPE_NO_REFERENCE,
+    ) -> Mapping[str, Any]:
+        self.role_scopes.append(role_scope)
         return {
             "model": MODEL,
             "model_revision": REVISION,
@@ -107,7 +117,9 @@ class _FakeGenerator:
         *,
         seed: int,
         output_wav: Path,
+        role_scope: str = ROLE_SCOPE_NO_REFERENCE,
     ) -> Mapping[str, Any]:
+        del role_scope
         amplitude = 4 if role.character in self._silent_roles else 12_000
         _write_wav(output_wav, amplitude=amplitude)
         return {"seed": seed, "sample_rate_hz": 16_000}
@@ -349,6 +361,74 @@ def _select(
         artifacts_dir=artifacts,
         output_dir=tmp_path / "selection",
     )
+
+
+def test_explicit_reference_scopeのgenerate_selectが5_roleで通る(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """`--text` バリアント用 anchor 補完の generate → select 一巡 (#201 回帰)。
+
+    明示reference役は既定scopeでは anchor 対象外だが、この scope では対象になる。
+    """
+
+    path = tmp_path / "explicit-plan.json"
+    write_anchor_bootstrap_plan(
+        model=MODEL,
+        model_revision=REVISION,
+        scenarios_dir=SCENARIOS,
+        voices_dir=VOICES,
+        anchor_text=ANCHOR_TEXT,
+        output_path=path,
+        role_scope=ROLE_SCOPE_EXPLICIT_REFERENCE,
+    )
+    document = load_anchor_bootstrap_plan(path)
+    assert document["role_scope"] == ROLE_SCOPE_EXPLICIT_REFERENCE
+    assert len(document["targets"]) == 5
+
+    artifacts = tmp_path / "artifacts"
+    artifacts.mkdir()
+    generator = _FakeGenerator()
+    summary = run_anchor_bootstrap_generation(
+        plan_document=document,
+        plan_sha256=document["plan_sha256"],
+        round_index=0,
+        identities=None,
+        artifacts_dir=artifacts,
+        run_id="test-explicit-round0",
+        generator=generator,
+    )
+    assert summary.generated_count == 5 * CANDIDATES_PER_ROLE
+    assert summary.eligible_count == summary.generated_count
+    assert summary.failed_count == 0
+    # scope は adapter の anchor 生成 guard まで届いている必要がある。
+    assert set(generator.role_scopes) == {ROLE_SCOPE_EXPLICIT_REFERENCE}
+
+    ledger = json.loads((summary.run_dir / "ledger.json").read_text(encoding="utf-8"))
+    assert ledger["seed_base"] == VARIANT_SEED_BASE
+
+    def fake_f0(audio_path: Path, **_kwargs: Any) -> dict[str, Any]:
+        del audio_path
+        return {"median_hz": 170.0}
+
+    monkeypatch.setattr(increment_anchor, "measure_median_f0_hz", fake_f0)
+    selection_summary = select_role_anchors(
+        plan_document=document,
+        plan_sha256=document["plan_sha256"],
+        run_ids=["test-explicit-round0"],
+        artifacts_dir=artifacts,
+        output_dir=tmp_path / "explicit-selection",
+    )
+    assert selection_summary.selected_count == 5
+    selection = json.loads(
+        selection_summary.selection_path.read_text(encoding="utf-8"),
+    )
+    assert selection["role_scope"] == ROLE_SCOPE_EXPLICIT_REFERENCE
+    assert all(
+        group["role_identity"]["reference_voice"] is not None
+        for group in selection["groups"]
+    )
+    assert validate_machine_anchor_selection(selection) == selection
 
 
 def test_機械選抜は53_roleを選びauthorityをauto_selected_v1で記録する(

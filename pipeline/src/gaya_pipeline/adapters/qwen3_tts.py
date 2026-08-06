@@ -26,6 +26,10 @@ from gaya_pipeline.adapters.conditioning import (
     normalize_conditioning_mode,
     variant_profile,
 )
+from gaya_pipeline.conditioning_variants import (
+    ROLE_SCOPE_NO_REFERENCE,
+    anchor_scope_allows_explicit_reference,
+)
 from gaya_pipeline.completion_anchor import CompletionAnchorError
 from gaya_pipeline.completion_plan import (
     CompletionPlanError,
@@ -517,8 +521,10 @@ class Qwen3TTSAdapter:
     def role_anchor_generation_input(
         self,
         role: RoleSnapshot,
+        *,
+        role_scope: str = ROLE_SCOPE_NO_REFERENCE,
     ) -> Mapping[str, Any]:
-        _validate_anchor_role(role)
+        _validate_anchor_role(role, role_scope=role_scope)
         return {
             "model": VOICE_DESIGN_MODEL_ID,
             "revision": VOICE_DESIGN_REVISION,
@@ -534,8 +540,12 @@ class Qwen3TTSAdapter:
         *,
         seed: int,
         output_wav: Path,
+        role_scope: str = ROLE_SCOPE_NO_REFERENCE,
     ) -> Mapping[str, Any]:
-        generation_input = self.role_anchor_generation_input(role)
+        generation_input = self.role_anchor_generation_input(
+            role,
+            role_scope=role_scope,
+        )
         if self._anchor_model is None:
             if self._base_model is not None:
                 raise Qwen3TTSAdapterError(
@@ -831,8 +841,16 @@ def _identity_from_role(role: RoleSnapshot) -> dict[str, Any]:
     }
 
 
-def _validate_anchor_role(role: RoleSnapshot) -> None:
-    if role.reference_voice is not None:
+def _validate_anchor_role(
+    role: RoleSnapshot,
+    *,
+    role_scope: str = ROLE_SCOPE_NO_REFERENCE,
+) -> None:
+    # 既定scopeでは凍結契約どおり明示reference役を拒否する。`--text` バリアント用の
+    # explicit-reference scope では明示referenceを無視して anchor を作る (#201)。
+    if role.reference_voice is not None and not anchor_scope_allows_explicit_reference(
+        role_scope,
+    ):
         raise Qwen3TTSAdapterError(
             "明示reference roleはVoiceDesign anchor対象にできません。",
         )
