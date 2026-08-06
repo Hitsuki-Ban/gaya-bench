@@ -1011,7 +1011,14 @@ def _load_completion_scenario_authority(
 ) -> CompletionScenarioAuthority:
     scenarios_dir = scenarios_dir.resolve()
     voices_dir = voices_dir.resolve()
-    expected = {(target.scenario, target.line) for target in plan.targets}
+    # 条件バリアント列 (#201) は Phase B target が161行の部分集合になるが、
+    # release は全161行を覆う必要があるため authority だけ広い集合を使う。
+    # 凍結planはこの属性を持たないので従来どおり plan.targets が使われる。
+    authority_targets = getattr(plan, "scenario_authority_targets", None)
+    expected = {
+        (target.scenario, target.line)
+        for target in (plan.targets if authority_targets is None else authority_targets)
+    }
     declared_sources = [
         {
             "scenario": source.scenario,
