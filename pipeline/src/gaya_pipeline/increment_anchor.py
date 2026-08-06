@@ -66,6 +66,46 @@ MAX_TOPUP_ROUNDS = 2
 MAX_ATTEMPT = CANDIDATES_PER_ROLE * (MAX_TOPUP_ROUNDS + 1)
 ANCHOR_ROLE_COUNT = 53
 
+# --------------------------------------------------------------------------- #
+# role scope (#201 条件バリアント)
+#
+# 既定 (field不在) は #194 と同じ「明示referenceを持たない53役」。
+# `--text` バリアントは **明示referenceを持つ5役にも** 役別anchorが要るので、
+# その差分だけを別scopeとして取る。既存の凍結plan/selectionは `role_scope` を
+# 持たないため canonical bytes は不変のまま受理される。
+# --------------------------------------------------------------------------- #
+ROLE_SCOPE_NO_REFERENCE = "no-reference-roles-v1"
+ROLE_SCOPE_EXPLICIT_REFERENCE = "explicit-reference-roles-v1"
+ROLE_SCOPES = (ROLE_SCOPE_NO_REFERENCE, ROLE_SCOPE_EXPLICIT_REFERENCE)
+EXPLICIT_REFERENCE_ROLE_COUNT = 5
+# 変異列の anchor seed は #104 / #194 と衝突しない専用値。
+VARIANT_SEED_BASE = 201
+
+_ROLE_SCOPE_TARGET_COUNT = {
+    ROLE_SCOPE_NO_REFERENCE: ANCHOR_ROLE_COUNT,
+    ROLE_SCOPE_EXPLICIT_REFERENCE: EXPLICIT_REFERENCE_ROLE_COUNT,
+}
+_ROLE_SCOPE_SEED_BASE = {
+    ROLE_SCOPE_NO_REFERENCE: SEED_BASE,
+    ROLE_SCOPE_EXPLICIT_REFERENCE: VARIANT_SEED_BASE,
+}
+
+
+def _require_role_scope(value: Any) -> str:
+    if value not in ROLE_SCOPES:
+        raise IncrementAnchorError(
+            f"role_scopeは{ROLE_SCOPES}のいずれかが必要です: {value!r}",
+        )
+    return str(value)
+
+
+def role_scope_target_count(role_scope: str) -> int:
+    return _ROLE_SCOPE_TARGET_COUNT[_require_role_scope(role_scope)]
+
+
+def role_scope_seed_base(role_scope: str) -> int:
+    return _ROLE_SCOPE_SEED_BASE[_require_role_scope(role_scope)]
+
 SELECTION_AUTHORITY_TYPE = "auto-selected-v1"
 SELECTION_POLICY = "role-anchor-auto-selection-v1"
 GATE_POLICY_VERSION = "take-gates-v2"
@@ -149,8 +189,12 @@ def build_anchor_bootstrap_plan_document(
     scenarios_dir: Path,
     voices_dir: Path,
     anchor_text: str,
+    role_scope: str | None = None,
 ) -> dict[str, Any]:
-    """53 anchor role の決定論的bootstrap planを組む。
+    """anchor roleの決定論的bootstrap planを組む。
+
+    `role_scope=None` は #194 と同じ 53 no-reference role。
+    `explicit-reference-roles-v1` は `--text` バリアント用の残り5役だけを対象にする。
 
     increment plan は anchor authority SHA を束縛するため、こちらが先に確定する。
     role snapshot は `completion_plan._source_snapshot` と同一の素材から取る。
@@ -158,6 +202,9 @@ def build_anchor_bootstrap_plan_document(
 
     from gaya_pipeline.completion_plan import _source_snapshot
 
+    scope = (
+        ROLE_SCOPE_NO_REFERENCE if role_scope is None else _require_role_scope(role_scope)
+    )
     model = _path_segment(model, "anchor bootstrap plan.model")
     model_revision = _text(model_revision, "anchor bootstrap plan.model_revision")
     if not isinstance(anchor_text, str) or not anchor_text:
@@ -167,10 +214,16 @@ def build_anchor_bootstrap_plan_document(
         scenarios_dir=scenarios_dir,
         voices_dir=voices_dir,
     )
-    roles = tuple(role for role in all_roles if role.reference_voice is None)
-    if len(roles) != ANCHOR_ROLE_COUNT:
+    wants_explicit = scope == ROLE_SCOPE_EXPLICIT_REFERENCE
+    roles = tuple(
+        role
+        for role in all_roles
+        if (role.reference_voice is not None) == wants_explicit
+    )
+    expected_count = role_scope_target_count(scope)
+    if len(roles) != expected_count:
         raise IncrementAnchorError(
-            f"anchor対象のno-reference roleは{ANCHOR_ROLE_COUNT}件が必要です: "
+            f"anchor対象role ({scope}) は{expected_count}件が必要です: "
             f"actual={len(roles)}",
         )
     sources = {
@@ -194,7 +247,7 @@ def build_anchor_bootstrap_plan_document(
         for role in roles
     ]
     targets.sort(key=lambda item: (item["scenario"], item["character"]))
-    return {
+    document: dict[str, Any] = {
         "format_version": PLAN_FORMAT_VERSION,
         "protocol": PLAN_PROTOCOL,
         "model": model,
@@ -206,12 +259,15 @@ def build_anchor_bootstrap_plan_document(
             "takes": CANDIDATES_PER_ROLE,
             "minimum_eligible_candidates": MINIMUM_ELIGIBLE_CANDIDATES,
             "seed_policy": SEED_POLICY,
-            "seed_base": SEED_BASE,
+            "seed_base": role_scope_seed_base(scope),
             "max_topup_rounds": MAX_TOPUP_ROUNDS,
         },
         "roles": [role.document() for role in all_roles],
         "targets": targets,
     }
+    if scope != ROLE_SCOPE_NO_REFERENCE:
+        document["role_scope"] = scope
+    return document
 
 
 def anchor_role_epoch_sha256(
@@ -246,14 +302,17 @@ def derive_anchor_seed(
     scenario: str,
     character: str,
     attempt: int,
+    seed_base: int = SEED_BASE,
 ) -> int:
     """#174 `_derive_anchor_seed` と同形。循環する plan SHA だけ role epoch に置換。"""
 
     if isinstance(attempt, bool) or not isinstance(attempt, int) or attempt < 1:
         raise IncrementAnchorError("anchor seed attemptは1以上の整数が必要です。")
+    if isinstance(seed_base, bool) or not isinstance(seed_base, int):
+        raise IncrementAnchorError("anchor seed baseは整数が必要です。")
     identity = {
         "policy": SEED_POLICY,
-        "seed_base": SEED_BASE,
+        "seed_base": seed_base,
         "role_epoch_sha256": _require_sha256(role_epoch_sha256, "anchor seed epoch"),
         "model": model,
         "scenario": scenario,
@@ -296,7 +355,25 @@ def load_anchor_bootstrap_plan(plan_path: Path) -> dict[str, Any]:
 
 
 def validate_anchor_bootstrap_plan(document: Any) -> dict[str, Any]:
-    root = _exact(document, _PLAN_ROOT_FIELDS, "anchor bootstrap plan")
+    if not isinstance(document, dict) or set(document) not in (
+        _PLAN_ROOT_FIELDS,
+        _PLAN_ROOT_FIELDS | {"role_scope"},
+    ):
+        raise IncrementAnchorError("anchor bootstrap plan のfield集合が不正です。")
+    root = dict(document)
+    scope = (
+        _require_role_scope(root["role_scope"])
+        if "role_scope" in root
+        else ROLE_SCOPE_NO_REFERENCE
+    )
+    if scope == ROLE_SCOPE_NO_REFERENCE and "role_scope" in root:
+        raise IncrementAnchorError(
+            "既定scopeのanchor bootstrap planはrole_scope fieldを持てません "
+            "(公開済みplanのcanonical bytesを保つため)。",
+        )
+    wants_explicit = scope == ROLE_SCOPE_EXPLICIT_REFERENCE
+    expected_targets = role_scope_target_count(scope)
+    expected_seed_base = role_scope_seed_base(scope)
     if (
         root["format_version"] != PLAN_FORMAT_VERSION
         or root["protocol"] != PLAN_PROTOCOL
@@ -332,7 +409,7 @@ def validate_anchor_bootstrap_plan(document: Any) -> dict[str, Any]:
         phase_a["takes"] != CANDIDATES_PER_ROLE
         or phase_a["minimum_eligible_candidates"] != MINIMUM_ELIGIBLE_CANDIDATES
         or phase_a["seed_policy"] != SEED_POLICY
-        or phase_a["seed_base"] != SEED_BASE
+        or phase_a["seed_base"] != expected_seed_base
         or phase_a["max_topup_rounds"] != MAX_TOPUP_ROUNDS
     ):
         raise IncrementAnchorError("anchor bootstrap plan.phase_aが既定policyと不一致です。")
@@ -364,9 +441,9 @@ def validate_anchor_bootstrap_plan(document: Any) -> dict[str, Any]:
         roles.append(role)
 
     targets_value = root["targets"]
-    if not isinstance(targets_value, list) or len(targets_value) != ANCHOR_ROLE_COUNT:
+    if not isinstance(targets_value, list) or len(targets_value) != expected_targets:
         raise IncrementAnchorError(
-            f"anchor bootstrap plan.targetsは{ANCHOR_ROLE_COUNT}件が必要です。",
+            f"anchor bootstrap plan.targetsは{expected_targets}件が必要です。",
         )
     targets: list[dict[str, Any]] = []
     seen: set[tuple[str, str]] = set()
@@ -387,9 +464,10 @@ def validate_anchor_bootstrap_plan(document: Any) -> dict[str, Any]:
             )
         seen.add(identity)
         role = role_by_identity.get(identity)
-        if role is None or role["reference_voice"] is not None:
+        if role is None or (role["reference_voice"] is not None) != wants_explicit:
             raise IncrementAnchorError(
-                f"anchor bootstrap plan.targetsはno-reference roleが必要です: {identity}",
+                f"anchor bootstrap plan.targetsのrole scope ({scope}) が"
+                f"一致しません: {identity}",
             )
         if entry["role_identity_sha256"] != role["role_identity_sha256"]:
             raise IncrementAnchorError(
@@ -428,7 +506,7 @@ def validate_anchor_bootstrap_plan(document: Any) -> dict[str, Any]:
         raise IncrementAnchorError(
             "anchor bootstrap plan.targetsはscenario/character昇順が必要です。",
         )
-    return {
+    normalized: dict[str, Any] = {
         "format_version": PLAN_FORMAT_VERSION,
         "protocol": PLAN_PROTOCOL,
         "model": model,
@@ -440,12 +518,15 @@ def validate_anchor_bootstrap_plan(document: Any) -> dict[str, Any]:
             "takes": CANDIDATES_PER_ROLE,
             "minimum_eligible_candidates": MINIMUM_ELIGIBLE_CANDIDATES,
             "seed_policy": SEED_POLICY,
-            "seed_base": SEED_BASE,
+            "seed_base": expected_seed_base,
             "max_topup_rounds": MAX_TOPUP_ROUNDS,
         },
         "roles": roles,
         "targets": targets,
     }
+    if scope != ROLE_SCOPE_NO_REFERENCE:
+        normalized["role_scope"] = scope
+    return normalized
 
 
 def write_anchor_bootstrap_plan(
@@ -456,6 +537,7 @@ def write_anchor_bootstrap_plan(
     voices_dir: Path,
     anchor_text: str,
     output_path: Path,
+    role_scope: str | None = None,
 ) -> AnchorBootstrapPlanSummary:
     _require_absolute(output_path, "anchor bootstrap plan output")
     document = build_anchor_bootstrap_plan_document(
@@ -464,6 +546,7 @@ def write_anchor_bootstrap_plan(
         scenarios_dir=scenarios_dir,
         voices_dir=voices_dir,
         anchor_text=anchor_text,
+        role_scope=role_scope,
     )
     normalized = validate_anchor_bootstrap_plan(document)
     payload = canonical_json(normalized).encode("utf-8")
@@ -494,6 +577,7 @@ def anchor_round_targets(
     )
     if selected is not None and not selected:
         raise IncrementAnchorError("top-up対象が空です。")
+    seed_base = int(plan_document["phase_a"]["seed_base"])
     result: list[dict[str, Any]] = []
     for target in plan_document["targets"]:
         identity = (target["scenario"], target["character"])
@@ -511,6 +595,7 @@ def anchor_round_targets(
                         scenario=target["scenario"],
                         character=target["character"],
                         attempt=attempt,
+                        seed_base=seed_base,
                     )
                     for attempt in attempts
                 ],
@@ -692,7 +777,7 @@ def run_anchor_bootstrap_generation(
             "model_revision": model_revision,
             "round": round_index,
             "seed_policy": SEED_POLICY,
-            "seed_base": SEED_BASE,
+            "seed_base": int(plan_document["phase_a"]["seed_base"]),
             "attempts": attempts_records,
         }
         ledger_payload = canonical_json(ledger).encode("utf-8")
@@ -902,6 +987,8 @@ def select_role_anchors(
     model_revision = plan_document["model_revision"]
     anchor_text = plan_document["anchor_text"]
     anchor_text_sha256 = plan_document["anchor_text_sha256"]
+    role_scope = plan_document.get("role_scope", ROLE_SCOPE_NO_REFERENCE)
+    seed_base = int(plan_document["phase_a"]["seed_base"])
     roles = {
         (role["scenario"], role["character"]): role
         for role in plan_document["roles"]
@@ -922,6 +1009,7 @@ def select_role_anchors(
             plan_sha256=plan_sha256,
             model=model,
             model_revision=model_revision,
+            seed_base=seed_base,
         )
         run_records.append(
             {
@@ -947,6 +1035,7 @@ def select_role_anchors(
                 scenario=identity[0],
                 character=identity[1],
                 attempt=attempt,
+                seed_base=seed_base,
             )
             if int(attempt_record["seed"]) != expected_seed:
                 raise IncrementAnchorError(
@@ -1124,7 +1213,7 @@ def select_role_anchors(
             f"を実施してください: {details}",
         )
 
-    decision = {
+    decision: dict[str, Any] = {
         "format_version": DECISION_FORMAT_VERSION,
         "protocol": DECISION_PROTOCOL,
         "plan_sha256": plan_sha256,
@@ -1133,19 +1222,22 @@ def select_role_anchors(
         "runs": sorted(run_records, key=lambda item: item["run_id"]),
         "groups": decision_groups,
     }
+    if role_scope != ROLE_SCOPE_NO_REFERENCE:
+        decision["role_scope"] = role_scope
     decision_payload = canonical_json(decision).encode("utf-8")
     decision_sha256 = hashlib.sha256(decision_payload).hexdigest()
-    selection = validate_machine_anchor_selection(
-        {
-            "format_version": SELECTION_FORMAT_VERSION,
-            "protocol": SELECTION_PROTOCOL,
-            "plan_sha256": plan_sha256,
-            "candidate_set_sha256": decision_sha256,
-            "model": model,
-            "model_revision": model_revision,
-            "groups": selection_groups,
-        },
-    )
+    selection_document: dict[str, Any] = {
+        "format_version": SELECTION_FORMAT_VERSION,
+        "protocol": SELECTION_PROTOCOL,
+        "plan_sha256": plan_sha256,
+        "candidate_set_sha256": decision_sha256,
+        "model": model,
+        "model_revision": model_revision,
+        "groups": selection_groups,
+    }
+    if role_scope != ROLE_SCOPE_NO_REFERENCE:
+        selection_document["role_scope"] = role_scope
+    selection = validate_machine_anchor_selection(selection_document)
     selection_payload = canonical_json(selection).encode("utf-8")
     selection_sha256 = hashlib.sha256(selection_payload).hexdigest()
 
@@ -1244,7 +1336,22 @@ _ROLE_IDENTITY_FIELDS = {
 
 
 def validate_machine_anchor_selection(document: Any) -> dict[str, Any]:
-    root = _exact(document, _SELECTION_ROOT_FIELDS, "machine anchor selection")
+    if not isinstance(document, dict) or set(document) not in (
+        _SELECTION_ROOT_FIELDS,
+        _SELECTION_ROOT_FIELDS | {"role_scope"},
+    ):
+        raise IncrementAnchorError("machine anchor selection のfield集合が不正です。")
+    root = dict(document)
+    scope = (
+        _require_role_scope(root["role_scope"])
+        if "role_scope" in root
+        else ROLE_SCOPE_NO_REFERENCE
+    )
+    if scope == ROLE_SCOPE_NO_REFERENCE and "role_scope" in root:
+        raise IncrementAnchorError(
+            "既定scopeのmachine anchor selectionはrole_scope fieldを持てません。",
+        )
+    wants_explicit = scope == ROLE_SCOPE_EXPLICIT_REFERENCE
     if (
         root["format_version"] != SELECTION_FORMAT_VERSION
         or root["protocol"] != SELECTION_PROTOCOL
@@ -1297,9 +1404,10 @@ def validate_machine_anchor_selection(document: Any) -> dict[str, Any]:
             raise IncrementAnchorError(
                 "machine anchor selection role identityが不一致です。",
             )
-        if role_identity["reference_voice"] is not None:
+        if (role_identity["reference_voice"] is not None) != wants_explicit:
             raise IncrementAnchorError(
-                "explicit reference roleにgenerated anchorは使用できません。",
+                "machine anchor selectionのrole scopeが一致しません "
+                f"({scope}): {identity[1]}/{identity[2]}",
             )
         authority = _exact(
             group["authority"],
@@ -1385,7 +1493,7 @@ def validate_machine_anchor_selection(document: Any) -> dict[str, Any]:
         raise IncrementAnchorError(
             "machine anchor selection.groupsはscenario/character昇順が必要です。",
         )
-    return {
+    normalized_root: dict[str, Any] = {
         "format_version": SELECTION_FORMAT_VERSION,
         "protocol": SELECTION_PROTOCOL,
         "plan_sha256": plan_sha,
@@ -1394,6 +1502,9 @@ def validate_machine_anchor_selection(document: Any) -> dict[str, Any]:
         "model_revision": model_revision,
         "groups": groups,
     }
+    if scope != ROLE_SCOPE_NO_REFERENCE:
+        normalized_root["role_scope"] = scope
+    return normalized_root
 
 
 def validate_any_anchor_selection(document: Any) -> dict[str, Any]:
@@ -1454,7 +1565,8 @@ def resolve_increment_anchor(
         raise IncrementAnchorError(
             "anchor selectionのmodel/revisionがadapterと一致しません。",
         )
-    if role.reference_voice is not None:
+    scope = selection.get("role_scope", ROLE_SCOPE_NO_REFERENCE)
+    if role.reference_voice is not None and scope != ROLE_SCOPE_EXPLICIT_REFERENCE:
         raise IncrementAnchorError(
             "明示reference roleにgenerated anchor selectionは使用できません。",
         )
@@ -1678,6 +1790,7 @@ def _load_run_ledger(
     plan_sha256: str,
     model: str,
     model_revision: str,
+    seed_base: int = SEED_BASE,
 ) -> tuple[dict[str, Any], str]:
     path = artifacts_dir / "role-anchors" / "runs" / run_id / "ledger.json"
     raw = _read_bytes(path, "anchor run ledger")
@@ -1700,7 +1813,7 @@ def _load_run_ledger(
         or ledger.get("model") != model
         or ledger.get("model_revision") != model_revision
         or ledger.get("seed_policy") != SEED_POLICY
-        or ledger.get("seed_base") != SEED_BASE
+        or ledger.get("seed_base") != seed_base
     ):
         raise IncrementAnchorError(f"anchor run ledger bindingが不一致です: {path}")
     return ledger, digest
@@ -1830,10 +1943,17 @@ __all__ = [
     "ANCHOR_ROLE_COUNT",
     "CANDIDATES_PER_ROLE",
     "DECISION_PROTOCOL",
+    "EXPLICIT_REFERENCE_ROLE_COUNT",
     "MAX_TOPUP_ROUNDS",
     "MINIMUM_ELIGIBLE_CANDIDATES",
     "PLAN_PROTOCOL",
+    "ROLE_SCOPES",
+    "ROLE_SCOPE_EXPLICIT_REFERENCE",
+    "ROLE_SCOPE_NO_REFERENCE",
     "SEED_BASE",
+    "VARIANT_SEED_BASE",
+    "role_scope_seed_base",
+    "role_scope_target_count",
     "SEED_POLICY",
     "SELECTION_AUTHORITY_TYPE",
     "SELECTION_POLICY",
