@@ -30,6 +30,8 @@ from gaya_pipeline.completion_anchor import (
 )
 from gaya_pipeline.take_identity import canonical_json
 from gaya_pipeline.increment_anchor import (
+    ROLE_SCOPE_EXPLICIT_REFERENCE,
+    ROLE_SCOPE_NO_REFERENCE,
     AnchorBootstrapGenerationSummary,
     AnchorBootstrapPlanSummary,
     AnchorMachineSelectionSummary,
@@ -39,6 +41,31 @@ from gaya_pipeline.increment_anchor import (
     run_anchor_bootstrap_generation,
     select_role_anchors,
     write_anchor_bootstrap_plan,
+)
+from gaya_pipeline.conditioning_variants import (
+    CONDITIONING_MODES,
+    ConditioningVariantError,
+)
+from gaya_pipeline.variant_anchor import (
+    VariantAnchorError,
+    compose_variant_anchor_selection,
+    validate_variant_anchor_selection,
+)
+from gaya_pipeline.variant_auto import (
+    VariantAutoDecisionError,
+    create_variant_auto_decision,
+    variant_generation_binding,
+)
+from gaya_pipeline.variant_plan import (
+    VariantPlanError,
+    build_variant_plan_document,
+    load_variant_plan,
+)
+from gaya_pipeline.variant_release import (
+    VariantReleaseError,
+    finalize_variant_release,
+    load_variant_finalize_spec,
+    validate_variant_release,
 )
 from gaya_pipeline.increment_auto import (
     IncrementAutoDecisionError,
@@ -668,6 +695,15 @@ def build_parser() -> argparse.ArgumentParser:
         help="新規modelの53 role x N=4 anchor候補planを決定論的に固定する",
     )
     increment_anchor_bootstrap_parser.add_argument("--model", required=True)
+    increment_anchor_bootstrap_parser.add_argument(
+        "--role-scope",
+        choices=(ROLE_SCOPE_NO_REFERENCE, ROLE_SCOPE_EXPLICIT_REFERENCE),
+        default=ROLE_SCOPE_NO_REFERENCE,
+        help=(
+            "対象role部分集合。既定=明示referenceを持たない53役。"
+            "explicit-reference-roles-v1 は条件バリアント --text 用の残り5役"
+        ),
+    )
     for name in ("scenarios", "voices", "output"):
         increment_anchor_bootstrap_parser.add_argument(
             f"--{name}",
@@ -850,6 +886,144 @@ def build_parser() -> argparse.ArgumentParser:
             required=True,
             type=Path,
         )
+
+    variant_parser = subparsers.add_parser(
+        "variant",
+        help="テキスト指示型modelを見本あり/なしの2列へ分離する (#201)",
+    )
+    variant_subparsers = variant_parser.add_subparsers(
+        dest="variant_command",
+        required=True,
+    )
+
+    variant_anchor_compose_parser = variant_subparsers.add_parser(
+        "anchor-compose",
+        help="既存53役 + 新規5役を58役の --text anchor authorityへ合成する",
+    )
+    variant_anchor_compose_parser.add_argument("--base-model", required=True)
+    for name in ("inherited-selection", "supplement-selection", "output"):
+        variant_anchor_compose_parser.add_argument(
+            f"--{name}",
+            required=True,
+            type=Path,
+        )
+
+    variant_plan_build_parser = variant_subparsers.add_parser(
+        "plan-build",
+        help="1列161行を inherit/generate に分割したplanを固定する",
+    )
+    variant_plan_build_parser.add_argument("--base-model", required=True)
+    variant_plan_build_parser.add_argument(
+        "--mode",
+        required=True,
+        choices=CONDITIONING_MODES,
+    )
+    for name in ("base-release", "scenarios", "voices", "output"):
+        variant_plan_build_parser.add_argument(
+            f"--{name}",
+            required=True,
+            type=Path,
+        )
+    variant_plan_build_parser.add_argument(
+        "--anchor-selection",
+        type=Path,
+        help="--text かつ anchor型modelのときだけ必須 (anchor-composeの出力)",
+    )
+
+    variant_generate_parser = variant_subparsers.add_parser(
+        "generate",
+        help="variant planのgenerate対象行を生成する (GPU)",
+    )
+    for name in ("plan", "scenarios", "voices", "artifacts"):
+        variant_generate_parser.add_argument(
+            f"--{name}",
+            required=True,
+            type=Path,
+        )
+    variant_generate_parser.add_argument("--anchor-selection", type=Path)
+    variant_generate_parser.add_argument(
+        "--run-kind",
+        required=True,
+        choices=("primary", "topup"),
+    )
+    variant_generate_parser.add_argument("--seed-base", type=int)
+    variant_generate_parser.add_argument("--supersedes-run-id")
+    variant_generate_parser.add_argument("--resume-run-id")
+    variant_generate_parser.add_argument(
+        "--target",
+        action="append",
+        dest="targets",
+        default=[],
+        metavar="SCENARIO/LINE",
+    )
+
+    variant_auto_parser = variant_subparsers.add_parser(
+        "auto-decide",
+        help="生成した行をPASQA機械順位付けで確定する",
+    )
+    for name in (
+        "plan",
+        "scenarios",
+        "voices",
+        "artifacts",
+        "pasqa-project",
+        "pasqa-model-dir",
+        "output",
+    ):
+        variant_auto_parser.add_argument(f"--{name}", required=True, type=Path)
+    variant_auto_parser.add_argument("--anchor-selection", type=Path)
+    variant_auto_parser.add_argument(
+        "--primary-run-id",
+        action="append",
+        dest="primary_run_ids",
+        required=True,
+    )
+    variant_auto_parser.add_argument(
+        "--topup-run-id",
+        action="append",
+        dest="topup_run_ids",
+        default=[],
+    )
+
+    variant_finalize_parser = variant_subparsers.add_parser(
+        "finalize",
+        help="単方式5列 + バリアント8列の13列 releaseを確定する",
+    )
+    for name in (
+        "columns",
+        "base-release",
+        "artifacts",
+        "scenarios",
+        "voices",
+        "output",
+    ):
+        variant_finalize_parser.add_argument(
+            f"--{name}",
+            required=True,
+            type=Path,
+        )
+
+    variant_verify_parser = variant_subparsers.add_parser(
+        "verify",
+        help="13列release bundleの完全性契約だけを検証する (publish前のdry-run)",
+    )
+    for name in ("release", "artifacts"):
+        variant_verify_parser.add_argument(f"--{name}", required=True, type=Path)
+
+    variant_publish_parser = variant_subparsers.add_parser(
+        "publish",
+        help="新規objectだけをuploadし13列 manifestをactivateする",
+    )
+    for name in (
+        "release",
+        "artifacts",
+        "source-audit",
+        "env-file",
+        "manifest-activation",
+        "quality-signals-activation",
+        "publish-receipt",
+    ):
+        variant_publish_parser.add_argument(f"--{name}", required=True, type=Path)
 
     intonation_parser = subparsers.add_parser(
         "intonation",
@@ -1718,6 +1892,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                     voices_dir=args.voices,
                     anchor_text=_increment_anchor_text(args.model),
                     output_path=args.output,
+                    role_scope=args.role_scope,
                 )
             except increment_errors as error:
                 print(f"ERROR: {error}", file=sys.stderr)
@@ -1982,6 +2157,313 @@ def main(argv: Sequence[str] | None = None) -> int:
             f"unknown increment command: {args.increment_command}",
         )
 
+    if args.command == "variant":
+        variant_path_names = {
+            "anchor-compose": (
+                "inherited_selection",
+                "supplement_selection",
+                "output",
+            ),
+            "plan-build": (
+                "base_release",
+                "scenarios",
+                "voices",
+                "anchor_selection",
+                "output",
+            ),
+            "generate": (
+                "plan",
+                "scenarios",
+                "voices",
+                "anchor_selection",
+                "artifacts",
+            ),
+            "auto-decide": (
+                "plan",
+                "scenarios",
+                "voices",
+                "anchor_selection",
+                "artifacts",
+                "pasqa_project",
+                "pasqa_model_dir",
+                "output",
+            ),
+            "finalize": (
+                "columns",
+                "base_release",
+                "artifacts",
+                "scenarios",
+                "voices",
+                "output",
+            ),
+            "verify": ("release", "artifacts"),
+            "publish": (
+                "release",
+                "artifacts",
+                "source_audit",
+                "env_file",
+                "manifest_activation",
+                "quality_signals_activation",
+                "publish_receipt",
+            ),
+        }[args.variant_command]
+        relative_paths = [
+            f"--{name.replace('_', '-')}"
+            for name in variant_path_names
+            if getattr(args, name, None) is not None
+            and not getattr(args, name).is_absolute()
+        ]
+        if relative_paths:
+            print(
+                "ERROR: variant path は絶対pathが必要です: "
+                + ", ".join(relative_paths),
+                file=sys.stderr,
+            )
+            return 1
+
+        variant_errors = (
+            CompletionAnchorError,
+            CompletionAutoDecisionError,
+            CompletionListeningError,
+            CompletionPlanError,
+            GenerationError,
+            IncrementAnchorError,
+            VariantAnchorError,
+            VariantAutoDecisionError,
+            VariantPlanError,
+            VariantReleaseError,
+        )
+
+        if args.variant_command == "anchor-compose":
+            try:
+                summary = compose_variant_anchor_selection(
+                    base_model=args.base_model,
+                    model_revision=_increment_model_revision(args.base_model),
+                    inherited_selection_path=args.inherited_selection,
+                    supplement_selection_path=args.supplement_selection,
+                    output_dir=args.output,
+                )
+            except variant_errors + (ConditioningVariantError,) as error:
+                print(f"ERROR: {error}", file=sys.stderr)
+                return 1
+            print(f"variant anchor authority: {summary.output_dir}")
+            print(f"  plan_sha256: {summary.plan_sha256}")
+            print(f"  selection_sha256: {summary.selection_sha256}")
+            print(f"  roles: {summary.group_count}")
+            print(f"  inherited: {summary.inherited_count}")
+            print(f"  supplement: {summary.supplement_count}")
+            return 0
+
+        if args.variant_command == "plan-build":
+            try:
+                anchor = (
+                    None
+                    if args.anchor_selection is None
+                    else _variant_anchor_authority(args.anchor_selection)
+                )
+                document = build_variant_plan_document(
+                    base_model=args.base_model,
+                    mode=args.mode,
+                    model_revision=_increment_model_revision(args.base_model),
+                    base_release_dir=args.base_release,
+                    scenarios_dir=args.scenarios,
+                    voices_dir=args.voices,
+                    anchor_source_plan_sha256=(
+                        None if anchor is None else anchor[0]
+                    ),
+                    anchor_candidate_set_sha256=(
+                        None if anchor is None else anchor[1]
+                    ),
+                    anchor_selection_sha256=(
+                        None if anchor is None else anchor[2]
+                    ),
+                )
+                _write_increment_document(args.output, document)
+                plan = load_variant_plan(
+                    args.output,
+                    scenarios_dir=args.scenarios,
+                    voices_dir=args.voices,
+                )
+            except variant_errors + (
+                ConditioningVariantError,
+                OSError,
+            ) as error:
+                print(f"ERROR: {error}", file=sys.stderr)
+                return 1
+            print(f"variant plan: {args.output}")
+            print(f"  plan_sha256: {plan.plan_id}")
+            print(f"  model: {plan.model}")
+            print(f"  conditioning: {plan.conditioning_mode}")
+            print(f"  inherit: {len(plan.inherit)}")
+            print(f"  generate: {len(plan.targets)}")
+            return 0
+
+        if args.variant_command == "generate":
+            try:
+                plan = load_variant_plan(
+                    args.plan,
+                    scenarios_dir=args.scenarios,
+                    voices_dir=args.voices,
+                )
+                policy = plan.policy_for_model(plan.model)
+                anchor_sha256, role_epochs = variant_generation_binding(
+                    plan=plan,
+                    scenarios_dir=args.scenarios,
+                    voices_dir=args.voices,
+                    anchor_selection_path=args.anchor_selection,
+                )
+                target_lines = plan.target_lines_for_model(plan.model)
+                if args.run_kind == "primary":
+                    if args.targets:
+                        raise GenerationError(
+                            "primary runに--targetは指定できません。",
+                        )
+                    if args.supersedes_run_id is not None:
+                        raise GenerationError(
+                            "primary runに--supersedes-run-idは指定できません。",
+                        )
+                    if args.seed_base != policy.primary_seed_base:
+                        raise GenerationError(
+                            "primary runの--seed-baseはmodel policyと"
+                            f"exact一致が必要です: {policy.primary_seed_base!r}",
+                        )
+                else:
+                    if args.seed_base is None:
+                        raise GenerationError("topup runには--seed-baseが必要です。")
+                    if args.supersedes_run_id is None:
+                        raise GenerationError(
+                            "topup runに--supersedes-run-idが必要です。",
+                        )
+                    target_lines = _parse_completion_targets(
+                        args.targets,
+                        allowed=set(target_lines),
+                    )
+                    role_epochs = {
+                        identity: role_epochs[identity]
+                        for identity in target_lines
+                    }
+                summary = run_generation(
+                    model_id=plan.model,
+                    scenarios_dir=args.scenarios,
+                    artifacts_dir=args.artifacts,
+                    voices_dir=args.voices,
+                    target_lines=target_lines,
+                    takes=policy.takes,
+                    seed_base=args.seed_base,
+                    completion_plan_sha256=plan.plan_id,
+                    role_epochs=role_epochs,
+                    run_kind=args.run_kind,
+                    supersedes_run_id=args.supersedes_run_id,
+                    resume_run_id=args.resume_run_id,
+                    role_anchor_selection_path=args.anchor_selection,
+                    role_anchor_plan_sha256=plan.anchor_source_plan_sha256,
+                    role_anchor_selection_sha256=anchor_sha256,
+                )
+            except variant_errors as error:
+                print(f"ERROR: {error}", file=sys.stderr)
+                return 1
+            _print_generation_summary(summary)
+            return 1 if summary.failed_count else 0
+
+        if args.variant_command == "auto-decide":
+            try:
+                plan = load_variant_plan(
+                    args.plan,
+                    scenarios_dir=args.scenarios,
+                    voices_dir=args.voices,
+                )
+                summary = create_variant_auto_decision(
+                    plan=plan,
+                    primary_run_ids=args.primary_run_ids,
+                    topup_run_ids=args.topup_run_ids,
+                    anchor_selection_path=args.anchor_selection,
+                    fallback_anchor_path=args.plan,
+                    artifacts_dir=args.artifacts,
+                    scenarios_dir=args.scenarios,
+                    voices_dir=args.voices,
+                    pasqa_project_dir=args.pasqa_project,
+                    pasqa_model_dir=args.pasqa_model_dir,
+                    output_dir=args.output,
+                )
+            except variant_errors as error:
+                print(f"ERROR: {error}", file=sys.stderr)
+                return 1
+            _print_completion_auto_decision_summary(summary)
+            return 0
+
+        if args.variant_command == "finalize":
+            try:
+                columns = load_variant_finalize_spec(args.columns)
+                summary = finalize_variant_release(
+                    columns=columns,
+                    base_release_dir=args.base_release,
+                    artifacts_dir=args.artifacts,
+                    scenarios_dir=args.scenarios,
+                    voices_dir=args.voices,
+                    output_dir=args.output,
+                )
+            except variant_errors as error:
+                print(f"ERROR: {error}", file=sys.stderr)
+                return 1
+            print(f"variant release: {summary.output_dir}")
+            print(f"  manifest_sha256: {summary.manifest_sha256}")
+            print(f"  candidate_set_sha256: {summary.candidate_set_sha256}")
+            print(f"  selection_sha256: {summary.selection_sha256}")
+            print(f"  quality_signals_sha256: {summary.quality_signals_sha256}")
+            print(f"  models: {summary.model_count}")
+            print(f"  candidates: {summary.candidate_count}")
+            print(f"  selected: {summary.selected_count}")
+            for column in summary.columns:
+                print(
+                    f"  - {column.model}: inherit={column.inherited_groups} "
+                    f"generate={column.generated_groups}",
+                )
+            return 0
+
+        if args.variant_command == "verify":
+            try:
+                bundle = validate_variant_release(
+                    release_dir=args.release,
+                    artifacts_dir=args.artifacts,
+                )
+            except VariantReleaseError as error:
+                print(f"ERROR: {error}", file=sys.stderr)
+                return 1
+            print(f"variant release: {bundle.root}")
+            print(f"  models: {len(bundle.manifest['models'])}")
+            print(f"  candidates: {len(bundle.manifest['candidates'])}")
+            print(f"  selected: {len(bundle.selection['groups'])}")
+            print(f"  quality_signals: {len(bundle.quality_signals['groups'])}")
+            return 0
+
+        if args.variant_command == "publish":
+            try:
+                summary = run_completion_publish(
+                    release_dir=args.release,
+                    artifacts_dir=args.artifacts,
+                    source_audit_path=args.source_audit,
+                    client=create_r2_client(args.env_file),
+                    manifest_activation_path=args.manifest_activation,
+                    quality_signals_activation_path=(
+                        args.quality_signals_activation
+                    ),
+                    publish_receipt_path=args.publish_receipt,
+                    release_validator=validate_variant_release,
+                )
+            except (
+                CompletionPublishError,
+                VariantReleaseError,
+                PublishError,
+            ) as error:
+                print(f"ERROR: {error}", file=sys.stderr)
+                return 1
+            _print_completion_publish_summary(summary)
+            return 0
+
+        raise AssertionError(
+            f"unknown variant command: {args.variant_command}",
+        )
+
     if args.command == "intonation":
         if args.intonation_command != "report":
             raise AssertionError(
@@ -2200,6 +2682,25 @@ def _increment_anchor_authority(selection_path: Path) -> tuple[str, str]:
     return (
         hashlib.sha256(raw).hexdigest(),
         selection["candidate_set_sha256"],
+    )
+
+
+def _variant_anchor_authority(selection_path: Path) -> tuple[str, str, str]:
+    """composeした variant anchor selection から (plan, candidate_set, selection) SHA。"""
+
+    import hashlib
+    import json
+
+    raw = selection_path.read_bytes()
+    document = validate_variant_anchor_selection(json.loads(raw.decode("utf-8")))
+    if canonical_json(document).encode("utf-8") != raw:
+        raise VariantAnchorError(
+            "variant anchor selectionはcanonical bytesが必要です。",
+        )
+    return (
+        str(document["plan_sha256"]),
+        str(document["candidate_set_sha256"]),
+        hashlib.sha256(raw).hexdigest(),
     )
 
 

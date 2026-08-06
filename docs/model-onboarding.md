@@ -38,6 +38,49 @@
 6. site: 件数系テストの期待値はmodel数から導出されているか確認 → `vp check/test/build` +
    public-bundle検査 → 実ブラウザQA → PR → CI green → merge
 
+## 条件バリアント追加 (`--ref` / `--text`)
+
+テキスト指示型モデルは「明示reference 5役 + anchor 53役」の混合条件になるため、
+#201 で **列内の条件を揃えた2列** へ分離する:
+
+- `<model-id>--ref` (見本あり): 全58役を人間収録素材へ。明示referenceのある5役はそれを、
+  残り53役は clone系と同じ `CLONE_REFERENCE_ASSIGNMENTS` を共用 (未割当役は fail fast)
+- `<model-id>--text` (見本なし): 全58役をモデル自作の見本へ。明示referenceは無視する
+
+manifest v4 の `models[]` に optional field
+`conditioning: {base_model, mode}` が付き、`name` は `（見本あり）`/`（見本なし）` 付きになる。
+既存の単方式モデルは field を持たないので公開済み manifest の canonical bytes は不変。
+
+### 手順 (`gaya variant` CLI)
+
+1. **anchor 補完** — `--text` 側で anchor を消費するモデル (Irodori v3/v4・Qwen3) は
+   明示reference 5役ぶんの anchor が無いので新規に機械選抜する:
+   `gaya increment anchor-bootstrap --role-scope explicit-reference-roles-v1`
+   → `anchor-generate` (GPU) → `anchor-select`。seed base は 201 (既定53役は 194)
+2. `gaya variant anchor-compose` — 既存53役 selection (#174 人手選抜 / #194 機械選抜) と
+   新規5役 selection を **SHA束縛したまま** 58役の `role-anchor-variant-selection-v1` へ合成
+3. `gaya variant plan-build` — base release の realized receipt から161行を
+   `inherit` (条件一致 = 公開済みテイクをbyte不変で継承) と `generate` (新規生成) に機械分割。
+   base release の5 SHAをplanにpinする
+4. `gaya variant generate` (GPU) → `completion qc` → `gaya variant auto-decide` (PASQA)
+5. `gaya variant finalize` — 8列ぶんの入力を1つの
+   `role-conditioning-variant-finalize-spec-v1` にまとめて渡し、13列 release を確定
+6. `gaya variant verify` → `gaya variant publish`
+
+### 注意点
+
+- **VoxCPM2 の `--text` は anchor 不要**。adapter 内蔵の voice design (自己参照) が
+  text-only 経路そのものなので、anchor plan/run/selection を作らない
+  (`requires_anchor_authority("voxcpm2--text") == False`)
+- **`--ref` 列は anchor 権限を持たない**。`--anchor-selection` を渡すと拒否される
+- 継承テイクは `take_id` / `audio SHA` / `generation_input_sha256` が不変。
+  `path` だけが model id を含むため列 id に追従する
+  → **R2 object key が変わるので継承テイクも新規keyへuploadされる** (bytes は同一)
+- 旧混合列 (base id) は `models[]` / selection から消える。系譜は release provenance の
+  `superseded_by` に `{model: <base id>, replaced_by: [--ref, --text]}` として残る
+- 列内の条件は `verify` が realized receipt で機械確認する
+  (`--ref` は全行 human reference、`--text` は全行 model generated)
+
 ## 実地で踏んだ罠 (再発防止)
 
 | 罠 | 対処 |
