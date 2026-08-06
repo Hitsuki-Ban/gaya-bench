@@ -3,6 +3,10 @@ from __future__ import annotations
 import math
 from typing import Any
 
+from gaya_pipeline.conditioning_variants import (
+    ConditioningVariantError,
+    validate_conditioning,
+)
 from gaya_pipeline.take_identity import (
     TakeIdentityError,
     canonical_json,
@@ -25,6 +29,9 @@ ROOT_KEYS = {
     "failures",
 }
 MODEL_KEYS = {"id", "name", "version", "license_note", "capabilities"}
+# 条件バリアント列 (#201) だけが持つ optional field。既存9モデルのentryは
+# この field を持たないので、公開済み manifest の canonical bytes は不変。
+MODEL_OPTIONAL_KEYS = {"conditioning"}
 CAPABILITY_KEYS = {"emotion", "voice_prompt", "clone", "nonverbal", "reading"}
 CANDIDATE_KEYS = {
     "model",
@@ -92,7 +99,12 @@ def _group(value: dict[str, Any], field: str) -> tuple[str, str, str, str]:
 
 
 def _validate_model(value: Any, field: str) -> str:
-    model = _exact(value, MODEL_KEYS, field)
+    if not isinstance(value, dict) or set(value) not in (
+        MODEL_KEYS,
+        MODEL_KEYS | MODEL_OPTIONAL_KEYS,
+    ):
+        raise TakeManifestError(f"{field} の項目が v4 契約と一致しません。")
+    model = value
     capabilities = _exact(
         model["capabilities"],
         CAPABILITY_KEYS,
@@ -103,6 +115,11 @@ def _validate_model(value: Any, field: str) -> str:
     _path_segment(model["id"], f"{field}.id")
     for key in ("name", "version", "license_note"):
         _text(model[key], f"{field}.{key}", allow_empty=key == "license_note")
+    if "conditioning" in model:
+        try:
+            validate_conditioning(model["conditioning"], model_id=model["id"])
+        except ConditioningVariantError as error:
+            raise TakeManifestError(f"{field}.conditioning: {error}") from error
     return model["id"]
 
 

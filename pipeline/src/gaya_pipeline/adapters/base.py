@@ -195,15 +195,21 @@ class ModelProfile:
     version: str
     license_note: str
     capabilities: Capabilities
+    # 条件バリアント列 (#201) だけが持つ optional field。
+    # `{"base_model": ..., "mode": "human-reference"|"text-only"}`。
+    conditioning: Mapping[str, str] | None = None
 
     def as_manifest_entry(self) -> dict[str, Any]:
-        return {
+        entry: dict[str, Any] = {
             "id": self.id,
             "name": self.name,
             "version": self.version,
             "license_note": self.license_note,
             "capabilities": self.capabilities.as_dict(),
         }
+        if self.conditioning is not None:
+            entry["conditioning"] = dict(self.conditioning)
+        return entry
 
 
 @dataclass(frozen=True)
