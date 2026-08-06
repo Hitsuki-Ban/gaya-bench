@@ -2,7 +2,9 @@ import type { KeyboardEvent } from "react";
 import { Link } from "react-router";
 
 import { CharacterKindBadge } from "@/components/character-kind-badge";
+import { ConditioningBadge } from "@/components/conditioning-badge";
 import { ModelMethodBadge } from "@/components/model-method-badge";
+import { baseModelLabel } from "@/data/conditioning";
 import { ReferenceConditioningBadge } from "@/components/reference-conditioning-badge";
 import { Badge } from "@/components/ui/badge";
 import type { ComparisonProjection } from "@/filters";
@@ -76,9 +78,15 @@ export function MobileMatrix({ controller, model, projection, search }: MobileMa
             onKeyDown={(event) => handleTabKeyDown(event, index)}
             role="tab"
             tabIndex={selectedModel.id === item.id ? 0 : -1}
+            title={item.name}
             type="button"
           >
-            <span className="block break-words">{item.name}</span>
+            <span className="block break-words">{baseModelLabel(item)}</span>
+            {item.conditioning ? (
+              <span className="mt-1.5 block">
+                <ConditioningBadge conditioning={item.conditioning} />
+              </span>
+            ) : null}
             <span className="mt-1.5 block">
               <ModelMethodBadge capabilities={item.capabilities} compact />
             </span>
@@ -93,7 +101,12 @@ export function MobileMatrix({ controller, model, projection, search }: MobileMa
         >
           {selectedModel.name} の詳細を見る
         </Link>
-        <ModelMethodBadge capabilities={selectedModel.capabilities} />
+        <span className="flex flex-wrap items-center gap-1.5">
+          {selectedModel.conditioning ? (
+            <ConditioningBadge conditioning={selectedModel.conditioning} />
+          ) : null}
+          <ModelMethodBadge capabilities={selectedModel.capabilities} />
+        </span>
       </div>
 
       <div

@@ -1,4 +1,11 @@
-import type { Age, CharacterKind, Difficulty, Emotion, Gender } from "../data/types";
+import type {
+  Age,
+  CharacterKind,
+  ConditioningMode,
+  Difficulty,
+  Emotion,
+  Gender,
+} from "../data/types";
 
 export const FILTER_QUERY_KEYS = [
   "scenario",
@@ -9,6 +16,7 @@ export const FILTER_QUERY_KEYS = [
   "emotion",
   "difficulty",
   "model",
+  "conditioning",
 ] as const;
 
 export type FilterQueryKey = (typeof FILTER_QUERY_KEYS)[number];
@@ -23,6 +31,8 @@ export interface FilterState {
   readonly emotion: ReadonlySet<Emotion>;
   readonly difficulty: ReadonlySet<Difficulty>;
   readonly model: ReadonlySet<string>;
+  /** 条件バリアント列の表示 mode。両方選択が既定 (= すべて)。 */
+  readonly conditioning: ReadonlySet<ConditioningMode>;
 }
 
 export interface FilterValueByKey {
@@ -32,6 +42,7 @@ export interface FilterValueByKey {
   readonly emotion: Emotion;
   readonly difficulty: Difficulty;
   readonly model: string;
+  readonly conditioning: ConditioningMode;
 }
 
 export type FilterQueryIssueCode =

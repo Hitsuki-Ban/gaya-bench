@@ -7,18 +7,26 @@ import {
   playableModels,
   type Age,
   type CharacterKind,
+  type ConditioningMode,
   type Difficulty,
   type Emotion,
   type Gender,
 } from "@/data";
 import {
+  CONDITIONING_MODE_LABELS,
+  CONDITIONING_MODE_DESCRIPTIONS,
+  hasConditioningVariants,
+} from "@/data/conditioning";
+import {
   AGE_ORDER,
   CHARACTER_KIND_ORDER,
+  CONDITIONING_MODE_ORDER,
   DIFFICULTY_ORDER,
   EMOTION_ORDER,
   encodeFilterState,
   toggleFilterValue,
   updateEmptyFilter,
+  updateFilterValues,
   type FilterState,
 } from "@/filters";
 import { AGE_LABELS, DIFFICULTY_LABELS, EMOTION_LABELS, GENDER_LABELS } from "@/ui-labels";
@@ -48,6 +56,29 @@ const difficultyOptions = DIFFICULTY_ORDER.map((value) => ({
   label: DIFFICULTY_LABELS[value],
 })) satisfies readonly { value: Difficulty; label: string }[];
 
+const CONDITIONING_ALL = "all";
+
+const conditioningOptions = [
+  { value: CONDITIONING_ALL, label: "すべて", description: "見本あり・見本なしの両方を表示" },
+  ...CONDITIONING_MODE_ORDER.map((value) => ({
+    value,
+    label: CONDITIONING_MODE_LABELS[value],
+    description: CONDITIONING_MODE_DESCRIPTIONS[value],
+  })),
+] as const;
+
+/** 条件フィルタは「すべて or 片方」の 3 択なので、集合 state を単一選択へ写像する。 */
+function conditioningChoice(selected: ReadonlySet<ConditioningMode>): string {
+  if (selected.size === CONDITIONING_MODE_ORDER.length) {
+    return CONDITIONING_ALL;
+  }
+  const [only] = selected;
+  if (only === undefined) {
+    throw new Error("条件フィルタは最低 1 件を選択する必要があります。");
+  }
+  return only;
+}
+
 interface FilterToolbarProps {
   state: FilterState;
   filteredRows: number;
@@ -64,6 +95,8 @@ export function FilterToolbar({
   onReset,
 }: FilterToolbarProps) {
   const isDefault = encodeFilterState({ ...state, scenario: null }, benchmarkData) === "";
+  const showConditioningFilter = hasConditioningVariants(playableModels);
+  const choice = conditioningChoice(state.conditioning);
 
   return (
     <details className="group rounded-md border bg-card">
@@ -152,6 +185,41 @@ export function FilterToolbar({
             }))}
             selected={state.model}
           />
+          {showConditioningFilter ? (
+            <fieldset className="rounded border bg-background/55 px-2 py-1.5">
+              <legend className="px-1 text-xs font-medium">条件</legend>
+              <div className="flex flex-wrap gap-x-2.5 gap-y-1">
+                {conditioningOptions.map(({ value, label, description }) => (
+                  <label
+                    className="flex min-h-6 cursor-pointer items-center gap-1.5 text-xs text-muted-foreground has-checked:text-foreground"
+                    key={value}
+                    title={description}
+                  >
+                    <input
+                      checked={choice === value}
+                      name="conditioning-filter"
+                      onChange={() =>
+                        onChange(
+                          updateFilterValues(
+                            state,
+                            "conditioning",
+                            value === CONDITIONING_ALL ? CONDITIONING_MODE_ORDER : [value],
+                            benchmarkData,
+                          ),
+                        )
+                      }
+                      type="radio"
+                      value={value}
+                    />
+                    {label}
+                  </label>
+                ))}
+              </div>
+              <p className="mt-1 px-1 text-[10px] leading-4 text-muted-foreground">
+                同じモデルの2列だけを絞り込みます。プリセット・クローンの列は常に表示されます。
+              </p>
+            </fieldset>
+          ) : null}
         </div>
       </div>
     </details>

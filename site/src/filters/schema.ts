@@ -1,5 +1,8 @@
+import { CONDITIONING_MODE_ORDER } from "../data/conditioning";
 import type { Age, BenchmarkData, CharacterKind, Difficulty, Emotion, Gender } from "../data/types";
 import type { FilterState, FilterValueByKey, MultiFilterKey } from "./types";
+
+export { CONDITIONING_MODE_ORDER };
 
 export const CHARACTER_KIND_ORDER = [
   "human",
@@ -43,6 +46,7 @@ export function createDefaultFilterState(data: BenchmarkData): FilterState {
     emotion: new Set(EMOTION_ORDER),
     difficulty: new Set(DIFFICULTY_ORDER),
     model: new Set(modelIds),
+    conditioning: new Set(CONDITIONING_MODE_ORDER),
   };
 }
 
@@ -148,6 +152,9 @@ export function getAllowedValues(key: MultiFilterKey, data: BenchmarkData): read
   if (key === "difficulty") {
     return DIFFICULTY_ORDER;
   }
+  if (key === "conditioning") {
+    return CONDITIONING_MODE_ORDER;
+  }
   return getDataFilterValues(data).modelIds;
 }
 
@@ -175,6 +182,12 @@ function replaceFilterSet(
     return {
       ...state,
       difficulty: new Set(DIFFICULTY_ORDER.filter((value) => values.has(value))),
+    };
+  }
+  if (key === "conditioning") {
+    return {
+      ...state,
+      conditioning: new Set(CONDITIONING_MODE_ORDER.filter((value) => values.has(value))),
     };
   }
   return { ...state, model: new Set(values) };

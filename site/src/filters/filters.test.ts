@@ -239,6 +239,132 @@ describe("comparison projection", () => {
   });
 });
 
+describe("conditioning filter", () => {
+  it("既定は「すべて」で query に現れず、全列を表示する", () => {
+    const data = variantFixture();
+    const model = buildComparisonModel(data);
+    const state = createDefaultFilterState(data);
+
+    expect([...state.conditioning]).toEqual(["human-reference", "text-only"]);
+    expect(encodeFilterState(state, data)).toBe("");
+    expect(projectComparisonModel(model, state).models.map(({ id }) => id)).toEqual([
+      "preset",
+      "base--ref",
+      "base--text",
+    ]);
+  });
+
+  it("選択した条件の variant 列だけを残し、単方式モデルは常に表示する", () => {
+    const data = variantFixture();
+    const model = buildComparisonModel(data);
+    const defaultState = createDefaultFilterState(data);
+    const humanOnly = updateFilterValues(defaultState, "conditioning", ["human-reference"], data);
+    const textOnly = updateFilterValues(defaultState, "conditioning", ["text-only"], data);
+
+    expect(projectComparisonModel(model, humanOnly).models.map(({ id }) => id)).toEqual([
+      "preset",
+      "base--ref",
+    ]);
+    expect(projectComparisonModel(model, textOnly).models.map(({ id }) => id)).toEqual([
+      "preset",
+      "base--text",
+    ]);
+    expect(projectComparisonModel(model, humanOnly).key).not.toBe(
+      projectComparisonModel(model, defaultState).key,
+    );
+  });
+
+  it("条件を URL query の唯一の状態源として round-trip する", () => {
+    const data = variantFixture();
+    const restored = decodeFilterQuery(new URLSearchParams("conditioning=text-only"), data);
+
+    expect(restored.ok).toBe(true);
+    if (!restored.ok) {
+      return;
+    }
+    expect([...restored.state.conditioning]).toEqual(["text-only"]);
+    expect(restored.canonicalSearch).toBe("?conditioning=text-only");
+    expect(encodeFilterState(restored.state, data)).toBe("?conditioning=text-only");
+    // 両方指定は既定と同じなので canonical では省略される。
+    const both = decodeFilterQuery(
+      new URLSearchParams("conditioning=text-only&conditioning=human-reference"),
+      data,
+    );
+    expect(both.ok && both.canonicalSearch).toBe("");
+  });
+
+  it("未知の条件値と 0 件選択を拒否する", () => {
+    const data = variantFixture();
+    const result = decodeFilterQuery(new URLSearchParams("conditioning=voice-design"), data);
+
+    expect(result).toEqual({
+      ok: false,
+      issues: [
+        {
+          code: "unknown_value",
+          key: "conditioning",
+          value: "voice-design",
+          message: "conditioning query に存在しない値が指定されています: voice-design",
+        },
+      ],
+    });
+    expect(() =>
+      updateFilterValues(createDefaultFilterState(data), "conditioning", [], data),
+    ).toThrow("conditioning filter は最低 1 件");
+  });
+
+  it("conditioning のない release では列を変えない", () => {
+    const data = fixture();
+    const model = buildComparisonModel(data);
+    const state = updateFilterValues(
+      createDefaultFilterState(data),
+      "conditioning",
+      ["human-reference"],
+      data,
+    );
+
+    expect(projectComparisonModel(model, state).models.map(({ id }) => id)).toEqual([
+      "alpha",
+      "beta",
+    ]);
+  });
+});
+
+function variantFixture(): BenchmarkData {
+  const base = fixture();
+  const models: Model[] = [
+    ttsModel("preset"),
+    {
+      ...ttsModel("base--ref"),
+      name: "Base（見本あり）",
+      conditioning: { mode: "human-reference", base_model: "base" },
+    },
+    {
+      ...ttsModel("base--text"),
+      name: "Base（見本なし）",
+      conditioning: { mode: "text-only", base_model: "base" },
+    },
+  ];
+  const outcomes: ArtifactOutcome[] = base.scenarios.flatMap((fixtureScenario) =>
+    fixtureScenario.lines.flatMap((fixtureLine) =>
+      models.map((fixtureModel): ArtifactOutcome => {
+        const item = candidate(fixtureModel.id, fixtureScenario.id, fixtureLine.id);
+        return {
+          kind: "selected",
+          group: {
+            model: item.model,
+            scenario: item.scenario,
+            line: item.line,
+            variant: item.variant,
+          },
+          candidate: item,
+        };
+      }),
+    ),
+  );
+  return { ...base, release: { ...base.release, models }, outcomes };
+}
+
 function fixture(): BenchmarkData {
   const vendor = character("vendor", "machine", "female", "adult");
   const guard = character("guard", "human", "male", "middle_aged");

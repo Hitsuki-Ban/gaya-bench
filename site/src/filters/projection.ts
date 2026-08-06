@@ -3,6 +3,7 @@ import type { Model } from "../data/types";
 import {
   AGE_ORDER,
   CHARACTER_KIND_ORDER,
+  CONDITIONING_MODE_ORDER,
   DIFFICULTY_ORDER,
   EMOTION_ORDER,
   GENDER_ORDER,
@@ -29,7 +30,9 @@ export function projectComparisonModel(
   const matchingRows = model.rows.flatMap((row, rowIndex) =>
     rowMatches(row, state) ? [{ row, rowIndex }] : [],
   );
-  const selectedModels = model.models.filter(({ id }) => state.model.has(id));
+  const selectedModels = model.models.filter(
+    (item) => state.model.has(item.id) && conditioningMatches(item, state),
+  );
   const models = state.showEmpty
     ? selectedModels
     : selectedModels.filter(({ id }) =>
@@ -54,6 +57,14 @@ export function projectComparisonModel(
   };
 }
 
+/**
+ * 条件フィルタは **条件バリアント列だけ** を絞り込む。
+ * `conditioning` を持たない単方式モデル (プリセット/クローン) は常に表示する。
+ */
+function conditioningMatches(item: Model, state: FilterState): boolean {
+  return item.conditioning === undefined || state.conditioning.has(item.conditioning.mode);
+}
+
 function rowMatches(row: ComparisonRow, state: FilterState): boolean {
   return (
     (state.scenario === null || row.scenario.id === state.scenario) &&
@@ -71,6 +82,7 @@ function assertProjectionState(model: ComparisonModel, state: FilterState): void
   assertSelectedValues("age", state.age, AGE_ORDER);
   assertSelectedValues("emotion", state.emotion, EMOTION_ORDER);
   assertSelectedValues("difficulty", state.difficulty, DIFFICULTY_ORDER);
+  assertSelectedValues("conditioning", state.conditioning, CONDITIONING_MODE_ORDER);
   assertSelectedValues(
     "model",
     state.model,
@@ -108,7 +120,9 @@ function createProjectionKey(model: ComparisonModel, state: FilterState): string
     AGE_ORDER.filter((value) => state.age.has(value)),
     EMOTION_ORDER.filter((value) => state.emotion.has(value)),
     DIFFICULTY_ORDER.filter((value) => state.difficulty.has(value)),
-    model.models.filter(({ id }) => state.model.has(id)).map(({ id }) => id),
+    model.models
+      .filter((item) => state.model.has(item.id) && conditioningMatches(item, state))
+      .map(({ id }) => id),
     state.showEmpty,
   ]);
 }

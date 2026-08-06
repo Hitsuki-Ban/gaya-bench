@@ -2,9 +2,12 @@ import { memo, useRef } from "react";
 import { Link } from "react-router";
 
 import { CharacterKindBadge } from "@/components/character-kind-badge";
+import { ConditioningBadge } from "@/components/conditioning-badge";
 import { ModelMethodBadge } from "@/components/model-method-badge";
 import { ReferenceConditioningBadge } from "@/components/reference-conditioning-badge";
 import { Badge } from "@/components/ui/badge";
+import { groupModelColumns } from "@/data/conditioning";
+import type { Model } from "@/data/types";
 import type { ComparisonProjection } from "@/filters";
 import { DIFFICULTY_LABELS, EMOTION_LABELS } from "@/ui-labels";
 
@@ -23,6 +26,7 @@ interface DesktopMatrixProps {
 export function DesktopMatrix({ controller, model, projection, search }: DesktopMatrixProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const visibleModels = projection.models;
+  const columnGroups = groupModelColumns(visibleModels);
   const playingCoordinate =
     controller.player.currentClipKey === null
       ? undefined
@@ -36,55 +40,86 @@ export function DesktopMatrix({ controller, model, projection, search }: Desktop
         aria-colcount={visibleModels.length + 1}
         aria-describedby="matrix-keyboard-help"
         aria-label="TTS モデル比較マトリクス"
-        aria-rowcount={projection.rows.length + 1}
+        aria-rowcount={projection.rows.length + 2}
         className="w-full min-w-max table-fixed border-separate border-spacing-0"
         role="grid"
         style={{ minWidth: `${300 + visibleModels.length * 132}px` }}
       >
+        <colgroup>
+          <col style={{ width: "300px" }} />
+          {visibleModels.map((item) => (
+            <col key={item.id} style={{ width: "132px" }} />
+          ))}
+        </colgroup>
         <thead className="sticky top-0 z-20 bg-background/98 backdrop-blur">
           <tr role="row">
             <th
-              className="sticky left-0 z-30 w-[300px] border-r border-b bg-background px-3 py-2.5 text-left"
+              className="sticky left-0 z-30 w-[300px] border-r border-b bg-background px-3 py-2.5 text-left align-top"
               role="columnheader"
+              rowSpan={2}
             >
               <span className="font-mono text-[10px] tracking-[0.16em] text-muted-foreground uppercase">
                 キャラクター / セリフ
               </span>
             </th>
+            {columnGroups.map((group) => {
+              const isCurrent = group.models.some(({ id }) => playingCoordinate?.modelId === id);
+              const single = group.models.length === 1 ? group.models[0]! : null;
+              return (
+                <th
+                  className={[
+                    "border-r bg-background px-2 pt-2 pb-1 text-left align-bottom last:border-r-0",
+                    group.baseModel === null ? "" : "border-l border-l-primary/35",
+                    isCurrent ? "bg-primary/12" : "",
+                  ].join(" ")}
+                  colSpan={group.models.length}
+                  data-model-group={group.key}
+                  key={group.key}
+                  role="columnheader"
+                  scope={group.models.length > 1 ? "colgroup" : "col"}
+                  title={group.label}
+                >
+                  {single && single.conditioning === undefined ? (
+                    <Link
+                      className="block font-mono text-xs leading-4 font-semibold [overflow-wrap:anywhere] hover:text-primary"
+                      to={{ pathname: `/models/${single.id}`, search }}
+                    >
+                      {group.label}
+                    </Link>
+                  ) : (
+                    <span className="block font-mono text-xs leading-4 font-semibold [overflow-wrap:anywhere]">
+                      {group.label}
+                    </span>
+                  )}
+                  <div className="mt-1.5 min-w-0">
+                    <ModelMethodBadge capabilities={group.models[0]!.capabilities} compact />
+                  </div>
+                </th>
+              );
+            })}
+          </tr>
+          <tr role="row">
             {visibleModels.map((item) => (
               <th
                 className={[
-                  "w-[132px] border-r border-b bg-background px-2 py-2 text-left last:border-r-0",
+                  "w-[132px] border-r border-b bg-background px-2 pb-2 text-left align-top last:border-r-0",
                   playingCoordinate?.modelId === item.id ? "bg-primary/12" : "",
                 ].join(" ")}
                 data-model-column-current={playingCoordinate?.modelId === item.id}
                 key={item.id}
                 role="columnheader"
+                scope="col"
               >
-                <Link
-                  className="block truncate font-mono text-xs font-semibold hover:text-primary"
-                  to={{ pathname: `/models/${item.id}`, search }}
-                >
-                  {item.name}
-                </Link>
-                <div className="mt-1.5 min-w-0">
-                  <ModelMethodBadge capabilities={item.capabilities} compact />
-                </div>
-                <div className="mt-1.5 flex flex-wrap gap-1">
-                  <CapabilityBadge active={item.capabilities.emotion} label="E" title="感情" />
-                  <CapabilityBadge
-                    active={item.capabilities.voice_prompt}
-                    label="P"
-                    title="声質プロンプト"
-                  />
-                  <CapabilityBadge active={item.capabilities.clone} label="C" title="クローン" />
-                  <CapabilityBadge
-                    active={item.capabilities.nonverbal}
-                    label="N"
-                    title="非言語音"
-                  />
-                  <CapabilityBadge active={item.capabilities.reading} label="R" title="読み指定" />
-                </div>
+                {item.conditioning ? (
+                  <Link
+                    aria-label={`${item.name} の詳細`}
+                    className="mb-1.5 block min-w-0 rounded hover:opacity-85 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+                    to={{ pathname: `/models/${item.id}`, search }}
+                  >
+                    <ConditioningBadge conditioning={item.conditioning} />
+                  </Link>
+                ) : null}
+                <CapabilityBadges model={item} />
               </th>
             ))}
           </tr>
@@ -172,7 +207,7 @@ const MatrixRow = memo(function MatrixRow({
 
   return (
     <tr
-      aria-rowindex={displayRowIndex + 2}
+      aria-rowindex={displayRowIndex + 3}
       className={["group/row", isActiveRow ? "bg-primary/[0.065]" : ""].join(" ")}
       data-active={isActiveRow}
       data-matrix-row=""
@@ -256,6 +291,18 @@ const MatrixRow = memo(function MatrixRow({
     </tr>
   );
 });
+
+function CapabilityBadges({ model }: { model: Model }) {
+  return (
+    <div className="flex flex-wrap gap-1">
+      <CapabilityBadge active={model.capabilities.emotion} label="E" title="感情" />
+      <CapabilityBadge active={model.capabilities.voice_prompt} label="P" title="声質プロンプト" />
+      <CapabilityBadge active={model.capabilities.clone} label="C" title="クローン" />
+      <CapabilityBadge active={model.capabilities.nonverbal} label="N" title="非言語音" />
+      <CapabilityBadge active={model.capabilities.reading} label="R" title="読み指定" />
+    </div>
+  );
+}
 
 function CapabilityBadge({
   active,

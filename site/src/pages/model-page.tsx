@@ -2,12 +2,13 @@ import { Check, Gauge, Minus } from "lucide-react";
 import { Link, useLocation, useParams } from "react-router";
 
 import { ClipButton } from "@/components/clip-button";
+import { ModelConditioningCard } from "@/components/model-conditioning-card";
 import { ModelMethodBadge } from "@/components/model-method-badge";
 import { PageIntro } from "@/components/page-intro";
 import { ReferenceConditioningBadge } from "@/components/reference-conditioning-badge";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { benchmarkData, generationProfilesByModel, modelById } from "@/data";
+import { benchmarkData, generationProfilesByModel, modelById, playableModels } from "@/data";
 import {
   buildModelCandidateEntries,
   buildModelOutcomeEntries,
@@ -61,6 +62,8 @@ export function ModelPage() {
         eyebrow="モデル"
         title={model.name}
       />
+
+      <ModelConditioningCard model={model} models={playableModels} search={search} />
 
       <div className="grid gap-4 lg:grid-cols-[1.15fr_0.85fr]">
         <Card>

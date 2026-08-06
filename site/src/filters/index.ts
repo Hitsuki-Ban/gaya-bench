@@ -2,6 +2,7 @@ export { decodeFilterQuery, encodeFilterState } from "./codec";
 export {
   AGE_ORDER,
   CHARACTER_KIND_ORDER,
+  CONDITIONING_MODE_ORDER,
   createDefaultFilterState,
   DIFFICULTY_ORDER,
   EMOTION_ORDER,
