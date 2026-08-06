@@ -478,9 +478,22 @@ def _replacement_candidate_set(
         candidates.extend(group_candidates)
         models[run.model] = dict(run.manifest["models"][0])
     candidates.sort(key=lambda item: (_group_key(item), int(item["take_index"])))
+    # candidate set の lines は candidate の scenario/line 集合と exact 一致が
+    # 契約 (`curation.validate_candidate_set`)。決定対象が plan target の
+    # 部分集合になりうる条件バリアント列 (#201) のため、authority ではなく
+    # 実際に含まれる candidate から lines を導く。#174/#194 の経路では
+    # 決定対象が plan target 全体なので結果は従来と同一 bytes になる。
+    decided_lines = {
+        (str(candidate["scenario"]), str(candidate["line"]))
+        for candidate in candidates
+    }
     return build_candidate_set(
         scenario_sha256=scenario_authority.scenario_sha256,
-        lines=list(scenario_authority.lines),
+        lines=[
+            dict(line)
+            for line in scenario_authority.lines
+            if (str(line["scenario"]), str(line["line"])) in decided_lines
+        ],
         models=[models[model] for model in sorted(models)],
         candidates=candidates,
         failures=[],

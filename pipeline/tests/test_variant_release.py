@@ -101,6 +101,301 @@ def _base_stub(base_release: Path) -> _BaseStub:
     )
 
 
+@dataclass(frozen=True)
+class _RunStub:
+    model: str
+    manifest: dict[str, Any]
+
+
+@dataclass(frozen=True)
+class _ResolutionStub:
+    group_sources: dict[tuple[str, str, str, str], _RunStub]
+    runs: tuple[_RunStub, ...]
+
+
+def _decided_resolution(plan: Any) -> tuple[_ResolutionStub, list[dict[str, Any]]]:
+    """列の生成partitionだけを含む run resolution を組む。"""
+
+    from test_variant_plan import _candidate  # type: ignore[import-not-found]
+
+    entry = variant_model_entry(
+        {**BASE_ENTRY, "id": plan.base_model, "name": plan.base_model},
+        plan.conditioning_mode,
+    )
+    realized = _realized_for(plan.base_model, plan.conditioning_mode)
+    candidates = [
+        _candidate(
+            model=plan.model,
+            scenario=target.scenario,
+            line=target.line,
+            take_index=index,
+            realized=realized,
+        )
+        for target in plan.targets
+        for index in (1, 2, 3)
+    ]
+    run = _RunStub(
+        model=plan.model,
+        manifest={"models": [entry], "candidates": candidates},
+    )
+    return (
+        _ResolutionStub(
+            group_sources={
+                (plan.model, target.scenario, target.line, VARIANT): run
+                for target in plan.targets
+            },
+            runs=(run,),
+        ),
+        candidates,
+    )
+
+
+@pytest.mark.parametrize(
+    ("mode", "decided", "inherited"),
+    [
+        (MODE_TEXT_ONLY, EXPLICIT_ROLE_LINES, ANCHOR_ROLE_LINES),
+        (MODE_HUMAN_REFERENCE, ANCHOR_ROLE_LINES, EXPLICIT_ROLE_LINES),
+    ],
+)
+def test_column_candidate_set_covers_only_the_generate_partition(
+    tmp_path: Path,
+    mode: str,
+    decided: int,
+    inherited: int,
+) -> None:
+    """161行のplanでも決定対象は生成partitionだけ (#201 GPU run 回帰)。
+
+    `curation.validate_candidate_set` は lines と candidate 行集合の exact
+    一致を要求するので、authority の161行をそのまま渡すと落ちる。
+    """
+
+    from gaya_pipeline.completion_auto import _replacement_candidate_set
+    from gaya_pipeline.curation import validate_candidate_set
+    from gaya_pipeline.variant_release import _scenario_authority
+
+    base_release = _base_release(tmp_path)
+    plan = _plan(tmp_path, mode, base_release)
+    assert len(plan.targets) == decided
+    assert len(plan.inherit) == inherited
+    assert len(plan.targets) + len(plan.inherit) == COLUMN_GROUPS
+
+    authority = _scenario_authority(
+        plan,
+        scenarios_dir=SCENARIOS_DIR,
+        voices_dir=VOICES_DIR,
+    )
+    # authority 自体は列の161行すべてを覆う (release側で必要)。
+    assert len(authority.lines) == COLUMN_GROUPS
+
+    resolution, _candidates = _decided_resolution(plan)
+    candidate_set = _replacement_candidate_set(
+        plan=plan,
+        resolution=resolution,  # type: ignore[arg-type]
+        scenario_authority=authority,
+    )
+    assert validate_candidate_set(candidate_set) == candidate_set
+    assert len(candidate_set["lines"]) == decided
+    assert {
+        (line["scenario"], line["line"]) for line in candidate_set["lines"]
+    } == {(target.scenario, target.line) for target in plan.targets}
+    # 継承行は candidate を要求されない。
+    inherited_identities = {group.identity for group in plan.inherit}
+    assert not inherited_identities & {
+        (line["scenario"], line["line"]) for line in candidate_set["lines"]
+    }
+
+
+def test_column_candidate_set_rejects_a_missing_generate_line(
+    tmp_path: Path,
+) -> None:
+    """生成対象なのに candidate が無い行は素通りさせない。"""
+
+    from gaya_pipeline.completion_auto import (
+        CompletionAutoDecisionError,
+        _replacement_candidate_set,
+    )
+    from gaya_pipeline.variant_release import _scenario_authority
+
+    base_release = _base_release(tmp_path)
+    plan = _plan(tmp_path, MODE_TEXT_ONLY, base_release)
+    authority = _scenario_authority(
+        plan,
+        scenarios_dir=SCENARIOS_DIR,
+        voices_dir=VOICES_DIR,
+    )
+    resolution, candidates = _decided_resolution(plan)
+    dropped = plan.targets[0]
+    thinned = [
+        candidate
+        for candidate in candidates
+        if (candidate["scenario"], candidate["line"])
+        != (dropped.scenario, dropped.line)
+    ]
+    run = _RunStub(
+        model=plan.model,
+        manifest={
+            "models": resolution.runs[0].manifest["models"],
+            "candidates": thinned,
+        },
+    )
+    starved = _ResolutionStub(
+        group_sources={
+            identity: run for identity in resolution.group_sources
+        },
+        runs=(run,),
+    )
+    with pytest.raises(CompletionAutoDecisionError, match="mechanical-pass"):
+        _replacement_candidate_set(
+            plan=plan,
+            resolution=starved,  # type: ignore[arg-type]
+            scenario_authority=authority,
+        )
+
+
+@pytest.mark.parametrize(
+    ("mode", "decided"),
+    [
+        (MODE_TEXT_ONLY, EXPLICIT_ROLE_LINES),
+        (MODE_HUMAN_REFERENCE, ANCHOR_ROLE_LINES),
+    ],
+)
+def test_variant_auto_decide_scopes_expectations_to_generate_targets(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    mode: str,
+    decided: int,
+) -> None:
+    """auto-decide の期待値が161ではなく生成partition件数になる。"""
+
+    from gaya_pipeline import completion_auto
+    from gaya_pipeline.variant_auto import create_variant_auto_decision
+
+    plan = _plan(tmp_path, mode, _base_release(tmp_path))
+    seen: dict[str, Any] = {}
+
+    def _capture(**kwargs: Any) -> str:
+        seen.update(kwargs)
+        return "summary"
+
+    monkeypatch.setattr(
+        completion_auto,
+        "create_completion_auto_decision",
+        _capture,
+    )
+    create_variant_auto_decision(
+        plan=plan,
+        primary_run_ids=["run-1"],
+        topup_run_ids=[],
+        anchor_selection_path=(
+            tmp_path / "anchor.json" if plan.requires_anchor_authority() else None
+        ),
+        fallback_anchor_path=tmp_path / "plan.json",
+        artifacts_dir=tmp_path / "artifacts",
+        scenarios_dir=SCENARIOS_DIR,
+        voices_dir=VOICES_DIR,
+        pasqa_project_dir=tmp_path / "pasqa",
+        pasqa_model_dir=tmp_path / "pasqa-model",
+        output_dir=tmp_path / "out",
+    )
+    assert seen["expected_group_count"] == decided
+    assert seen["expected_candidate_count"] is None
+    assert seen["minimum_candidate_count"] == decided * 3
+    assert seen["primary_models"] == frozenset({plan.model})
+    assert seen["require_production"] is False
+
+
+def test_finalize_joins_inherited_and_decided_to_161(tmp_path: Path) -> None:
+    """継承partitionと決定partitionが重複なく161行を覆う。"""
+
+    base_release = _base_release(tmp_path)
+    for mode in (MODE_TEXT_ONLY, MODE_HUMAN_REFERENCE):
+        plan = _plan(tmp_path, mode, base_release)
+        base = _base_stub(base_release)
+        _candidates, selection_groups, _signals = _inherited_projection(
+            plan=plan,
+            base=base,  # type: ignore[arg-type]
+        )
+        inherited = {
+            (group["scenario"], group["line"]) for group in selection_groups
+        }
+        decided = {(target.scenario, target.line) for target in plan.targets}
+        assert not inherited & decided
+        assert len(inherited | decided) == COLUMN_GROUPS
+        assert len(inherited) == len(plan.inherit)
+        assert len(decided) == len(plan.targets)
+
+
+def test_quality_signals_may_cover_only_a_subset_of_selected_groups() -> None:
+    """継承行にsignalが無くてもよいが、selected外のsignalは許さない。
+
+    site 側 (`gaya-data-plugin.projectOutcomes`) も同じ向きの契約で、
+    signal が無い clip は `role_quality: null` として静かに描画される。
+    逆に selected でない group の signal は build を落とす。
+    """
+
+    from gaya_pipeline.variant_release import _validate_manifest_joins
+
+    def _group(model: str, line: str) -> dict[str, Any]:
+        return {
+            "model": model,
+            "scenario": "s",
+            "line": line,
+            "variant": VARIANT,
+        }
+
+    selection = {
+        "groups": [
+            {**_group("m", f"line-{index:04d}"), "decision": {"take_id": f"t{index}"}}
+            for index in range(3)
+        ],
+    }
+    candidates = [
+        {**_group("m", f"line-{index:04d}"), "take_id": f"t{index}"}
+        for index in range(3)
+    ]
+    manifest = {
+        "models": [],
+        "candidates": candidates,
+        "failures": [],
+        "curations": [
+            {
+                **_group("m", f"line-{index:04d}"),
+                "decision": "selected",
+                "take_id": f"t{index}",
+            }
+            for index in range(3)
+        ],
+    }
+    candidate_set = {
+        "models": [],
+        "candidates": candidates,
+        "failures": [],
+    }
+
+    # 3 selected に対して signal は1件だけ → 受理される。
+    _validate_manifest_joins(
+        manifest=manifest,
+        candidate_set=candidate_set,
+        selection=selection,
+        quality_signals={"groups": [_group("m", "line-0000")]},
+    )
+    # signal が0件でも受理される (全行が継承のケース)。
+    _validate_manifest_joins(
+        manifest=manifest,
+        candidate_set=candidate_set,
+        selection=selection,
+        quality_signals={"groups": []},
+    )
+    # selected に無い group の signal は拒否する。
+    with pytest.raises(VariantReleaseError, match="quality signal"):
+        _validate_manifest_joins(
+            manifest=manifest,
+            candidate_set=candidate_set,
+            selection=selection,
+            quality_signals={"groups": [_group("m", "line-9999")]},
+        )
+
+
 def test_rekey_candidate_preserves_take_identity() -> None:
     candidate = {
         "model": BASE_MODEL,

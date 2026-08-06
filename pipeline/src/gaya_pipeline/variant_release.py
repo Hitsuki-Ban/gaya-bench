@@ -571,10 +571,12 @@ def _resolve_column(
         expected_group_count=len(plan.targets),
     )
     generated_candidates = _generated_candidates(plan, resolution)
+    # auto-decide が束縛した candidate set と同じ導出をする。決定対象は
+    # 列の生成partitionだけなので lines もその部分集合になる (#201)。
     column_candidate_set = _build_candidate_set(
         candidates=generated_candidates,
         models=[run.manifest["models"][0] for run in resolution.runs],
-        scenario_authority=scenario_authority,
+        scenario_authority=_narrow_authority(scenario_authority, generated_candidates),
     )
     column_candidate_set_sha256 = hashlib.sha256(
         canonical_candidate_set_bytes(column_candidate_set),
@@ -784,6 +786,41 @@ def _null_anchor_loader(
     _plan: Any,
 ) -> tuple[str, Mapping[tuple[str, str, str], str]]:
     return _NO_ANCHOR_SENTINEL, {}
+
+
+def _narrow_authority(
+    authority: CompletionScenarioAuthority,
+    candidates: Sequence[Mapping[str, Any]],
+) -> CompletionScenarioAuthority:
+    """candidate の scenario/line 集合へ authority の lines を絞る。
+
+    `curation.validate_candidate_set` は lines と candidate の行集合の
+    exact 一致を要求する。列の candidate set は生成partitionだけを含むので、
+    161行の authority をそのまま渡すと被覆契約に落ちる。
+    """
+
+    identities = {
+        (str(candidate["scenario"]), str(candidate["line"]))
+        for candidate in candidates
+    }
+    return CompletionScenarioAuthority(
+        scenario_sha256=authority.scenario_sha256,
+        lines=tuple(
+            dict(line)
+            for line in authority.lines
+            if (str(line["scenario"]), str(line["line"])) in identities
+        ),
+        contexts={
+            identity: context
+            for identity, context in authority.contexts.items()
+            if identity in identities
+        },
+        line_characters={
+            identity: character
+            for identity, character in authority.line_characters.items()
+            if identity in identities
+        },
+    )
 
 
 def _scenario_authority(
