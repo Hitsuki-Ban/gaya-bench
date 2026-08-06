@@ -54,6 +54,12 @@ ATTENTION_BACKEND = "sdpa"
 LANGUAGE = "Japanese"
 SEED = 0
 REFERENCE_TEXT = "さて、きょうもいちにちをはじめましょう。"
+# increment / conditioning variant の anchor bootstrap は adapter module が公開する
+# `ROLE_ANCHOR_TEXT` を役別anchorの発話文として読む (Irodori v4 も v3 の同名定数を
+# そのまま再公開している)。Qwen の anchor 文は VoiceDesign reference と同一なので、
+# 文字列を複製せず別名で公開する。#174 の凍結 anchor source plan
+# (`phase_a.anchor_texts`) と `completion_anchor._anchor_texts()` も同じ定数を指す。
+ROLE_ANCHOR_TEXT = REFERENCE_TEXT
 _GENDER_LABELS = {
     "female": "女性",
     "male": "男性",

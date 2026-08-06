@@ -1816,6 +1816,14 @@ def _generation_input(
         raise IncrementAnchorError(
             "anchor conditioningにemotion/intensityを含められません。",
         )
+    # planが宣言したanchor文と、adapterが実際に読み上げる文の一致を強制する。
+    # 両者がずれると合成後の58役 authority が別regimeのanchorを混ぜてしまう。
+    realized_text = conditioning.get("text")
+    if realized_text is not None and realized_text != anchor_text:
+        raise IncrementAnchorError(
+            "adapterのanchor発話文がplanのanchor_textと一致しません: "
+            f"{target['model']}: plan={anchor_text!r}, adapter={realized_text!r}",
+        )
     return {
         "protocol": INPUT_PROTOCOL,
         "plan_sha256": plan_sha256,

@@ -363,6 +363,41 @@ def _select(
     )
 
 
+def test_adapterのanchor発話文がplanと違えば生成を拒否する(tmp_path: Path) -> None:
+    """plan の anchor_text と adapter の実発話文の乖離を fail fast する。
+
+    ここがずれると合成後の58役 authority が別regimeのanchorを混ぜてしまう。
+    """
+
+    _path, document = _write_plan(tmp_path)
+    artifacts = tmp_path / "artifacts"
+    artifacts.mkdir()
+
+    class _DriftingGenerator(_FakeGenerator):
+        def role_anchor_generation_input(
+            self,
+            role: Any,
+            *,
+            role_scope: str = ROLE_SCOPE_NO_REFERENCE,
+        ) -> Mapping[str, Any]:
+            document = dict(
+                super().role_anchor_generation_input(role, role_scope=role_scope),
+            )
+            document["text"] = "ちがうぶんしょうです。"
+            return document
+
+    with pytest.raises(IncrementAnchorError, match="anchor発話文"):
+        run_anchor_bootstrap_generation(
+            plan_document=document,
+            plan_sha256=document["plan_sha256"],
+            round_index=0,
+            identities=None,
+            artifacts_dir=artifacts,
+            run_id="test-drifting-text",
+            generator=_DriftingGenerator(),
+        )
+
+
 def test_explicit_reference_scopeのgenerate_selectが5_roleで通る(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

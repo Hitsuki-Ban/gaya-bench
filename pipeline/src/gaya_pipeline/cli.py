@@ -2662,7 +2662,9 @@ def _increment_anchor_text(model_id: str) -> str:
     anchor_text = getattr(module, "ROLE_ANCHOR_TEXT", None)
     if not isinstance(anchor_text, str) or not anchor_text:
         raise IncrementAnchorError(
-            f"adapterがROLE_ANCHOR_TEXTを公開していません: {model_id}",
+            "adapter moduleが役別anchorの発話文 ROLE_ANCHOR_TEXT を公開していません: "
+            f"{model_id} ({module.__name__})。anchor型modelはこの定数を"
+            "公開する必要があります (既存の発話文があるならその別名にすること)。",
         )
     return anchor_text
 

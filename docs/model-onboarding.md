@@ -72,6 +72,10 @@ manifest v4 の `models[]` に optional field
 - **VoxCPM2 の `--text` は anchor 不要**。adapter 内蔵の voice design (自己参照) が
   text-only 経路そのものなので、anchor plan/run/selection を作らない
   (`requires_anchor_authority("voxcpm2--text") == False`)
+- anchor bootstrap は adapter module の **`ROLE_ANCHOR_TEXT`** を役別anchorの発話文
+  として読む。既存の発話文がある場合は文字列を複製せず別名で公開すること
+  (Irodori v4 は v3 の定数、Qwen3 は `REFERENCE_TEXT` の別名)。plan の
+  `anchor_text` と adapter の実発話文が違えば生成時に fail fast する
 - `role_scope` は plan → `run_anchor_bootstrap_generation` → adapter の
   `role_anchor_generation_input` / `generate_role_anchor` まで引数で流れる。
   adapter 側の「明示reference役は anchor 対象外」guard はこの scope でのみ緩む
