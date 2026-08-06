@@ -6,6 +6,7 @@ from reportlab.lib import colors
 from reportlab.lib.styles import ParagraphStyle
 from reportlab.platypus import (
     SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, HRFlowable,
+    KeepTogether,
 )
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
@@ -14,115 +15,230 @@ pdfmetrics.registerFont(TTFont("JP", r"C:\Windows\Fonts\meiryo.ttc", subfontInde
 pdfmetrics.registerFont(TTFont("JPB", r"C:\Windows\Fonts\meiryob.ttc", subfontIndex=0))
 
 ACCENT = colors.HexColor("#b45309")
-INK = colors.HexColor("#1c1917")
-SUB = colors.HexColor("#57534e")
-LINE = colors.HexColor("#d6d3d1")
-BGHEAD = colors.HexColor("#fef3c7")
+INK = colors.HexColor("#292524")
+SUB = colors.HexColor("#78716c")
+LINE = colors.HexColor("#e7e5e4")
 
-body = ParagraphStyle("body", fontName="JP", fontSize=9.6, leading=14.6,
-                      textColor=INK, spaceAfter=3)
-small = ParagraphStyle("small", parent=body, fontSize=8.2, leading=11.6, textColor=SUB)
-h1 = ParagraphStyle("h1", fontName="JPB", fontSize=17, leading=21, textColor=INK,
-                    spaceAfter=2)
-h2 = ParagraphStyle("h2", fontName="JPB", fontSize=12, leading=16, textColor=ACCENT,
-                    spaceBefore=10, spaceAfter=4)
-cell = ParagraphStyle("cell", parent=body, fontSize=8.6, leading=11.8, spaceAfter=0)
+C_PRESET = colors.HexColor("#0369a1")   # 青系: プリセット
+C_CLONE = colors.HexColor("#15803d")    # 緑系: クローン
+C_PROMPT = colors.HexColor("#b45309")   # 琥珀系: テキスト指示
+BG_PRESET = colors.HexColor("#eff6ff")
+BG_CLONE = colors.HexColor("#f0fdf4")
+BG_PROMPT = colors.HexColor("#fffbeb")
+
+body = ParagraphStyle("body", fontName="JP", fontSize=9.8, leading=15,
+                      textColor=INK, spaceAfter=4)
+small = ParagraphStyle("small", parent=body, fontSize=8.2, leading=11.5, textColor=SUB)
+h1 = ParagraphStyle("h1", fontName="JPB", fontSize=18, leading=22, textColor=INK)
+h2 = ParagraphStyle("h2", fontName="JPB", fontSize=12.5, leading=17, textColor=INK,
+                    spaceBefore=13, spaceAfter=5)
+cell = ParagraphStyle("cell", parent=body, fontSize=8.8, leading=12.4, spaceAfter=0)
 cellb = ParagraphStyle("cellb", parent=cell, fontName="JPB")
-li = ParagraphStyle("li", parent=body, leftIndent=10, firstLineIndent=-10, spaceAfter=3.5)
+cardh = ParagraphStyle("cardh", fontName="JPB", fontSize=10.2, leading=13,
+                       textColor=colors.white)
+card = ParagraphStyle("card", parent=body, fontSize=8.6, leading=12.6, spaceAfter=0)
+li = ParagraphStyle("li", parent=body, leftIndent=10, firstLineIndent=-10,
+                    spaceAfter=3.5)
 
 def P(t, s=body):
     return Paragraph(t, s)
 
+def H2(t):
+    return Paragraph(f"<font color='#b45309'>▌</font>{t}", h2)
+
 def LI(t):
-    return Paragraph(f"<font color='#b45309'>■</font> {t}", li)
+    return Paragraph(f"<font color='#b45309'>・</font>{t}", li)
 
 doc = SimpleDocTemplate(
     "production-adoption-guide.pdf", pagesize=A4,
-    leftMargin=14*mm, rightMargin=14*mm, topMargin=12*mm, bottomMargin=11*mm,
+    leftMargin=15*mm, rightMargin=15*mm, topMargin=13*mm, bottomMargin=12*mm,
     title="ガヤボイスTTS 実戦投入ガイド", author="gaya-bench (Director: Claude)",
 )
 
 story = []
 story.append(P("ガヤボイスTTS 実戦投入ガイド", h1))
-story.append(P("9モデル・1,449音声の実測ベンチ (gaya-bench) から要点だけをまとめた資料 — 2026-08 / 聴き比べ: <b>gaya-bench.pages.dev</b>", small))
-story.append(HRFlowable(width="100%", thickness=1.2, color=ACCENT, spaceAfter=5))
+story.append(P("9モデル × 161セリフの実測ベンチから要点だけ ｜ 2026-08 ｜ 聴き比べ: <b>gaya-bench.pages.dev</b>", small))
+story.append(HRFlowable(width="100%", thickness=1.4, color=ACCENT, spaceBefore=3, spaceAfter=2))
 
-story.append(P("1. 声の作り方は3方式 — まずここだけ押さえる", h2))
-story.append(LI("<b>プリセット話者型</b>: 用意された声から選ぶ。安定・高速だが、声の種類はモデル任せで増やせない。"))
-story.append(LI("<b>参照音声クローン型</b>: 数秒〜十数秒の見本音声から声質を写し取る。<b>見本の品質と権利がすべて</b>。"))
-story.append(LI("<b>テキスト指示型</b>: 「低く落ち着いた中年男性の声」のような文章から声を生成。見本音声が不要な代わりに、指示への従い方にモデルごとの癖がある。"))
+# ---- 1. 3方式カード -------------------------------------------------------
+story.append(H2("1. 声の作り方は3方式 — 「何を入力するか」が違う"))
 
-story.append(P("2. モデル別の特性早見表 (2026-08時点の実測所感)", h2))
+def method_card(title, color, bg, lines):
+    inner = [[P(title, cardh)]] + [[P(t, card)] for t in lines]
+    tt = Table(inner, colWidths=[57*mm])
+    tt.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (0, 0), color),
+        ("BACKGROUND", (0, 1), (0, -1), bg),
+        ("BOX", (0, 0), (-1, -1), 0.8, color),
+        ("TOPPADDING", (0, 0), (-1, -1), 3.5),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 3.5),
+        ("LEFTPADDING", (0, 0), (-1, -1), 5),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 5),
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+    ]))
+    return tt
 
-def rows(data):
-    return [[P(a, cellb), P(b, cell), P(c, cell), P(d, cell)] for a, b, c, d in data]
-
-table_data = [[P("モデル", cellb), P("方式", cellb), P("強み", cellb), P("弱み・注意", cellb)]] + rows([
-    ("AivisSpeech コハク", "プリセット",
-     "日本語アクセントが最安定。読み(アクセント)を直接指定できる唯一のモデル。軽量",
-     "1話者+スタイル数種のみ。多数の役の書き分けは不可"),
-    ("Supertonic 3", "プリセット",
-     "圧倒的に高速 (量産・リアルタイム向き)",
-     "日本語が早口になる癖 (モデル側の性質でパラメータでは直しにくい)。表現の幅は狭い"),
-    ("Chatterbox Multi. V3", "クローン",
-     "感情の誇張度を数値で制御でき、起伏は大きい",
-     "日本語で声質崩壊・棒読み化・誤読が出やすい (要選抜前提)"),
-    ("CosyVoice 3", "クローン",
-     "指示文と読み指定を併用可能。平均点が安定",
-     "同一条件でも毎回結果が変わる (非決定)。数打ち選抜が必須"),
-    ("GPT-SoVITS v2ProPlus", "クローン",
-     "<b>数分の音声で追加学習できる</b> — 自社収録と組む正式起用の本命候補",
-     "参照クリップの切り出し方 (長さ・無音・ノイズ) に敏感"),
-    ("Irodori-TTS v3", "テキスト指示",
-     "日本語特化。声質の文章指定がよく効く",
-     "演技過剰・母音が伸びる傾向。<b>指示文が長いと男性役が女性声化</b>する実測あり"),
-    ("Irodori-TTS v4", "指示+クローン",
-     "v3の男性声問題が改善 (53役全て機械検査合格)。参照音声は計120秒まで連結可",
-     "公開直後 (2026年)。単発の短い見本でのクローンはv3比でやや弱い"),
-    ("Qwen3-TTS", "テキスト指示",
-     "感情・話し方の指示語彙が豊富。多言語",
-     "話者の同一性が揺れやすい。<b>役ごとに「アンカー音声」を固定する運用が必須</b>"),
-    ("VoxCPM2", "テキスト指示",
-     "人外 (精霊・ゴブリン・機械) の声設計が得意",
-     "取れ高の音質ばらつきが大きい。非決定"),
-])
-
-t = Table(table_data, colWidths=[32*mm, 21*mm, 62*mm, 67*mm], repeatRows=1)
-t.setStyle(TableStyle([
-    ("BACKGROUND", (0, 0), (-1, 0), BGHEAD),
-    ("GRID", (0, 0), (-1, -1), 0.4, LINE),
+cards = Table([[
+    method_card("プリセット話者型", C_PRESET, BG_PRESET, [
+        "<b>入力</b>: セリフ ＋ 声とスタイルの選択",
+        "<font color='#0369a1'>例: 「コハク」×「ささやき」で<br/>『いらっしゃいませ』</font>",
+        "声はモデル付属のものから選ぶだけ。<b>安定・高速</b>だが声の種類は増やせない",
+    ]),
+    method_card("参照音声クローン型", C_CLONE, BG_CLONE, [
+        "<b>入力</b>: セリフ ＋ 見本音声 (5〜10秒)",
+        "<font color='#15803d'>例: 女性声優の収録WAVを渡すと<br/>その声質で『いらっしゃいませ』</font>",
+        "見本の声・演技を写し取る。<b>見本の品質と権利がすべて</b>",
+    ]),
+    method_card("テキスト指示型", C_PROMPT, BG_PROMPT, [
+        "<b>入力</b>: セリフ ＋ 声の説明文",
+        "<font color='#b45309'>例: 「低く落ち着いた中年男性の声」<br/>と書く → その声で話してくれる</font>",
+        "見本音声いらずで自由度最大。ただし<b>指示への従い方に癖</b>がある",
+    ]),
+]], colWidths=[60*mm, 60*mm, 60*mm])
+cards.setStyle(TableStyle([
     ("VALIGN", (0, 0), (-1, -1), "TOP"),
-    ("TOPPADDING", (0, 0), (-1, -1), 3),
-    ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+    ("LEFTPADDING", (0, 0), (-1, -1), 0),
+    ("RIGHTPADDING", (0, 0), (-1, -1), 3),
+]))
+story.append(cards)
+
+# ---- 2. モデル早見表 ------------------------------------------------------
+story.append(H2("2. モデル早見表 (実測所感)"))
+
+def chip(kind):
+    m = {"P": ("プリセット", "#0369a1"), "C": ("クローン", "#15803d"),
+         "T": ("テキスト指示", "#b45309"), "TC": ("指示＋見本", "#b45309")}
+    label, col = m[kind]
+    return P(f"<font color='{col}'><b>{label}</b></font>", cell)
+
+rows = [
+    ("AivisSpeech コハク", "P", "日本語アクセントが最も安定。読みを直接指定できる", "声は1話者＋数スタイルのみ"),
+    ("Supertonic 3", "P", "圧倒的に高速 (量産・リアルタイム向き)", "日本語が早口になる癖。表現の幅は狭い"),
+    ("Chatterbox V3", "C", "感情の誇張度を数値で制御できる", "日本語で声質崩壊・誤読が出やすい"),
+    ("CosyVoice 3", "C", "指示文と読み指定を併用でき、平均点が安定", "同一条件でも毎回変わる (数打ち前提)"),
+    ("GPT-SoVITS v2ProPlus", "C", "<b>数分の音声で追加学習可</b> — 自社収録と組む本命", "見本の切り出し品質に敏感"),
+    ("Irodori-TTS v3", "T", "日本語特化。声質の文章指定がよく効く", "演技過剰気味。長い指示で男性役が崩れる"),
+    ("Irodori-TTS v4", "TC", "v3の男性声問題が改善。見本は計120秒まで連結可", "公開直後 (2026年)。実績蓄積中"),
+    ("Qwen3-TTS", "T", "感情・話し方の指示語彙が豊富", "声の同一性が揺れる — 役ごとの固定アンカー必須"),
+    ("VoxCPM2", "T", "人外 (精霊・ゴブリン・機械) の声設計が得意", "取れ高の音質ばらつきが大きい"),
+]
+table_data = [[P("モデル", cellb), P("方式", cellb), P("強み", cellb), P("弱み・注意", cellb)]]
+for name, kind, good, bad in rows:
+    table_data.append([P(name, cellb), chip(kind), P(good, cell), P(bad, cell)])
+
+t = Table(table_data, colWidths=[34*mm, 24*mm, 62*mm, 60*mm], repeatRows=1)
+style = [
+    ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#f5f5f4")),
+    ("LINEBELOW", (0, 0), (-1, 0), 0.9, colors.HexColor("#a8a29e")),
+    ("VALIGN", (0, 0), (-1, -1), "TOP"),
+    ("TOPPADDING", (0, 0), (-1, -1), 3.4),
+    ("BOTTOMPADDING", (0, 0), (-1, -1), 3.4),
     ("LEFTPADDING", (0, 0), (-1, -1), 4),
     ("RIGHTPADDING", (0, 0), (-1, -1), 4),
-]))
+]
+for i in range(1, len(table_data)):
+    style.append(("LINEBELOW", (0, i), (-1, i), 0.4, LINE))
+    if i % 2 == 0:
+        style.append(("BACKGROUND", (0, i), (-1, i), colors.HexColor("#fafaf9")))
+t.setStyle(TableStyle(style))
 story.append(t)
-story.append(Spacer(1, 3))
-story.append(P("共通: 全モデル完全ローカル動作 (GPU 12GB 1枚で全て動作確認済み)・生成物が商用利用可能な条件で選定。個別のライセンス詳細はサイトのクレジットページ参照。", small))
+story.append(Spacer(1, 2))
+story.append(P("全モデル完全ローカル動作 (GPU 12GB 1枚で確認)・生成物商用可の条件で選定。ライセンス詳細はサイトのクレジット参照。", small))
 
-story.append(P("3. 生成パイプライン — 正式起用時もこの5段構成", h2))
-story.append(LI("<b>① 台本の構造化</b>: セリフごとに役柄情報 (性別・年齢・人間/人外・声質・感情・強度) をデータとして持たせる。ここが品質の土台。"))
-story.append(LI("<b>② 役の声を先に固定</b>: クローン型は参照音声を役に割当 (性別一致が最優先)。テキスト指示型は役ごとに「アンカー音声」を1つ生成・確定し、全セリフで同じものを使い回す。<b>感情ごとに参照を変えると別人の声になる</b> (実測で確認済みの失敗パターン)。"))
-story.append(LI("<b>③ 数打ち生成</b>: 1セリフにつき別シードで3〜4テイク。当たり率はモデルとセリフ難度で大きく変わるため、テイク数は固定せず「合格3本たまるまで追加」が効率的。"))
-story.append(LI("<b>④ 自動チェックで足切り</b>: 音量の統一 → 音声認識での読み合わせ (誤読・脱落の検出) → 声の高さによる性別検査。ここまでは機械で回る。"))
-story.append(LI("<b>⑤ 人手は最後だけ</b>: 機械通過分から演技の良し悪しを聴いて選ぶ。全量聴取は不要 — 疑義フラグが付いたものだけ聴く運用で十分回る (161セリフ×9モデルを実証済み)。"))
+# ---- 2b. 対応入力マトリクス ------------------------------------------------
+mid = ParagraphStyle("mid", parent=cell, alignment=1)
+midb = ParagraphStyle("midb", parent=cellb, alignment=1)
 
-story.append(P("4. チューニングのコツ (方式別)", h2))
-story.append(LI("<b>クローン型は参照音声が品質の9割</b>。5〜10秒・無音や雑音なし・目的の演技トーンに近い素材を使う。権利がクリーンな公開素材は少なく (現状5素材で58役を近似カバー、性別+年齢が完全一致する役は18のみ)、量産の本命は<b>声優と契約した自社収録</b>。収録指示書は各モデルの入力要件から機械的に作れる設計を整備済み。"))
-story.append(LI("<b>テキスト指示型の指示文は「短く・固定・必須情報のみ」</b>。形容を盛るほど指示に従わなくなる (男性声化けの根本原因だった)。声質の記述は役ごとに固定し、セリフごとに変えるのは感情・演技指示だけにする。"))
-story.append(LI("<b>誤読対策は最小限の読み仮名指定</b>。「辛(つら)い」のような曖昧語だけを指定する。<b>全文を仮名化するとアクセント情報が失われ、外国人風の平板な発音 (カタコト化) になる</b>。"))
-story.append(LI("<b>全テイクの生成条件 (シード・パラメータ・使った参照音声) を記録する</b>。後述の検収にも直結し、当たりテイクの再現・差し替えができる。"))
+def ox(v, color="#15803d"):
+    return P(f"<font color='{color}'><b>○</b></font>", mid) if v else P(
+        "<font color='#d6d3d1'>—</font>", mid)
 
-story.append(P("5. 注意事項 — これだけは外さない", h2))
-story.append(LI("<b>権利は「モデル」「生成物」「参照音声」の3層で別</b>。モデルが商用可でも、参照に使う音声素材の権利は別途必要。<b>他社TTSの出力を学習・参照素材に流用するのは規約違反になる場合がある</b> (利用規約を個別確認)。実在人物の声の無断模倣は全モデルの規約で禁止 — 架空キャラ用途に限定する。"))
-story.append(LI("<b>一部モデルは出力へ不可聴の電子透かしを自動埋込</b> (Irodori系・Chatterbox)。納品要件・音声加工フローと事前に照合する。"))
-story.append(LI("<b>「渡したつもり」を信用しない</b>。役柄条件がモデルに実際へ渡ったかは別問題で、本ベンチでも公開後に条件伝達バグを2系統発見し全量再生成した。<b>実際に消費された条件のレシートを成果物と一緒に保存し、機械検証できる形で検収する</b> — 原因究明と差し替えのコストが桁違いに下がる。"))
-story.append(LI("<b>長時間の量産ランはメモリ管理に注意</b> (Windowsでは生成のたびにGPUメモリ予約が積み上がりPCごと不安定化しうる。テイク境界での解放処理で解決済み)。運用手順は docs/model-onboarding.md 参照。"))
+caps_rows = [
+    # (model, emotion, voice_prompt, clone, nonverbal, reading)
+    ("AivisSpeech コハク", True, False, False, False, True),
+    ("Supertonic 3", False, False, False, False, True),
+    ("Chatterbox V3", True, False, True, False, False),
+    ("CosyVoice 3", True, False, True, False, True),
+    ("GPT-SoVITS v2ProPlus", False, False, True, False, True),
+    ("Irodori-TTS v3", True, True, True, True, True),
+    ("Irodori-TTS v4", True, True, True, True, False),
+    ("Qwen3-TTS", False, True, True, False, False),
+    ("VoxCPM2", True, True, True, False, True),
+]
+cap_data = [[P("モデル", cellb), P("感情の指示", midb), P("声質の説明文", midb),
+             P("見本音声", midb), P("非言語音", midb), P("読み仮名指定", midb)]]
+for name, e, vp, c, n, r in caps_rows:
+    cap_data.append([P(name, cellb), ox(e), ox(vp), ox(c), ox(n), ox(r)])
 
-story.append(Spacer(1, 4))
+ct = Table(cap_data, colWidths=[40*mm, 28*mm, 28*mm, 28*mm, 28*mm, 28*mm], repeatRows=1)
+cstyle = [
+    ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#f5f5f4")),
+    ("LINEBELOW", (0, 0), (-1, 0), 0.9, colors.HexColor("#a8a29e")),
+    ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+    ("TOPPADDING", (0, 0), (-1, -1), 2.6),
+    ("BOTTOMPADDING", (0, 0), (-1, -1), 2.6),
+    ("LEFTPADDING", (0, 0), (-1, -1), 4),
+]
+for i in range(1, len(cap_data)):
+    cstyle.append(("LINEBELOW", (0, i), (-1, i), 0.4, LINE))
+    if i % 2 == 0:
+        cstyle.append(("BACKGROUND", (0, i), (-1, i), colors.HexColor("#fafaf9")))
+ct.setStyle(TableStyle(cstyle))
+story.append(KeepTogether([
+    H2("2b. 各モデルが受け付ける入力要素 (公開データと同一の真値)"),
+    ct,
+    Spacer(1, 2),
+    P("○=対応。<b>感情の指示</b>=感情や強度を指定できる ／ <b>声質の説明文</b>=文章で声を作れる ／ <b>見本音声</b>=クローン元を渡せる ／ <b>非言語音</b>=笑い・ため息などの表現指示 ／ <b>読み仮名指定</b>=漢字の読みを指定できる。", small),
+]))
+
+# ---- 3. パイプライン ------------------------------------------------------
+story.append(H2("3. 量産パイプライン — 5段で回す"))
+
+steps = [
+    ("1", "台本の構造化", "セリフごとに役柄情報 (性別・年齢・声質・感情・強度) をデータで付与する"),
+    ("2", "役の声を固定", "クローン型は見本を役に割当。指示型は役ごとに<b>アンカー音声</b>を先に1つ確定し全セリフで使い回す — <b>感情ごとに変えると別人の声になる</b>"),
+    ("3", "数打ち生成", "1セリフにつき別シードで3〜4テイク。合格3本たまるまで追加"),
+    ("4", "自動チェック", "音量統一 → 音声認識で読み合わせ (誤読検出) → 声の高さで性別検査"),
+    ("5", "人手は最後だけ", "疑義フラグ付きのテイクだけ聴いて選ぶ。全量聴取は不要 (161セリフ×9モデルで実証済み)"),
+]
+step_data = []
+for num, name, desc in steps:
+    step_data.append([
+        P(f"<font color='white'><b>{num}</b></font>", ParagraphStyle(
+            "num", fontName="JPB", fontSize=10, leading=12, alignment=1)),
+        P(f"<b>{name}</b>", cell),
+        P(desc, cell),
+    ])
+st = Table(step_data, colWidths=[8*mm, 30*mm, 142*mm])
+sts = [
+    ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+    ("TOPPADDING", (0, 0), (-1, -1), 3.6),
+    ("BOTTOMPADDING", (0, 0), (-1, -1), 3.6),
+    ("LEFTPADDING", (0, 0), (-1, -1), 4),
+    ("RIGHTPADDING", (0, 0), (-1, -1), 4),
+]
+for i in range(len(step_data)):
+    sts.append(("BACKGROUND", (0, i), (0, i), ACCENT))
+    sts.append(("LINEBELOW", (0, i), (-1, i), 0.4, LINE))
+st.setStyle(TableStyle(sts))
+story.append(st)
+
+# ---- 4. チューニング ------------------------------------------------------
+story.append(H2("4. チューニングのコツ"))
+story.append(LI("<b>クローン型は見本が品質の9割</b>。5〜10秒・雑音なし・目的の演技トーンに近い素材を。権利クリーンな公開素材は少なく、量産の本命は<b>声優と契約した自社収録</b> (収録指示書はモデルの入力要件から自動生成できる設計済み)。"))
+story.append(LI("<b>指示型の説明文は「短く・固定・必須情報のみ」</b>。形容を盛るほど従わなくなる (男性役が女性声化した根本原因)。セリフごとに変えてよいのは感情・演技の指示だけ。"))
+story.append(LI("<b>誤読は曖昧語だけ読み仮名指定</b> (例:「辛(つら)い」)。全文を仮名にするとアクセントが崩れ、外国人風の平板な発音になる。"))
+story.append(LI("<b>全テイクの生成条件 (シード・パラメータ・見本) を記録</b>。当たりテイクの再現・差し替えができる。"))
+
+# ---- 5. 注意 --------------------------------------------------------------
+story.append(H2("5. 注意事項 — これだけは外さない"))
+story.append(LI("<b>権利は「モデル・生成物・見本音声」の3層で別</b>。モデルが商用可でも見本の権利は別途必要。他社TTSの出力を見本や学習に流用するのは規約違反の場合あり。実在人物の声の無断模倣は全モデルで禁止 — 架空キャラ用途に限定。"))
+story.append(LI("<b>一部モデルは出力に不可聴の電子透かしを自動で埋め込む</b> (Irodori系・Chatterbox)。納品要件と事前に照合を。"))
+story.append(LI("<b>「渡したつもり」を信用しない</b>。役柄条件が実際にモデルへ渡ったかは別問題 (本ベンチでも公開後に伝達バグを2系統発見し全量再生成)。実際に使われた条件の記録を成果物とセットで保存し、機械検証できる形で検収する。"))
+
+story.append(Spacer(1, 6))
 story.append(HRFlowable(width="100%", thickness=0.8, color=LINE, spaceAfter=3))
-story.append(P("出典: gaya-bench プロジェクト実測 (15場面161セリフ×9モデル、公開1,449音声+検証用数千テイク)。品質注記は自動判定・人手確認は順次。詳細な根拠はリポジトリの docs/research/ と各Issueに記録。", small))
+story.append(P("出典: gaya-bench 実測 (15場面161セリフ×9モデル、公開1,449音声＋検証用数千テイク)。品質注記は自動判定・人手確認は順次。根拠はリポジトリ docs/research/ と各Issueに記録。", small))
 
 doc.build(story)
 print("OK")
