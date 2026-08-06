@@ -33,6 +33,9 @@ const CANDIDATE_SET_KEYS = [
 ];
 const LINE_KEYS = ["scenario", "line", "scenario_title", "text", "delivery"];
 const MODEL_KEYS = ["id", "name", "version", "license_note", "capabilities"];
+const MODEL_OPTIONAL_KEYS = ["conditioning"];
+const CONDITIONING_KEYS = ["mode", "base_model"];
+const CONDITIONING_MODES = ["human-reference", "text-only"];
 const CAPABILITY_KEYS = ["emotion", "voice_prompt", "clone", "nonverbal", "reading"];
 const CANDIDATE_KEYS = [
   "model",
@@ -58,6 +61,11 @@ interface V4Model {
   readonly version: string;
   readonly license_note: string;
   readonly capabilities: Readonly<Record<string, boolean>>;
+  /** 条件バリアント列 (#201) のみ持つ optional field。 */
+  readonly conditioning?: {
+    readonly mode: string;
+    readonly base_model: string;
+  };
 }
 
 interface V4Candidate {
@@ -292,8 +300,20 @@ function validateModels(value: unknown, label: string): readonly V4Model[] {
   const models = array(value, label);
   const ids = new Set<string>();
   for (const [index, item] of models.entries()) {
-    const model = exactObject(item, MODEL_KEYS, `${label}[${index}]`);
+    const model = exactObject(item, MODEL_KEYS, `${label}[${index}]`, MODEL_OPTIONAL_KEYS);
     const id = pathSegment(model.id, `${label}[${index}].id`);
+    if (model.conditioning !== undefined) {
+      const conditioning = exactObject(
+        model.conditioning,
+        CONDITIONING_KEYS,
+        `${label}[${index}].conditioning`,
+      );
+      const mode = conditioning.mode;
+      if (typeof mode !== "string" || !CONDITIONING_MODES.includes(mode)) {
+        throw new Error(`${label}[${index}].conditioning.mode が不正です: ${String(mode)}`);
+      }
+      pathSegment(conditioning.base_model, `${label}[${index}].conditioning.base_model`);
+    }
     if (ids.has(id)) {
       throw new Error(`model id が重複しています: ${id}`);
     }
@@ -720,11 +740,15 @@ function exactObject(
   value: unknown,
   expectedKeys: readonly string[],
   label: string,
+  optionalKeys: readonly string[] = [],
 ): Record<string, unknown> {
   if (!isPlainObject(value)) {
     throw new Error(`${label} は object である必要があります。`);
   }
-  const actual = Object.keys(value).sort();
+  const optional = new Set(optionalKeys);
+  const actual = Object.keys(value)
+    .filter((key) => !optional.has(key))
+    .sort();
   const expected = [...expectedKeys].sort();
   if (actual.length !== expected.length || actual.some((key, index) => key !== expected[index])) {
     throw new Error(`${label} の key が v4 契約と一致しません: ${actual.join(",")}`);

@@ -69,12 +69,28 @@ export interface ModelCapabilities {
   readonly reading: boolean;
 }
 
+/**
+ * 条件バリアント (#201) の生成条件。
+ *
+ * - `human-reference`: 全役を人間の収録素材へ条件付けた列 (見本あり)
+ * - `text-only`: 全役をモデル自作の見本へ条件付けた列 (見本なし)
+ */
+export type ConditioningMode = "human-reference" | "text-only";
+
+export interface Conditioning {
+  readonly mode: ConditioningMode;
+  /** 同一checkpointを共有する base model の id (`<base_model>--ref` / `--text` の元)。 */
+  readonly base_model: string;
+}
+
 export interface Model {
   readonly id: string;
   readonly name: string;
   readonly version: string;
   readonly license_note: string;
   readonly capabilities: ModelCapabilities;
+  /** 条件バリアント列のみ持つ optional field。単方式モデルには存在しない。 */
+  readonly conditioning?: Conditioning;
 }
 
 export type JsonPrimitive = string | number | boolean | null;

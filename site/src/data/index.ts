@@ -20,6 +20,8 @@ export type {
   Candidate,
   Character,
   CharacterKind,
+  Conditioning,
+  ConditioningMode,
   Curation,
   CreditsData,
   Difficulty,

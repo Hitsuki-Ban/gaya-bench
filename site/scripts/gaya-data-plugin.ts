@@ -58,6 +58,9 @@ const QUALITY_SIGNAL_GROUP_KEYS = [
   "qc_report_sha256",
 ] as const;
 const MODEL_KEYS = ["id", "name", "version", "license_note", "capabilities"] as const;
+const MODEL_OPTIONAL_KEYS = ["conditioning"] as const;
+const CONDITIONING_KEYS = ["mode", "base_model"] as const;
+const CONDITIONING_MODES = new Set<string>(["human-reference", "text-only"]);
 const CAPABILITY_KEYS = ["emotion", "voice_prompt", "clone", "nonverbal", "reading"] as const;
 const CANDIDATE_KEYS = [
   "model",
@@ -941,6 +944,7 @@ function loadManifest(manifestPath: string): Manifest {
     models.map((model) => model.id),
     "manifest model id",
   );
+  assertConditioningColumns(models);
   assertUnique(
     candidates.map((candidate) => candidate.take_id),
     "manifest candidate take_id",
@@ -1051,11 +1055,14 @@ function loadQualitySignals(qualitySignalsPath: string): QualitySignals {
 function validateModel(value: unknown, index: number): Model {
   const label = `manifest models[${index}]`;
   assertRecord(value, label);
-  assertExactKeys(value, MODEL_KEYS, [], label);
+  assertExactKeys(value, MODEL_KEYS, MODEL_OPTIONAL_KEYS, label);
   assertPathSegment(value.id, `${label}.id`);
   assertNonEmptyString(value.name, `${label}.name`);
   assertNonEmptyString(value.version, `${label}.version`);
   assertNonEmptyString(value.license_note, `${label}.license_note`);
+  if (value.conditioning !== undefined) {
+    validateConditioning(value.conditioning, `${label}.conditioning`, value.id as string);
+  }
 
   assertRecord(value.capabilities, `${label}.capabilities`);
   assertExactKeys(value.capabilities, CAPABILITY_KEYS, [], `${label}.capabilities`);
@@ -1064,6 +1071,52 @@ function validateModel(value: unknown, index: number): Model {
   }
 
   return value as unknown as Model;
+}
+
+/**
+ * 条件バリアント列 (#201) の列集合契約。
+ *
+ * 同一 base model の列は (1) `mode` が重複せず (2) models[] 上で隣接している必要がある。
+ * site の比較マトリクスは隣接列を base model 名でグループ化するため、
+ * この不変条件を build 時に固定する。
+ */
+function assertConditioningColumns(models: readonly Model[]): void {
+  assertUnique(
+    models.flatMap((model) =>
+      model.conditioning
+        ? [JSON.stringify([model.conditioning.base_model, model.conditioning.mode])]
+        : [],
+    ),
+    "manifest model conditioning",
+  );
+  const seenBaseModels = new Set<string>();
+  let previousBaseModel: string | null = null;
+  for (const model of models) {
+    const baseModel = model.conditioning?.base_model ?? null;
+    if (baseModel !== previousBaseModel && baseModel !== null) {
+      if (seenBaseModels.has(baseModel)) {
+        throw new GayaDataError(
+          `manifest models の条件バリアント列が隣接していません: ${baseModel}`,
+        );
+      }
+      seenBaseModels.add(baseModel);
+    }
+    previousBaseModel = baseModel;
+  }
+}
+
+/**
+ * 条件バリアント列 (#201) の optional `conditioning` field を検証する。
+ * 単方式モデルは field ごと存在しないため、旧 manifest もそのまま通る。
+ */
+function validateConditioning(value: unknown, label: string, modelId: string): void {
+  assertRecord(value, label);
+  assertExactKeys(value, CONDITIONING_KEYS, [], label);
+  assertEnum(value.mode, CONDITIONING_MODES, `${label}.mode`);
+  assertPathSegment(value.base_model, `${label}.base_model`);
+  if (value.base_model === modelId) {
+    throw new GayaDataError(`${label}.base_model は自分自身を指せません: ${modelId}`);
+  }
 }
 
 function validateCandidate(value: unknown, index: number): Candidate {
@@ -1501,13 +1554,15 @@ function projectModelCredits(manifest: Manifest): readonly ModelCredit[] {
       );
     }
 
-    const sources = extractModelSources(candidates[0]!, model.id);
+    // 条件バリアント列は base model と同一 checkpoint なので、provenance 契約は base id で引く。
+    const provenanceId = model.conditioning?.base_model ?? model.id;
+    const sources = extractModelSources(candidates[0]!, model.id, provenanceId);
     if (sources.length === 0) {
       throw new GayaDataError(`model ${model.id} のコード・ウェイト provenance がありません。`);
     }
     const expected = JSON.stringify(sources);
     for (const candidate of candidates.slice(1)) {
-      const actual = JSON.stringify(extractModelSources(candidate, model.id));
+      const actual = JSON.stringify(extractModelSources(candidate, model.id, provenanceId));
       if (actual !== expected) {
         throw new GayaDataError(`model ${model.id} の candidate 間で provenance が一致しません。`);
       }
@@ -1516,16 +1571,20 @@ function projectModelCredits(manifest: Manifest): readonly ModelCredit[] {
   });
 }
 
-function extractModelSources(candidate: Candidate, modelId: string): readonly ModelSourceLink[] {
+function extractModelSources(
+  candidate: Candidate,
+  modelId: string,
+  provenanceId: string = modelId,
+): readonly ModelSourceLink[] {
   const requested = candidate.gen_params.requested;
   assertRecord(requested, `model ${modelId} requested provenance`);
-  if (modelId === AIVIS_MODEL_ID) {
+  if (provenanceId === AIVIS_MODEL_ID) {
     return extractAivisSources(requested);
   }
-  if (modelId === IRODORI_MODEL_ID) {
+  if (provenanceId === IRODORI_MODEL_ID) {
     return extractIrodoriSources(requested);
   }
-  if (modelId === IRODORI_V4_MODEL_ID) {
+  if (provenanceId === IRODORI_V4_MODEL_ID) {
     return extractIrodoriV4Sources(requested);
   }
 

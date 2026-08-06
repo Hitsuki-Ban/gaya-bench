@@ -286,6 +286,133 @@ describe("loadBenchmarkData v4", () => {
     });
   });
 
+  it("条件バリアント列を base model の provenance で credits へ投影する", () => {
+    const manifest = variantManifest();
+
+    const data = loadBenchmarkData(
+      createFixture(
+        manifest,
+        validScenario(),
+        validVoiceMetadata(),
+        validQualitySignals("irodori-tts-v4-small--ref"),
+      ),
+    );
+
+    expect(data.release.models.map(({ id }) => id)).toEqual([
+      "irodori-tts-v4-small--ref",
+      "irodori-tts-v4-small--text",
+    ]);
+    expect(data.release.models[0]?.conditioning).toEqual({
+      mode: "human-reference",
+      base_model: "irodori-tts-v4-small",
+    });
+    expect(data.release.models[1]?.conditioning).toEqual({
+      mode: "text-only",
+      base_model: "irodori-tts-v4-small",
+    });
+    // base id ではなく variant id で credits を引けること、中身は base の provenance であること。
+    expect(data.credits.model_sources.map(({ model }) => model)).toEqual([
+      "irodori-tts-v4-small--ref",
+      "irodori-tts-v4-small--text",
+    ]);
+    for (const credit of data.credits.model_sources) {
+      expect(credit.sources.map(({ kind }) => kind)).toEqual(["code", "weights"]);
+      expect(credit.sources[1]?.repository).toBe("Aratako/Irodori-TTS-v4-Small");
+    }
+  });
+
+  it("単方式モデルの manifest は conditioning なしのまま受け入れる", () => {
+    const data = loadBenchmarkData(createFixture());
+
+    expect(data.release.models[0]?.conditioning).toBeUndefined();
+    expect("conditioning" in data.release.models[0]!).toBe(false);
+  });
+
+  it.each([
+    {
+      name: "未知の内部 key",
+      mutate: (manifest: MutableManifest) => {
+        manifest.models[0]!.conditioning = {
+          mode: "human-reference",
+          base_model: "irodori-tts-v4-small",
+          note: "extra",
+        };
+      },
+      message: "manifest models[0].conditioning の項目が一致しません",
+    },
+    {
+      name: "未知の mode",
+      mutate: (manifest: MutableManifest) => {
+        manifest.models[0]!.conditioning = {
+          mode: "voice-design",
+          base_model: "irodori-tts-v4-small",
+        };
+      },
+      message: "manifest models[0].conditioning.mode が許可された値ではありません",
+    },
+    {
+      name: "空の base_model",
+      mutate: (manifest: MutableManifest) => {
+        manifest.models[0]!.conditioning = { mode: "human-reference", base_model: "" };
+      },
+      message: "manifest models[0].conditioning.base_model は安全な path segment",
+    },
+    {
+      name: "自分自身を指す base_model",
+      mutate: (manifest: MutableManifest) => {
+        manifest.models[0]!.conditioning = {
+          mode: "human-reference",
+          base_model: "irodori-tts-v4-small--ref",
+        };
+      },
+      message: "base_model は自分自身を指せません",
+    },
+    {
+      name: "同一 base の mode 重複",
+      mutate: (manifest: MutableManifest) => {
+        manifest.models[1]!.conditioning = {
+          mode: "human-reference",
+          base_model: "irodori-tts-v4-small",
+        };
+      },
+      message: "manifest model conditioning が重複しています",
+    },
+  ])("不正な conditioning ($name) を build 時に拒否する", ({ mutate, message }) => {
+    const manifest = variantManifest();
+    mutate(manifest);
+    expect(() =>
+      loadBenchmarkData(
+        createFixture(
+          manifest,
+          validScenario(),
+          validVoiceMetadata(),
+          validQualitySignals("irodori-tts-v4-small--ref"),
+        ),
+      ),
+    ).toThrow(message);
+  });
+
+  it("同一 base model の列が離れている manifest を拒否する", () => {
+    const manifest = variantManifest();
+    const [variantRef, variantText] = [manifest.models[0]!, manifest.models[1]!];
+    const single = structuredClone(variantRef);
+    single.id = "aivisspeech-kohaku";
+    single.name = "Single";
+    delete single.conditioning;
+    manifest.models = [variantRef, single, variantText];
+
+    expect(() =>
+      loadBenchmarkData(
+        createFixture(
+          manifest,
+          validScenario(),
+          validVoiceMetadata(),
+          validQualitySignals("irodori-tts-v4-small--ref"),
+        ),
+      ),
+    ).toThrow("条件バリアント列が隣接していません: irodori-tts-v4-small");
+  });
+
   it("reference voice metadata を exact validation し scenario 参照と結合する", () => {
     const unknownReference = validScenario().replace(
       "voice: Clear",
@@ -765,6 +892,7 @@ interface MutableManifest {
     version: string;
     license_note: string;
     capabilities: Record<string, boolean>;
+    conditioning?: Record<string, unknown>;
   }>;
   candidates: MutableCandidate[];
   curations: Array<{
@@ -938,6 +1066,76 @@ function manifestForModel(modelId: string, requested: Record<string, unknown>): 
     failure.model = modelId;
   }
   return manifest;
+}
+
+/**
+ * 条件バリアント列 (#201) の manifest fixture。
+ * 同一 checkpoint の base model から `--ref` / `--text` の 2 列を派生させる。
+ */
+function variantManifest(): MutableManifest {
+  const baseModel = "irodori-tts-v4-small";
+  const manifest = manifestForModel(`${baseModel}--ref`, {
+    checkpoint: "Aratako/Irodori-TTS-v4-Small",
+    checkpoint_revision: "e4aaac4df355ff560dcd35e0dae272c3a759317b",
+    upstream_revision: "8ca3acb58ab4e19ad6d594aaed6bafe3e88f7f71",
+  });
+  manifest.models[0]!.name = "Irodori-TTS v4-Small（見本あり）";
+  manifest.models[0]!.conditioning = { mode: "human-reference", base_model: baseModel };
+
+  const textModelId = `${baseModel}--text`;
+  const textModel = structuredClone(manifest.models[0]!);
+  textModel.id = textModelId;
+  textModel.name = "Irodori-TTS v4-Small（見本なし）";
+  textModel.conditioning = { mode: "text-only", base_model: baseModel };
+  manifest.models.push(textModel);
+
+  const takeIdByGroup = new Map<string, string>();
+  const textCandidates = manifest.candidates.map((source, index) => {
+    const candidate = retargetCandidate(source, textModelId, index + 1);
+    takeIdByGroup.set(`${candidate.line}/${candidate.take_index}`, candidate.take_id);
+    return candidate;
+  });
+  manifest.candidates.push(...textCandidates);
+  manifest.curations.push(
+    ...manifest.curations.map((curation) => ({
+      ...structuredClone(curation),
+      model: textModelId,
+      ...(curation.take_id === undefined
+        ? {}
+        : { take_id: takeIdByGroup.get(`${curation.line}/2`)! }),
+    })),
+  );
+  manifest.failures.push(
+    ...manifest.failures.map((failure) => ({ ...structuredClone(failure), model: textModelId })),
+  );
+  return manifest;
+}
+
+function retargetCandidate(
+  source: MutableCandidate,
+  modelId: string,
+  seed: number,
+): MutableCandidate {
+  const audioSha = seed.toString(16).padStart(64, "0");
+  const generationInputSha = (seed + 0x1000).toString(16).padStart(64, "0");
+  const takeId = createHash("sha256")
+    .update(
+      JSON.stringify({
+        final_opus_sha256: audioSha,
+        generation_input_sha256: generationInputSha,
+      }),
+    )
+    .digest("hex");
+  return {
+    ...structuredClone(source),
+    model: modelId,
+    sha256: audioSha,
+    generation_input_sha256: generationInputSha,
+    take_id: takeId,
+    path:
+      `audio/takes/${modelId}/${source.scenario}/${source.line}/${source.variant}/` +
+      `take-${String(source.take_index).padStart(4, "0")}-${audioSha}.opus`,
+  };
 }
 
 function manifestWithSelectedReference(
